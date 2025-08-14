@@ -626,7 +626,7 @@ class TestIndexPutInplaceAPI(unittest.TestCase):
         self.accumulate = False
 
     def setPlace(self):
-        self.place = get_places(string_format=True)
+        self.place = get_places()
 
     def test_dygraph_forward(self):
         paddle.disable_static()

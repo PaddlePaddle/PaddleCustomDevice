@@ -33,7 +33,7 @@ static const std::vector<std::string> KPirMetaxGpuPasses{
     "fused_weight_only_linear_pass",
     "matmul_add_act_fuse_pass",
     "fc_elementwise_layernorm_fuse_pass",
-    "add_norm_fuse_pass",
+    // "add_norm_fuse_pass",
     "group_norm_silu_fuse_pass",
     "matmul_scale_fuse_pass",
     "matmul_transpose_fuse_pass",

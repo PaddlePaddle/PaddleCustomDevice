@@ -339,13 +339,13 @@ PD_REGISTER_PLUGIN_KERNEL(
 PD_REGISTER_PLUGIN_KERNEL(
     pool3d, metax_gpu, ALL_LAYOUT, phi::Pool3dGPUDNNKernel, float, float16) {}
 #else
-PD_REGISTER_PLUGIN_KERNEL(pool2d,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::Pool2dGPUDNNKernel,
-                          float,
-                          double,
-                          float16) {}
+// PD_REGISTER_PLUGIN_KERNEL(pool2d,
+//                           metax_gpu,
+//                           ALL_LAYOUT,
+//                           phi::Pool2dGPUDNNKernel,
+//                           float,
+//                           double,
+//                           float16) {}
 PD_REGISTER_PLUGIN_KERNEL(pool3d,
                           metax_gpu,
                           ALL_LAYOUT,

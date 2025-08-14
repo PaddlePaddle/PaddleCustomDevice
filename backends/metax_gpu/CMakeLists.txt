@@ -441,7 +441,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rprop_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rrelu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rrelu_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/searchsorted_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/segment_pool_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/segment_pool_kernel.cu
@@ -509,8 +508,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rprop_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rrelu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rrelu_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_nd_add_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/searchsorted_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/segment_pool_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/segment_pool_kernel.cu

@@ -775,6 +775,21 @@ index 148d72ca9c..5da3461ebf 100644
  
  namespace phi {
  namespace fusion {
+diff --git a/paddle/phi/kernels/gpu/depthwise_conv.h b/paddle/phi/kernels/gpu/depthwise_conv.h
+index b16553589a..90080c375d 100644
+--- a/paddle/phi/kernels/gpu/depthwise_conv.h
++++ b/paddle/phi/kernels/gpu/depthwise_conv.h
+@@ -29,8 +29,8 @@ namespace cub = hipcub;
+ #include "paddle/phi/backends/gpu/gpu_device_function.h"
+ #include "paddle/phi/backends/gpu/gpu_primitives.h"
+ #include "paddle/phi/kernels/funcs/math_function.h"
+-#include "paddle/phi/kernels/gpudnn/conv_gpudnn.h"
+-#include "paddle/phi/kernels/impl/conv_cudnn_impl.h"
++#include "kernels/gpudnn/conv_gpudnn.h"
++#include "kernels/impl/conv_cudnn_impl.h"
+ 
+ namespace phi {
+ // To determine use cudnn or not.
 diff --git a/paddle/phi/kernels/gpu/gelu_funcs.h b/paddle/phi/kernels/gpu/gelu_funcs.h
 index 29fa252e96..4ae72b0935 100644
 --- a/paddle/phi/kernels/gpu/gelu_funcs.h

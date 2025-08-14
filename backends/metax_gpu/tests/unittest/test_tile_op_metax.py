@@ -34,8 +34,9 @@ class TestTileOpRank1(OpTest):
         self.public_python_api = paddle.tile
         self.init_data()
         self.if_enable_cinn()
+        self.dtype = np.float32
 
-        self.inputs = {"X": np.random.random(self.ori_shape).astype("float64")}
+        self.inputs = {"X": np.random.random(self.ori_shape).astype(self.dtype)}
         self.attrs = {"repeat_times": self.repeat_times}
         output = np.tile(self.inputs["X"], self.repeat_times)
         self.outputs = {"Out": output}
@@ -575,4 +576,5 @@ class Testfp16TileOp(unittest.TestCase):
 
 if __name__ == "__main__":
     paddle.enable_static()
+    # paddle.set_default_dtype('float32')
     unittest.main()

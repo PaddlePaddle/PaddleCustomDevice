@@ -815,6 +815,19 @@ index 29fa252e96..4ae72b0935 100644
    return tanhf(x);
  }
  
+diff --git a/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h b/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h
+index 14b24dd3ed..e54a342c98 100644
+--- a/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h
++++ b/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h
+@@ -21,7 +21,7 @@ limitations under the License. */
+ #include "paddle/phi/common/amp_type_traits.h"
+ #include "paddle/phi/kernels/addmm_grad_kernel.h"
+ #include "paddle/phi/kernels/full_kernel.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
+ #include "paddle/phi/kernels/funcs/eigen/common.h"
+ #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
+ #include "paddle/phi/kernels/funcs/for_range.h"
 diff --git a/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h b/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h
 index 06fff0dd58..973049105f 100644
 --- a/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h

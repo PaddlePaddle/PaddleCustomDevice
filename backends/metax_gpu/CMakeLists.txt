@@ -138,7 +138,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/as_real_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/asgd_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/assign_pos_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scale_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/amp_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/angle_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/angle_kernel.cu
@@ -164,7 +163,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/diag_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/einsum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/einsum_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_unpermute_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/elementwise_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/decode_jpeg_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/nvjpeg.cc
@@ -225,15 +223,11 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/squeeze_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/squeeze_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_sample_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_sample_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sign_kernel.cu.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/split_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_nd_add_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_nd_add_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/soft_relu_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gather_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multinomial_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mean_all_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mean_all_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multiplex_kernel.cu
@@ -244,7 +238,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_k_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/where_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/where_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/assign_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/empty_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/flatten_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/flatten_grad_kernel.cc
@@ -265,12 +258,10 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/tril_triu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unbind_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/gather_scatter_functor.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multinomial_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fc_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/fc_functor.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
   ${CMAKE_SOURCE_DIR}/kernels/gpudnn/soft.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_grad_kernel.cu
@@ -372,9 +363,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/nop_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lod_reset_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mode_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_as_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/overlap_add_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/randperm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/maxout_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lu_unpack_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/pixel_shuffle_kernel.cu
@@ -389,23 +378,16 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/momentum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/pixel_shuffle_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lu_unpack_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_scatter_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/renorm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/nll_loss_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/nanmedian_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/renorm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/margin_cross_entropy_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/masked_fill_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/number_count_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lrn_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/pool_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/poisson_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/random_routing_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/nms_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/radam_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/masked_fill_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_as_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/pad_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/prod_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/nadam_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/prune_gate_by_capacity_kernel.cu
@@ -420,18 +402,17 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moving_average_abs_max_scale_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/masked_select_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scale_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/solve_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/radam_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/random_routing_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/renorm_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rmsprop_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scale_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/randperm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_as_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_as_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_scatter_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/renorm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/renorm_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rmsprop_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_align_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_align_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_pool_grad_kernel.cu
@@ -457,7 +438,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sequence_pool_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sequence_softmax_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sequence_softmax_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/set_value_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sgd_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/share_data_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/shard_index_kernel.cu
@@ -487,79 +467,11 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/viterbi_decode_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/warprnnt_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/yolo_box_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scale_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/solve_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/radam_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/random_routing_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/randperm_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_as_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_as_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_scatter_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/renorm_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/renorm_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rmsprop_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_align_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_align_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_pool_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_pool_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roll_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roll_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rprop_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rrelu_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rrelu_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/searchsorted_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/segment_pool_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/segment_pool_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/selu_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/send_u_recv_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/send_u_recv_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/send_ue_recv_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/send_ue_recv_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/send_uv_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/send_uv_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sequence_expand_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sequence_mask_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sequence_pool_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sequence_pool_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sequence_softmax_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sequence_softmax_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/set_value_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sgd_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/share_data_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/shard_index_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/shuffle_batch_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/shuffle_batch_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sigmoid_cross_entropy_with_logits_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/slogdeterminant_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sparse_momentum_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/straight_through_estimator_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/svd_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sync_batch_norm_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sync_comm_stream_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sync_calc_stream_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/temporal_shift_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/temporal_shift_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/trace_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels./gpu/trace_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/trunc_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/trunc_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/truncated_gaussian_random_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unfold_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unfold_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unpool_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unpool_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unstack_grad_kernel_register.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unstack_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/viterbi_decode_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/warprnnt_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/yolo_box_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/kthvalue_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/kthvalue_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/dgc_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gammaincc_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gammaincc_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_min_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/llm_int8_linear_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/baddbmm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/load_kernel.cu
@@ -572,32 +484,20 @@ file(
   # ############################################################################
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/set_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/is_empty_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/dist_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/coalesce_tensor_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_amin_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/squeeze_grad_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/squeeze_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/batch_norm_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_variance_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/flatten_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/shape_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/empty_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_amax_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/prod_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/assign_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reverse_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_mean_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/full_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_any_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/strided_slice_grad_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_sum_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fake_quantize_grad_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_all_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/flatten_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_min_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/check_memory_continue_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/strided_slice_kernel.cc
@@ -620,7 +520,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/clip_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/clip_by_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/uniform_random_batch_size_like_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/adamw_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/get_tensor_from_selected_rows_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/sparse/batch_norm_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/sparse/batch_norm_kernel.cc
@@ -661,7 +560,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/legacy_crop_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/moe_gate_dispatch_and_quant_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/moe_ops_partial_nosoftmaxtopk_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/cal_aux_loss_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/legacy_crop_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/moe_combine_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/moe_gate_dispatch_permute_kernel.cu
@@ -670,9 +568,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/anchor_generator_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/moe_combine_no_weight_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/legacy_expand_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/expand_modality_expert_id_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/moe_gate_dispatch_permute_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/cal_aux_loss_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/moe_ops_partial_nosoftmaxtopk_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/uniform_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu
@@ -697,7 +593,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_stack_transpose_quant_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_rope_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_swiglu_weighted_bwd_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/elementwise_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math_function.cc
   # ${PADDLE_SOURCE_DIR}/paddle/phi/backends/context_pool.cc

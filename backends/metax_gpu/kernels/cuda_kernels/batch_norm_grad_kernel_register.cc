@@ -1,0 +1,32 @@
+/* Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. */
+
+#include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/batch_norm_grad_kernel.h"
+#include "paddle/phi/kernels/sparse/batch_norm_grad_kernel.h"
+
+PD_CUSTOM_KERNEL_REGISTER(batch_norm_coo_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::sparse::BatchNormCooGradKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {
+  kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_COO);
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);  // x_grad
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // scale_grad
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // bias_grad
+  }
+}

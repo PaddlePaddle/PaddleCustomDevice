@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include <chrono>
-#include <limits>
 #include <random>
 
 #include "habanalabs/perf_lib_layer_params.h"
@@ -22,8 +21,6 @@
 #include "kernels/hpu_funcs.h"
 #include "kernels/hpu_operator.h"
 #include "utils/utils.h"
-
-const float NEG_INF = std::numeric_limits<float>::lowest();
 
 namespace custom_kernel {
 
@@ -75,19 +72,18 @@ class TopP : public HpuFusedOperator {
     std::vector<synTensor> less_equal_outs = {mask};
     AddNodeLessEqual<T>(less_equal_ins, less_equal_outs, guid_ + "less_equal");
 
-    // Scalar Node neg_inf
+    // Scalar Node Zero
     std::vector<int64_t> scalar_dims = {1};
-    auto neg_inf =
-        createTensorNoPresist("neg_inf", syn_type_float, scalar_dims);
+    auto zero = createTensorNoPresist("zero", syn_type_float, scalar_dims);
     ns_ConstantKernel::Params const_params;
-    const_params.constant.f = NEG_INF;
-    std::vector<synTensor> full_out = {neg_inf};
-    AddNodeFull<T>(full_out, const_params, guid_ + "full_neg_inf");
+    const_params.constant.f = 0;
+    std::vector<synTensor> full_out = {zero};
+    AddNodeFull<T>(full_out, const_params, guid_ + "full_zero");
 
     // Where to populate unwanted probs with -inf
     auto filtered_probs =
         createTensorNoPresist("filtered_probs", inputs[0].type, inputs[0].dims);
-    std::vector<synTensor> where_ins = {mask, sorted_probs, neg_inf};
+    std::vector<synTensor> where_ins = {mask, sorted_probs, zero};
     std::vector<synTensor> where_outs = {filtered_probs};
     AddNodeWhere<T>(where_ins, where_outs, guid_ + "where");
 

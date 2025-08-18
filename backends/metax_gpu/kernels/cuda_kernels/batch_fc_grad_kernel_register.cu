@@ -142,7 +142,7 @@ void BatchFCGradOpCUDAKernel(const Context& dev_ctx,
 }
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(batch_fc_grad,
+PD_REGISTER_PLUGIN_KERNEL(batch_fc_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::BatchFCGradOpCUDAKernel,

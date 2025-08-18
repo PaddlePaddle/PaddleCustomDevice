@@ -17,7 +17,7 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/cholesky_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(cholesky_grad,
+PD_REGISTER_PLUGIN_KERNEL(cholesky_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::CholeskyGradKernel,

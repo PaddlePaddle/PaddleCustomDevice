@@ -225,10 +225,26 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IO(inputs, outputs, guid, node_name);
   }
 
+  template <typename T>
+  inline void AddNodeLessEqual(std::vector<synTensor> inputs,
+                               std::vector<synTensor> outputs,
+                               std::string node_name) {
+    std::string guid = "less_equal_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
   inline void AddNodeReshape(std::vector<synTensor> inputs,
                              std::vector<synTensor> outputs,
                              std::string node_name) {
     AddNode_IO(inputs, outputs, "reshape", node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeWhere(std::vector<synTensor> inputs,
+                           std::vector<synTensor> outputs,
+                           std::string node_name) {
+    std::string guid = "where_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
   }
 
   inline void AddNodeTranspose(std::vector<synTensor> inputs,
@@ -287,6 +303,16 @@ class HpuFusedOperator : public HpuOperator {
                                std::string node_name) {
     AddNode_IOP<synGEMMParams>(
         inputs, outputs, params, "batch_gemm", node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeCumsum(std::vector<synTensor> inputs,
+                            std::vector<synTensor> outputs,
+                            ns_CumSumKernel::Params params,
+                            std::string node_name) {
+    std::string guid = "cumsum_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_CumSumKernel::Params>(
+        inputs, outputs, params, guid, node_name);
   }
 
   template <typename T>
@@ -403,6 +429,16 @@ class HpuFusedOperator : public HpuOperator {
                           std::string node_name) {
     std::string guid = "topk";
     AddNode_IOP<ns_TopkNodeV2::ParamsV4>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeMultinomial(std::vector<synTensor> inputs,
+                                 std::vector<synTensor> outputs,
+                                 ns_RandomMultinomial::ParamsV2 params,
+                                 std::string node_name) {
+    std::string guid = "random_multinomial_pt_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_RandomMultinomial::ParamsV2>(
         inputs, outputs, params, guid, node_name);
   }
 

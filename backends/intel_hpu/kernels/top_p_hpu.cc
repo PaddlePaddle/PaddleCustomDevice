@@ -12,451 +12,122 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include <chrono>
+#include <limits>
 #include <random>
 
 #include "habanalabs/perf_lib_layer_params.h"
 #include "habanalabs/synapse_api.h"
 #include "habanalabs/synapse_common_types.h"
 #include "kernels/funcs.h"
+#include "kernels/hpu_funcs.h"
 #include "kernels/hpu_operator.h"
 #include "utils/utils.h"
 
+const float NEG_INF = std::numeric_limits<float>::lowest();
+
 namespace custom_kernel {
 
-class TopP : public HpuOperator {
+class TopP : public HpuFusedOperator {
  public:
-  TopP() : HpuOperator("top_p") {}
+  TopP() : HpuFusedOperator("top_p_sampling") {}
 
-  synTensor AddAddNode(synTensor x,
-                       synTensor y,
-                       synDataType x_dtype,
-                       std::vector<int64_t> x_shape) {
-    synTensor syn_inputs[2] = {x, y};
-    synTensor syn_outputs[1];
-    syn_outputs[0] = {
-        createTensor(x_shape.size(), x_dtype, x_shape, false, "to_remove_s4")};
+  template <typename T>
+  void AddNode(ConvertTensors& ct) {
+    auto inputs = ct.GetTensors();
+    auto outputs = ct.GetTensors(false);
 
-    std::string node_guid = "add_fwd_" + SynDataTypeToStr(x_dtype);
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs,
-                                     syn_outputs,
-                                     2,
-                                     1,
-                                     nullptr,
-                                     0,
-                                     node_guid.c_str(),
-                                     node_guid.c_str(),
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::Reshape synNodeCreate () failed = ",
-             status);
-    return syn_outputs[0];
-  }
+    // TopK Node to get sorted probs and indices
+    ns_TopkNodeV2::ParamsV4 topk_params{};
+    topk_params.bsw = inputs[0].dims[1];
+    topk_params.axis = 0;
+    topk_params.bottomK = false;
+    topk_params.isVcData = false;
+    topk_params.isStable = false;
 
-  synTensor AddCastNode(synTensor x,
-                        synDataType src_dtype,
-                        std::vector<int64_t> dst_shape,
-                        synDataType dst_dtype,
-                        std::string dst_name,
-                        bool create_dst_section = false) {
-    synTensor syn_inputs[1] = {x};
-    synSectionHandle section_shared = nullptr;
-    if (create_dst_section) {
-      section_shared = createSection();
-    }
+    auto probs = createTensorFromCT(&ct, 0);
+    auto sorted_probs =
+        createTensorNoPresist("sorted_probs", inputs[0].type, inputs[0].dims);
+    auto sorted_indices =
+        createTensorNoPresist("sorted_indices", syn_type_int32, inputs[0].dims);
+    std::vector<synTensor> topk_ins = {probs};
+    std::vector<synTensor> topk_outs = {sorted_probs, sorted_indices};
+    AddNodeTopK(topk_ins, topk_outs, topk_params, guid_ + "topk");
 
-    synTensor syn_outputs[1] = {createTensor(dst_shape.size(),
-                                             dst_dtype,
-                                             dst_shape,
-                                             false,
-                                             dst_name.c_str(),
-                                             section_shared)};
-    std::string node_guid = "cast_" + SynDataTypeToStr(src_dtype) + "_to_" +
-                            SynDataTypeToStr(dst_dtype);
+    // Cumsum Node to get cumsum probs
+    auto cumsum_probs =
+        createTensorNoPresist("cumsum_probs", inputs[0].type, inputs[0].dims);
+    std::vector<synTensor> cumsum_ins = {sorted_probs};
+    std::vector<synTensor> cumsum_outs = {cumsum_probs};
+    ns_CumSumKernel::Params cumsum_params{0, 0, 0};
+    AddNodeCumsum<T>(cumsum_ins, cumsum_outs, cumsum_params, guid_ + "cumsum");
 
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs,
-                                     syn_outputs,
-                                     1,
-                                     1,
-                                     nullptr,
-                                     0,
-                                     node_guid.c_str(),
-                                     node_guid.c_str(),
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::Cast0 synNodeCreate() failed = ",
-             status);
+    // Sub to get the cumulative sum before the current element.
+    auto sub_probs =
+        createTensorNoPresist("sub_probs", inputs[0].type, inputs[0].dims);
+    std::vector<synTensor> sub_ins = {cumsum_probs, sorted_probs};
+    std::vector<synTensor> sub_outs = {sub_probs};
+    AddNodeSub<T>(sub_ins, sub_outs, guid_ + "sub");
 
-    return syn_outputs[0];
-  }
+    // Less Equal to get the selected_index
+    auto top_p_value = createTensorFromCT(&ct, 1);
+    auto mask = createTensorNoPresist("mask", syn_type_int8, inputs[0].dims);
+    std::vector<synTensor> less_equal_ins = {sub_probs, top_p_value};
+    std::vector<synTensor> less_equal_outs = {mask};
+    AddNodeLessEqual<T>(less_equal_ins, less_equal_outs, guid_ + "less_equal");
 
-  void AddCastNode(synTensor x, synDataType src_dtype, ConvertTensors* ct) {
-    synTensor syn_inputs[1] = {x};
+    // Scalar Node neg_inf
+    std::vector<int64_t> scalar_dims = {1};
+    auto neg_inf =
+        createTensorNoPresist("neg_inf", syn_type_float, scalar_dims);
+    ns_ConstantKernel::Params const_params;
+    const_params.constant.f = NEG_INF;
+    std::vector<synTensor> full_out = {neg_inf};
+    AddNodeFull<T>(full_out, const_params, guid_ + "full_neg_inf");
 
-    PD_CHECK(ct != nullptr, "[RUNTIME] TopP::Cast1 input ct is a nullptr");
-    auto outputs = ct->GetTensors(false);
-    synTensor syn_outputs[1] = {createTensor(outputs[1].dims.size(),
-                                             outputs[1].type,
-                                             outputs[1].dims,
-                                             true,
-                                             outputs[1].name)};
-    std::string node_guid = "cast_" + SynDataTypeToStr(src_dtype) + "_to_" +
-                            SynDataTypeToStr(outputs[1].type);
+    // Where to populate unwanted probs with -inf
+    auto filtered_probs =
+        createTensorNoPresist("filtered_probs", inputs[0].type, inputs[0].dims);
+    std::vector<synTensor> where_ins = {mask, sorted_probs, neg_inf};
+    std::vector<synTensor> where_outs = {filtered_probs};
+    AddNodeWhere<T>(where_ins, where_outs, guid_ + "where");
 
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs,
-                                     syn_outputs,
-                                     1,
-                                     1,
-                                     nullptr,
-                                     0,
-                                     node_guid.c_str(),
-                                     node_guid.c_str(),
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::Cast1 synNodeCreate() failed = ",
-             status);
-  }
+    // Multinomial to select indices of sorted indices
+    auto selected_indices = createTensorNoPresist(
+        "selected_indices", syn_type_int32, outputs[1].dims);
+    std::random_device rd;
+    auto time_seed =
+        std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    int32_t rd_seed = static_cast<int32_t>(rd() ^ time_seed);
+    ns_RandomMultinomial::ParamsV2 multinomial_params;
+    multinomial_params.num_samples = 1;
+    multinomial_params.replacement = false;
+    multinomial_params.seed = rd_seed;
+    std::vector<synTensor> multinomial_ins = {filtered_probs};
+    std::vector<synTensor> multinomial_outs = {selected_indices};
+    AddNodeMultinomial<T>(multinomial_ins,
+                          multinomial_outs,
+                          multinomial_params,
+                          guid_ + "multinomial");
 
-  synTensor AddCumNode(synTensor x, ConvertTensors* ct) {
-    ns_CumSumKernel::Params params{0, 0, 0};
+    // Gather Elements to get selected token indices
+    auto token_indices =
+        createTensorNoPresist("token_indices", syn_type_int32, outputs[1].dims);
+    ns_GatherKernel::Params gather_params;
+    gather_params.axis = 0;
+    std::vector<synTensor> index_sample_ins = {sorted_indices,
+                                               selected_indices};
+    std::vector<synTensor> index_sample_outs = {token_indices};
+    AddNodeIndexSample<int32_t>(index_sample_ins,
+                                index_sample_outs,
+                                gather_params,
+                                guid_ + "index_sample");
 
-    PD_CHECK(ct != nullptr, "[RUNTIME] TopP::CumSum input ct is a nullptr");
-    auto inputs = ct->GetTensors();
-    std::vector<synTensor> syn_inputs;
-    syn_inputs.push_back(x);
-
-    auto outputs = ct->GetTensors(false);
-    std::vector<synTensor> syn_outputs;
-    syn_outputs.push_back(createTensor(inputs[0].dims.size(),
-                                       inputs[0].type,
-                                       inputs[0].dims,
-                                       false,
-                                       "cumsum_probs"));
-
-    std::string node_guid = "cumsum_fwd_" + SynDataTypeToStr(outputs[0].type);
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs.data(),
-                                     syn_outputs.data(),
-                                     syn_inputs.size(),
-                                     syn_outputs.size(),
-                                     &params,
-                                     sizeof(params),
-                                     node_guid.c_str(),
-                                     "cumsum",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::CumSum synNodeCreate () failed = ",
-             status);
-    return syn_outputs[0];
-  }
-
-  synTensor AddFullNode(synDataType dtype,
-                        std::vector<int64_t> shape,
-                        std::string name,
-                        ns_ConstantKernel::Params params) {
-    synTensor syn_outputs[1] = {
-        createTensor(shape.size(), dtype, shape, false, name)};
-    std::string node_guid = "constant_" + SynDataTypeToStr(dtype);
-    synStatus status = synNodeCreate(graphHandle_,
-                                     nullptr,
-                                     syn_outputs,
-                                     0,
-                                     1,
-                                     &params,
-                                     sizeof(params),
-                                     node_guid.c_str(),
-                                     "constant",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::Full synNodeCreate() failed =  ",
-             status);
-    return syn_outputs[0];
-  }
-
-  synTensor AddGatherElementsNode(synTensor x,
-                                  synDataType x_dtype,
-                                  std::vector<int64_t> shape,
-                                  synTensor index) {
-    synTensor syn_inputs[2] = {x, index};
-    synTensor syn_outputs[1] = {
-        createTensor(shape.size(), x_dtype, shape, false, "probs_restored")};
-
-    std::string node_guid = "gather_elements_fwd_" + SynDataTypeToStr(x_dtype);
-    ns_GatherElementsKernel::Params params;
-    params.axis = 0;
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs,
-                                     syn_outputs,
-                                     2,
-                                     1,
-                                     &params,
-                                     sizeof(params),
-                                     node_guid.c_str(),
-                                     node_guid.c_str(),
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::GatherElements synNodeCreate () failed = ",
-             status);
-    return syn_outputs[0];
-  }
-
-  synTensor AddGreaterNode(synTensor x,
-                           ConvertTensors* ct,
-                           std::string out_name) {
-    PD_CHECK(ct != nullptr, "[RUNTIME] TopP::Greater input ct is a nullptr");
-    auto inputs = ct->GetTensors();
-    std::vector<synTensor> syn_inputs;
-    syn_inputs.push_back(x);
-    syn_inputs.push_back(createTensor(inputs[1].dims.size(),
-                                      inputs[1].type,
-                                      inputs[1].dims,
-                                      true,
-                                      inputs[1].name));
-
-    auto outputs = ct->GetTensors(false);
-    std::vector<synTensor> syn_outputs;
-    syn_outputs.push_back(createTensor(inputs[0].dims.size(),
-                                       syn_type_int8,
-                                       inputs[0].dims,
-                                       false,
-                                       out_name.c_str()));
-
-    std::string node_guid = "greater_fwd_" + SynDataTypeToStr(inputs[1].type);
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs.data(),
-                                     syn_outputs.data(),
-                                     syn_inputs.size(),
-                                     syn_outputs.size(),
-                                     nullptr,
-                                     0,
-                                     node_guid.c_str(),
-                                     "greater",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::Greate synNodeCreate () failed =",
-             status);
-    return syn_outputs[0];
-  }
-
-  synTensor AddIndexFillNode(synTensor x,
-                             synTensor index_features,
-                             synTensor update_features,
-                             ConvertTensors* ct) {
-    PD_CHECK(ct != nullptr, "[RUNTIME] TopP::IndexFill input ct is a nullptr");
-    auto inputs = ct->GetTensors();
-    synTensor syn_inputs[3] = {x, index_features, update_features};
-    synTensor syn_outputs[1] = {createTensor(inputs[0].dims.size(),
-                                             syn_type_int32,
-                                             inputs[0].dims,
-                                             false,
-                                             "to_remove_s3")};
-
-    ns_IndexCopy::Params params{};
-    params.axis = 1;
-    std::string node_guid =
-        "index_copy_fwd_" + SynDataTypeToStr(syn_type_int32);
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs,
-                                     syn_outputs,
-                                     3,
-                                     1,
-                                     &params,
-                                     sizeof(params),
-                                     node_guid.c_str(),
-                                     "IndexFill",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::IndexFill synNodeCreate () failed = ",
-             status);
-    return syn_outputs[0];
-  }
-
-  synTensor AddMultiNomialNode(synTensor x,
-                               synDataType out_dtype,
-                               int seed,
-                               std::string out_name,
-                               ConvertTensors* ct) {
-    synTensor syn_inputs[1] = {x};
-
-    PD_CHECK(ct != nullptr,
-             "[RUNTIME] TopP::MultiNomial input ct is a nullptr");
-    auto outputs = ct->GetTensors(false);
-    synTensor syn_outputs[1] = {createTensor(outputs[1].dims.size(),
-                                             out_dtype,
-                                             outputs[1].dims,
-                                             false,
-                                             out_name.c_str())};
-
-    ns_RandomMultinomial::ParamsV2 params;
-    params.num_samples = 1;
-    params.replacement = false;
-    params.seed = seed;
-
-    std::string node_guid =
-        "random_multinomial_pt_fwd_" + SynDataTypeToStr(outputs[0].type);
-
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs,
-                                     syn_outputs,
-                                     1,
-                                     1,
-                                     &params,
-                                     sizeof(params),
-                                     node_guid.c_str(),
-                                     "multinomial",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::MultiNomial synNodeCreate () failed = ",
-             status);
-    return syn_outputs[0];
-  }
-
-  synTensor AddReshapeNode(synTensor x,
-                           synDataType dtype,
-                           std::vector<int64_t> out_shape,
-                           std::string out_name) {
-    synTensor syn_inputs[1] = {x};
-    synTensor syn_outputs[1] = {createTensor(
-        out_shape.size(), dtype, out_shape, false, out_name.c_str())};
-
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs,
-                                     syn_outputs,
-                                     1,
-                                     1,
-                                     nullptr,
-                                     0,
-                                     "reshape",
-                                     "reshape",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::reshape synNodeCreate () failed = ",
-             status);
-    return syn_outputs[0];
-  }
-
-  std::vector<synTensor> AddTopKNode(ConvertTensors* ct,
-                                     ns_TopkNodeV2::ParamsV4 params) {
-    PD_CHECK(ct != nullptr, "[RUNTIME] TopP::AddTopK0 input ct is a nullptr");
-    auto inputs = ct->GetTensors();
-    auto outputs = ct->GetTensors(false);
-
-    std::vector<synTensor> syn_inputs;
-    syn_inputs.push_back(createTensor(inputs[0].dims.size(),
-                                      inputs[0].type,
-                                      inputs[0].dims,
-                                      true,
-                                      inputs[0].name));
-
-    std::vector<synTensor> syn_outputs;
-    syn_outputs.push_back(createTensor(inputs[0].dims.size(),
-                                       inputs[0].type,
-                                       inputs[0].dims,
-                                       false,
-                                       "sorted_probs"));
-    syn_outputs.push_back(createTensor(inputs[0].dims.size(),
-                                       syn_type_int32,
-                                       inputs[0].dims,
-                                       false,
-                                       "sorted_indices"));
-
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs.data(),
-                                     syn_outputs.data(),
-                                     syn_inputs.size(),
-                                     syn_outputs.size(),
-                                     &params,
-                                     sizeof(params),
-                                     "topk",
-                                     "topk",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::TopK0 synNodeCreate () failed = ",
-             status);
-    return syn_outputs;
-  }
-
-  std::vector<synTensor> AddTopKNode(synTensor x,
-                                     synDataType src_dtype,
-                                     std::vector<int64_t> dst_shape,
-                                     ns_TopkNodeV2::ParamsV4 params,
-                                     ConvertTensors* ct) {
-    PD_CHECK(ct != nullptr, "[RUNTIME] TopP::AddTopK1 input ct is a nullptr");
-    auto inputs = ct->GetTensors();
-    auto outputs = ct->GetTensors(false);
-
-    synTensor syn_inputs[1] = {x};
-    std::vector<synTensor> syn_outputs;
-    syn_outputs.push_back(createTensor(inputs[0].dims.size(),
-                                       inputs[0].type,
-                                       inputs[0].dims,
-                                       false,
-                                       "reverse_values"));
-    syn_outputs.push_back(createTensor(inputs[0].dims.size(),
-                                       syn_type_int32,
-                                       inputs[0].dims,
-                                       false,
-                                       "reverse_indices"));
-
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs,
-                                     syn_outputs.data(),
-                                     1,
-                                     syn_outputs.size(),
-                                     &params,
-                                     sizeof(params),
-                                     "topk",
-                                     "topk",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::TopK1 synNodeCreate () failed = ",
-             status);
-    return syn_outputs;
-  }
-
-  synTensor AddWhereNode(synTensor condition,
-                         synTensor x,
-                         synTensor y,
-                         synDataType out_dtype,
-                         std::vector<int64_t> out_shape,
-                         std::string out_name,
-                         ConvertTensors* ct) {
-    PD_CHECK(ct != nullptr, "[RUNTIME] TopP::Where input ct is a nullptr");
-    auto inputs = ct->GetTensors();
-    synTensor syn_inputs[3] = {condition, x, y};
-    synTensor syn_outputs[1] = {createTensor(
-        out_shape.size(), out_dtype, out_shape, false, out_name.c_str())};
-
-    std::string node_guid = "where_fwd_" + SynDataTypeToStr(out_dtype);
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs,
-                                     syn_outputs,
-                                     3,
-                                     1,
-                                     nullptr,
-                                     0,
-                                     node_guid.c_str(),
-                                     "Where",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] TopP::Where synNodeCreate () failed = ",
-             status);
-    return syn_outputs[0];
+    // Cast to output format int64
+    auto token_indices_out = createTensorFromCT(&ct, 1, false);
+    std::vector<synTensor> cast_ins = {token_indices};
+    std::vector<synTensor> cast_outs = {token_indices_out};
+    AddNodeCast(
+        cast_ins, cast_outs, "cast_i32_to_i64", guid_ + "cast_token_ids");
   }
 };
 }  // namespace custom_kernel
@@ -475,9 +146,6 @@ void TopPSamplingKernel_hpu(const Context& dev_ctx,
                             phi::DenseTensor* ids,
                             phi::DenseTensor* topk_scores,
                             phi::DenseTensor* topk_ids) {
-  auto x_dims = phi::vectorize<int64_t>(x.dims());
-  int length = x_dims[1];
-
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<int64_t>(ids);
 
@@ -487,6 +155,8 @@ void TopPSamplingKernel_hpu(const Context& dev_ctx,
   ct.Add(*out, false);
   ct.Add(*ids, false);
 
+  auto x_dims = phi::vectorize<int64_t>(x.dims());
+  int length = x_dims[1];
   ns_TopkNodeV2::ParamsV4 params{};
   params.bsw = length;
   params.axis = 0;
@@ -502,72 +172,7 @@ void TopPSamplingKernel_hpu(const Context& dev_ctx,
 
   if (recipe == nullptr) {
     TopP op;
-    auto sorted_probs_and_idx = op.AddTopKNode(&ct, params);
-
-    auto cumsum_probs = op.AddCumNode(sorted_probs_and_idx[0], &ct);
-
-    auto to_remove_i8 = op.AddGreaterNode(cumsum_probs, &ct, "to_remove_i8");
-
-    auto to_remove_i32 = op.AddCastNode(to_remove_i8,
-                                        syn_type_int8,
-                                        phi::vectorize(x.dims()),
-                                        syn_type_int32,
-                                        "to_remove_i32");
-
-    std::vector<int64_t> index_features_shape;
-    ns_ConstantKernel::Params constant_params;
-    index_features_shape.push_back(1);
-    constant_params.constant.i = 0;
-    auto index_features = op.AddFullNode(syn_type_int32,
-                                         index_features_shape,
-                                         "index_features",
-                                         constant_params);
-
-    std::vector<int64_t> update_features_shape;
-    update_features_shape.push_back(x_dims[0]);
-    update_features_shape.push_back(1);
-    constant_params.constant.i = 0;
-    auto update_features = op.AddFullNode(syn_type_int32,
-                                          update_features_shape,
-                                          "update_features",
-                                          constant_params);
-
-    // Reserve column 0
-    auto to_remove_s3 = op.AddIndexFillNode(
-        to_remove_i32, index_features, update_features, &ct);
-
-    constant_params.constant.f = 0.0;
-    auto zero_probs =
-        op.AddFullNode(syn_type_float, x_dims, "zero_probs", constant_params);
-
-    auto condition_i8 = op.AddCastNode(
-        to_remove_s3, syn_type_int32, x_dims, syn_type_int8, "condition_i8");
-
-    auto probs_filtered = op.AddWhereNode(condition_i8,
-                                          zero_probs,
-                                          sorted_probs_and_idx[0],
-                                          syn_type_float,
-                                          x_dims,
-                                          "probs_filtered",
-                                          &ct);
-
-    params.bottomK = true;
-    auto reverse_indices = op.AddTopKNode(
-        sorted_probs_and_idx[1], syn_type_int32, x_dims, params, &ct);
-
-    // restore filtered probs into original order
-    auto probs_restored = op.AddGatherElementsNode(
-        probs_filtered, syn_type_float, x_dims, reverse_indices[1]);
-
-    std::random_device rd;
-    auto time_seed =
-        std::chrono::high_resolution_clock::now().time_since_epoch().count();
-    int32_t rd_seed = static_cast<int32_t>(rd() ^ time_seed);
-    auto token_i32 = op.AddMultiNomialNode(
-        probs_restored, syn_type_int32, rd_seed, "token_i32", &ct);
-
-    op.AddCastNode(token_i32, syn_type_int32, &ct);
-
+    op.AddNode<T>(ct);
     op.Compile();
     op_info.setOp(op);
     recipe = op_info.GetRecipe();

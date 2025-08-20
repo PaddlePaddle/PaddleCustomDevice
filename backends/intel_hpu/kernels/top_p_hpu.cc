@@ -33,41 +33,44 @@ class TopP : public HpuFusedOperator {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
+    int candidates = 4096;
+    if (inputs[0].dims[1] < candidates) {
+      candidates = inputs[0].dims[1];
+    }
+    std::vector<int64_t> k_dims = {inputs[0].dims[0], candidates};
+
     // TopK Node to get sorted probs and indices
-    ns_TopkNodeV2::ParamsV4 topk_params{};
-    topk_params.bsw = inputs[0].dims[1];
+    synBeamParams topk_params{};
+    topk_params.bsw = candidates;
     topk_params.axis = 0;
     topk_params.bottomK = false;
-    topk_params.isVcData = false;
-    topk_params.isStable = false;
 
     auto probs = createTensorFromCT(&ct, 0);
     auto sorted_probs =
-        createTensorNoPresist("sorted_probs", inputs[0].type, inputs[0].dims);
+        createTensorNoPresist("sorted_probs", inputs[0].type, k_dims);
     auto sorted_indices =
-        createTensorNoPresist("sorted_indices", syn_type_int32, inputs[0].dims);
+        createTensorNoPresist("sorted_indices", syn_type_int32, k_dims);
     std::vector<synTensor> topk_ins = {probs};
     std::vector<synTensor> topk_outs = {sorted_probs, sorted_indices};
     AddNodeTopK(topk_ins, topk_outs, topk_params, guid_ + "topk");
 
     // Cumsum Node to get cumsum probs
     auto cumsum_probs =
-        createTensorNoPresist("cumsum_probs", inputs[0].type, inputs[0].dims);
+        createTensorNoPresist("cumsum_probs", inputs[0].type, k_dims);
     std::vector<synTensor> cumsum_ins = {sorted_probs};
     std::vector<synTensor> cumsum_outs = {cumsum_probs};
     ns_CumSumKernel::Params cumsum_params{0, 0, 0};
     AddNodeCumsum<T>(cumsum_ins, cumsum_outs, cumsum_params, guid_ + "cumsum");
 
     // Sub to get the cumulative sum before the current element.
-    auto sub_probs =
-        createTensorNoPresist("sub_probs", inputs[0].type, inputs[0].dims);
+    auto sub_probs = createTensorNoPresist("sub_probs", inputs[0].type, k_dims);
     std::vector<synTensor> sub_ins = {cumsum_probs, sorted_probs};
     std::vector<synTensor> sub_outs = {sub_probs};
     AddNodeSub<T>(sub_ins, sub_outs, guid_ + "sub");
 
     // Less Equal to get the selected_index
     auto top_p_value = createTensorFromCT(&ct, 1);
-    auto mask = createTensorNoPresist("mask", syn_type_int8, inputs[0].dims);
+    auto mask = createTensorNoPresist("mask", syn_type_int8, k_dims);
     std::vector<synTensor> less_equal_ins = {sub_probs, top_p_value};
     std::vector<synTensor> less_equal_outs = {mask};
     AddNodeLessEqual<T>(less_equal_ins, less_equal_outs, guid_ + "less_equal");
@@ -82,7 +85,7 @@ class TopP : public HpuFusedOperator {
 
     // Where to populate unwanted probs with -inf
     auto filtered_probs =
-        createTensorNoPresist("filtered_probs", inputs[0].type, inputs[0].dims);
+        createTensorNoPresist("filtered_probs", inputs[0].type, k_dims);
     std::vector<synTensor> where_ins = {mask, sorted_probs, zero};
     std::vector<synTensor> where_outs = {filtered_probs};
     AddNodeWhere<T>(where_ins, where_outs, guid_ + "where");

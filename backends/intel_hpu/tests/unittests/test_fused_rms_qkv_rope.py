@@ -15,8 +15,8 @@
 import unittest
 import numpy as np
 import paddle
-from paddlenlp.transformers.llama.modeling import LlamaRotaryEmbedding
 import paddlenlp_ops
+from paddle import nn
 
 
 import os
@@ -24,6 +24,45 @@ import os
 intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
 
 paddle.device.set_device("intel_hpu")
+
+
+class LlamaRotaryEmbedding(nn.Layer):
+    def __init__(self, dim, max_position_embeddings=2048, base=10000):
+        super().__init__()
+        self.dim = dim
+        self.max_position_embeddings = max_position_embeddings
+        self.base = base
+        # [dim / 2]
+        self.inv_freq = 1.0 / (
+            self.base
+            ** (paddle.cast(paddle.arange(0, self.dim, 2), dtype="float32") / self.dim)
+        )
+        self._set_cos_sin_cache(seq_len=max_position_embeddings)
+
+    def _set_cos_sin_cache(self, seq_len):
+        self.max_seq_len_cached = seq_len
+        # [seq_len]
+        t = paddle.arange(seq_len, dtype="float32")
+        # [seq_len, dim/2]
+        freqs = paddle.einsum("i,j->ij", t, self.inv_freq)
+        # Different from paper, but it uses a different permutation in order to obtain the same calculation
+        # [seq_len, dim]
+        emb = paddle.concat([freqs, freqs], axis=-1)
+        # [1, seqlen, 1, dim]
+        self.cos_cached = emb.cos()[None, :, None, :]
+        self.sin_cached = emb.sin()[None, :, None, :]
+
+    def forward(self, x, seq_len=None):
+        # x: [bs, num_attention_heads, seq_len, head_size]
+        if self.cos_cached.dtype != x.dtype:
+            self.cos_cached = self.cos_cached.cast(x.dtype)
+            self.sin_cached = self.sin_cached.cast(x.dtype)
+        cos = self.cos_cached[:, :seq_len, :, :]
+        sin = self.sin_cached[:, :seq_len, :, :]
+        return (
+            cos.cast(x.dtype) if cos.dtype != x.dtype else cos,
+            sin.cast(x.dtype) if sin.dtype != x.dtype else sin,
+        )
 
 
 def fused_rms_qkv_rope(

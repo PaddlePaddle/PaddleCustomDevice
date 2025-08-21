@@ -188,9 +188,6 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
       env_decode_batch_step ? std::atoi(env_decode_batch_step) : 4;
   const char* env_block_step = std::getenv("BLOCK_STEP_DECODE");
   const int block_step = env_block_step ? std::atoi(env_block_step) : 16;
-  const char* env_max_batches = std::getenv("MAX_BATCHES_PREFILL");
-  const int max_batches_prefill =
-      env_max_batches ? std::atoi(env_max_batches) : 3;
 
   const int max_batches_in = input_ids.shape()[0];
   const int max_seq_len = input_ids.shape()[1];
@@ -209,8 +206,7 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
       paddle::full({1}, 0, phi::DataType::FLOAT32, paddle::CPUPlace());
 
   if (enc_count > 0) {
-    int total_batch =
-        find_bucket(enc_count, batch_step_prefill, max_batches_prefill);
+    int total_batch = enc_count;
     auto valid_batches_tensor =
         paddle::full({static_cast<int64_t>(valid_batches_enc.size())},
                      0,

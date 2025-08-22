@@ -21,6 +21,7 @@ from paddle import _C_ops, base, zeros_like
 from paddle.base import Program, program_guard
 from paddle.base.framework import convert_np_dtype_to_dtype_
 
+
 class TestZerosLikeAPI(unittest.TestCase):
     def test_api(self):
         shape = [3, 4]

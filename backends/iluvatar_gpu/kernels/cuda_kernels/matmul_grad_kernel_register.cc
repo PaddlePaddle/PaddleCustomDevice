@@ -12,12 +12,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "../impl/matmul_grad_kernel_impl.h"
-#include "paddle/phi/common/complex.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/impl/matmul_grad_kernel_impl.h"
 #include "paddle/phi/kernels/matmul_grad_kernel.h"
 
-PD_REGISTER_PLUGIN_KERNEL(matmul_grad,
+PD_CUSTOM_KERNEL_REGISTER(matmul_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MatmulGradKernel,
@@ -26,7 +25,7 @@ PD_REGISTER_PLUGIN_KERNEL(matmul_grad,
                           phi::dtype::bfloat16,
                           phi::dtype::complex<float>) {}
 
-PD_REGISTER_PLUGIN_KERNEL(matmul_double_grad,
+PD_CUSTOM_KERNEL_REGISTER(matmul_double_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MatmulDoubleGradKernel,
@@ -34,7 +33,7 @@ PD_REGISTER_PLUGIN_KERNEL(matmul_double_grad,
                           phi::dtype::float16,
                           phi::dtype::complex<float>) {}
 
-PD_REGISTER_PLUGIN_KERNEL(matmul_triple_grad,
+PD_CUSTOM_KERNEL_REGISTER(matmul_triple_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MatmulTripleGradKernel,
@@ -42,7 +41,7 @@ PD_REGISTER_PLUGIN_KERNEL(matmul_triple_grad,
                           phi::dtype::float16,
                           phi::dtype::complex<float>) {}
 
-PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten_grad,
+PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MatmulWithFlattenGradKernel,
@@ -50,7 +49,7 @@ PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten_grad,
                           phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten_double_grad,
+PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten_double_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MatmulWithFlattenDoubleGradKernel,
@@ -58,7 +57,7 @@ PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten_double_grad,
                           phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(legacy_matmul_grad,
+PD_CUSTOM_KERNEL_REGISTER(legacy_matmul_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LegacyMatmulGradKernel,

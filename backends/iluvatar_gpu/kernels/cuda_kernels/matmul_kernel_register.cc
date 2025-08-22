@@ -12,13 +12,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "../impl/matmul_kernel_impl.h"
-#include "paddle/phi/backends/gpu/gpu_context.h"
-#include "paddle/phi/common/complex.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/impl/matmul_kernel_impl.h"
 #include "paddle/phi/kernels/matmul_kernel.h"
 
-PD_REGISTER_PLUGIN_KERNEL(matmul,
+PD_CUSTOM_KERNEL_REGISTER(matmul,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MatmulKernel,
@@ -37,7 +35,7 @@ PD_REGISTER_PLUGIN_KERNEL(matmul,
   }
 }
 
-PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten,
+PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MatmulWithFlattenKernel,

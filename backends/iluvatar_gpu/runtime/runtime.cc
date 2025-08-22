@@ -34,6 +34,7 @@
 
 #include "glog/logging.h"
 #include "paddle/phi/backends/device_ext.h"
+#include "paddle/phi/backends/dynload/cublasLt.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/allocator.h"
 #include "paddle/phi/core/enforce.h"
@@ -950,6 +951,69 @@ C_Status XcclRecv(void *recv_buf,
   return C_SUCCESS;
 }
 
+C_Status InitBlasHandle(const C_Device device,
+                        C_BLASHandle *blas_handle,
+                        C_Stream stream) {
+  PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasCreate(
+      reinterpret_cast<cublasHandle_t *>(blas_handle)));
+  PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetStream(
+      *reinterpret_cast<cublasHandle_t *>(blas_handle),
+      reinterpret_cast<cudaStream_t>((stream))));
+  return C_SUCCESS;
+}
+
+C_Status InitBlasLtHandle(const C_Device device,
+                          C_BLASLtHandle *blaslt_handle) {
+  phi::dynload::cublasLtCreate(
+      reinterpret_cast<cublasLtHandle_t *>(blaslt_handle));
+  return C_SUCCESS;
+}
+
+C_Status DestroyBlasLtHandle(const C_Device device,
+                             C_BLASLtHandle blaslt_handle) {
+  if (blaslt_handle != nullptr) {
+    phi::dynload::cublasLtDestroy(
+        reinterpret_cast<cublasLtHandle_t>(blaslt_handle));
+    blaslt_handle = nullptr;
+  }
+  return C_SUCCESS;
+}
+
+C_Status DestroyBlasHandle(const C_Device device, C_BLASHandle blas_handle) {
+  if (blas_handle != nullptr) {
+    phi::dynload::cublasDestroy(reinterpret_cast<cublasHandle_t>(blas_handle));
+    blas_handle = nullptr;
+  }
+  return C_SUCCESS;
+}
+
+C_Status BlasSetMathMode(const C_Device device,
+                         C_BLASHandle blas_handle,
+                         int math_mode) {
+  if (math_mode == 1) {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetMathMode(
+        reinterpret_cast<cublasHandle_t>(blas_handle), CUBLAS_TENSOR_OP_MATH));
+  } else if (math_mode == 2) {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetMathMode(
+        reinterpret_cast<cublasHandle_t>(blas_handle), CUBLAS_TENSOR_OP_MATH));
+    // LOG(WARNING) << "CUBLAS_TF32_TENSOR_OP_MATH is not supported";
+  } else {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetMathMode(
+        reinterpret_cast<cublasHandle_t>(blas_handle), CUBLAS_DEFAULT_MATH));
+  }
+  return C_SUCCESS;
+}
+
+C_Status IsFloat16Supported(const C_Device device, bool *supported) {
+  *supported = true;
+  return C_SUCCESS;
+}
+
+C_Status IsBFloat16Supported(const C_Device device, bool *supported) {
+  *supported = true;
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = const_cast<char *>(DeviceType);
@@ -1029,4 +1093,13 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->profiler_start_tracing = nullptr;
   params->interface->profiler_stop_tracing = nullptr;
   params->interface->profiler_prepare_tracing = nullptr;
+
+  params->interface->is_float16_supported = IsFloat16Supported;
+  params->interface->is_bfloat16_supported = IsBFloat16Supported;
+
+  params->interface->init_blas_handle = InitBlasHandle;
+  params->interface->init_blaslt_handle = InitBlasLtHandle;
+  params->interface->destroy_blas_handle = DestroyBlasHandle;
+  params->interface->destroy_blaslt_handle = DestroyBlasLtHandle;
+  params->interface->blas_set_math_mode = BlasSetMathMode;
 }

@@ -25,13 +25,13 @@ namespace cub = hipcub;
 #include <iostream>
 
 #include "glog/logging.h"
-#include "kernels/funcs/fake_quantize_functor.h"
 #include "paddle/common/ddim.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/common/memory_utils.h"
 #include "paddle/phi/kernels/funcs/aligned_vector.h"
+#include "paddle/phi/kernels/funcs/fake_quantize_functor.h"
 
 namespace phi {
 namespace funcs {
@@ -181,10 +181,10 @@ template <typename T,
           int BYTES_PER_LDG = 16,
           int ELTS_PER_ROW = 1024,
           int THREADS_PER_WARP = WARP_SIZE,
-          int THREADS_PER_ROW = WARPS_N *THREADS_PER_WARP,
-          int THREADS_PER_CTA = WARPS_M *THREADS_PER_ROW,
+          int THREADS_PER_ROW = WARPS_N * THREADS_PER_WARP,
+          int THREADS_PER_CTA = WARPS_M * THREADS_PER_ROW,
           int ROWS_PER_CTA = WARPS_M,
-          int ELTS_PER_ROW_PER_CTA = THREADS_PER_ROW *VecSize,
+          int ELTS_PER_ROW_PER_CTA = THREADS_PER_ROW * VecSize,
           int LDGS = ELTS_PER_ROW / ELTS_PER_ROW_PER_CTA>
 __global__ __launch_bounds__(THREADS_PER_CTA) void fast_ln_fwd_kernel(
     int rows,
@@ -552,10 +552,10 @@ template <bool IsFusedDropoutResidualLn,
           int BYTES_PER_LDG = 16,
           int ELTS_PER_ROW = 1024,
           int THREADS_PER_WARP = WARP_SIZE,
-          int THREADS_PER_ROW = WARPS_N *THREADS_PER_WARP,
-          int THREADS_PER_CTA = WARPS_M *THREADS_PER_ROW,
+          int THREADS_PER_ROW = WARPS_N * THREADS_PER_WARP,
+          int THREADS_PER_CTA = WARPS_M * THREADS_PER_ROW,
           int ROWS_PER_CTA = WARPS_M,
-          int ELTS_PER_ROW_PER_CTA = THREADS_PER_ROW *VecSize,
+          int ELTS_PER_ROW_PER_CTA = THREADS_PER_ROW * VecSize,
           int LDGS = ELTS_PER_ROW / ELTS_PER_ROW_PER_CTA>
 __global__ __launch_bounds__(THREADS_PER_CTA) void fused_ln_bwd_fast_kernel(
     const int rows,
@@ -824,10 +824,10 @@ template <typename U,
           int BYTES_PER_LDG = 4,
           int ELTS_PER_ROW = 1024,
           int THREADS_PER_WARP = WARP_SIZE,
-          int THREADS_PER_ROW = WARPS_N *THREADS_PER_WARP,
-          int THREADS_PER_CTA = WARPS_M *THREADS_PER_ROW,
+          int THREADS_PER_ROW = WARPS_N * THREADS_PER_WARP,
+          int THREADS_PER_CTA = WARPS_M * THREADS_PER_ROW,
           int ROWS_PER_CTA = WARPS_M,
-          int ELTS_PER_ROW_PER_CTA = THREADS_PER_ROW *VecSize,
+          int ELTS_PER_ROW_PER_CTA = THREADS_PER_ROW * VecSize,
           int LDGS = ELTS_PER_ROW / ELTS_PER_ROW_PER_CTA,
           int VEC_COLS = ELTS_PER_ROW / VecSize>
 __global__ __launch_bounds__(THREADS_PER_CTA) void ln_bwd_fast_final_kernel(

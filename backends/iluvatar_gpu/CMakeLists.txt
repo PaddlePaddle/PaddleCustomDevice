@@ -108,12 +108,15 @@ file(
   # cudnn/cublas
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cudnn.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublas.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublasLt.cc
   # kernels/gpu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adamw_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/addmm_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/addmm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/amp_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/arange_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_embedding_grad_kernel.cu
@@ -143,6 +146,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gelu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_put_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/logsumexp_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/matmul_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/matmul_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mean_all_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mean_all_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multinomial_kernel.cu

@@ -199,6 +199,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             scale_one,
             scaling_factor,
             causal=True,
+            softmax_mode=0,
         )
 
         np.testing.assert_allclose(out_linear_out_ref, out_linear_t_op, rtol=1e-2)

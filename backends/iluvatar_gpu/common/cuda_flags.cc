@@ -145,7 +145,7 @@ PHI_DEFINE_EXPORTED_int64(
  */
 PHI_DEFINE_EXPORTED_bool(
     cudnn_exhaustive_search,
-    false,
+    true,
     "Whether enable exhaustive search for cuDNN convolution or "
     "not, default is False.");
 
@@ -180,7 +180,7 @@ PHI_DEFINE_EXPORTED_int64(cudnn_exhaustive_search_times,
  */
 PHI_DEFINE_EXPORTED_bool(
     cudnn_batchnorm_spatial_persistent,
-    false,
+    true,
     "Whether enable CUDNN_BATCHNORM_SPATIAL_PERSISTENT mode for cudnn "
     "batch_norm, default is False.");
 

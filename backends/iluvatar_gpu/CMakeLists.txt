@@ -101,10 +101,12 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cuda_driver.cc
   # Core
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/enforce.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
   # kernels/funcs
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/concat_and_split_functor.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math_function.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/deformable_conv_functor.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math_function.cu
   # cudnn/cublas
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cudnn.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublas.cc
@@ -131,6 +133,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/contiguous_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cum_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cum_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/deformable_conv_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/deformable_conv_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/einsum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/elementwise_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_grad_kernel.cu
@@ -240,7 +244,8 @@ file(
   kernels/cuda_kernels/*.cc
   kernels/cuda_kernels/*.cu
   kernels/ernie_core/*.cu
-  kernels/ernie_core/*.cc)
+  kernels/ernie_core/*.cc
+  kernels/gpudnn/*.cu)
 
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS})
 

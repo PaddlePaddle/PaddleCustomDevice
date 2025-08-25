@@ -432,6 +432,14 @@ class HpuFusedOperator : public HpuOperator {
         inputs, outputs, params, guid, node_name);
   }
 
+  inline void AddNodeTopK(std::vector<synTensor> inputs,
+                          std::vector<synTensor> outputs,
+                          synBeamParams params,
+                          std::string node_name) {
+    std::string guid = "topk";
+    AddNode_IOP<synBeamParams>(inputs, outputs, params, guid, node_name);
+  }
+
   template <typename T>
   inline void AddNodeMultinomial(std::vector<synTensor> inputs,
                                  std::vector<synTensor> outputs,

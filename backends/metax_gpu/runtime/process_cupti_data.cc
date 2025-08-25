@@ -26,7 +26,6 @@
 #include <thread>
 
 #include "paddle/phi/backends/dynload/cupti.h"
-// #include "paddle/fluid/platform/profiler/cuda_tracer.cc"
 
 pid_t gettid() { return syscall(SYS_gettid); }
 
@@ -43,16 +42,12 @@ inline uint64_t PosixInNsec() {
 #endif
 }
 
-// inline uint64_t GetTimeGap() {
-//   static uint64_t time_gap = []() -> uint64_t {
-//     uint64_t cpu_time = PosixInNsec();
-//     uint64_t metax_time = CUpti_GetTimestamp();
-//     return (cpu_time - metax_time);
-//   }();
-//   return time_gap;
-// }
-
-inline std::string demangle(std::string name) { return name; }
+inline std::string demangle(std::string name) {
+  int status = -4;
+  std::unique_ptr<char, void (*)(void*)> res{
+      abi::__cxa_demangle(name.c_str(), NULL, NULL, &status), std::free};
+  return (status == 0) ? res.get() : name;
+}
 
 void AddKernelRecord(const CUpti_ActivityKernel4* kernel,
                      uint64_t start_ns,
@@ -293,16 +288,14 @@ void AddApiRecord(const CUpti_ActivityAPI* api,
   event.start_ns = api->start;
   event.end_ns = api->end;
   event.process_id = phi::GetProcessId();
-  // uint64_t tid = 88888888;
-  // auto iter = tid_mapping.find(api->threadId);
-  // if (iter == tid_mapping.end()) {
-  // } else {
-  //   tid = iter->second;
-  // }
+  uint64_t tid = gettid();
+  auto iter = tid_mapping.find(api->threadId);
+  if (iter == tid_mapping.end()) {
+  } else {
+    tid = iter->second;
+  }
 
-  // event.thread_id = tid;
-
-  event.thread_id = api->threadId;
+  event.thread_id = tid;
 
   event.correlation_id = api->correlationId;
   event.callback_id = api->cbid;

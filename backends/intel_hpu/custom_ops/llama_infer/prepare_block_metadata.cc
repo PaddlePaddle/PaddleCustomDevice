@@ -76,6 +76,21 @@ int find_bucket(int value, const int bstep, const int max_batches) {
 template <typename T>
 void pad_fill(const T* input_p,
               T* padded,
+              int valid_batches_size,
+              int input_linewidth,
+              int padded_linewidth) {
+  int copy_len = std::min(input_linewidth, padded_linewidth);
+#pragma omp parallel for num_threads(OMP_THREAD_NUM)
+  for (int i = 0; i < valid_batches_size; ++i) {
+    for (int j = 0; j < copy_len; ++j) {
+      padded[i * padded_linewidth + j] = input_p[i * input_linewidth + j];
+    }
+  }
+}
+
+template <typename T>
+void pad_fill(const T* input_p,
+              T* padded,
               std::vector<int> valid_batches,
               int input_linewidth,
               int padded_linewidth) {
@@ -173,9 +188,6 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
       env_decode_batch_step ? std::atoi(env_decode_batch_step) : 4;
   const char* env_block_step = std::getenv("BLOCK_STEP_DECODE");
   const int block_step = env_block_step ? std::atoi(env_block_step) : 16;
-  const char* env_max_batches = std::getenv("MAX_BATCHES_PREFILL");
-  const int max_batches_prefill =
-      env_max_batches ? std::atoi(env_max_batches) : 3;
 
   const int max_batches_in = input_ids.shape()[0];
   const int max_seq_len = input_ids.shape()[1];
@@ -194,9 +206,22 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
       paddle::full({1}, 0, phi::DataType::FLOAT32, paddle::CPUPlace());
 
   if (enc_count > 0) {
-    int total_batch =
-        find_bucket(enc_count, batch_step_prefill, max_batches_prefill);
-    auto input_ids_cpu = input_ids.copy_to(paddle::CPUPlace(), true);
+    int total_batch = enc_count;
+    auto valid_batches_tensor =
+        paddle::full({static_cast<int64_t>(valid_batches_enc.size())},
+                     0,
+                     paddle::DataType::INT32,
+                     paddle::CPUPlace());
+    std::memcpy(valid_batches_tensor.data<int>(),
+                valid_batches_enc.data(),
+                valid_batches_enc.size() * sizeof(int));
+    auto batch_ids = custom_kernel::copy_tensor_wrapper(
+        dev_ctx, valid_batches_tensor, hpu_place);
+
+    auto input_ids_selected =
+        paddle::experimental::index_select(input_ids, batch_ids, {0});
+
+    auto input_ids_cpu = input_ids_selected.copy_to(paddle::CPUPlace(), true);
 
     int max_buckets = (max_enc_len + block_size - 1) / block_size;
     int max_prompt_len = max_buckets * block_size;
@@ -207,7 +232,7 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
                                    paddle::CPUPlace());
     pad_fill<int64_t>(const_cast<int64_t*>(input_ids_cpu.data<int64_t>()),
                       reinterpret_cast<int64_t*>(src_padded.data<int64_t>()),
-                      valid_batches_enc,
+                      static_cast<int>(valid_batches_enc.size()),
                       max_seq_len,
                       max_prompt_len);
 
@@ -223,18 +248,6 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
 
     auto blk_padded_hpu =
         custom_kernel::copy_tensor_wrapper(dev_ctx, blk_padded, hpu_place);
-
-    auto valid_batches_tensor =
-        paddle::full({static_cast<int64_t>(valid_batches_enc.size())},
-                     0,
-                     paddle::DataType::INT32,
-                     paddle::CPUPlace());
-    std::memcpy(valid_batches_tensor.data<int>(),
-                valid_batches_enc.data(),
-                valid_batches_enc.size() * sizeof(int));
-
-    auto batch_ids = custom_kernel::copy_tensor_wrapper(
-        dev_ctx, valid_batches_tensor, hpu_place);
 
     auto rope_emb_seg = paddle::experimental::slice(
         rope_emb, {2}, {0}, {max_prompt_len}, {}, {});

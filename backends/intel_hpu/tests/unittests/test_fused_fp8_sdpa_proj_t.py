@@ -87,7 +87,7 @@ def ref_result(
         scaling_factor,
         False,
     )
-    attn_output = attn_output.reshape([bsz, q_len, head_dim * num_heads])
+    attn_output = attn_output.reshape([bsz * q_len, head_dim * num_heads])
 
     out_linear_out = paddle.matmul(attn_output, linear_weights)
 

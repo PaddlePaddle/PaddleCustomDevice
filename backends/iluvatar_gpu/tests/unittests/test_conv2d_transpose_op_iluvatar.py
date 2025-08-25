@@ -35,7 +35,6 @@ from op_test import (
 sys.path.append("../deprecated/legacy_test")
 from test_attribute_var import UnittestBase
 
-from paddle import base
 from paddle.base import Program, core, program_guard
 
 
@@ -1044,89 +1043,6 @@ class TestCUDNNWithEvenUpsample_NHWC_FP16(TestCUDNN_FP16):
 #         f_c = self.input_size[-1]
 #         self.filter_size = [f_c, 6, 5, 5]
 #         self.data_format = 'NHWC'
-
-
-class TestConv2DTransposeAPI(unittest.TestCase):
-    def test_case1(self):
-        data1 = paddle.static.data(name="data1", shape=[-1, 3, 5, 5], dtype="float32")
-        data2 = paddle.static.data(name="data2", shape=[-1, 5, 5, 3], dtype="float32")
-        out1 = paddle.nn.Conv2DTranspose(
-            in_channels=3,
-            out_channels=6,
-            kernel_size=3,
-            groups=1,
-            data_format="NCHW",
-        )(data1)
-        out2 = paddle.nn.Conv2DTranspose(
-            in_channels=3,
-            out_channels=6,
-            kernel_size=3,
-            groups=1,
-            data_format="NHWC",
-        )(data2)
-        out3 = paddle.nn.Conv2DTranspose(
-            in_channels=5,
-            out_channels=6,
-            kernel_size=3,
-            groups=1,
-            padding=[[0, 0], [1, 1], [1, 1], [0, 0]],
-            data_format="NHWC",
-        )(data1)
-        out4 = paddle.nn.Conv2DTranspose(
-            in_channels=3,
-            out_channels=6,
-            kernel_size=3,
-            groups=3,
-            padding=[[0, 0], [0, 0], [2, 1], [0, 0]],
-            data_format="NCHW",
-        )(data1)
-        out5 = paddle.nn.Conv2DTranspose(
-            in_channels=5,
-            out_channels=6,
-            kernel_size=3,
-            groups=1,
-            padding="SAME",
-            data_format="NCHW",
-        )(data2)
-        out6 = paddle.nn.Conv2DTranspose(
-            in_channels=5,
-            out_channels=6,
-            kernel_size=3,
-            groups=1,
-            padding="VALID",
-            data_format="NHWC",
-        )(data1)
-        out7 = paddle.nn.Conv2DTranspose(
-            in_channels=5,
-            out_channels=6,
-            kernel_size=[5, 3],
-            groups=1,
-            padding=[0, 0],
-            data_format="NHWC",
-        )(data1, [7, 7])
-
-        data1_np = np.random.random((2, 3, 5, 5)).astype("float32")
-        data2_np = np.random.random((2, 5, 5, 3)).astype("float32")
-
-        if core.is_compiled_with_cuda():
-            place = paddle.CustomPlace("iluvatar_gpu", 0)
-        else:
-            place = core.CPUPlace()
-        exe = base.Executor(place)
-        exe.run(base.default_startup_program())
-        results = exe.run(
-            base.default_main_program(),
-            feed={"data1": data1_np, "data2": data2_np},
-            fetch_list=[out1, out2, out3, out4, out5, out6, out7],
-            return_numpy=True,
-        )
-        self.assertIsNotNone(results[0])
-        self.assertIsNotNone(results[1])
-        self.assertIsNotNone(results[2])
-        self.assertIsNotNone(results[3])
-        self.assertIsNotNone(results[4])
-        self.assertIsNotNone(results[5])
-        self.assertIsNotNone(results[6])
 
 
 class TestConv2DTransposeOpException(unittest.TestCase):

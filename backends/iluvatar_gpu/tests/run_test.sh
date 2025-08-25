@@ -31,6 +31,18 @@ fi
 
 export LD_PRELOAD="${LD_LIBRARY_PATH}/libcuda.so.1"
 
+CURRENT_DIR=$(pwd)
+PADDLE_SOURCE_DIR="${CURRENT_DIR}/../../../Paddle"
+PATCH_FILE="${CURRENT_DIR}/../patches/paddle-corex-test.patch"
+
+if ! git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null 2>&1; then
+  if ! git -C "$PADDLE_SOURCE_DIR" apply "$PATCH_FILE"; then
+    echo "Error: Failed to apply patch!"
+    exit 1
+  fi
+  echo "Patch applied successfully!"
+fi
+
 mkdir -p build || { echo "ERROR: Failed to create build directory"; exit 1; }
 cd build || { echo "ERROR: Failed to enter build directory"; exit 1; }
 
@@ -48,4 +60,10 @@ ctest --output-on-failure -V || {
 }
 
 echo "=== All tests passed successfully ==="
+
+if git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null 2>&1; then
+  git -C "$PADDLE_SOURCE_DIR" apply --reverse "$PATCH_FILE"
+  echo "Patch successfully reverted!"
+fi
+
 cd - > /dev/null

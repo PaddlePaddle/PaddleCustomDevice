@@ -17,7 +17,6 @@
 
 // NOTE(zhiqiu): better to share the flags, otherwise we will have too many
 // flags.
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 
 /**
  * CUDA related related FLAG
@@ -73,9 +72,7 @@ PHI_DEFINE_EXPORTED_string(
     "reason of doing this is that we want to use P2P communication"
     "between GPU devices, use CUDA_VISIBLE_DEVICES can only use"
     "share-memory only.");
-#endif
 
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 /**
  * CUDA related FLAG
  * Name: FLAGS_cublaslt_exhaustive_search_times
@@ -97,9 +94,7 @@ PHI_DEFINE_EXPORTED_int64(
     0,
     "The times of exhaustive search for cuBlasLt matmul with/without "
     " epilogue algorithms, default is 0, means disabling exhaustive search.");
-#endif
 
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 /**
  * CUDNN related FLAG
  * Name: FLAGS_cudnn_deterministic
@@ -150,7 +145,7 @@ PHI_DEFINE_EXPORTED_int64(
  */
 PHI_DEFINE_EXPORTED_bool(
     cudnn_exhaustive_search,
-    false,
+    true,
     "Whether enable exhaustive search for cuDNN convolution or "
     "not, default is False.");
 
@@ -166,21 +161,6 @@ PHI_DEFINE_EXPORTED_int64(cudnn_exhaustive_search_times,
                           -1,
                           "Exhaustive search times for cuDNN convolution, "
                           "default is -1, not exhaustive search");
-
-#ifdef PADDLE_WITH_HIP
-/**
- * MIOPEN related FLAG
- * Name: FLAGS_batch_norm_use_miopen
- * Since Version:
- * Value Range:
- * Example:
- * Note: Use MIOpen batch norm instead of native
- */
-PHI_DEFINE_EXPORTED_bool(batch_norm_use_miopen,
-                         false,
-                         "Whether use MIOpen batch norm or not, "
-                         "default is false, not use miopen bn");
-#endif
 
 /**
  * CUDNN related FLAG
@@ -200,12 +180,9 @@ PHI_DEFINE_EXPORTED_bool(batch_norm_use_miopen,
  */
 PHI_DEFINE_EXPORTED_bool(
     cudnn_batchnorm_spatial_persistent,
-    false,
+    true,
     "Whether enable CUDNN_BATCHNORM_SPATIAL_PERSISTENT mode for cudnn "
     "batch_norm, default is False.");
-#endif
-
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 
 /**
  * NCCL related FLAG
@@ -222,7 +199,6 @@ PHI_DEFINE_EXPORTED_bool(
     true,
     "If set true, will call `cudaStreamSynchronize(nccl_stream)`"
     "after allreduce, this mode can get better performance in some scenarios.");
-#endif
 
 /**
  * Debug related FLAG
@@ -232,12 +208,10 @@ PHI_DEFINE_EXPORTED_bool(
  * Example:
  * Note: Check kernel launch status after every kernel compute.
  */
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 PHI_DEFINE_EXPORTED_bool(
     check_kernel_launch,
     false,
     "Check kernel launch status after every kernel compute");
-#endif
 
 /**
  * CUDNN related FLAG
@@ -247,7 +221,6 @@ PHI_DEFINE_EXPORTED_bool(
  * Example:
  * Note: Disable cudnn in conv2d.
  */
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 PHI_DEFINE_EXPORTED_bool(conv2d_disable_cudnn,
                          false,
                          "Disable cudnn in conv2d");
@@ -255,19 +228,13 @@ PHI_DEFINE_EXPORTED_bool(conv2d_disable_cudnn,
 PHI_DEFINE_EXPORTED_bool(use_fast_math,
                          false,
                          "Whether to use fast math GPU functions.");
-#endif
 
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 PHI_DEFINE_EXPORTED_bool(nccl_blocking_wait, false, "nccl blocking wait");
-#endif
 
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 PHI_DEFINE_EXPORTED_bool(benchmark_nccl,
                          false,
                          "enable nccl debug mode to synchronize nccl comm");
-#endif
 
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 /**
  * FlashAttention related FLAG
  * Name: FLAGS_flash_attn_version
@@ -283,9 +250,7 @@ PHI_DEFINE_EXPORTED_int32(
     "Specify the version of FlashAttention to use, options are 2 or 3. "
     "Version 2 requires Ampere architecture or higher, "
     "while version 3 requires Hopper architecture.");
-#endif
 
-#ifdef PADDLE_WITH_COREX
 PHI_DEFINE_EXPORTED_int32(
     ixdnn_imp_mode,
     1,
@@ -297,4 +262,3 @@ PHI_DEFINE_EXPORTED_int32(
     0,
     "Whether use the causalMode of ixdnn for flash attention "
     ", default is 0.");
-#endif

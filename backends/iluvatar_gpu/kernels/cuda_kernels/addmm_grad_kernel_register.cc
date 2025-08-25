@@ -13,13 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/addmm_kernel.h"
-#include "paddle/phi/kernels/impl/addmm_kernel_impl.h"
+#include "paddle/phi/kernels/addmm_grad_kernel.h"
+#include "paddle/phi/kernels/impl/addmm_grad_kernel_impl.h"
 
-PD_CUSTOM_KERNEL_REGISTER(addmm,
+PD_CUSTOM_KERNEL_REGISTER(addmm_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::AddmmKernel,
+                          phi::AddmmGradKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

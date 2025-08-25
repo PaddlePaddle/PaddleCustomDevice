@@ -18,6 +18,7 @@
 #include "paddle/phi/backends/gpu/gpu_launch_config.h"
 #include "paddle/phi/core/enforce.h"
 #include "paddle/phi/kernels/empty_kernel.h"
+#include "runtime/iluvatar_context.h"
 
 namespace phi {
 static void RaiseNotSupportedError() {

@@ -26,6 +26,7 @@ limitations under the License. */
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
+#include "runtime/iluvatar_context.h"
 
 #define MATRIX_SOFTMAX_ALIGN_BYTES 16
 #define MATRIX_SOFTMAX_THRESHOLD 100000
@@ -34,50 +35,6 @@ namespace phi {
 
 using ScopedTensorDescriptor = phi::backends::gpu::ScopedTensorDescriptor;
 using GPUDNNDataLayout = phi::backends::gpu::DataLayout;
-
-inline static cudnnHandle_t dnn_handle_ = nullptr;
-
-inline std::once_flag flag_dnn_;
-
-inline void InitDnnHandle(cudnnHandle_t* handle,
-                          gpuStream_t stream,
-                          Place place) {
-  if (phi::dynload::HasCUDNN()) {
-    auto version = phi::dynload::cudnnGetVersion();
-    auto local_cudnn_major =
-        (version < 9000) ? version / 1000 : version / 10000;
-    auto local_cudnn_minor =
-        (version < 9000) ? (version % 1000) / 100 : (version % 10000) / 100;
-    if (version < static_cast<size_t>(CUDNN_VERSION)) {
-      std::cout << "ERROR." << std::endl;
-      // LOG_FIRST_N(WARNING, 1)
-      //     << "WARNING: device: " << static_cast<int>(place.device)
-      //     << ". The installed Paddle is compiled with CUDNN " << CUDNN_MAJOR
-      //     << "." << CUDNN_MINOR << ", but CUDNN version in your machine is "
-      //     << local_cudnn_major << "." << local_cudnn_minor
-      //     << ", which may cause serious incompatible bug. "
-      //     << "Please recompile or reinstall Paddle with compatible CUDNN "
-      //        "version.";
-    }
-    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnCreate(handle));
-    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnSetStream(*handle, stream));
-  } else {
-    *handle = nullptr;
-  }
-}
-
-inline cudnnHandle_t GetDnnHandle(gpuStream_t stream, GPUPlace place) {
-  std::call_once(flag_dnn_, [&]() {
-    if (!dnn_handle_) {
-      InitDnnHandle(&dnn_handle_, stream, place);
-    }
-  });
-  PADDLE_ENFORCE_NOT_NULL(
-      dnn_handle_,
-      common::errors::InvalidArgument(
-          "The GPU dnn handle is nullptr. It must not be null."));
-  return dnn_handle_;
-}
 
 // Vectorization trait 4 * sizeof(T)
 template <typename T>

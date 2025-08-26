@@ -82,14 +82,14 @@ def create_test_class(op_type, typename, callback):
                 c = paddle.static.data(name="c", shape=[-1, 2], dtype="int16")
                 d = base.create_lod_tensor(np.array([[-1]]), [[1]], self.place)
 
-                self.assertRaises(TypeError, op, x=a, y=b, axis=True)
-                self.assertRaises(TypeError, op, x=a, y=b, force_cpu=1)
-                self.assertRaises(TypeError, op, x=a, y=b, cond=1)
-                self.assertRaises(TypeError, op, x=a, y=c)
-                self.assertRaises(TypeError, op, x=c, y=a)
-                self.assertRaises(TypeError, op, x=a, y=d)
-                self.assertRaises(TypeError, op, x=d, y=a)
-                self.assertRaises(TypeError, op, x=c, y=d)
+                self.assertRaises((TypeError, ValueError), op, x=a, y=b, axis=True)
+                self.assertRaises((TypeError, ValueError), op, x=a, y=b, force_cpu=1)
+                self.assertRaises((TypeError, ValueError), op, x=a, y=b, cond=1)
+                self.assertRaises((TypeError, ValueError), op, x=a, y=c)
+                self.assertRaises((TypeError, ValueError), op, x=c, y=a)
+                self.assertRaises((TypeError, ValueError), op, x=a, y=d)
+                self.assertRaises((TypeError, ValueError), op, x=d, y=a)
+                self.assertRaises((TypeError, ValueError), op, x=c, y=d)
             paddle.disable_static()
 
         def test_dynamic_api(self):

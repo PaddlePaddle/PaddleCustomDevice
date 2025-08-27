@@ -35,6 +35,7 @@
 
 #include "habanalabs/hccl.h"
 #include "habanalabs/hccl_types.h"
+#include "kernels/hpu_operator.h"
 #include "paddle/phi/common/type_traits.h"
 #include "utils/mem_hlml.h"
 
@@ -222,7 +223,7 @@ class RuntimeManager {
       streams.insert(h);
       *stream = reinterpret_cast<C_Stream>(h);
       LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-          << "create stream stream = " << h;
+          << "create main work stream stream = " << h;
     }
 
     return C_SUCCESS;
@@ -307,20 +308,27 @@ class RuntimeManager {
                          bool sync = true) {
     synDmaDir dir = static_cast<synDmaDir>(flag);
 
-    synStatus status = synMemCopyAsync(stream, src, size, dst, dir);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] synMemCopyAsync(",
-             dir,
-             ") failed = ",
-             status);
-    if (sync) {
-      status = synStreamSynchronize(stream);
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synStreamSynchronize(",
-               stream,
-               ") failed = ",
-               status);
-    }
+#ifdef ENABLE_ASYNC_RUN
+    GlobalWorkStreamExecutor::instance().sync(
+        [stream, src, size, dst, dir, sync] {
+#endif
+          synStatus status = synMemCopyAsync(stream, src, size, dst, dir);
+          PD_CHECK(status == synSuccess,
+                   "[RUNTIME] synMemCopyAsync(",
+                   dir,
+                   ") failed = ",
+                   status);
+          if (sync) {
+            status = synStreamSynchronize(stream);
+            PD_CHECK(status == synSuccess,
+                     "[RUNTIME] synStreamSynchronize(",
+                     stream,
+                     ") failed = ",
+                     status);
+          }
+#ifdef ENABLE_ASYNC_RUN
+        });
+#endif
   }
 
   C_Status Copy(const C_Device device,
@@ -328,13 +336,10 @@ class RuntimeManager {
                 const void *src,
                 size_t size,
                 size_t flag = 0 /*0 = h2d, 1 = d2h, 2=d2d*/) {
+    auto stream = GetBuiltinStream(flag);
     LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
         << "copy: flag = " << flag << ", size = " << size << ", src = " << src
-        << ", dst = " << dst;
-    synStatus status = synFail;
-
-    auto stream = GetBuiltinStream(flag);
-
+        << ", dst = " << dst << ", use builtin stream = " << stream;
     if (flag == 0) {
       auto block = PreDeviceCopy(src, size, flag);
       DeviceCopy(stream, block, reinterpret_cast<uint64_t>(dst), size, flag);
@@ -365,7 +370,6 @@ class RuntimeManager {
     LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
         << "AsyncCopy: flag = " << flag << ", size = " << size
         << ", stream = " << stream << ", src = " << src << ", dst = " << dst;
-    synStatus status = synFail;
     if (flag == 0) {
       auto block = PreDeviceCopy(src, size, flag);
       DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
@@ -832,21 +836,27 @@ C_Status SyncDevice(const C_Device device) {
 }
 
 C_Status SyncStream(const C_Device device, C_Stream stream) {
-  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-      << "SyncStream: " << static_cast<synModuleId>(device->id) << ", "
-      << reinterpret_cast<const synStreamHandle>(stream);
   LOG_IF(ERROR,
          static_cast<synModuleId>(device->id) != runtimeManager.GetModuleID())
       << "[RUNTIME] moduleID mismatch : moduleID = "
       << runtimeManager.GetModuleID() << ", current = " << device->id;
+  int id = device->id;
+#ifdef ENABLE_ASYNC_RUN
+  GlobalWorkStreamExecutor::instance().sync([stream, id] {
+#endif
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "SyncStream: " << static_cast<synModuleId>(id)
+        << ", main work stream = "
+        << reinterpret_cast<const synStreamHandle>(stream);
+    synStatus status =
+        synStreamSynchronize(reinterpret_cast<const synStreamHandle>(stream));
 
-  synStatus status =
-      synStreamSynchronize(reinterpret_cast<const synStreamHandle>(stream));
-
-  PD_CHECK(status == synSuccess,
-           "[RUNTIME] synStreamSynchronize() failed = ",
-           status);
-
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] synStreamSynchronize() failed = ",
+             status);
+#ifdef ENABLE_ASYNC_RUN
+  });
+#endif
   return C_SUCCESS;
 }
 
@@ -856,6 +866,8 @@ C_Status SyncEvent(const C_Device device, C_Event event) {
       << "[RUNTIME] moduleID mismatch : moduleID = "
       << runtimeManager.GetModuleID() << ", current = " << device->id;
 
+  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+      << "SyncEvent: event = " << reinterpret_cast<synEventHandle>(event);
   synStatus status =
       synEventSynchronize(reinterpret_cast<const synEventHandle>(event));
 
@@ -874,6 +886,10 @@ C_Status StreamWaitEvent(const C_Device device,
       << "[RUNTIME] moduleID mismatch : moduleID = "
       << runtimeManager.GetModuleID() << ", current = " << device->id;
 
+  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+      << "StreamWaitEvent: main work stream = "
+      << reinterpret_cast<const synStreamHandle>(stream)
+      << "event = " << reinterpret_cast<synEventHandle>(event);
   synStatus status =
       synStreamWaitEvent(reinterpret_cast<const synStreamHandle>(stream),
                          reinterpret_cast<synEventHandle>(event),

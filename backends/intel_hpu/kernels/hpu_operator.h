@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef BACKENDS_INTEL_HPU_KERNELS_HPU_OPERATOR_H_
-#define BACKENDS_INTEL_HPU_KERNELS_HPU_OPERATOR_H_
+#ifndef BACKENDS_INTEL_HPU_KERNELS_HPU_OPERATOR_H_  // NOLINT
+#define BACKENDS_INTEL_HPU_KERNELS_HPU_OPERATOR_H_  // NOLINT
 
 #include <assert.h>
 
+#include <condition_variable>
+#include <functional>
+#include <future>
 #include <memory>
+#include <mutex>
+#include <queue>
+#include <thread>
 
 #include "glog/logging.h"
 #include "habanalabs/synapse_api.h"
@@ -26,6 +32,8 @@
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/extension.h"
+
+#define ENABLE_ASYNC_RUN
 
 class HpuOperator {
  public:
@@ -71,6 +79,90 @@ class HpuOperator {
   std::map<std::string, synTensor> tensors_;
 };
 
+#ifdef ENABLE_ASYNC_RUN
+class GlobalWorkStreamExecutor {
+ public:
+  static GlobalWorkStreamExecutor& instance() {
+    static GlobalWorkStreamExecutor executor;
+    return executor;
+  }
+
+  template <typename R>
+  std::future<R> async(std::function<R()> func) {
+    auto task = std::make_shared<std::packaged_task<R()>>(std::move(func));
+    std::future<R> res = task->get_future();
+    add_task([task]() { (*task)(); });
+    return res;
+  }
+
+  template <typename F>
+  auto async(F&& func) -> std::future<decltype(func())> {
+    using R = decltype(func());
+    auto task =
+        std::make_shared<std::packaged_task<R()>>(std::forward<F>(func));
+    std::future<R> res = task->get_future();
+    add_task([task]() { (*task)(); });
+    return res;
+  }
+
+  template <typename R>
+  R sync(std::function<R()> func) {
+    return async(std::move(func)).get();
+  }
+
+  template <typename F>
+  auto sync(F&& func) -> decltype(func()) {
+    return async(std::forward<F>(func)).get();
+  }
+
+ private:
+  GlobalWorkStreamExecutor() {
+    worker_ = std::thread([this]() {
+      while (true) {
+        std::function<void()> task;
+        {
+          std::unique_lock<std::mutex> lock(queue_mutex_);
+          condition_.wait(lock, [this] { return !tasks_.empty() || stop_; });
+
+          if (stop_ && tasks_.empty()) break;
+
+          task = std::move(tasks_.front());
+          tasks_.pop();
+        }
+        task();  // 执行任务
+      }
+    });
+  }
+
+  ~GlobalWorkStreamExecutor() {
+    {
+      std::lock_guard<std::mutex> lock(queue_mutex_);
+      stop_ = true;
+    }
+    condition_.notify_all();
+    if (worker_.joinable()) worker_.join();
+  }
+
+  void add_task(std::function<void()> task) {
+    {
+      std::lock_guard<std::mutex> lock(queue_mutex_);
+      tasks_.emplace(std::move(task));
+    }
+    condition_.notify_one();
+  }
+
+  // 删除拷贝构造和赋值
+  GlobalWorkStreamExecutor(const GlobalWorkStreamExecutor&) = delete;
+  GlobalWorkStreamExecutor& operator=(const GlobalWorkStreamExecutor&) = delete;
+
+  std::thread worker_;
+  std::queue<std::function<void()>> tasks_;
+  std::mutex queue_mutex_;
+  std::condition_variable condition_;
+  bool stop_ = false;
+};
+#endif
+
 class RecipeRunner {
  public:
   explicit RecipeRunner(synRecipeHandle h) : recipeHandle_(h) {}
@@ -79,10 +171,25 @@ class RecipeRunner {
   void prepareTensorInfo(synRecipeHandle recipe,
                          synLaunchTensorInfo* tensorInfo,
                          uint32_t totalNumOfTensors);
-
-  void Run(C_Stream stream, std::map<std::string, uint64_t> tensors);
+#ifdef ENABLE_ASYNC_RUN
+  void Run(C_Stream stream, std::map<std::string, uint64_t> tensors) {
+    synRecipeHandle recipehandle = this->recipeHandle_;
+    auto future = GlobalWorkStreamExecutor::instance().async(
+        [this, stream, tensors, recipehandle] {
+          ExecuteRecipe(stream, tensors, recipehandle);
+        });
+  }
+#else
+  void Run(C_Stream stream, const std::map<std::string, uint64_t>& tensors);
+#endif
 
  protected:
+#ifdef ENABLE_ASYNC_RUN
+  void ExecuteRecipe(C_Stream stream,
+                     const std::map<std::string, uint64_t>& tensors,
+                     synRecipeHandle recipeHandle_);
+#endif
+
   synRecipeHandle recipeHandle_;
 
  private:
@@ -90,4 +197,4 @@ class RecipeRunner {
   C_Status FreeDeviceMem(const uint64_t buffer, const uint64_t size);
 };
 
-#endif  // BACKENDS_INTEL_HPU_KERNELS_HPU_OPERATOR_H_
+#endif  // BACKENDS_INTEL_HPU_KERNELS_HPU_OPERATOR_H_ // NOLINT

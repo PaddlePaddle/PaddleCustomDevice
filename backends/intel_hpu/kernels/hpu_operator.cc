@@ -28,6 +28,9 @@
 #define TOTAL_NUMBER_OF_TENSORS 1024
 
 FLAGS_DEFINE_bool(intel_hpu_sync_execute, false, "set sync execute mode");
+FLAGS_DEFINE_bool(intel_hpu_reciperunner_debug,
+                  false,
+                  "reciperunner debug log");
 
 typedef std::pair<synSectionHandle, bool> sectionWithFirstIndication;
 static std::unordered_map<std::string, sectionWithFirstIndication> sectionMap;
@@ -55,7 +58,8 @@ void HpuOperator::Compile() {
            " eager = ",
            is_eager_);
 
-  VLOG(9) << " synGraphCompile =" << guid_ << ", count = " << recipe_count;
+  LOG_IF(INFO, FLAGS_intel_hpu_reciperunner_debug)
+      << " synGraphCompile =" << guid_ << ", count = " << recipe_count;
   recipe_count += 1;
   // cleanup
   status = synGraphDestroy(graphHandle_);
@@ -137,8 +141,14 @@ void RecipeRunner::prepareTensorInfo(synRecipeHandle recipe,
   }
 }
 
+#ifdef ENABLE_ASYNC_RUN
+void RecipeRunner::ExecuteRecipe(C_Stream stream,
+                                 const std::map<std::string, uint64_t>& tensors,
+                                 synRecipeHandle recipeHandle_) {
+#else
 void RecipeRunner::Run(C_Stream stream,
-                       std::map<std::string, uint64_t> tensors) {
+                       std::map<std::string, uint64_t>& tensors) {
+#endif
   uint64_t request_workspace_size = 0;
   synStatus status =
       synWorkspaceGetSize(&request_workspace_size, recipeHandle_);
@@ -146,8 +156,9 @@ void RecipeRunner::Run(C_Stream stream,
 
   if (request_workspace_size > cached_workspaceSize) {
     if (cached_workspaceSize != 0) {
-      VLOG(6) << "workspace size changed, sync... from " << cached_workspaceSize
-              << " to " << request_workspace_size;
+      LOG_IF(INFO, FLAGS_intel_hpu_reciperunner_debug)
+          << "workspace size changed, sync... from " << cached_workspaceSize
+          << " to " << request_workspace_size;
       status = synStreamSynchronize(reinterpret_cast<synStreamHandle>(stream));
       PD_CHECK(
           status == synSuccess, "synStreamSynchronize() failed = ", status);
@@ -157,15 +168,17 @@ void RecipeRunner::Run(C_Stream stream,
       PD_CHECK(c_status == C_SUCCESS, "FreeDeviceMem() failed = ", c_status);
     }
 
-    VLOG(6) << "malloc device workspace " << request_workspace_size;
+    LOG_IF(INFO, FLAGS_intel_hpu_reciperunner_debug)
+        << "malloc device workspace " << request_workspace_size;
     C_Status c_status =
         MallocDeviceMem(&cached_workspaceAddress, request_workspace_size);
     PD_CHECK(c_status == C_SUCCESS, "MallocDeviceMem() failed = ", c_status);
     cached_workspaceSize = request_workspace_size;
   }
 
-  VLOG(6) << "workspace size = " << cached_workspaceSize
-          << ", stream = " << stream << ", recipe = " << recipeHandle_;
+  LOG_IF(INFO, FLAGS_intel_hpu_reciperunner_debug)
+      << "workspace size = " << cached_workspaceSize << ", stream = " << stream
+      << ", recipe = " << recipeHandle_;
 
   std::vector<synLaunchTensorInfo> concatTensors;
   for (auto& tensor : tensors) {
@@ -181,7 +194,7 @@ void RecipeRunner::Run(C_Stream stream,
                      0);
 
   PD_CHECK(status == synSuccess, "synLaunch() failed = ", status);
-  VLOG(6) << "synLaunch called ";
+  LOG_IF(INFO, FLAGS_intel_hpu_reciperunner_debug) << "synLaunch called ";
 
   if (FLAGS_intel_hpu_sync_execute) {
     status = synStreamSynchronize(reinterpret_cast<synStreamHandle>(stream));

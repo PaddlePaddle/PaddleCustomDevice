@@ -147,7 +147,7 @@ void RecipeRunner::ExecuteRecipe(C_Stream stream,
                                  synRecipeHandle recipeHandle_) {
 #else
 void RecipeRunner::Run(C_Stream stream,
-                       std::map<std::string, uint64_t>& tensors) {
+                       const std::map<std::string, uint64_t>& tensors) {
 #endif
   uint64_t request_workspace_size = 0;
   synStatus status =

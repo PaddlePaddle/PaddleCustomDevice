@@ -10,17 +10,15 @@
 // // distributed under the License is distributed on an "AS IS" BASIS,
 // // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // // See the License for the specific language governing permissions and
-// // // limitations under the License.
+// // limitations under the License.
 
-// #include "kernels/impl/matrix_power_kernel_impl.h"
+// #include "kernels/impl/spectral_norm_kernel_impl.h"
 // #include "paddle/phi/core/kernel_registry.h"
-// #include "paddle/phi/kernels/matrix_power_kernel.h"
+// #include "paddle/phi/kernels/spectral_norm_kernel.h"
 
-// PD_REGISTER_PLUGIN_KERNEL(matrix_power,
+// PD_REGISTER_PLUGIN_KERNEL(spectral_norm,
 //                           metax_gpu,
 //                           ALL_LAYOUT,
-//                           phi::MatrixPowerKernel,
+//                           phi::SpectralNormKernel,
 //                           float,
-//                           double,
-//                           phi::dtype::complex<float>,
-//                           phi::dtype::complex<double>) {}
+//                           double) {}

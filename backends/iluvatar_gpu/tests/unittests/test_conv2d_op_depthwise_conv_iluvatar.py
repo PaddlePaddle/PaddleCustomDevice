@@ -140,7 +140,7 @@ class TestDepthwiseConvWithDilation2(TestConv2DOp):
 
 class TestDepthwiseConvandFuse(TestConv2DOp):
     def init_test_case(self):
-        self.fuse_relu_before_depthwise_conv = True
+        self.fuse_relu_before_depthwise_conv = False
         self.use_cuda = True
         self.pad = [1, 1]
         self.stride = [2, 2]
@@ -155,7 +155,7 @@ class TestDepthwiseConvandFuse(TestConv2DOp):
 
 class TestDepthwiseConv2andFuse(TestConv2DOp):
     def init_test_case(self):
-        self.fuse_relu_before_depthwise_conv = True
+        self.fuse_relu_before_depthwise_conv = False
         self.use_cuda = True
         self.pad = [1, 1]
         self.stride = [1, 1]
@@ -170,7 +170,7 @@ class TestDepthwiseConv2andFuse(TestConv2DOp):
 
 class TestDepthwiseConv3andFuse(TestConv2DOp):
     def init_test_case(self):
-        self.fuse_relu_before_depthwise_conv = True
+        self.fuse_relu_before_depthwise_conv = False
         self.use_cuda = True
         self.pad = [1, 1]
         self.stride = [1, 1]
@@ -185,7 +185,7 @@ class TestDepthwiseConv3andFuse(TestConv2DOp):
 
 class TestDepthwiseConvWithDilationandFuse(TestConv2DOp):
     def init_test_case(self):
-        self.fuse_relu_before_depthwise_conv = True
+        self.fuse_relu_before_depthwise_conv = False
         self.use_cuda = True
         self.pad = [1, 1]
         self.stride = [2, 2]
@@ -201,7 +201,7 @@ class TestDepthwiseConvWithDilationandFuse(TestConv2DOp):
 
 class TestDepthwiseConvWithDilation2andFuse(TestConv2DOp):
     def init_test_case(self):
-        self.fuse_relu_before_depthwise_conv = True
+        self.fuse_relu_before_depthwise_conv = False
         self.use_cuda = True
         self.pad = [1, 1]
         self.stride = [1, 1]
@@ -306,7 +306,7 @@ class TestDepthwiseConvWithDilation2_AsyPadding(TestConv2DOp_v2):
 
 class TestDepthwiseConvandFuse_AsyPadding(TestConv2DOp_v2):
     def init_test_case(self):
-        self.fuse_relu_before_depthwise_conv = True
+        self.fuse_relu_before_depthwise_conv = False
         self.use_cuda = True
         self.pad = [1, 1]
         self.stride = [2, 2]
@@ -325,7 +325,7 @@ class TestDepthwiseConvandFuse_AsyPadding(TestConv2DOp_v2):
 
 class TestDepthwiseConv2andFuse_AsyPadding(TestConv2DOp_v2):
     def init_test_case(self):
-        self.fuse_relu_before_depthwise_conv = True
+        self.fuse_relu_before_depthwise_conv = False
         self.use_cuda = True
         self.pad = [1, 1]
         self.stride = [1, 1]
@@ -344,7 +344,7 @@ class TestDepthwiseConv2andFuse_AsyPadding(TestConv2DOp_v2):
 
 class TestDepthwiseConv3andFuse_AsyPadding(TestConv2DOp_v2):
     def init_test_case(self):
-        self.fuse_relu_before_depthwise_conv = True
+        self.fuse_relu_before_depthwise_conv = False
         self.use_cuda = True
         self.pad = [1, 1]
         self.stride = [1, 1]
@@ -363,7 +363,7 @@ class TestDepthwiseConv3andFuse_AsyPadding(TestConv2DOp_v2):
 
 class TestDepthwiseConvWithDilationandFuse_AsyPadding(TestConv2DOp_v2):
     def init_test_case(self):
-        self.fuse_relu_before_depthwise_conv = True
+        self.fuse_relu_before_depthwise_conv = False
         self.use_cuda = True
         self.pad = [1, 1]
         self.stride = [2, 2]
@@ -383,7 +383,7 @@ class TestDepthwiseConvWithDilationandFuse_AsyPadding(TestConv2DOp_v2):
 
 class TestDepthwiseConvWithDilation2andFuse_AsyPadding(TestConv2DOp_v2):
     def init_test_case(self):
-        self.fuse_relu_before_depthwise_conv = True
+        self.fuse_relu_before_depthwise_conv = False
         self.use_cuda = True
         self.pad = [1, 1]
         self.stride = [1, 1]

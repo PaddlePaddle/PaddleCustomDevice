@@ -166,6 +166,7 @@ std::vector<paddle::Tensor> RebuildPadding(
   // Outputs
   auto out_tensor = static_cast<phi::DenseTensor *>(out.impl().get());
 
+#if 0
   LAUNCH_TOPSATENOP(topspaddleRebuildPadding,
                     (*dev_ctx),
                     *out_tensor,
@@ -176,6 +177,7 @@ std::vector<paddle::Tensor> RebuildPadding(
                     *seq_lens_encoder_tensor,
                     *output_padding_offset_tensor,
                     max_input_length);
+#endif
 
   return {out};
 }

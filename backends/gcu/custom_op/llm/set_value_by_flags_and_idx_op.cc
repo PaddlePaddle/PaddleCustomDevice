@@ -155,6 +155,8 @@ void SetValueByFlagsAndIdx(const paddle::Tensor &pre_ids_all,
     auto abstract_info_str = abstract_info();
     GCU_AOT_KERNEL_TRACE(abstract_info_str);
   }
+
+#if 0
   auto status =
       topspaddle::topspaddleSetValueByFlagsAndIdx(pre_ids_all_aten,
                                                   input_ids_aten,
@@ -172,6 +174,8 @@ void SetValueByFlagsAndIdx(const paddle::Tensor &pre_ids_all,
                          "error: %d, details: %s",
                          status,
                          op_info().c_str()));
+#endif
+
   VLOG(6) << "Launch tops aten op successfully, details:" << op_info();
 }
 

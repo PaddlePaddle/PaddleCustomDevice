@@ -145,6 +145,8 @@ void GetStopFlagsMulti(const paddle::Tensor &topk_ids,
     auto abstract_info_str = abstract_info();
     GCU_AOT_KERNEL_TRACE(abstract_info_str);
   }
+
+#if 0
   auto status = topspaddle::topspaddleGetStopFlagsMulti(stop_flags_aten,
                                                         topk_ids_aten,
                                                         next_tokens_aten,
@@ -160,6 +162,8 @@ void GetStopFlagsMulti(const paddle::Tensor &topk_ids,
                          "error: %d, details: %s",
                          status,
                          op_info().c_str()));
+#endif
+
   VLOG(6) << "Launch tops aten op successfully, details:" << op_info();
 }
 

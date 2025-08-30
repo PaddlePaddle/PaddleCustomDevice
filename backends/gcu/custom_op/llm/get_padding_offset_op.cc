@@ -192,6 +192,8 @@ std::vector<paddle::Tensor> GetPaddingOffset(const paddle::Tensor &input_ids,
     auto abstract_info_str = abstract_info();
     GCU_AOT_KERNEL_TRACE(abstract_info_str);
   }
+
+#if 0
   auto status = topspaddle::topspaddleGetPaddingOffset(x_remove_padding_aten,
                                                        batch_id_per_token_aten,
                                                        cu_seqlens_q_aten,
@@ -208,6 +210,8 @@ std::vector<paddle::Tensor> GetPaddingOffset(const paddle::Tensor &input_ids,
           "topspaddle::topspaddleGetPaddingOffset, get error: %d, details: %s",
           status,
           op_info().c_str()));
+#endif
+
   VLOG(6) << "Launch tops aten op successfully, details:" << op_info();
 
   return {x_remove_padding, batch_id_per_token, cu_seqlens_q, cu_seqlens_k};

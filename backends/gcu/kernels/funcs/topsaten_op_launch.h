@@ -549,7 +549,9 @@ DEFINE_LAUNCH_TOPSATENOP_VLLM(topsvllmPagedAttentionV1)
 DEFINE_LAUNCH_TOPSATENOP_EXTS(topsextsSum)
 DEFINE_LAUNCH_TOPSATENOP(topsatenScaledDotProductAttention)
 DEFINE_LAUNCH_TOPSATENOP(topsatenLinearQuant)
+#if 0
 DEFINE_LAUNCH_TOPSATENOP_PADDLE(topspaddleRebuildPadding)
+#endif
 
 // others
 DEFINE_LAUNCH_TOPSATENOP(topsatenDiag)

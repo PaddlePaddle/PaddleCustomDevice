@@ -215,6 +215,8 @@ void UpdateInputes(const paddle::Tensor &stop_flags,
     auto abstract_info_str = abstract_info();
     GCU_AOT_KERNEL_TRACE(abstract_info_str);
   }
+
+#if 0
   auto status = topspaddle::topspaddleUpdateInputs(not_need_stop_aten,
                                                    seq_lens_this_time_aten,
                                                    seq_lens_encoder_aten,
@@ -233,6 +235,8 @@ void UpdateInputes(const paddle::Tensor &stop_flags,
                          "error: %d, details: %s",
                          status,
                          op_info().c_str()));
+#endif
+
   VLOG(6) << "Launch tops aten op successfully, details:" << op_info();
 
   paddle::Tensor *not_need_stop_ptr =

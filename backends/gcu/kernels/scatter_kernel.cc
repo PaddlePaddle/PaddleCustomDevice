@@ -116,12 +116,12 @@ void ScatterKernel(const Context& dev_ctx,
 }
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(scatter,
-                          gcu,
-                          ALL_LAYOUT,
-                          custom_kernel::ScatterKernel,
-                          float,
-                          int64_t,
-                          int,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+// PD_REGISTER_PLUGIN_KERNEL(scatter,
+//                           gcu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::ScatterKernel,
+//                           float,
+//                           int64_t,
+//                           int,
+//                           phi::dtype::bfloat16,
+//                           phi::dtype::float16) {}

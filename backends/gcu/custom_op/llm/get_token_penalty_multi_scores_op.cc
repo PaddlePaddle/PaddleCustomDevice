@@ -310,6 +310,7 @@ void TokenPenaltyMultiScores(const paddle::Tensor &pre_ids,
     GCU_AOT_KERNEL_TRACE(abstract_info_str);
   }
 
+#if 0
   auto status =
       topspaddle::topspaddleGetTokenPenaltyMultiScores(logits_aten,
                                                        pre_ids_aten,
@@ -332,6 +333,7 @@ void TokenPenaltyMultiScores(const paddle::Tensor &pre_ids,
                         "error: %d, details: %s",
                         status,
                         op_info().c_str()));
+#endif
   VLOG(6) << "Launch tops aten op successfully, details:" << op_info();
 }
 

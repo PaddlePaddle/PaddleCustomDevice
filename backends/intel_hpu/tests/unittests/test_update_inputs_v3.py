@@ -39,11 +39,6 @@ class GetUpdateInputsTest(unittest.TestCase):
         tensor5 = paddle.to_tensor([[0]], dtype="int32", stop_gradient=True)
         tensor6 = paddle.to_tensor([[44]], dtype="int32", stop_gradient=True)
         tensor7 = paddle.to_tensor([[200]], dtype="int64", stop_gradient=True)
-        tensor8 = paddle.to_tensor(
-            [[2160, 5726, 25, 100001, 100001, 100001]],
-            dtype="int64",
-            stop_gradient=True,
-        )
         tensor9 = paddle.to_tensor([1], dtype="int64", stop_gradient=True)
         tensor10 = paddle.to_tensor([[100001]], dtype="int64", stop_gradient=True)
         tensor11 = paddle.to_tensor([False], dtype="bool", stop_gradient=True)
@@ -58,7 +53,6 @@ class GetUpdateInputsTest(unittest.TestCase):
             tensor5,
             tensor6,
             tensor7,
-            tensor8,
             tensor9,
             tensor10,
             tensor11,

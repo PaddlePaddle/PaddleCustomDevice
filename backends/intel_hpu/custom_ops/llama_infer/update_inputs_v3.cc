@@ -27,7 +27,6 @@ enum TENSOR_IDS_IN {
   SEQ_LENS_ENCODER,
   SEQ_LENS_DECODER,
   MAX_DEC_LEN,
-  INPUT_IDS,
   STOP_NUMS,
   NEXT_TOKENS,
   IS_BLOCK_STEP,
@@ -39,7 +38,6 @@ enum TENSOR_IDS_IN {
 
 enum TENSOR_IDS_OUT {
   NOT_NEED_STOP_OUT = 0,
-  INPUT_IDS_OUT,
   NEXT_TOKENS_OUT,
   KWARGS_NEXT_TOKENS_OUT,
   NEXT_TOKENS_OUT_I32,
@@ -66,12 +64,6 @@ class UpdateInputsV3Op : public HpuFusedOperator {
 
     synTensor not_need_stop_out =
         createTensorFromCT(ct, NOT_NEED_STOP_OUT, false);
-
-    synSectionHandle section_input_ids = createSection();
-    synTensor input_ids =
-        createTensorFromCT(ct, INPUT_IDS, true, section_input_ids);
-    synTensor input_ids_out =
-        createTensorFromCT(ct, INPUT_IDS_OUT, false, section_input_ids);
 
     synSectionHandle section_next_tokens = createSection();
     synTensor next_tokens =
@@ -151,26 +143,6 @@ class UpdateInputsV3Op : public HpuFusedOperator {
                 "cast_i32_to_i64",
                 guid_ + "cast_kwargs_next_tokens_back");
 
-    synSliceParams params = {{0}};
-    for (size_t i = 0; i < inputs_dims[INPUT_IDS].size(); i++) {
-      params.axes[i] = i;
-      params.steps[i] = 1;
-      params.starts[i] = 0;
-      params.ends[i] =
-          inputs_dims[INPUT_IDS][inputs_dims[INPUT_IDS].size() - 1 - i];
-    }
-    params.starts[inputs_dims[INPUT_IDS].size() - 1 - 1] = 0;
-    params.ends[inputs_dims[INPUT_IDS].size() - 1 - 1] = 1;
-
-    std::vector<synTensor> set_value_in = {input_ids, next_tokens_out};
-    std::vector<synTensor> set_value_out = {input_ids_out};
-
-    AddNode_IOP<synSliceParams>(set_value_in,
-                                set_value_out,
-                                params,
-                                "slice_insert",
-                                guid_ + "slice_insert");
-
     ns_Reduction::Params reduce_params = {0};
     std::vector<synTensor> reduce_in = {stop_flag_now_int_out};
     std::vector<synTensor> reduce_out = {stop_sum};
@@ -200,7 +172,6 @@ void update_inputs_v3(const paddle::Tensor& stop_flags,
                       const paddle::Tensor& seq_lens_encoder,
                       const paddle::Tensor& seq_lens_decoder,
                       const paddle::Tensor& max_dec_len,
-                      const paddle::Tensor& input_ids,
                       const paddle::Tensor& stop_nums,
                       const paddle::Tensor& next_tokens,
                       const paddle::Tensor& is_block_step,
@@ -216,7 +187,6 @@ void update_inputs_v3(const paddle::Tensor& stop_flags,
   INSERT_TENSOR_TO_CT(seq_lens_encoder, ct, SEQ_LENS_ENCODER, true);
   INSERT_TENSOR_TO_CT(seq_lens_decoder, ct, SEQ_LENS_DECODER, true);
   INSERT_TENSOR_TO_CT(max_dec_len, ct, MAX_DEC_LEN, true);
-  INSERT_TENSOR_TO_CT(input_ids, ct, INPUT_IDS, true);
   INSERT_TENSOR_TO_CT(stop_nums, ct, STOP_NUMS, true);
   INSERT_TENSOR_TO_CT(next_tokens, ct, NEXT_TOKENS, true);
   INSERT_TENSOR_TO_CT(is_block_step, ct, IS_BLOCK_STEP, true);
@@ -224,7 +194,6 @@ void update_inputs_v3(const paddle::Tensor& stop_flags,
   INSERT_TENSOR_TO_CT(kwargs_next_tokens, ct, KWARGS_NEXT_TOKENS, true);
 
   INSERT_TENSOR_TO_CT(not_need_stop, ct, NOT_NEED_STOP_OUT, false);
-  INSERT_TENSOR_TO_CT(input_ids, ct, INPUT_IDS_OUT, false);
   INSERT_TENSOR_TO_CT(next_tokens, ct, NEXT_TOKENS_OUT, false);
   INSERT_TENSOR_TO_CT(kwargs_next_tokens, ct, KWARGS_NEXT_TOKENS_OUT, false);
 
@@ -267,7 +236,6 @@ void UpdateInputsV3(const paddle::Tensor& stop_flags,
                     const paddle::Tensor& seq_lens_encoder,
                     const paddle::Tensor& seq_lens_decoder,
                     const paddle::Tensor& max_dec_len,
-                    const paddle::Tensor& input_ids,
                     const paddle::Tensor& stop_nums,
                     const paddle::Tensor& next_tokens,
                     const paddle::Tensor& is_block_step,
@@ -289,7 +257,6 @@ void UpdateInputsV3(const paddle::Tensor& stop_flags,
                                                 seq_lens_encoder,
                                                 seq_lens_decoder,
                                                 max_dec_len,
-                                                input_ids,
                                                 stop_nums,
                                                 next_tokens,
                                                 is_block_step,
@@ -307,7 +274,6 @@ std::vector<std::vector<int64_t>> UpdateInputsV3InferShape(
     const std::vector<int64_t>& seq_lens_encoder_shape,
     const std::vector<int64_t>& seq_lens_decoder_shape,
     const std::vector<int64_t>& max_dec_len_shape,
-    const std::vector<int64_t>& input_ids_shape,
     const std::vector<int64_t>& stop_nums_shape,
     const std::vector<int64_t>& next_tokens_shape,
     const std::vector<int64_t>& is_block_step_shape,
@@ -324,7 +290,6 @@ std::vector<paddle::DataType> UpdateInputsV3InferDtype(
     const paddle::DataType& seq_lens_encoder_dtype,
     const paddle::DataType& seq_lens_decoder_dtype,
     const paddle::DataType& max_dec_len_dtype,
-    const paddle::DataType& input_ids_dtype,
     const paddle::DataType& stop_nums_dtype,
     const paddle::DataType& next_tokens_dtype,
     const paddle::DataType& is_block_step_dtype,
@@ -341,7 +306,6 @@ PD_BUILD_OP(update_inputs_v3)
              "seq_lens_encoder",
              "seq_lens_decoder",
              "max_dec_len",
-             "input_ids",
              "stop_nums",
              "next_tokens",
              "is_block_step",

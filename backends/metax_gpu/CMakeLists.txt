@@ -735,7 +735,8 @@ add_library(
 target_include_directories(
   ${TARGET_NAME}
   PRIVATE ${PADDLE_SOURCE_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/kernels
-          ${CUDA_INCLUDE_DIRS} ${PADDLE_SOURCE_DIR}/third_party/pybind/include)
+          ${CUDA_INCLUDE_DIRS} ${PADDLE_SOURCE_DIR}/third_party/pybind/include
+          ${PADDLE_SOURCE_DIR}/paddle/phi/api/include/compat/)
 
 target_link_libraries(
   ${TARGET_NAME}

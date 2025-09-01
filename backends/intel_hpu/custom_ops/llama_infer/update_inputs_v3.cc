@@ -64,6 +64,11 @@ class UpdateInputsV3Op : public HpuFusedOperator {
     synTensor is_block_step = createTensorFromCT(ct, IS_BLOCK_STEP, true);
     synTensor end_ids = createTensorFromCT(ct, END_IDS, true);
 
+    synTensor input_ids_i32 = createTensorNoPresist(
+        "input_ids_i32", syn_type_int32, inputs_dims[INPUT_IDS]);
+    synTensor input_ids_i32_out = createTensorNoPresist(
+        "input_ids_i32_out", syn_type_int32, inputs_dims[INPUT_IDS]);
+
     synTensor not_need_stop_out =
         createTensorFromCT(ct, NOT_NEED_STOP_OUT, false);
 
@@ -72,6 +77,13 @@ class UpdateInputsV3Op : public HpuFusedOperator {
         createTensorFromCT(ct, INPUT_IDS, true, section_input_ids);
     synTensor input_ids_out =
         createTensorFromCT(ct, INPUT_IDS_OUT, false, section_input_ids);
+
+    std::vector<synTensor> cast_input_ids_in = {input_ids};
+    std::vector<synTensor> cast_input_ids_out = {input_ids_i32};
+    AddNodeCast(cast_input_ids_in,
+                cast_input_ids_out,
+                "cast_i64_to_i32",
+                guid_ + "cast_input_ids_out");
 
     synSectionHandle section_next_tokens = createSection();
     synTensor next_tokens =
@@ -124,12 +136,15 @@ class UpdateInputsV3Op : public HpuFusedOperator {
                                   seq_lens_encoder,
                                   seq_lens_decoder,
                                   max_dec_len,
+                                  input_ids_i32,
                                   next_tokens_i32,
                                   is_block_step,
                                   end_ids,
                                   kwargs_next_tokens_i32};
-    std::vector<synTensor> outs = {
-        stop_flag_now_int_out, next_tokens_i32_out, kwargs_next_tokens_i32_out};
+    std::vector<synTensor> outs = {stop_flag_now_int_out,
+                                   next_tokens_i32_out,
+                                   input_ids_i32_out,
+                                   kwargs_next_tokens_i32_out};
     std::string node = "custom_update_inputs_v3";
     AddNode_IO(ins, outs, node, guid_ + node);
 
@@ -141,6 +156,14 @@ class UpdateInputsV3Op : public HpuFusedOperator {
                 "cast_i32_to_i64",
                 guid_ + "cast_next_tokens_back");
 
+    // convert input_ids output back
+    std::vector<synTensor> cast_input_ids_back_in = {input_ids_i32_out};
+    std::vector<synTensor> cast_input_ids_back_out = {input_ids_out};
+    AddNodeCast(cast_input_ids_back_in,
+                cast_input_ids_back_out,
+                "cast_i32_to_i64",
+                guid_ + "cast_input_ids_back");
+
     // convert kwargs_next_tokens output back
     std::vector<synTensor> cast_kwargs_next_tokens_back_in = {
         kwargs_next_tokens_i32_out};
@@ -150,26 +173,6 @@ class UpdateInputsV3Op : public HpuFusedOperator {
                 cast_kwargs_next_tokens_back_out,
                 "cast_i32_to_i64",
                 guid_ + "cast_kwargs_next_tokens_back");
-
-    synSliceParams params = {{0}};
-    for (size_t i = 0; i < inputs_dims[INPUT_IDS].size(); i++) {
-      params.axes[i] = i;
-      params.steps[i] = 1;
-      params.starts[i] = 0;
-      params.ends[i] =
-          inputs_dims[INPUT_IDS][inputs_dims[INPUT_IDS].size() - 1 - i];
-    }
-    params.starts[inputs_dims[INPUT_IDS].size() - 1 - 1] = 0;
-    params.ends[inputs_dims[INPUT_IDS].size() - 1 - 1] = 1;
-
-    std::vector<synTensor> set_value_in = {input_ids, next_tokens_out};
-    std::vector<synTensor> set_value_out = {input_ids_out};
-
-    AddNode_IOP<synSliceParams>(set_value_in,
-                                set_value_out,
-                                params,
-                                "slice_insert",
-                                guid_ + "slice_insert");
 
     ns_Reduction::Params reduce_params = {0};
     std::vector<synTensor> reduce_in = {stop_flag_now_int_out};
@@ -222,15 +225,13 @@ void update_inputs_v3(const paddle::Tensor& stop_flags,
   INSERT_TENSOR_TO_CT(is_block_step, ct, IS_BLOCK_STEP, true);
   INSERT_TENSOR_TO_CT(end_ids, ct, END_IDS, true);
   INSERT_TENSOR_TO_CT(kwargs_next_tokens, ct, KWARGS_NEXT_TOKENS, true);
+  INSERT_TENSOR_TO_CT(next_tokens_i32, ct, NEXT_TOKENS_I32, true);
+  INSERT_TENSOR_TO_CT(kwargs_next_tokens_i32, ct, KWARGS_NEXT_TOKENS_I32, true);
 
   INSERT_TENSOR_TO_CT(not_need_stop, ct, NOT_NEED_STOP_OUT, false);
   INSERT_TENSOR_TO_CT(input_ids, ct, INPUT_IDS_OUT, false);
   INSERT_TENSOR_TO_CT(next_tokens, ct, NEXT_TOKENS_OUT, false);
   INSERT_TENSOR_TO_CT(kwargs_next_tokens, ct, KWARGS_NEXT_TOKENS_OUT, false);
-
-  INSERT_TENSOR_TO_CT(next_tokens_i32, ct, NEXT_TOKENS_I32, true);
-  INSERT_TENSOR_TO_CT(kwargs_next_tokens_i32, ct, KWARGS_NEXT_TOKENS_I32, true);
-
   INSERT_TENSOR_TO_CT(next_tokens_i32, ct, NEXT_TOKENS_OUT_I32, false);
   INSERT_TENSOR_TO_CT(
       kwargs_next_tokens_i32, ct, KWARGS_NEXT_TOKENS_OUT_I32, false);
@@ -347,8 +348,12 @@ PD_BUILD_OP(update_inputs_v3)
              "is_block_step",
              "end_ids",
              "kwargs_next_tokens"})
-    .Outputs({"not_need_stop_out", "next_tokens_out", "kwargs_next_tokens_out"})
+    .Outputs({"not_need_stop_out",
+              "input_ids_out",
+              "next_tokens_out",
+              "kwargs_next_tokens_out"})
     .SetInplaceMap({{"not_need_stop", "not_need_stop_out"},
+                    {"input_ids", "input_ids_out"},
                     {"next_tokens", "next_tokens_out"},
                     {"kwargs_next_tokens", "kwargs_next_tokens_out"}})
     .SetKernelFn(PD_KERNEL(UpdateInputsV3))

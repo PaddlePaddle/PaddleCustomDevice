@@ -33,7 +33,7 @@
 #include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/extension.h"
 
-#define ENABLE_ASYNC_RUN
+// #define ENABLE_ASYNC_RUN
 
 class HpuOperator {
  public:

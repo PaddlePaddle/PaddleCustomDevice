@@ -35,35 +35,7 @@ diff --git a/paddle/phi/backends/dynload/cudnn.h b/paddle/phi/backends/dynload/c
 index 7a5450c349..95de89ced2 100644
 --- a/paddle/phi/backends/dynload/cudnn.h
 +++ b/paddle/phi/backends/dynload/cudnn.h
-@@ -1,3 +1,4 @@
-+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.   
- /* Copyright (c) 2016 PaddlePaddle Authors. All Rights Reserved.
- 
- Licensed under the Apache License, Version 2.0 (the "License");
-@@ -15,7 +16,6 @@ limitations under the License. */
- #pragma once
- #ifdef PADDLE_WITH_CUDA
- #include <cudnn.h>
--
- #include <mutex>  // NOLINT
- 
- #include "paddle/phi/backends/dynload/dynamic_loader.h"
-@@ -24,11 +24,11 @@ limitations under the License. */
- namespace phi {
- namespace dynload {
- 
--TEST_API extern std::once_flag cudnn_dso_flag;
--TEST_API extern void* cudnn_dso_handle;
-+extern std::once_flag cudnn_dso_flag;
-+extern void* cudnn_dso_handle;
- extern bool HasCUDNN();
- 
--TEST_API extern void EnforceCUDNNLoaded(const char* fn_name);
-+extern void EnforceCUDNNLoaded(const char* fn_name);
- #define DECLARE_DYNAMIC_LOAD_CUDNN_WRAP(__name)                      \
-   struct DynLoad__##__name {                                         \
-     template <typename... Args>                                      \
-@@ -38,7 +38,9 @@ TEST_API extern void EnforceCUDNNLoaded(const char* fn_name);
+@@ -38,7 +38,9 @@ extern void EnforceCUDNNLoaded(const char* fn_name);
          cudnn_dso_handle = phi::dynload::GetCUDNNDsoHandle();        \
        });                                                            \
        EnforceCUDNNLoaded(#__name);                                   \

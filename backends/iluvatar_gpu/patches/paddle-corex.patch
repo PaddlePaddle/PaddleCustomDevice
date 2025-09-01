@@ -700,16 +700,16 @@ diff --git a/paddle/phi/kernels/reduce_sum_kernel.cc b/paddle/phi/kernels/reduce
 index 654eae9199..3b6e5580e6 100644
 --- a/paddle/phi/kernels/reduce_sum_kernel.cc
 +++ b/paddle/phi/kernels/reduce_sum_kernel.cc
-@@ -37,6 +37,7 @@ void SumKernel(const Context& dev_ctx,
- using complex64 = ::phi::dtype::complex<float>;
- using complex128 = ::phi::dtype::complex<double>;
+@@ -34,6 +34,7 @@ void SumKernel(const Context& dev_ctx,
+ 
+ }  // namespace phi
  
 +#ifndef PADDLE_WITH_COREX
  PD_REGISTER_KERNEL(sum,
                     CPU,
                     ALL_LAYOUT,
-@@ -55,6 +56,7 @@ PD_REGISTER_KERNEL(sum,
-                    complex128) {
+@@ -52,6 +53,7 @@ PD_REGISTER_KERNEL(sum,
+                    phi::complex128) {
    kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
  }
 +#endif

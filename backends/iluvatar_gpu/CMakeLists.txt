@@ -254,6 +254,10 @@ file(
   kernels/ernie_core/*.cc
   kernels/gpudnn/*.cu)
 
+if(WITH_FLAGCX)
+  list(APPEND CC_SRCS runtime/runtime_flagcx.cc)
+endif()
+
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS})
 
 set_source_files_properties(${CUSTOM_DEVICE_SRCS} PROPERTIES LANGUAGE CUDA)

@@ -16,7 +16,7 @@
 #include <fcntl.h>
 #include <nccl.h>
 #if defined(PADDLE_WITH_FLAGCX)
-#include <flagcx.h>
+#include "runtime_flagcx.h"  // NOLINT
 #endif
 #include <semaphore.h>
 #include <sys/types.h>
@@ -50,10 +50,6 @@ static int global_current_device = 0;
 const char *const DeviceType = "iluvatar_gpu";
 const char *const SubDeviceType = "v0.1";
 
-#if defined(PADDLE_WITH_FLAGCX)
-C_CCLComm globalComm = nullptr;
-flagcxHandlerGroup_t flagcx_handler;
-#endif
 namespace phi {
 
 namespace internal {
@@ -83,33 +79,6 @@ inline ncclDataType_t PDDataTypeToNcclDataType(C_DataType type) {
   return ncclFloat32;
 }
 
-#if defined(PADDLE_WITH_FLAGCX)
-inline flagcxDataType_t PDDataTypeToFlagcxDataType(C_DataType type) {
-  if (type == C_DataType::FLOAT32) {
-    return flagcxFloat;
-  } else if (type == C_DataType::BFLOAT16) {
-    return flagcxBfloat16;
-  } else if (type == C_DataType::UINT8) {
-    return flagcxUint8;
-  } else if (type == C_DataType::UINT32) {
-    return flagcxUint32;
-  } else if (type == C_DataType::UINT64) {
-    return flagcxUint64;
-  } else if (type == C_DataType::INT8) {
-    return flagcxInt8;
-  } else if (type == C_DataType::INT32) {
-    return flagcxInt32;
-  } else if (type == C_DataType::INT64) {
-    return flagcxInt64;
-  } else if (type == C_DataType::FLOAT16) {
-    return flagcxHalf;
-  } else {
-    LOG(ERROR) << "Datatype " << type << " in flagcx is not supported.";
-  }
-  return flagcxFloat;
-}
-#endif
-
 #define NCCL_CHECK(cmd)                                                        \
   do {                                                                         \
     ncclResult_t r = cmd;                                                      \
@@ -120,20 +89,6 @@ inline flagcxDataType_t PDDataTypeToFlagcxDataType(C_DataType type) {
                                             ncclGetErrorString(r)));           \
     }                                                                          \
   } while (0)
-
-#if defined(PADDLE_WITH_FLAGCX)
-#define FLAGCX_CHECK(cmd)                                               \
-  do {                                                                  \
-    flagcxResult_t r = cmd;                                             \
-    if (r != flagcxSuccess) {                                           \
-      PADDLE_THROW(                                                     \
-          common::errors::External("Failed, FLAGCX error %s:%d '%s'\n", \
-                                   __FILE__,                            \
-                                   __LINE__,                            \
-                                   flagcxGetErrorString(r)));           \
-    }                                                                   \
-  } while (0)
-#endif
 
 class EigenGpuStreamDevice : public Eigen::StreamInterface {
  public:
@@ -840,51 +795,18 @@ ncclRedOp_t PDReduceOpToNcclReduceOp(C_CCLReduceOp op) {
   }
 }
 
-#if defined(PADDLE_WITH_FLAGCX)
-flagcxRedOp_t PDReduceOpToFlagcxReduceOp(C_CCLReduceOp op) {
-  if (op == C_CCLReduceOp::MIN) {
-    return flagcxMin;
-  } else if (op == C_CCLReduceOp::MAX) {
-    return flagcxMax;
-  } else if (op == C_CCLReduceOp::SUM) {
-    return flagcxSum;
-  } else if (op == C_CCLReduceOp::PRODUCT) {
-    return flagcxProd;
-  } else if (op == C_CCLReduceOp::AVG) {
-    return flagcxAvg;
-  } else {
-    LOG(ERROR) << "Reduceop " << op << " in flagcx is not supported.";
-  }
-}
-#endif
-
 C_Status XcclGetUniqueIdSize(size_t *size) {
-#if defined(PADDLE_WITH_FLAGCX)
-  *size = sizeof(flagcxUniqueId);
-#else
   *size = sizeof(ncclUniqueId);
-#endif
   return C_SUCCESS;
 }
 
 C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
-#if defined(PADDLE_WITH_FLAGCX)
-  if (unique_id->sz != sizeof(flagcxUniqueId)) {
-    LOG(ERROR) << "unique_id->sz must be equal sizeof(ncclUniqueId)";
-    return C_FAILED;
-  }
-  flagcxUniqueId_t flagcxId =
-      reinterpret_cast<flagcxUniqueId *>(unique_id->data);
-  FLAGCX_CHECK(flagcxGetUniqueId(&flagcxId));
-  unique_id->data = flagcxId;
-#else
   if (unique_id->sz != sizeof(ncclUniqueId)) {
     LOG(ERROR) << "unique_id->sz must be equal sizeof(ncclUniqueId)";
     return C_FAILED;
   }
   NCCL_CHECK(
       ncclGetUniqueId(reinterpret_cast<ncclUniqueId *>(unique_id->data)));
-#endif
 
   return C_SUCCESS;
 }
@@ -893,32 +815,17 @@ C_Status XcclCommInitRank(size_t nranks,
                           C_CCLRootId *unique_id,
                           size_t rank,
                           C_CCLComm *comm) {
-#if defined(PADDLE_WITH_FLAGCX)
-  FLAGCX_CHECK(
-      flagcxCommInitRank(reinterpret_cast<flagcxComm_t *>(comm),
-                         nranks,
-                         reinterpret_cast<flagcxUniqueId *>(unique_id->data),
-                         rank));
-  globalComm = *comm;
-  VLOG(4) << "[FLAGCX] comm inited: " << reinterpret_cast<flagcxComm_t>(*comm);
-#else
   NCCL_CHECK(
       ncclCommInitRank(reinterpret_cast<ncclComm_t *>(comm),
                        nranks,
                        *(reinterpret_cast<ncclUniqueId *>(unique_id->data)),
                        rank));
   VLOG(4) << "[NCCL] comm inited: " << reinterpret_cast<ncclComm_t>(*comm);
-#endif
   return C_SUCCESS;
 }
 
 C_Status XcclDestroyComm(C_CCLComm comm) {
-#if defined(PADDLE_WITH_FLAGCX)
-  FLAGCX_CHECK(flagcxCommDestroy(reinterpret_cast<flagcxComm_t>(comm)));
-  globalComm = nullptr;
-#else
   NCCL_CHECK(ncclCommDestroy(reinterpret_cast<ncclComm_t>(comm)));
-#endif
   return C_SUCCESS;
 }
 
@@ -929,18 +836,6 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLReduceOp op,
                        C_CCLComm comm,
                        C_Stream stream) {
-#if defined(PADDLE_WITH_FLAGCX)
-  cudaStream_t cudaStream = reinterpret_cast<cudaStream_t>(stream);
-
-  FLAGCX_CHECK(
-      flagcxAllReduce(send_buf,
-                      recv_buf,
-                      count,
-                      phi::internal::PDDataTypeToFlagcxDataType(data_type),
-                      PDReduceOpToFlagcxReduceOp(op),
-                      reinterpret_cast<flagcxComm_t>(comm),
-                      reinterpret_cast<flagcxStream_t>(&cudaStream)));
-#else
   NCCL_CHECK(ncclAllReduce(send_buf,
                            recv_buf,
                            count,
@@ -948,7 +843,6 @@ C_Status XcclAllReduce(void *send_buf,
                            PDReduceOpToNcclReduceOp(op),
                            reinterpret_cast<ncclComm_t>(comm),
                            reinterpret_cast<cudaStream_t>(stream)));
-#endif
   return C_SUCCESS;
 }
 
@@ -958,17 +852,6 @@ C_Status XcclBroadcast(void *buf,
                        size_t root,
                        C_CCLComm comm,
                        C_Stream stream) {
-#if defined(PADDLE_WITH_FLAGCX)
-  cudaStream_t cudaStream = reinterpret_cast<cudaStream_t>(stream);
-  FLAGCX_CHECK(
-      flagcxBroadcast(static_cast<const void *>(buf),
-                      buf,
-                      count,
-                      phi::internal::PDDataTypeToFlagcxDataType(data_type),
-                      root,
-                      reinterpret_cast<flagcxComm_t>(comm),
-                      reinterpret_cast<flagcxStream_t>(&cudaStream)));
-#else
   NCCL_CHECK(ncclBroadcast(static_cast<const void *>(buf),
                            buf,
                            count,
@@ -976,7 +859,6 @@ C_Status XcclBroadcast(void *buf,
                            root,
                            reinterpret_cast<ncclComm_t>(comm),
                            reinterpret_cast<cudaStream_t>(stream)));
-#endif
   return C_SUCCESS;
 }
 
@@ -988,18 +870,6 @@ C_Status XcclReduce(void *send_buf,
                     size_t root,
                     C_CCLComm comm,
                     C_Stream stream) {
-#if defined(PADDLE_WITH_FLAGCX)
-  cudaStream_t cudaStream = reinterpret_cast<cudaStream_t>(stream);
-  FLAGCX_CHECK(
-      flagcxReduce(send_buf,
-                   recv_buf,
-                   count,
-                   phi::internal::PDDataTypeToFlagcxDataType(data_type),
-                   PDReduceOpToFlagcxReduceOp(op),
-                   root,
-                   reinterpret_cast<flagcxComm_t>(comm),
-                   reinterpret_cast<flagcxStream_t>(&cudaStream)));
-#else
   NCCL_CHECK(ncclReduce(send_buf,
                         recv_buf,
                         count,
@@ -1008,7 +878,6 @@ C_Status XcclReduce(void *send_buf,
                         root,
                         reinterpret_cast<ncclComm_t>(comm),
                         reinterpret_cast<cudaStream_t>(stream)));
-#endif
   return C_SUCCESS;
 }
 
@@ -1018,23 +887,12 @@ C_Status XcclAllGather(void *send_buf,
                        C_DataType data_type,
                        C_CCLComm comm,
                        C_Stream stream) {
-#if defined(PADDLE_WITH_FLAGCX)
-  cudaStream_t cudaStream = reinterpret_cast<cudaStream_t>(stream);
-  FLAGCX_CHECK(
-      flagcxAllGather(send_buf,
-                      recv_buf,
-                      count,
-                      phi::internal::PDDataTypeToFlagcxDataType(data_type),
-                      reinterpret_cast<flagcxComm_t>(comm),
-                      reinterpret_cast<flagcxStream_t>(&cudaStream)));
-#else
   NCCL_CHECK(ncclAllGather(send_buf,
                            recv_buf,
                            count,
                            phi::internal::PDDataTypeToNcclDataType(data_type),
                            reinterpret_cast<ncclComm_t>(comm),
                            reinterpret_cast<cudaStream_t>(stream)));
-#endif
   return C_SUCCESS;
 }
 
@@ -1045,17 +903,6 @@ C_Status XcclReduceScatter(void *send_buf,
                            C_CCLReduceOp op,
                            C_CCLComm comm,
                            C_Stream stream) {
-#if defined(PADDLE_WITH_FLAGCX)
-  cudaStream_t cudaStream = reinterpret_cast<cudaStream_t>(stream);
-  FLAGCX_CHECK(
-      flagcxReduceScatter(send_buf,
-                          recv_buf,
-                          count,
-                          phi::internal::PDDataTypeToFlagcxDataType(data_type),
-                          PDReduceOpToFlagcxReduceOp(op),
-                          reinterpret_cast<flagcxComm_t>(comm),
-                          reinterpret_cast<flagcxStream_t>(&cudaStream)));
-#else
   NCCL_CHECK(
       ncclReduceScatter(send_buf,
                         recv_buf,
@@ -1064,25 +911,16 @@ C_Status XcclReduceScatter(void *send_buf,
                         PDReduceOpToNcclReduceOp(op),
                         reinterpret_cast<ncclComm_t>(comm),
                         reinterpret_cast<cudaStream_t>(stream)));
-#endif
   return C_SUCCESS;
 }
 
 C_Status XcclGroupStart() {
-#if defined(PADDLE_WITH_FLAGCX)
-  FLAGCX_CHECK(flagcxGroupStart(reinterpret_cast<flagcxComm_t>(globalComm)));
-#else
   NCCL_CHECK(ncclGroupStart());
-#endif
   return C_SUCCESS;
 }
 
 C_Status XcclGroupEnd() {
-#if defined(PADDLE_WITH_FLAGCX)
-  FLAGCX_CHECK(flagcxGroupEnd(reinterpret_cast<flagcxComm_t>(globalComm)));
-#else
   NCCL_CHECK(ncclGroupEnd());
-#endif
   return C_SUCCESS;
 }
 
@@ -1092,24 +930,12 @@ C_Status XcclSend(void *send_buf,
                   size_t dest_rank,
                   C_CCLComm comm,
                   C_Stream stream) {
-#if defined(PADDLE_WITH_FLAGCX)
-  cudaStream_t cudaStream = reinterpret_cast<cudaStream_t>(stream);
-  FLAGCX_CHECK(flagcxSend(send_buf,
-                          count,
-                          phi::internal::PDDataTypeToFlagcxDataType(data_type),
-                          dest_rank,
-                          reinterpret_cast<flagcxComm_t>(comm),
-                          reinterpret_cast<flagcxStream_t>(&cudaStream)));
-  flagcx_handler->devHandle->streamSynchronize(
-      reinterpret_cast<flagcxStream_t>(&cudaStream));
-#else
   NCCL_CHECK(ncclSend(send_buf,
                       count,
                       phi::internal::PDDataTypeToNcclDataType(data_type),
                       dest_rank,
                       reinterpret_cast<ncclComm_t>(comm),
                       reinterpret_cast<cudaStream_t>(stream)));
-#endif
   return C_SUCCESS;
 }
 
@@ -1119,24 +945,12 @@ C_Status XcclRecv(void *recv_buf,
                   size_t src_rank,
                   C_CCLComm comm,
                   C_Stream stream) {
-#if defined(PADDLE_WITH_FLAGCX)
-  cudaStream_t cudaStream = reinterpret_cast<cudaStream_t>(stream);
-  FLAGCX_CHECK(flagcxRecv(recv_buf,
-                          count,
-                          phi::internal::PDDataTypeToFlagcxDataType(data_type),
-                          src_rank,
-                          reinterpret_cast<flagcxComm_t>(comm),
-                          reinterpret_cast<flagcxStream_t>(&cudaStream)));
-  flagcx_handler->devHandle->streamSynchronize(
-      reinterpret_cast<flagcxStream_t>(&cudaStream));
-#else
   NCCL_CHECK(ncclRecv(recv_buf,
                       count,
                       phi::internal::PDDataTypeToNcclDataType(data_type),
                       src_rank,
                       reinterpret_cast<ncclComm_t>(comm),
                       reinterpret_cast<cudaStream_t>(stream)));
-#endif
   return C_SUCCESS;
 }
 
@@ -1202,46 +1016,6 @@ C_Status IsBFloat16Supported(const C_Device device, bool *supported) {
   *supported = true;
   return C_SUCCESS;
 }
-#if defined(PADDLE_WITH_FLAGCX)
-C_Status XcclAllToAll(const void **send_buf,
-                      const size_t *send_count,
-                      const C_DataType *send_dtype,
-                      void **recv_buf,
-                      const size_t *recv_count,
-                      const C_DataType *recv_dtype,
-                      size_t rank,
-                      size_t nranks,
-                      C_CCLComm comm,
-                      C_Stream stream) {
-  flagcxComm_t flagcxComm = reinterpret_cast<flagcxComm_t>(comm);
-  cudaStream_t cudaStream = reinterpret_cast<cudaStream_t>(stream);
-  FLAGCX_CHECK(flagcxGroupStart(flagcxComm));
-  for (size_t i = 0; i < nranks; i++) {
-    if (send_count[i] > 0) {
-      FLAGCX_CHECK(
-          flagcxSend(const_cast<void *>(send_buf[i]),
-                     send_count[i],
-                     phi::internal::PDDataTypeToFlagcxDataType(send_dtype[i]),
-                     i,
-                     flagcxComm,
-                     reinterpret_cast<flagcxStream_t>(&cudaStream)));
-    }
-    if (recv_count[i] > 0) {
-      FLAGCX_CHECK(
-          flagcxRecv(const_cast<void *>(recv_buf[i]),
-                     recv_count[i],
-                     phi::internal::PDDataTypeToFlagcxDataType(recv_dtype[i]),
-                     i,
-                     flagcxComm,
-                     reinterpret_cast<flagcxStream_t>(&cudaStream)));
-    }
-  }
-  FLAGCX_CHECK(flagcxGroupEnd(flagcxComm));
-  flagcx_handler->devHandle->streamSynchronize(
-      reinterpret_cast<flagcxStream_t>(&cudaStream));
-  return C_SUCCESS;
-}
-#endif
 
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
@@ -1305,6 +1079,22 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->init_eigen_device = InitEigenDevice;
   params->interface->destroy_eigen_device = DestroyEigenDevice;
 
+#if defined(PADDLE_WITH_FLAGCX)
+  params->interface->xccl_all_gather = XcclFlagcxAllGather;
+  params->interface->xccl_all_reduce = XcclFlagcxAllReduce;
+  params->interface->xccl_broadcast = XcclFlagcxBroadcast;
+  params->interface->xccl_comm_init_rank = XcclFlagcxCommInitRank;
+  params->interface->xccl_destroy_comm = XcclFlagcxDestroyComm;
+  params->interface->xccl_get_unique_id = XcclFlagcxGetUniqueId;
+  params->interface->xccl_get_unique_id_size = XcclFlagcxGetUniqueIdSize;
+  params->interface->xccl_group_end = XcclFlagcxGroupEnd;
+  params->interface->xccl_group_start = XcclFlagcxGroupStart;
+  params->interface->xccl_recv = XcclFlagcxRecv;
+  params->interface->xccl_reduce = XcclFlagcxReduce;
+  params->interface->xccl_reduce_scatter = XcclFlagcxReduceScatter;
+  params->interface->xccl_send = XcclFlagcxSend;
+  params->interface->xccl_all_to_all = XcclFlagcxAllToAll;
+#else
   params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;
   params->interface->xccl_broadcast = XcclBroadcast;
@@ -1318,8 +1108,6 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_reduce = XcclReduce;
   params->interface->xccl_reduce_scatter = XcclReduceScatter;
   params->interface->xccl_send = XcclSend;
-#if defined(PADDLE_WITH_FLAGCX)
-  params->interface->xccl_all_to_all = XcclAllToAll;
 #endif
 
   params->interface->profiler_collect_trace_data = nullptr;

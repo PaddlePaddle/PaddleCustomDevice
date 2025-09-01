@@ -99,95 +99,95 @@ def fc_pass_subgraph(input, w, bias):
 MODLE_FILE = "./saved_model"
 MODLE_FILE2 = "./silu_fuse_model"
 
+# This case is deleted because paddle no longer support old IR in recent update.
+# class TestCustomPassSilu(unittest.TestCase):
+#     def setUp(self):
+#         paddle.jit.save(func_silu, MODLE_FILE2)
 
-class TestCustomPassSilu(unittest.TestCase):
-    def setUp(self):
-        paddle.jit.save(func_silu, MODLE_FILE2)
+#     def test_silu_fuse(self):
+#         with paddle.pir_utils.OldIrGuard():
+#             paddle.disable_static()
+#             config = paddle.inference.Config()
+#             config.set_prog_file(MODLE_FILE2 + ".pdmodel")
+#             config.enable_memory_optim()
+#             config.enable_custom_device("sdaa")
+#             config.switch_ir_optim(True)
+#             pass_builder = config.pass_builder()
+#             pass_builder.append_pass("custom_silu_fuse_pass")
+#             print(pass_builder.all_passes())
+#             print("IR Optim is: {}".format(config.ir_optim()))
+#             predictor = paddle.inference.create_predictor(config)
 
-    def test_silu_fuse(self):
-        with paddle.pir_utils.OldIrGuard():
-            paddle.disable_static()
-            config = paddle.inference.Config()
-            config.set_prog_file(MODLE_FILE2 + ".pdmodel")
-            config.enable_memory_optim()
-            config.enable_custom_device("sdaa")
-            config.switch_ir_optim(True)
-            pass_builder = config.pass_builder()
-            pass_builder.append_pass("custom_silu_fuse_pass")
-            print(pass_builder.all_passes())
-            print("IR Optim is: {}".format(config.ir_optim()))
-            predictor = paddle.inference.create_predictor(config)
+#             np_inputs = [np.random.randn(2, 32).astype("float32")]
+#             input_names = predictor.get_input_names()
+#             for i, name in enumerate(input_names):
+#                 input_tensor = predictor.get_input_handle(name)
+#                 input_tensor.copy_from_cpu(np_inputs[i])
 
-            np_inputs = [np.random.randn(2, 32).astype("float32")]
-            input_names = predictor.get_input_names()
-            for i, name in enumerate(input_names):
-                input_tensor = predictor.get_input_handle(name)
-                input_tensor.copy_from_cpu(np_inputs[i])
+#             predictor.run()
+#             results = []
+#             output_names = predictor.get_output_names()
+#             for i, name in enumerate(output_names):
+#                 output_tensor = predictor.get_output_handle(name)
+#                 output_data = output_tensor.copy_to_cpu()
+#                 results.append(output_data)
+#             np.testing.assert_allclose(
+#                 results,
+#                 paddle.nn.functional.silu(paddle.to_tensor(np_inputs)).numpy(),
+#                 rtol=1e-5,
+#             )
+#             paddle.enable_static()
 
-            predictor.run()
-            results = []
-            output_names = predictor.get_output_names()
-            for i, name in enumerate(output_names):
-                output_tensor = predictor.get_output_handle(name)
-                output_data = output_tensor.copy_to_cpu()
-                results.append(output_data)
-            np.testing.assert_allclose(
-                results,
-                paddle.nn.functional.silu(paddle.to_tensor(np_inputs)).numpy(),
-                rtol=1e-5,
-            )
-            paddle.enable_static()
+# This case is deleted because paddle no longer support old IR in recent update.
+# class TestCustomFcPass(unittest.TestCase):
+#     def setUp(self):
+#         self.model_name = "fc"
+#         paddle.jit.save(fc_pass_subgraph, self.model_name)
 
+#         self.batch_size = 64
 
-class TestCustomFcPass(unittest.TestCase):
-    def setUp(self):
-        self.model_name = "fc"
-        paddle.jit.save(fc_pass_subgraph, self.model_name)
+#     def test_custom_fc_n(self):
+#         with paddle.pir_utils.OldIrGuard():
+#             config = paddle.inference.Config()
+#             config.set_prog_file(self.model_name + ".pdmodel")
+#             config.enable_memory_optim()
+#             config.enable_custom_device("sdaa")
+#             pass_builder = config.pass_builder()
+#             pass_builder.append_pass("custom_fc")
+#             predictor = paddle.inference.create_predictor(config)
 
-        self.batch_size = 64
+#             np_inputs = [
+#                 np.random.randn(self.batch_size, 200).astype("float32"),
+#                 np.random.randn(200, 2).astype("float32"),
+#                 np.random.randn(2).astype("float32"),
+#             ]
+#             input_names = predictor.get_input_names()
+#             for i, name in enumerate(input_names):
+#                 input_tensor = predictor.get_input_handle(name)
+#                 input_tensor.copy_from_cpu(np_inputs[i])
 
-    def test_custom_fc_n(self):
-        with paddle.pir_utils.OldIrGuard():
-            config = paddle.inference.Config()
-            config.set_prog_file(self.model_name + ".pdmodel")
-            config.enable_memory_optim()
-            config.enable_custom_device("sdaa")
-            pass_builder = config.pass_builder()
-            pass_builder.append_pass("custom_fc")
-            predictor = paddle.inference.create_predictor(config)
+#             predictor.run()
+#             results = []
+#             output_names = predictor.get_output_names()
+#             for i, name in enumerate(output_names):
+#                 output_tensor = predictor.get_output_handle(name)
+#                 output_data = output_tensor.copy_to_cpu()
+#                 results.append(output_data)
 
-            np_inputs = [
-                np.random.randn(self.batch_size, 200).astype("float32"),
-                np.random.randn(200, 2).astype("float32"),
-                np.random.randn(2).astype("float32"),
-            ]
-            input_names = predictor.get_input_names()
-            for i, name in enumerate(input_names):
-                input_tensor = predictor.get_input_handle(name)
-                input_tensor.copy_from_cpu(np_inputs[i])
+#             with paddle.base.dygraph.guard(paddle.CPUPlace()):
+#                 cpu_output = paddle._legacy_C_ops.fc(
+#                     paddle.to_tensor(np_inputs[0]),
+#                     paddle.to_tensor(np_inputs[1]),
+#                     paddle.to_tensor(np_inputs[2]),
+#                     "activation_type",
+#                     "",
+#                     "in_num_col_dims",
+#                     1,
+#                 )
 
-            predictor.run()
-            results = []
-            output_names = predictor.get_output_names()
-            for i, name in enumerate(output_names):
-                output_tensor = predictor.get_output_handle(name)
-                output_data = output_tensor.copy_to_cpu()
-                results.append(output_data)
-
-            with paddle.base.dygraph.guard(paddle.CPUPlace()):
-                cpu_output = paddle._legacy_C_ops.fc(
-                    paddle.to_tensor(np_inputs[0]),
-                    paddle.to_tensor(np_inputs[1]),
-                    paddle.to_tensor(np_inputs[2]),
-                    "activation_type",
-                    "",
-                    "in_num_col_dims",
-                    1,
-                )
-
-            np.testing.assert_allclose(
-                results[0], cpu_output.numpy(), rtol=1e-4, atol=1e-2
-            )
+#             np.testing.assert_allclose(
+#                 results[0], cpu_output.numpy(), rtol=1e-4, atol=1e-2
+#             )
 
 
 class TestCustomConvBnFusedPass(unittest.TestCase):

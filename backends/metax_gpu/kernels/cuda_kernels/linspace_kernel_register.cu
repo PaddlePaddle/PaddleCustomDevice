@@ -1,5 +1,4 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved. Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +11,21 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/where_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(where,
+#include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/linspace_kernel.h"
+
+PD_CUSTOM_KERNEL_REGISTER(linspace,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::WhereKernel,
-                          bool,
+                          phi::LinspaceKernel,
                           float,
-                          double,
-                          int,
-                          int8_t,
+                          int32_t,
                           int64_t,
-                          int16_t,
-                          uint8_t,
+                          double,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::dtype::bfloat16) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+}

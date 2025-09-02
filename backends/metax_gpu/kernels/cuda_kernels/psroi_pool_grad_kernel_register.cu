@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/kernels/gpu/deformable_conv_grad_kernel.cu"  // NOLINT
+#include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/gpu/psroi_pool_grad_kernel.cu"  //NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(deformable_conv_grad,
+PD_CUSTOM_KERNEL_REGISTER(psroi_pool_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::DeformableConvGradKernel,
+                          phi::PsroiPoolGradKernel,
                           float,
-                          double) {}
+                          double) {
+  kernel->InputAt(2).SetDataType(phi::CppTypeToDataType<int>::Type());
+}

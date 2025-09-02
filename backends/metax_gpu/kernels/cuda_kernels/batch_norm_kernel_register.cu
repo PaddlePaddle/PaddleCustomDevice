@@ -1287,25 +1287,6 @@ void BatchNormKernel(const Context &dev_ctx,
 
 }  // namespace phi
 
-#ifdef PADDLE_WITH_HIP
-PD_REGISTER_PLUGIN_KERNEL(batch_norm,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::BatchNormKernel,
-                          float,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {
-  kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);
-  kernel->InputAt(2).SetDataType(phi::DataType::FLOAT32);
-  kernel->InputAt(3).SetDataType(phi::DataType::FLOAT32);
-  kernel->InputAt(4).SetDataType(phi::DataType::FLOAT32);
-  kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
-  kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
-  kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
-  kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);
-}
-#else
-#if CUDNN_VERSION_MIN(8, 1, 0)
 PD_REGISTER_PLUGIN_KERNEL(batch_norm,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -1325,32 +1306,5 @@ PD_REGISTER_PLUGIN_KERNEL(batch_norm,
     kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
     kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);
   }
-#if CUDNN_VERSION_MIN(7, 4, 1)
   kernel->OutputAt(5).SetDataType(phi::DataType::UINT8);
-#endif
 }
-#else
-PD_REGISTER_PLUGIN_KERNEL(batch_norm,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::BatchNormKernel,
-                          float,
-                          double,
-                          phi::dtype::float16) {
-  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
-    kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);
-    kernel->InputAt(2).SetDataType(phi::DataType::FLOAT32);
-    kernel->InputAt(3).SetDataType(phi::DataType::FLOAT32);
-    kernel->InputAt(4).SetDataType(phi::DataType::FLOAT32);
-    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
-    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
-    kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
-    kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);
-  }
-#if CUDNN_VERSION_MIN(7, 4, 1)
-  kernel->OutputAt(5).SetDataType(phi::DataType::UINT8);
-#endif
-}
-#endif
-
-#endif

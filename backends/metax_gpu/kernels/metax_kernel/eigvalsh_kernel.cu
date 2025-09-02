@@ -12,18 +12,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/phi/backends/gpu/gpu_context.h"
-#include "paddle/phi/common/bfloat16.h"
-#include "paddle/phi/common/float16.h"
-#include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/impl/softmax_kernel_impl.h"
-#include "paddle/phi/kernels/softmax_kernel.h"
+#ifndef PADDLE_WITH_HIP
 
-PD_REGISTER_PLUGIN_KERNEL(softmax,
+#include "kernels/impl/eigvalsh_kernel_impl.h"
+#include "paddle/phi/backends/gpu/gpu_context.h"
+#include "paddle/phi/common/complex.h"
+#include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/eigvalsh_kernel.h"
+
+PD_REGISTER_PLUGIN_KERNEL(eigvalsh,  // cuda_only
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::SoftmaxKernel,
+                          phi::EigvalshKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {
+  kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
+}
+
+#endif  // not PADDLE_WITH_HIP

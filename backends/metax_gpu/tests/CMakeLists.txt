@@ -17,6 +17,9 @@ list(
   REMOVE_ITEM
   PYTHON_TEST_SCRIPTS
   ${CMAKE_CURRENT_LIST_DIR}/unittest/test_cumsum_op_metax.py
+  ${CMAKE_CURRENT_LIST_DIR}/unittest/python_test_max_op_metax.py # Affected by
+                                                                 # the
+                                                                 # test_sum_op.py
   ${CMAKE_CURRENT_LIST_DIR}/unittest/test_expand_v2_op_metax.py
   ${CMAKE_CURRENT_LIST_DIR}/unittest/test_tril_triu_op_metax.py
   ${CMAKE_CURRENT_LIST_DIR}/unittest/test_squared_l2_norm_op_metax.py)

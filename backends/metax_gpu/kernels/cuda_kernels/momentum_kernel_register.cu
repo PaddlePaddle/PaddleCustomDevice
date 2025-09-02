@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/impl/momentum_kernel_impl.h"
-#include "paddle/phi/kernels/momentum_kernel.h"
+#include "paddle/phi/kernels/gpu/momentum_kernel.cu"  // NOLINT
+
+PD_CUSTOM_KERNEL_REGISTER(momentum,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::MomentumDenseKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+  }
+}
 
 PD_CUSTOM_KERNEL_REGISTER(momentum_dense_param_sparse_grad,
                           metax_gpu,

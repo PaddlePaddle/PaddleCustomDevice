@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// #include "paddle/phi/core/kernel_registry.h"
-// #include "paddle/phi/kernels/lu_kernel.h"
-// #include "paddle/phi/kernels/impl/lu_kernel_impl.h"
-// #include "paddle/phi/kernels/gpu/lu_kernel.cu"
+#include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/kron_kernel.h"
 
-// PD_REGISTER_PLUGIN_KERNEL(lu,  // cuda_only
-//                    metax_gpu,
-//                    ALL_LAYOUT,
-//                    phi::LUKernel,
-//                    float,
-//                    double) {
-//   kernel->OutputAt(1).SetDataType(phi::DataType::INT32);
-//   kernel->OutputAt(2).SetDataType(phi::DataType::INT32);
-// }
+PD_CUSTOM_KERNEL_REGISTER(kron,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::KronKernel,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}

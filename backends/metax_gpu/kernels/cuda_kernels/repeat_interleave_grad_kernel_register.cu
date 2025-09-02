@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/repeat_interleave_grad_kernel_impl.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/repeat_interleave_grad_kernel.h"
+#include "paddle/phi/kernels/gpu/repeat_interleave_grad_kernel.cu"  // NOLINT
 
-PD_REGISTER_PLUGIN_KERNEL(repeat_interleave_with_tensor_index_grad,
+PD_CUSTOM_KERNEL_REGISTER(repeat_interleave_with_tensor_index_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::RepeatInterleaveWithTensorIndexGradKernel,
@@ -25,7 +24,7 @@ PD_REGISTER_PLUGIN_KERNEL(repeat_interleave_with_tensor_index_grad,
                           int,
                           int64_t,
                           phi::dtype::bfloat16) {}
-PD_REGISTER_PLUGIN_KERNEL(repeat_interleave_grad,
+PD_CUSTOM_KERNEL_REGISTER(repeat_interleave_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::RepeatInterleaveGradKernel,

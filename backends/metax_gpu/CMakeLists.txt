@@ -463,7 +463,11 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unpool_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lstsq_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unpool_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unstack_grad_kernel_register.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unstack_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lgamma_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/linspace_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/kron_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/kron_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/stack_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unstack_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/viterbi_decode_kernel.cu
@@ -736,7 +740,7 @@ target_include_directories(
   ${TARGET_NAME}
   PRIVATE ${PADDLE_SOURCE_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/kernels
           ${CUDA_INCLUDE_DIRS} ${PADDLE_SOURCE_DIR}/third_party/pybind/include
-          ${PADDLE_SOURCE_DIR}/paddle/phi/api/include/compat/)
+          ${PADDLE_SOURCE_DIR}/paddle/phi/api/include/compat)
 
 target_link_libraries(
   ${TARGET_NAME}

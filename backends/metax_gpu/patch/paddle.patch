@@ -910,6 +910,19 @@ index 4459a931da..837c8682b8 100644
  #include "paddle/phi/kernels/funcs/deformable_conv_functor.h"
  
  namespace phi {
+diff --git a/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h b/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h
+index ad9e9197dd..5478d9817d 100644
+--- a/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h
++++ b/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h
+@@ -18,7 +18,7 @@
+ #include "paddle/phi/core/dense_tensor.h"
+ #include "paddle/phi/kernels/empty_kernel.h"
+ #include "paddle/phi/kernels/full_kernel.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
+ #include "paddle/phi/kernels/funcs/deformable_conv_functor.h"
+ #include "paddle/phi/kernels/transpose_kernel.h"
+ #include "paddle/utils/optional.h"
 diff --git a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h b/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
 index e6b3960f6d..564125f1f6 100644
 --- a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
@@ -963,6 +976,39 @@ index 5ebbc8d2db..48acf8d0cd 100644
      helper->GEMM(quant_input.data<int8_t>(),
                   weight->data<int8_t>(),
                   int_out.data<int32_t>(),
+diff --git a/paddle/phi/kernels/impl/matrix_power_grad_kernel_impl.h b/paddle/phi/kernels/impl/matrix_power_grad_kernel_impl.h
+index 1f319c4ae3..9186eb6906 100644
+--- a/paddle/phi/kernels/impl/matrix_power_grad_kernel_impl.h
++++ b/paddle/phi/kernels/impl/matrix_power_grad_kernel_impl.h
+@@ -15,7 +15,7 @@ limitations under the License. */
+ #pragma once
+ 
+ #include "paddle/phi/core/dense_tensor.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
+ #include "paddle/phi/kernels/funcs/matrix_inverse.h"
+ 
+ namespace phi {
+diff --git a/paddle/phi/kernels/impl/matrix_power_kernel_impl.h b/paddle/phi/kernels/impl/matrix_power_kernel_impl.h
+index 6f03f76eeb..5fe2c3e7dc 100644
+--- a/paddle/phi/kernels/impl/matrix_power_kernel_impl.h
++++ b/paddle/phi/kernels/impl/matrix_power_kernel_impl.h
+@@ -15,7 +15,7 @@ limitations under the License. */
+ #pragma once
+ 
+ #include "paddle/phi/core/dense_tensor.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
+ #include "paddle/phi/kernels/funcs/for_range.h"
+ #include "paddle/phi/kernels/funcs/matrix_inverse.h"
+ 
+diff --git a/third_party/flashattn b/third_party/flashattn
+index 581e48aa69..749aca3807 160000
+--- a/third_party/flashattn
++++ b/third_party/flashattn
+@@ -1 +1 @@
+-Subproject commit 581e48aa693a17ec3676ec2715d46130310d318d
++Subproject commit 749aca380794b472096d4e7ea01dd252ab0887c9
 diff --git a/third_party/yaml-cpp b/third_party/yaml-cpp
 --- a/third_party/yaml-cpp
 +++ b/third_party/yaml-cpp
@@ -981,4 +1027,30 @@ index 2789cb59a2..b91b076f7f 100644
 +#include "kernels/funcs/blas/blas.h"
  #include "paddle/phi/kernels/funcs/eigen/common.h"
  #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
+ 
+diff --git a/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h b/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h
+index ad9e9197dd..5478d9817d 100644
+--- a/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h
++++ b/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h
+@@ -18,7 +18,7 @@
+ #include "paddle/phi/core/dense_tensor.h"
+ #include "paddle/phi/kernels/empty_kernel.h"
+ #include "paddle/phi/kernels/full_kernel.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
+ #include "paddle/phi/kernels/funcs/deformable_conv_functor.h"
+ #include "paddle/phi/kernels/transpose_kernel.h"
+ #include "paddle/utils/optional.h"
+diff --git a/paddle/phi/kernels/cpu/index_select_impl.h b/paddle/phi/kernels/cpu/index_select_impl.h
+index d69eb67d6f..1d8b6e9375 100644
+--- a/paddle/phi/kernels/cpu/index_select_impl.h
++++ b/paddle/phi/kernels/cpu/index_select_impl.h
+@@ -18,7 +18,7 @@
+ 
+ #include "paddle/phi/core/dense_tensor.h"
+ #include "paddle/phi/core/tensor_utils.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
+ #include "paddle/phi/kernels/funcs/eigen/common.h"
+ #include "paddle/phi/kernels/funcs/math_function.h"
  

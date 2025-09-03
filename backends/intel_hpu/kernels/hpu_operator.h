@@ -33,7 +33,7 @@
 #include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/extension.h"
 
-// #define ENABLE_ASYNC_RUN
+#define ENABLE_ASYNC_RUN
 
 class HpuOperator {
  public:
@@ -54,6 +54,7 @@ class HpuOperator {
                " failed = ",
                status);
     }
+    std::cout << "hpu operator = " << guid_ << std::endl;
   }
 
   void Compile();
@@ -129,7 +130,7 @@ class GlobalWorkStreamExecutor {
           task = std::move(tasks_.front());
           tasks_.pop();
         }
-        task();  // 执行任务
+        task();
       }
     });
   }
@@ -151,7 +152,6 @@ class GlobalWorkStreamExecutor {
     condition_.notify_one();
   }
 
-  // 删除拷贝构造和赋值
   GlobalWorkStreamExecutor(const GlobalWorkStreamExecutor&) = delete;
   GlobalWorkStreamExecutor& operator=(const GlobalWorkStreamExecutor&) = delete;
 

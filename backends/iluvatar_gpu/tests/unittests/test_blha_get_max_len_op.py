@@ -1,0 +1,97 @@
+# Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import unittest
+
+import numpy as np
+
+import paddle
+from paddle.incubate.nn.functional import blha_get_max_len
+
+
+class TestBlhaGetMaxLenOp(unittest.TestCase):
+    def setUp(self):
+        self.name = "TestBlhaGetMaxLenOpDynamic"
+        place = paddle.CustomPlace("iluvatar_gpu", 0)
+        self.batch_size = 10
+        self.test_encoder_data = np.random.randint(1, 100, size=self.batch_size).astype(
+            "int32"
+        )
+        self.test_decoder_data = np.random.randint(1, 100, size=self.batch_size).astype(
+            "int32"
+        )
+
+    def test_dynamic_api(self):
+        paddle.disable_static()
+        test_encoder_data_res = paddle.to_tensor(
+            np.max(self.test_encoder_data), "int32"
+        )
+        test_decoder_data_res = paddle.to_tensor(
+            np.max(self.test_decoder_data), "int32"
+        )
+        seq_lens_encoder = paddle.to_tensor(
+            self.test_encoder_data,
+            "int32",
+        )
+        seq_lens_decoder = paddle.to_tensor(
+            self.test_decoder_data,
+            "int32",
+        )
+        batch_size_tensor = paddle.ones([self.batch_size])
+        max_enc_len_this_time, max_dec_len_this_time = blha_get_max_len(
+            seq_lens_encoder,
+            seq_lens_decoder,
+            batch_size_tensor,
+        )
+        assert (
+            max_enc_len_this_time == test_encoder_data_res
+            and max_dec_len_this_time == test_decoder_data_res
+        )
+
+
+class TestBlhaGetMaxLenOp_ZeroSize(unittest.TestCase):
+    def setUp(self):
+        self.name = "TestBlhaGetMaxLenOpDynamic_ZeroSize"
+        place = paddle.CustomPlace("iluvatar_gpu", 0)
+        self.batch_size = 0
+        self.test_encoder_data = np.random.randint(1, 100, size=self.batch_size).astype(
+            "int32"
+        )
+        self.test_decoder_data = np.random.randint(1, 100, size=self.batch_size).astype(
+            "int32"
+        )
+
+    def test_dynamic_api(self):
+        paddle.disable_static()
+        seq_lens_encoder = paddle.to_tensor(
+            self.test_encoder_data,
+            "int32",
+        )
+        seq_lens_decoder = paddle.to_tensor(
+            self.test_decoder_data,
+            "int32",
+        )
+        batch_size_tensor = paddle.ones([self.batch_size])
+        max_enc_len_this_time, max_dec_len_this_time = blha_get_max_len(
+            seq_lens_encoder,
+            seq_lens_decoder,
+            batch_size_tensor,
+        )
+        assert tuple(max_enc_len_this_time.shape) == (1,) and tuple(
+            max_dec_len_this_time.shape
+        ) == (1,)
+
+
+if __name__ == "__main__":
+    unittest.main()

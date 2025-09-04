@@ -54,7 +54,6 @@ class HpuOperator {
                " failed = ",
                status);
     }
-    std::cout << "hpu operator = " << guid_ << std::endl;
   }
 
   void Compile();
@@ -89,77 +88,64 @@ class GlobalWorkStreamExecutor {
   }
 
   template <typename R>
-  std::future<R> async(std::function<R()> func) {
+  std::future<R> async(synStreamHandle stream, std::function<R()> func) {
     auto task = std::make_shared<std::packaged_task<R()>>(std::move(func));
     std::future<R> res = task->get_future();
-    add_task([task]() { (*task)(); });
+    add_task(stream, [task]() { (*task)(); });
     return res;
   }
 
   template <typename F>
-  auto async(F&& func) -> std::future<decltype(func())> {
+  auto async(synStreamHandle stream, F&& func)
+      -> std::future<decltype(func())> {
     using R = decltype(func());
     auto task =
         std::make_shared<std::packaged_task<R()>>(std::forward<F>(func));
     std::future<R> res = task->get_future();
-    add_task([task]() { (*task)(); });
+    add_task(stream, [task]() { (*task)(); });
     return res;
   }
 
   template <typename R>
-  R sync(std::function<R()> func) {
-    return async(std::move(func)).get();
+  R sync(synStreamHandle stream, std::function<R()> func) {
+    return async(stream, std::move(func)).get();
   }
 
   template <typename F>
-  auto sync(F&& func) -> decltype(func()) {
-    return async(std::forward<F>(func)).get();
+  auto sync(synStreamHandle stream, F&& func) -> decltype(func()) {
+    return async(stream, std::forward<F>(func)).get();
   }
 
  private:
-  GlobalWorkStreamExecutor() {
-    worker_ = std::thread([this]() {
-      while (true) {
-        std::function<void()> task;
-        {
-          std::unique_lock<std::mutex> lock(queue_mutex_);
-          condition_.wait(lock, [this] { return !tasks_.empty() || stop_; });
+  struct WorkerThread {
+    std::thread thread;
+    std::queue<std::function<void()>> tasks;
+    std::mutex mutex;
+    std::condition_variable condition;
+    bool stop = false;
+  };
 
-          if (stop_ && tasks_.empty()) break;
-
-          task = std::move(tasks_.front());
-          tasks_.pop();
-        }
-        task();
-      }
-    });
-  }
-
+  GlobalWorkStreamExecutor() = default;
   ~GlobalWorkStreamExecutor() {
-    {
-      std::lock_guard<std::mutex> lock(queue_mutex_);
-      stop_ = true;
+    for (auto& [stream, worker] : workers_) {
+      {
+        std::lock_guard<std::mutex> lock(worker->mutex);
+        worker->stop = true;
+      }
+      worker->condition.notify_all();
+      if (worker->thread.joinable()) {
+        worker->thread.join();
+      }
     }
-    condition_.notify_all();
-    if (worker_.joinable()) worker_.join();
   }
 
-  void add_task(std::function<void()> task) {
-    {
-      std::lock_guard<std::mutex> lock(queue_mutex_);
-      tasks_.emplace(std::move(task));
-    }
-    condition_.notify_one();
-  }
+  void add_task(const synStreamHandle stream, std::function<void()> task);
 
   GlobalWorkStreamExecutor(const GlobalWorkStreamExecutor&) = delete;
   GlobalWorkStreamExecutor& operator=(const GlobalWorkStreamExecutor&) = delete;
 
-  std::thread worker_;
-  std::queue<std::function<void()>> tasks_;
-  std::mutex queue_mutex_;
-  std::condition_variable condition_;
-  bool stop_ = false;
+  std::unordered_map<synStreamHandle, std::shared_ptr<WorkerThread>> workers_;
+  std::mutex workers_mutex_;
 };
 #endif
 
@@ -175,6 +161,7 @@ class RecipeRunner {
   void Run(C_Stream stream, std::map<std::string, uint64_t> tensors) {
     synRecipeHandle recipehandle = this->recipeHandle_;
     auto future = GlobalWorkStreamExecutor::instance().async(
+        reinterpret_cast<synStreamHandle>(stream),
         [this, stream, tensors, recipehandle] {
           ExecuteRecipe(stream, tensors, recipehandle);
         });

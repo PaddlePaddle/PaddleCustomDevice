@@ -361,39 +361,41 @@ class RuntimeManager {
                      size_t size,
                      size_t flag = 0 /*0 = h2d, 1 = d2h, 2=d2d*/) {
 #ifdef ENABLE_ASYNC_RUN
-    GlobalWorkStreamExecutor::instance().sync([&] {
+    GlobalWorkStreamExecutor::instance().sync(
+        reinterpret_cast<synStreamHandle>(stream), [&] {
 #endif
-      LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-          << "AsyncCopy: flag = " << flag << ", size = " << size
-          << ", stream = " << stream << ", src = " << src << ", dst = " << dst;
-      if (flag == 0) {
-        auto block = PreDeviceCopy(src, size, flag);
-        DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
-                   block,
-                   reinterpret_cast<uint64_t>(dst),
-                   size,
-                   flag,
-                   false);
+          LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+              << "AsyncCopy: flag = " << flag << ", size = " << size
+              << ", stream = " << stream << ", src = " << src
+              << ", dst = " << dst;
+          if (flag == 0) {
+            auto block = PreDeviceCopy(src, size, flag);
+            DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
+                       block,
+                       reinterpret_cast<uint64_t>(dst),
+                       size,
+                       flag,
+                       false);
 
-      } else if (flag == 1) {
-        auto block = PreDeviceCopy(dst, size, flag);
-        DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
-                   reinterpret_cast<uint64_t>(src),
-                   block,
-                   size,
-                   flag);
-        PostDeviceCopy(dst, block, size, flag);
+          } else if (flag == 1) {
+            auto block = PreDeviceCopy(dst, size, flag);
+            DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
+                       reinterpret_cast<uint64_t>(src),
+                       block,
+                       size,
+                       flag);
+            PostDeviceCopy(dst, block, size, flag);
 
-      } else if (flag == 2) {
-        DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
-                   reinterpret_cast<uint64_t>(src),
-                   reinterpret_cast<uint64_t>(dst),
-                   size,
-                   flag,
-                   false);
-      }
+          } else if (flag == 2) {
+            DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
+                       reinterpret_cast<uint64_t>(src),
+                       reinterpret_cast<uint64_t>(dst),
+                       size,
+                       flag,
+                       false);
+          }
 #ifdef ENABLE_ASYNC_RUN
-    });
+        });
 #endif
     return C_SUCCESS;
   }
@@ -414,7 +416,7 @@ class RuntimeManager {
     }
 
     LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "device id=" << deviceID << " create event = " << *event;
+        << "CreateEvent: event = " << *event << " device id=" << deviceID;
 
     return C_SUCCESS;
   }
@@ -423,24 +425,19 @@ class RuntimeManager {
     LOG_IF(ERROR, static_cast<synModuleId>(device->id) != moduleID)
         << "[RUNTIME] moduleID mismatch : moduleID = " << moduleID
         << ", current = " << moduleID;
-#ifdef ENABLE_ASYNC_RUN
-    GlobalWorkStreamExecutor::instance().sync([&] {
-#endif
-      auto it = events.find(reinterpret_cast<synEventHandle>(event));
-      if (it != events.end()) {
-        synStatus status = synEventDestroy(*it);
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "DestroyEvent = " << event << " device Module id=" << device->id;
 
-        PD_CHECK(status == synSuccess,
-                 "[RUNTIME] synEventDestroy() failed = ",
-                 status);
+    auto it = events.find(reinterpret_cast<synEventHandle>(event));
+    if (it != events.end()) {
+      synStatus status = synEventDestroy(*it);
 
-        events.erase(*it);
-      }
-      LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-          << "device Module id=" << device->id << " remove event = " << event;
-#ifdef ENABLE_ASYNC_RUN
-    });
-#endif
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synEventDestroy() failed = ",
+               status);
+
+      events.erase(*it);
+    }
     return C_SUCCESS;
   }
 
@@ -810,20 +807,22 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
       << "[RUNTIME] moduleID mismatch : moduleID = "
       << runtimeManager.GetModuleID() << ", current = " << device->id;
 #ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
+  GlobalWorkStreamExecutor::instance().sync(
+      reinterpret_cast<synStreamHandle>(stream), [&] {
 #endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "RecordEvent: event " << reinterpret_cast<synEventHandle>(event)
-        << " on device " << static_cast<synModuleId>(device->id)
-        << ", stream = " << reinterpret_cast<const synStreamHandle>(stream);
-    synStatus status =
-        synEventRecord(reinterpret_cast<synEventHandle>(event),
-                       reinterpret_cast<const synStreamHandle>(stream));
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "RecordEvent: event " << reinterpret_cast<synEventHandle>(event)
+            << " on device " << static_cast<synModuleId>(device->id)
+            << ", stream = " << reinterpret_cast<const synStreamHandle>(stream);
+        synStatus status =
+            synEventRecord(reinterpret_cast<synEventHandle>(event),
+                           reinterpret_cast<const synStreamHandle>(stream));
 
-    PD_CHECK(
-        status == synSuccess, "[RUNTIME] synEventRecord() failed = ", status);
+        PD_CHECK(status == synSuccess,
+                 "[RUNTIME] synEventRecord() failed = ",
+                 status);
 #ifdef ENABLE_ASYNC_RUN
-  });
+      });
 #endif
   return C_SUCCESS;
 }
@@ -855,20 +854,21 @@ C_Status SyncStream(const C_Device device, C_Stream stream) {
       << runtimeManager.GetModuleID() << ", current = " << device->id;
   int id = device->id;
 #ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
+  GlobalWorkStreamExecutor::instance().sync(
+      reinterpret_cast<synStreamHandle>(stream), [&] {
 #endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "SyncStream: " << static_cast<synModuleId>(id)
-        << ", main work stream = "
-        << reinterpret_cast<const synStreamHandle>(stream);
-    synStatus status =
-        synStreamSynchronize(reinterpret_cast<const synStreamHandle>(stream));
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "SyncStream: " << static_cast<synModuleId>(id)
+            << ", main work stream = "
+            << reinterpret_cast<const synStreamHandle>(stream);
+        synStatus status = synStreamSynchronize(
+            reinterpret_cast<const synStreamHandle>(stream));
 
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] synStreamSynchronize() failed = ",
-             status);
+        PD_CHECK(status == synSuccess,
+                 "[RUNTIME] synStreamSynchronize() failed = ",
+                 status);
 #ifdef ENABLE_ASYNC_RUN
-  });
+      });
 #endif
   return C_SUCCESS;
 }
@@ -878,10 +878,7 @@ C_Status SyncEvent(const C_Device device, C_Event event) {
          static_cast<synModuleId>(device->id) != runtimeManager.GetModuleID())
       << "[RUNTIME] moduleID mismatch : moduleID = "
       << runtimeManager.GetModuleID() << ", current = " << device->id;
-  // #ifdef ENABLE_ASYNC_RUN
-  //     GlobalWorkStreamExecutor::instance().sync(
-  //         [&] {
-  // #endif
+
   LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
       << "SyncEvent: event = " << reinterpret_cast<synEventHandle>(event);
   synStatus status =
@@ -890,9 +887,6 @@ C_Status SyncEvent(const C_Device device, C_Event event) {
   PD_CHECK(status == synSuccess,
            "[RUNTIME] synEventSynchronize() failed = ",
            status);
-  // #ifdef ENABLE_ASYNC_RUN
-  //         });
-  // #endif
   return C_SUCCESS;
 }
 
@@ -905,22 +899,23 @@ C_Status StreamWaitEvent(const C_Device device,
       << runtimeManager.GetModuleID() << ", current = " << device->id;
 
 #ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
+  GlobalWorkStreamExecutor::instance().sync(
+      reinterpret_cast<synStreamHandle>(stream), [&] {
 #endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "StreamWaitEvent: main work stream = "
-        << reinterpret_cast<const synStreamHandle>(stream)
-        << ", event = " << reinterpret_cast<synEventHandle>(event);
-    synStatus status =
-        synStreamWaitEvent(reinterpret_cast<const synStreamHandle>(stream),
-                           reinterpret_cast<synEventHandle>(event),
-                           0);
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "StreamWaitEvent: main work stream = "
+            << reinterpret_cast<const synStreamHandle>(stream)
+            << ", event = " << reinterpret_cast<synEventHandle>(event);
+        synStatus status =
+            synStreamWaitEvent(reinterpret_cast<const synStreamHandle>(stream),
+                               reinterpret_cast<synEventHandle>(event),
+                               0);
 
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] synStreamWaitEvent() failed = ",
-             status);
+        PD_CHECK(status == synSuccess,
+                 "[RUNTIME] synStreamWaitEvent() failed = ",
+                 status);
 #ifdef ENABLE_ASYNC_RUN
-  });
+      });
 #endif
   return C_SUCCESS;
 }
@@ -978,20 +973,24 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLComm comm,
                        C_Stream stream) {
 #ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
+  GlobalWorkStreamExecutor::instance().async(
+      reinterpret_cast<synStreamHandle>(stream),
+      [send_buf, recv_buf, count, data_type, op, comm, stream] {
 #endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "XcclAllReduce " << send_buf << ", " << recv_buf << ", " << count
-        << ", " << data_type << ", " << op << ", " << comm << ", " << stream;
-    CHECK_HCCL_STATUS(hcclAllReduce(static_cast<const void *>(send_buf),
-                                    recv_buf,
-                                    count,
-                                    PDDataTypeToHcclDataType(data_type),
-                                    PDReduceOpToHcclReduceOp(op),
-                                    reinterpret_cast<hcclComm_t>(comm),
-                                    reinterpret_cast<synStreamHandle>(stream)));
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "XcclAllReduce " << send_buf << ", " << recv_buf << ", " << count
+            << ", " << data_type << ", " << op << ", " << comm << ", "
+            << stream;
+        CHECK_HCCL_STATUS(
+            hcclAllReduce(static_cast<const void *>(send_buf),
+                          recv_buf,
+                          count,
+                          PDDataTypeToHcclDataType(data_type),
+                          PDReduceOpToHcclReduceOp(op),
+                          reinterpret_cast<hcclComm_t>(comm),
+                          reinterpret_cast<synStreamHandle>(stream)));
 #ifdef ENABLE_ASYNC_RUN
-  });
+      });
 #endif
   return C_SUCCESS;
 }
@@ -1003,20 +1002,23 @@ C_Status XcclBroadcast(void *buf,
                        C_CCLComm comm,
                        C_Stream stream) {
 #ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
+  GlobalWorkStreamExecutor::instance().async(
+      reinterpret_cast<synStreamHandle>(stream),
+      [buf, count, data_type, root, comm, stream] {
 #endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "XcclBroadcast " << buf << ", " << count << ", " << data_type << ", "
-        << root << ", " << comm << ", " << stream;
-    CHECK_HCCL_STATUS(hcclBroadcast(static_cast<const void *>(buf),
-                                    buf,
-                                    static_cast<uint64_t>(count),
-                                    PDDataTypeToHcclDataType(data_type),
-                                    static_cast<int>(root),
-                                    reinterpret_cast<hcclComm_t>(comm),
-                                    reinterpret_cast<synStreamHandle>(stream)));
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "XcclBroadcast " << buf << ", " << count << ", " << data_type
+            << ", " << root << ", " << comm << ", " << stream;
+        CHECK_HCCL_STATUS(
+            hcclBroadcast(static_cast<const void *>(buf),
+                          buf,
+                          static_cast<uint64_t>(count),
+                          PDDataTypeToHcclDataType(data_type),
+                          static_cast<int>(root),
+                          reinterpret_cast<hcclComm_t>(comm),
+                          reinterpret_cast<synStreamHandle>(stream)));
 #ifdef ENABLE_ASYNC_RUN
-  });
+      });
 #endif
   return C_SUCCESS;
 }
@@ -1030,22 +1032,25 @@ C_Status XcclReduce(void *send_buf,
                     C_CCLComm comm,
                     C_Stream stream) {
 #ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
+  GlobalWorkStreamExecutor::instance().async(
+      reinterpret_cast<synStreamHandle>(stream),
+      [send_buf, recv_buf, count, data_type, op, root, comm, stream] {
 #endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "XcclReduce " << send_buf << ", " << recv_buf << ", " << count
-        << ", " << data_type << ", " << op << ", " << root << ", " << comm
-        << ", " << stream;
-    CHECK_HCCL_STATUS(hcclReduce(static_cast<const void *>(send_buf),
-                                 recv_buf,
-                                 count,
-                                 PDDataTypeToHcclDataType(data_type),
-                                 PDReduceOpToHcclReduceOp(op),
-                                 root,
-                                 reinterpret_cast<hcclComm_t>(comm),
-                                 reinterpret_cast<synStreamHandle>(stream)));
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "XcclReduce " << send_buf << ", " << recv_buf << ", " << count
+            << ", " << data_type << ", " << op << ", " << root << ", " << comm
+            << ", " << stream;
+        CHECK_HCCL_STATUS(
+            hcclReduce(static_cast<const void *>(send_buf),
+                       recv_buf,
+                       count,
+                       PDDataTypeToHcclDataType(data_type),
+                       PDReduceOpToHcclReduceOp(op),
+                       root,
+                       reinterpret_cast<hcclComm_t>(comm),
+                       reinterpret_cast<synStreamHandle>(stream)));
 #ifdef ENABLE_ASYNC_RUN
-  });
+      });
 #endif
   return C_SUCCESS;
 }
@@ -1057,19 +1062,22 @@ C_Status XcclAllGather(void *send_buf,
                        C_CCLComm comm,
                        C_Stream stream) {
 #ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
+  GlobalWorkStreamExecutor::instance().async(
+      reinterpret_cast<synStreamHandle>(stream),
+      [send_buf, recv_buf, count, data_type, comm, stream] {
 #endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "XcclAllGather " << send_buf << ", " << recv_buf << ", " << count
-        << ", " << data_type << ", " << comm << ", " << stream;
-    CHECK_HCCL_STATUS(hcclAllGather(static_cast<const void *>(send_buf),
-                                    recv_buf,
-                                    count,
-                                    PDDataTypeToHcclDataType(data_type),
-                                    reinterpret_cast<hcclComm_t>(comm),
-                                    reinterpret_cast<synStreamHandle>(stream)));
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "XcclAllGather " << send_buf << ", " << recv_buf << ", " << count
+            << ", " << data_type << ", " << comm << ", " << stream;
+        CHECK_HCCL_STATUS(
+            hcclAllGather(static_cast<const void *>(send_buf),
+                          recv_buf,
+                          count,
+                          PDDataTypeToHcclDataType(data_type),
+                          reinterpret_cast<hcclComm_t>(comm),
+                          reinterpret_cast<synStreamHandle>(stream)));
 #ifdef ENABLE_ASYNC_RUN
-  });
+      });
 #endif
   return C_SUCCESS;
 }
@@ -1082,21 +1090,24 @@ C_Status XcclReduceScatter(void *send_buf,
                            C_CCLComm comm,
                            C_Stream stream) {
 #ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
+  GlobalWorkStreamExecutor::instance().async(
+      reinterpret_cast<synStreamHandle>(stream),
+      [send_buf, recv_buf, count, data_type, op, comm, stream] {
 #endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "XcclReduceScatter " << send_buf << ", " << recv_buf << ", " << count
-        << ", " << data_type << ", " << op << ", " << comm << ", " << stream;
-    CHECK_HCCL_STATUS(
-        hcclReduceScatter(static_cast<const void *>(send_buf),
-                          recv_buf,
-                          count,
-                          PDDataTypeToHcclDataType(data_type),
-                          PDReduceOpToHcclReduceOp(op),
-                          reinterpret_cast<hcclComm_t>(comm),
-                          reinterpret_cast<synStreamHandle>(stream)));
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "XcclReduceScatter " << send_buf << ", " << recv_buf << ", "
+            << count << ", " << data_type << ", " << op << ", " << comm << ", "
+            << stream;
+        CHECK_HCCL_STATUS(
+            hcclReduceScatter(static_cast<const void *>(send_buf),
+                              recv_buf,
+                              count,
+                              PDDataTypeToHcclDataType(data_type),
+                              PDReduceOpToHcclReduceOp(op),
+                              reinterpret_cast<hcclComm_t>(comm),
+                              reinterpret_cast<synStreamHandle>(stream)));
 #ifdef ENABLE_ASYNC_RUN
-  });
+      });
 #endif
   return C_SUCCESS;
 }
@@ -1118,19 +1129,21 @@ C_Status XcclSend(void *send_buf,
                   C_CCLComm comm,
                   C_Stream stream) {
 #ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
+  GlobalWorkStreamExecutor::instance().async(
+      reinterpret_cast<synStreamHandle>(stream),
+      [send_buf, count, data_type, dest_rank, comm, stream] {
 #endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "XcclSend " << send_buf << ", " << count << ", " << data_type << ", "
-        << dest_rank << ", " << comm << ", " << stream;
-    CHECK_HCCL_STATUS(hcclSend(static_cast<const void *>(send_buf),
-                               count,
-                               PDDataTypeToHcclDataType(data_type),
-                               static_cast<uint32_t>(dest_rank),
-                               reinterpret_cast<hcclComm_t>(comm),
-                               reinterpret_cast<synStreamHandle>(stream)));
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "XcclSend " << send_buf << ", " << count << ", " << data_type
+            << ", " << dest_rank << ", " << comm << ", " << stream;
+        CHECK_HCCL_STATUS(hcclSend(static_cast<const void *>(send_buf),
+                                   count,
+                                   PDDataTypeToHcclDataType(data_type),
+                                   static_cast<uint32_t>(dest_rank),
+                                   reinterpret_cast<hcclComm_t>(comm),
+                                   reinterpret_cast<synStreamHandle>(stream)));
 #ifdef ENABLE_ASYNC_RUN
-  });
+      });
 #endif
   return C_SUCCESS;
 }
@@ -1142,19 +1155,21 @@ C_Status XcclRecv(void *recv_buf,
                   C_CCLComm comm,
                   C_Stream stream) {
 #ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
+  GlobalWorkStreamExecutor::instance().async(
+      reinterpret_cast<synStreamHandle>(stream),
+      [recv_buf, count, data_type, src_rank, comm, stream] {
 #endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "XcclRecv " << recv_buf << ", " << count << ", " << data_type << ", "
-        << src_rank << ", " << comm << ", " << stream;
-    CHECK_HCCL_STATUS(hcclRecv(recv_buf,
-                               count,
-                               PDDataTypeToHcclDataType(data_type),
-                               static_cast<uint32_t>(src_rank),
-                               reinterpret_cast<hcclComm_t>(comm),
-                               reinterpret_cast<synStreamHandle>(stream)));
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "XcclRecv " << recv_buf << ", " << count << ", " << data_type
+            << ", " << src_rank << ", " << comm << ", " << stream;
+        CHECK_HCCL_STATUS(hcclRecv(recv_buf,
+                                   count,
+                                   PDDataTypeToHcclDataType(data_type),
+                                   static_cast<uint32_t>(src_rank),
+                                   reinterpret_cast<hcclComm_t>(comm),
+                                   reinterpret_cast<synStreamHandle>(stream)));
 #ifdef ENABLE_ASYNC_RUN
-  });
+      });
 #endif
   return C_SUCCESS;
 }

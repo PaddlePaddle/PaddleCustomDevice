@@ -32,6 +32,7 @@ struct FusedGateMoeParams {
   int32_t experts_min;
   int32_t experts_max;
   int32_t block_size;
+  int32_t chunk_size;
 
   bool moe_use_gate_correction_bias;
   bool norm_topk_prob;
@@ -55,12 +56,12 @@ static const std::map<std::string_view, MoeActivationMode_t> activationModeMap =
      {"relu", MoeActivationMode_t::MOE_ACTIVATION_MODE_RELU},
      {"silu", MoeActivationMode_t::MOE_ACTIVATION_MODE_SILU}};
 
-std::shared_ptr<ns_MoeKernel::ParamsV3> FillMixtureOfExpertsParams(
+std::shared_ptr<ns_MoeKernel::ParamsV4> FillMixtureOfExpertsParams(
     const FusedGateMoeParams& config) {
-  auto moe_params = std::make_shared<ns_MoeKernel::ParamsV3>();
+  auto moe_params = std::make_shared<ns_MoeKernel::ParamsV4>();
   memset(reinterpret_cast<void*>(moe_params.get()),
          0x00,
-         sizeof(ns_MoeKernel::ParamsV3));
+         sizeof(ns_MoeKernel::ParamsV4));
 
   std::string activation_str(config.activation_mode);
   auto activationIterator = activationModeMap.find(activation_str);
@@ -82,7 +83,8 @@ std::shared_ptr<ns_MoeKernel::ParamsV3> FillMixtureOfExpertsParams(
            ? MoeFlags_t::MOE_FLAGS_BLOCKWISE_WEIGHT_QUANTIZATION
            : 0);
   moe_params->block_size = config.block_size;
-
+  moe_params->total_experts = config.num_experts;
+  moe_params->chunk_size = config.chunk_size;
   return moe_params;
 }
 
@@ -359,7 +361,8 @@ void FusedGateMoeKernel(
     const int experts_max,
     const bool measurement_mode,
     const bool dynamic_scale,
-    const int block_size) {
+    const int block_size,
+    const int chunk_size) {
   std::vector<int64_t> gate_up_weights_dims =
       phi::vectorize<int64_t>(gate_up_weights.dims());
   std::vector<int64_t> down_weights_dims =
@@ -381,6 +384,7 @@ void FusedGateMoeKernel(
   strncpy(params.activation_mode,
           activation.c_str(),
           sizeof(params.activation_mode) - 1);
+  params.chunk_size = chunk_size;
 
   ConvertTensors ct;
   ct.Add(hidden_states);
@@ -450,7 +454,8 @@ void CallFusedGateMoeKernel(
     const bool is_bf16_moe_input,
     const bool measurement_mode,
     const bool dynamic_scale,
-    const int block_size) {
+    const int block_size,
+    const int chunk_size) {
   if (hidden_states.dtype() == phi::DataType::BFLOAT16) {
     if (is_bf16_moe_input) {
       // bf16 & blockwise fp8
@@ -475,7 +480,8 @@ void CallFusedGateMoeKernel(
           experts_max,
           measurement_mode,
           dynamic_scale,
-          block_size);
+          block_size,
+          chunk_size);
     } else {
       custom_kernel::FusedGateMoeKernel<phi::dtype::bfloat16,
                                         phi::dtype::float8_e4m3fn>(
@@ -498,7 +504,8 @@ void CallFusedGateMoeKernel(
           experts_max,
           measurement_mode,
           dynamic_scale,
-          block_size);
+          block_size,
+          chunk_size);
     }
   } else {
     throw std::runtime_error("Unsupported data type for FusedGateMoeKernel");
@@ -517,7 +524,8 @@ std::vector<paddle::Tensor> FusedGateMoeForward(
     const bool permuted_weights,
     const std::string& activation,
     const int experts_min,
-    const int experts_max) {
+    const int experts_max,
+    const int chunk_size) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(
           hidden_states.place()));
@@ -566,7 +574,8 @@ std::vector<paddle::Tensor> FusedGateMoeForward(
       true,  /* moe input = bf16 */
       false, /* measurement_mode, so far not need */
       false, /* dynamic_scale */
-      -1 /* block_size */);
+      -1 /* block_size */,
+      chunk_size /* chunk_size */);
 
   return {paddle::Tensor(final_hidden_states)};
 }
@@ -586,7 +595,8 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
     const bool permuted_weights,
     const std::string& activation,
     const int experts_min,
-    const int experts_max) {
+    const int experts_max,
+    const int chunk_size) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(
           hidden_states.place()));
@@ -659,7 +669,8 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
       false, /* moe input = fp8*/
       false, /* measurement_mode, so far not supported on FP8 */
       dynamic_scale,
-      -1 /* block_size */);
+      -1 /* block_size */,
+      chunk_size);
   return {paddle::Tensor(final_hidden_states)};
 }
 
@@ -678,7 +689,8 @@ std::vector<paddle::Tensor> FusedGateMoeBlockWiseFP8Forward(
     const std::string& activation,
     const int experts_min,
     const int experts_max,
-    const int block_size) {
+    const int block_size,
+    const int chunk_size) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(
           hidden_states.place()));
@@ -739,7 +751,8 @@ std::vector<paddle::Tensor> FusedGateMoeBlockWiseFP8Forward(
       true,  /* moe input = bf16 */
       false, /* measurement_mode, so far not supported on FP8 */
       false, /*dynamic_scale*/
-      block_size);
+      block_size,
+      chunk_size);
   return {paddle::Tensor(final_hidden_states)};
 }
 
@@ -779,7 +792,8 @@ PD_BUILD_OP(fused_gate_moe)
             "permuted_weights: bool",
             "activation: std::string",
             "experts_min: int",
-            "experts_max: int"})
+            "experts_max: int",
+            "chunk_size: int"})
     .SetKernelFn(PD_KERNEL(FusedGateMoeForward))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedGateMoeInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedGateMoeInferDtype));
@@ -807,7 +821,8 @@ PD_BUILD_OP(fused_gate_moe_fp8)
             "permuted_weights: bool",
             "activation: std::string",
             "experts_min: int",
-            "experts_max: int"})
+            "experts_max: int",
+            "chunk_size: int"})
     .SetKernelFn(PD_KERNEL(FusedGateMoeFP8Forward))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedGateMoeInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedGateMoeInferDtype));
@@ -834,7 +849,8 @@ PD_BUILD_OP(fused_gate_moe_blockwise_fp8)
             "activation: std::string",
             "experts_min: int",
             "experts_max: int",
-            "block_size: int"})
+            "block_size: int",
+            "chunk_size: int"})
     .SetKernelFn(PD_KERNEL(FusedGateMoeBlockWiseFP8Forward))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedGateMoeInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedGateMoeInferDtype));

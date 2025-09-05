@@ -672,6 +672,7 @@ class FusedMoE:
                     )
                 )
 
+            chunk_size = 0
             if self.dtype == "fp8":
                 slice_result = self.fn(
                     *common_inputs,
@@ -679,6 +680,7 @@ class FusedMoE:
                     *slice_scales,
                     *common_params,
                     self.dynamic_scale,
+                    chunk_size,
                 )
             elif self.dtype == "blockwise_fp8":
                 slice_result = self.fn(
@@ -687,6 +689,7 @@ class FusedMoE:
                     *slice_scales,
                     *common_params,
                     self.block_size,
+                    chunk_size,
                 )
             else:
                 slice_result, slice_amax = self.fn(
@@ -694,6 +697,7 @@ class FusedMoE:
                     *slice_weights,
                     *common_params,
                     compute_amax,
+                    chunk_size,
                 )
             if compute_amax:
                 amax_per_expert[slice_experts_min : slice_experts_max + 1] = slice_amax

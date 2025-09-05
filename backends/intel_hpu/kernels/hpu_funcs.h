@@ -499,10 +499,10 @@ class HpuFusedOperator : public HpuOperator {
   template <typename T>
   inline void AddNodeMoeForward(std::vector<synTensor> inputs,
                                 std::vector<synTensor> outputs,
-                                std::shared_ptr<ns_MoeKernel::ParamsV3> params,
+                                std::shared_ptr<ns_MoeKernel::ParamsV4> params,
                                 std::string node_name) {
     std::string guid = "moe_" + guid_dtype<T>();
-    AddNode_IOP<ns_MoeKernel::ParamsV3>(
+    AddNode_IOP<ns_MoeKernel::ParamsV4>(
         inputs, outputs, *params, guid, node_name);
   }
 

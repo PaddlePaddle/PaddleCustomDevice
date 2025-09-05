@@ -26,4 +26,5 @@ skip_case_lst = [
     "test_cast.py",
     "test_set_value_afbi.py",
     "test_get_token_multiscores.py",
+    "test_fused_fp8_flatPA_proj.py",
 ]

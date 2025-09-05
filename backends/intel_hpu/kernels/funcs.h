@@ -349,6 +349,9 @@ class ConvertTensors {
       num_elements *= d;
     }
     int64_t addr_offset = num_elements * DataTypeSize(x.dtype());
+    if (addr_offset % 0x80 != 0) {
+      PADDLE_THROW("Tensor list offset is not algined.");
+    }
 
     if (is_input) {
       for (int64_t tensor_idx = 0; tensor_idx < num_list; tensor_idx++) {

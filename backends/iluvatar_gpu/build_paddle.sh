@@ -60,14 +60,19 @@ if [[ ! -d "build" ]]; then
 fi
 pushd build
 
-cmake -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DIR=${PADDLE_SOURCE_DIR} \
+cmake -G Ninja -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DIR=${PADDLE_SOURCE_DIR} \
 -DWITH_DISTRIBUTE=ON -DWITH_NCCL=ON -DWITH_FLAGCX=${WITH_FLAGCX} -DWITH_RCCL=OFF -DCMAKE_BUILD_TYPE=Release \
 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DON_INFER=ON -DCOREX_VERSION=${COREX_VERSION} -DCOREX_ARCH=${COREX_ARCH} \
 -DFLAGCX_ROOT=${FLAGCX_ROOT} \
--DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime' \
+-DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime -pthread' \
 -DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
+-DCMAKE_C_FLAGS="-pthread" \
 -DWITH_ARM=OFF -DWITH_DGC=OFF .. 2>&1 | tee compile.log
-make VERBOSE=1 -j$(nproc) 2>&1 | tee -a compile.log
+# make VERBOSE=1 -j$(nproc) 2>&1 | tee -a compile.log
+ninja -k 0 -j$(nproc) 2>&1 | tee -a compile.log
+FAILED_LOG="failed_files.log"
+grep -E "FAILED: " compile.log | tee ${FAILED_LOG}
+echo "Failed files are listed in ${FAILED_LOG}"
 popd
 
 if [[ ! -d "build_pip" ]]; then
@@ -85,3 +90,4 @@ git reset --hard
 popd
 
 exit 0
+

@@ -418,11 +418,6 @@ class RuntimeManager {
     LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
         << "CreateEvent: event = " << *event << " device id=" << deviceID;
 
-      LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-          << "device id=" << deviceID << " create event = " << *event;
-#ifdef ENABLE_ASYNC_RUN
-    });
-#endif
     return C_SUCCESS;
   }
 
@@ -883,13 +878,6 @@ C_Status SyncEvent(const C_Device device, C_Event event) {
          static_cast<synModuleId>(device->id) != runtimeManager.GetModuleID())
       << "[RUNTIME] moduleID mismatch : moduleID = "
       << runtimeManager.GetModuleID() << ", current = " << device->id;
-#ifdef ENABLE_ASYNC_RUN
-  GlobalWorkStreamExecutor::instance().sync([&] {
-#endif
-    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "SyncEvent: event = " << reinterpret_cast<synEventHandle>(event);
-    synStatus status =
-        synEventSynchronize(reinterpret_cast<const synEventHandle>(event));
 
   LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
       << "SyncEvent: event = " << reinterpret_cast<synEventHandle>(event);

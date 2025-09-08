@@ -543,6 +543,22 @@ index c6a8771ec6..f7e5589048 100644
  
    float f_alpha = static_cast<float>(alpha);
    float f_beta = static_cast<float>(beta);
+diff --git a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
+index 4eae698648..9247535e0d 100644
+--- a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
++++ b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
+@@ -44,11 +44,7 @@ using LayerNormParamType = typename CudnnDataType<T>::BatchNormParamType;
+ 
+ inline static int GetDesiredBlockDim(int64_t block_dim) {
+   const int kMaxBlockDim = 512;
+-#ifdef __HIPCC__
+   const int lwarpSize = 64;
+-#else
+-  const int lwarpSize = 32;
+-#endif
+   return block_dim >= kMaxBlockDim ? kMaxBlockDim : lwarpSize;
+ }
+ 
 diff --git a/paddle/phi/kernels/funcs/segmented_array.h b/paddle/phi/kernels/funcs/segmented_array.h
 index dad852093e..71adfaf3ed 100644
 --- a/paddle/phi/kernels/funcs/segmented_array.h
@@ -581,6 +597,76 @@ index 63031cc0c9..b7341bfc91 100644
  
  namespace phi {
  namespace funcs {
+diff --git a/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu b/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
+index 142f15b77b..b51f5a3633 100644
+--- a/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
++++ b/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
+@@ -59,11 +59,7 @@ namespace fusion {
+ 
+ namespace {
+ 
+-#ifdef PADDLE_WITH_HIP
+ constexpr int kWarpSize = 64;
+-#else
+-constexpr int kWarpSize = 32;
+-#endif
+ 
+ template <typename T>
+ struct SumOp {
+diff --git a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
+index 7d05bcb654..9a0b145bb7 100644
+--- a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
++++ b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
+@@ -24,11 +24,7 @@ namespace fusion {
+ 
+ #define LN_NUM_COLS 1024
+ 
+-#ifdef PADDLE_WITH_HIP
+ #define WARPSIZE 64
+-#else
+-#define WARPSIZE 32
+-#endif
+ 
+ template <typename T>
+ using CudnnDataType = phi::backends::gpu::CudnnDataType<T>;
+@@ -154,13 +150,8 @@ __global__ void FusedLayernormResidualDropoutBias(
+ 
+   __shared__ U mean_share;
+   __shared__ U var_share;
+-#ifdef PADDLE_WITH_HIP
+   __shared__ U shared_mean[64];
+   __shared__ U shared_var[64];
+-#else
+-  __shared__ U shared_mean[32];
+-  __shared__ U shared_var[32];
+-#endif
+ 
+   phi::funcs::ReluFunctor<T> relu;
+   U mean_val = 0;
+@@ -352,13 +343,8 @@ __global__ void FusedLayernormResidualDropoutBiasInfer(
+ 
+   __shared__ U mean_share;
+   __shared__ U var_share;
+-#ifdef PADDLE_WITH_HIP
+   __shared__ U shared_mean[64];
+   __shared__ U shared_var[64];
+-#else
+-  __shared__ U shared_mean[32];
+-  __shared__ U shared_var[32];
+-#endif
+ 
+   phi::funcs::ReluFunctor<T> relu;
+   U mean_val = 0;
+@@ -638,9 +624,6 @@ __global__ __launch_bounds__(THREADS_PER_CTA) void fused_fast_ln_fwd_kernel(
+         RandVec<VecSize>(&state, rand);
+ #pragma unroll
+         for (int jt = 0; jt < VecSize; jt++) {
+-#ifndef PADDLE_WITH_HIP
+-#pragma unroll
+-#endif
+           mask_vec[it][jt] = static_cast<MaskType>(rand[jt] >= dropout_prob);
+         }
+       }
 diff --git a/paddle/phi/kernels/gpu/elementwise_grad.h b/paddle/phi/kernels/gpu/elementwise_grad.h
 index f3a2874b92..47d2c0b4d7 100644
 --- a/paddle/phi/kernels/gpu/elementwise_grad.h

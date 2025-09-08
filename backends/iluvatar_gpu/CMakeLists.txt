@@ -298,7 +298,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_with_scaled_gradient_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/exponential_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/flip_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/fused_token_prune_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gather_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gelu_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/global_gather_kernel.cu
@@ -329,7 +328,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_unpermute_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/momentum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mp_allreduce_sum_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multiclass_nms3_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multiplex_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/nonzero_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/pad3d_kernel.cu
@@ -359,7 +357,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/uniform_random_batch_size_like_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/weighted_sample_neighbors_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/yolo_box_head_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/yolo_box_post_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/elementwise_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/moe_combine_no_weight_kernel.cu
@@ -922,8 +919,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_kernel.cc
 )
 
-set(CUDA_SRC ${CUDA_SRC1} ${CUDA_SRC2})
-list(REMOVE_DUPLICATES CUDA_SRC)
+set(CUDA_SRCS ${CUDA_SRCS1} ${CUDA_SRCS2})
+list(REMOVE_DUPLICATES CUDA_SRCS1)
 
 list(
   REMOVE_ITEM
@@ -985,6 +982,11 @@ file(
 if(WITH_FLAGCX)
   list(APPEND CC_SRCS runtime/runtime_flagcx.cc)
 endif()
+
+message(STATUS "CUDA_SRCS files:")
+foreach(file ${CUDA_SRCS})
+    message(STATUS "  ${file}")
+endforeach()
 
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS})
 

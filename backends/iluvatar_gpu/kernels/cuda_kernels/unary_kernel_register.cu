@@ -18,7 +18,7 @@
 
 #define PD_REGISTER_SPARSE_UNARY_GPU_KERNEL(name, prefix)          \
   PD_CUSTOM_KERNEL_REGISTER(name##_coo,                            \
-                            iluvatar_gpu,                             \
+                            iluvatar_gpu,                          \
                             ALL_LAYOUT,                            \
                             phi::sparse::prefix##CooKernel,        \
                             phi::dtype::float16,                   \
@@ -28,7 +28,7 @@
   }                                                                \
                                                                    \
   PD_CUSTOM_KERNEL_REGISTER(name##_csr,                            \
-                            iluvatar_gpu,                             \
+                            iluvatar_gpu,                          \
                             ALL_LAYOUT,                            \
                             phi::sparse::prefix##CsrKernel,        \
                             phi::dtype::float16,                   \
@@ -39,7 +39,7 @@
 
 #define PD_REGISTER_SPARSE_UNARY_GPU_KERNEL_WITH_COMPLEX(name, prefix) \
   PD_CUSTOM_KERNEL_REGISTER(name##_coo,                                \
-                            iluvatar_gpu,                                 \
+                            iluvatar_gpu,                              \
                             ALL_LAYOUT,                                \
                             phi::sparse::prefix##CooKernel,            \
                             phi::dtype::float16,                       \
@@ -51,7 +51,7 @@
   }                                                                    \
                                                                        \
   PD_CUSTOM_KERNEL_REGISTER(name##_csr,                                \
-                            iluvatar_gpu,                                 \
+                            iluvatar_gpu,                              \
                             ALL_LAYOUT,                                \
                             phi::sparse::prefix##CsrKernel,            \
                             phi::dtype::float16,                       \

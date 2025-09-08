@@ -16,4 +16,5 @@
 #include "paddle/phi/kernels/gpu/cvm_grad_kernel.cu"  //NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(
-    cvm_grad, iluvatar_gpu, ALL_LAYOUT, phi::CVMGradCUDAKernel, float, double) {}
+    cvm_grad, iluvatar_gpu, ALL_LAYOUT, phi::CVMGradCUDAKernel, float, double) {
+}

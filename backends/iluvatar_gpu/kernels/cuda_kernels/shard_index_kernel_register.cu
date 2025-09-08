@@ -17,5 +17,9 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/shard_index_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    shard_index, iluvatar_gpu, ALL_LAYOUT, phi::ShardIndexKernel, int, int64_t) {}
+PD_CUSTOM_KERNEL_REGISTER(shard_index,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::ShardIndexKernel,
+                          int,
+                          int64_t) {}

@@ -15,7 +15,8 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/auc_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(auc, iluvatar_gpu, ALL_LAYOUT, phi::AucKernel, float) {
+PD_CUSTOM_KERNEL_REGISTER(
+    auc, iluvatar_gpu, ALL_LAYOUT, phi::AucKernel, float) {
   kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT64);
   kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
   kernel->OutputAt(2).SetDataType(phi::DataType::INT64);

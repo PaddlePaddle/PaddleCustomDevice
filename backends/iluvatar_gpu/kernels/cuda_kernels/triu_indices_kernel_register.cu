@@ -15,6 +15,9 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/triu_indices_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    triu_indices, iluvatar_gpu, ALL_LAYOUT, phi::TriuIndicesKernel, int, int64_t) {
-}
+PD_CUSTOM_KERNEL_REGISTER(triu_indices,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::TriuIndicesKernel,
+                          int,
+                          int64_t) {}

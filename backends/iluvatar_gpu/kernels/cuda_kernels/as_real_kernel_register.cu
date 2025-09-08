@@ -21,7 +21,11 @@
 using complex64 = ::phi::dtype::complex<float>;
 using complex128 = ::phi::dtype::complex<double>;
 
-PD_CUSTOM_KERNEL_REGISTER(
-    as_real, iluvatar_gpu, ALL_LAYOUT, phi::AsRealKernel, complex64, complex128) {
+PD_CUSTOM_KERNEL_REGISTER(as_real,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::AsRealKernel,
+                          complex64,
+                          complex128) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }

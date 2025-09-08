@@ -16,6 +16,11 @@
 #include "paddle/phi/kernels/crop_kernel.h"
 #include "paddle/phi/kernels/impl/crop_kernel_impl.h"
 
-PD_REGISTER_PLUGIN_KERNEL(
-    crop, iluvatar_gpu, ALL_LAYOUT, phi::CropKernel, float, double, int, int64_t) {
-}
+PD_REGISTER_PLUGIN_KERNEL(crop,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::CropKernel,
+                          float,
+                          double,
+                          int,
+                          int64_t) {}

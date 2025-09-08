@@ -15,4 +15,5 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/dgc_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(dgc, iluvatar_gpu, ALL_LAYOUT, phi::DGCKernel, float) {}
+PD_CUSTOM_KERNEL_REGISTER(
+    dgc, iluvatar_gpu, ALL_LAYOUT, phi::DGCKernel, float) {}

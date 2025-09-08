@@ -16,5 +16,9 @@
 #include "paddle/phi/kernels/impl/renorm_grad_kernel_impl.h"
 #include "paddle/phi/kernels/renorm_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    renorm_grad, iluvatar_gpu, ALL_LAYOUT, phi::RenormGradKernel, float, double) {}
+PD_CUSTOM_KERNEL_REGISTER(renorm_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::RenormGradKernel,
+                          float,
+                          double) {}

@@ -19,7 +19,7 @@
 
 #define PD_REGISTER_SPARSE_UNARY_GPU_GRAD_KERNEL(name, prefix)     \
   PD_CUSTOM_KERNEL_REGISTER(name##_coo_grad,                       \
-                            iluvatar_gpu,                             \
+                            iluvatar_gpu,                          \
                             ALL_LAYOUT,                            \
                             phi::sparse::prefix##CooGradKernel,    \
                             phi::dtype::float16,                   \
@@ -29,7 +29,7 @@
   }                                                                \
                                                                    \
   PD_CUSTOM_KERNEL_REGISTER(name##_csr_grad,                       \
-                            iluvatar_gpu,                             \
+                            iluvatar_gpu,                          \
                             ALL_LAYOUT,                            \
                             phi::sparse::prefix##CsrGradKernel,    \
                             phi::dtype::float16,                   \
@@ -40,7 +40,7 @@
 
 #define PD_REGISTER_SPARSE_UNARY_GPU_GRAD_KERNEL_WITH_COMPLEX(name, prefix) \
   PD_CUSTOM_KERNEL_REGISTER(name##_coo_grad,                                \
-                            iluvatar_gpu,                                      \
+                            iluvatar_gpu,                                   \
                             ALL_LAYOUT,                                     \
                             phi::sparse::prefix##CooGradKernel,             \
                             phi::dtype::float16,                            \
@@ -52,7 +52,7 @@
   }                                                                         \
                                                                             \
   PD_CUSTOM_KERNEL_REGISTER(name##_csr_grad,                                \
-                            iluvatar_gpu,                                      \
+                            iluvatar_gpu,                                   \
                             ALL_LAYOUT,                                     \
                             phi::sparse::prefix##CsrGradKernel,             \
                             phi::dtype::float16,                            \

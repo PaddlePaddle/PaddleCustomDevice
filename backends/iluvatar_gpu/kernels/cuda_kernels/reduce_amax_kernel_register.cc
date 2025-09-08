@@ -15,6 +15,11 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/reduce_amax_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    amax, iluvatar_gpu, ALL_LAYOUT, phi::AMaxKernel, float, double, int, int64_t) {
-}
+PD_CUSTOM_KERNEL_REGISTER(amax,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::AMaxKernel,
+                          float,
+                          double,
+                          int,
+                          int64_t) {}

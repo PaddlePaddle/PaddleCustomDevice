@@ -14,5 +14,8 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/impl/dgc_clip_by_norm_kernel_impl.h"
-PD_CUSTOM_KERNEL_REGISTER(
-    dgc_clip_by_norm, iluvatar_gpu, ALL_LAYOUT, phi::DGCClipByNormKernel, float) {}
+PD_CUSTOM_KERNEL_REGISTER(dgc_clip_by_norm,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::DGCClipByNormKernel,
+                          float) {}

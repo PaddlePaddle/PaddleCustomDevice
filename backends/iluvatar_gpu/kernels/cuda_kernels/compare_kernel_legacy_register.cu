@@ -40,7 +40,7 @@ PD_CUSTOM_KERNEL_REGISTER(less_than_raw,
 
 #define PD_REGISTER_COMPLEX_COMPARE_RAW_KERNEL(name, func) \
   PD_CUSTOM_KERNEL_REGISTER(name##_raw,                    \
-                            iluvatar_gpu,                     \
+                            iluvatar_gpu,                  \
                             ALL_LAYOUT,                    \
                             phi::func##RawKernel,          \
                             bool,                          \

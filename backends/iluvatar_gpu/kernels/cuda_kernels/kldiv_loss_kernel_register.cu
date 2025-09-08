@@ -15,4 +15,5 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/gpu/kldiv_loss_kernel.cu"  // NOLINT
 PD_CUSTOM_KERNEL_REGISTER(
-    kldiv_loss, iluvatar_gpu, ALL_LAYOUT, phi::KLDivLossKernel, float, double) {}
+    kldiv_loss, iluvatar_gpu, ALL_LAYOUT, phi::KLDivLossKernel, float, double) {
+}

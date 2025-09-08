@@ -15,5 +15,8 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/impl/hinge_loss_kernel_impl.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    hinge_loss_grad, iluvatar_gpu, ALL_LAYOUT, phi::HingeLossGradKernel, float) {}
+PD_CUSTOM_KERNEL_REGISTER(hinge_loss_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::HingeLossGradKernel,
+                          float) {}

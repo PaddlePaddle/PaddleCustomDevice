@@ -15,5 +15,8 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/dequantize_log_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    dequantize_log, iluvatar_gpu, ALL_LAYOUT, phi::DequantizeLogKernel, int8_t) {}
+PD_CUSTOM_KERNEL_REGISTER(dequantize_log,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::DequantizeLogKernel,
+                          int8_t) {}

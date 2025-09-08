@@ -15,5 +15,9 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/gather_tree_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    gather_tree, iluvatar_gpu, ALL_LAYOUT, phi::GatherTreeKernel, int, int64_t) {}
+PD_CUSTOM_KERNEL_REGISTER(gather_tree,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::GatherTreeKernel,
+                          int,
+                          int64_t) {}

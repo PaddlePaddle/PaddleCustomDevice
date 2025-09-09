@@ -19,23 +19,19 @@ PD_CUSTOM_KERNEL_REGISTER(add_n,
                           ALL_LAYOUT,
                           phi::AddNKernel,
                           float,
-                          double,
                           int,
                           phi::dtype::bfloat16,
                           phi::dtype::float16,
                           int64_t,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::dtype::complex<float>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(add_n_array,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::AddNArrayKernel,
                           float,
-                          double,
                           int,
                           phi::dtype::bfloat16,
                           phi::dtype::float16,
                           int64_t,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::dtype::complex<float>) {}

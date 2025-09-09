@@ -14,13 +14,13 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/masked_select_kernel.h"
+
 PD_CUSTOM_KERNEL_REGISTER(masked_select,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MaskedSelectKernel,
                           bool,
                           float,
-                          double,
                           int,
                           int8_t,
                           int64_t,
@@ -28,7 +28,6 @@ PD_CUSTOM_KERNEL_REGISTER(masked_select,
                           uint8_t,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {
+                          phi::dtype::complex<float>) {
   kernel->InputAt(1).SetDataType(phi::DataType::BOOL);
 }

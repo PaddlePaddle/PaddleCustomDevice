@@ -252,13 +252,23 @@ PHI_DEFINE_EXPORTED_int32(
     "while version 3 requires Hopper architecture.");
 
 PHI_DEFINE_EXPORTED_int32(
-    ixdnn_imp_mode,
+    imp_mode,
     1,
-    "Whether use the impMode of ixdnn for flash attention "
+    "Whether use the impMode of ixattnbkd for flash attention "
     ", default is CUDNN_FATTN_LEAST_MEM_MODE.");
 
 PHI_DEFINE_EXPORTED_int32(
-    ixdnn_causal_mode,
+    causal_mode,
     0,
     "Whether use the causalMode of ixdnn for flash attention "
     ", default is 0.");
+
+PHI_DEFINE_EXPORTED_bool(enable_ixdnn_attn,
+                         true,
+                         "Whether enable ixdnn for flash attention or "
+                         "not, default is True.");
+
+PHI_DEFINE_EXPORTED_bool(enable_ixattnbkd,
+                         false,
+                         "Whether enable ixattnbkd for flash attention or "
+                         "not, default is False.");

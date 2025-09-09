@@ -20,7 +20,6 @@ PD_CUSTOM_KERNEL_REGISTER(dropout_grad,
                           ALL_LAYOUT,
                           phi::DropoutGradRawKernel,
                           float,
-                          double,
                           phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
@@ -29,6 +28,5 @@ PD_CUSTOM_KERNEL_REGISTER(dropout_nd_grad,
                           ALL_LAYOUT,
                           phi::DropoutNdGradKernel,
                           float,
-                          double,
                           phi::dtype::bfloat16,
                           phi::dtype::float16) {}

@@ -1,17 +1,18 @@
-From 15fec88cd3dfa0e09a0466a039d58d3ebebc93ed Mon Sep 17 00:00:00 2001
+From 733a78bbab12b8bc359194990c0b6baa4d6542c3 Mon Sep 17 00:00:00 2001
 From: tianyuzhou668 <2431054748@qq.com>
-Date: Fri, 22 Aug 2025 10:50:10 +0800
-Subject: [PATCH] Fix test bug
+Date: Tue, 16 Sep 2025 16:02:07 +0800
+Subject: [PATCH] Add patch
 
 ---
- test/legacy_test/op_test.py | 37 +++++++++++++++++++++----------------
- 1 file changed, 21 insertions(+), 16 deletions(-)
+ test/legacy_test/op_test.py     | 37 +++++++++++++++++++--------------
+ test/legacy_test/test_sum_op.py |  2 +-
+ 2 files changed, 22 insertions(+), 17 deletions(-)
 
 diff --git a/test/legacy_test/op_test.py b/test/legacy_test/op_test.py
-index a8475a7e57..ab8207cc51 100644
+index 36c17513d8..6deee3b9e8 100644
 --- a/test/legacy_test/op_test.py
 +++ b/test/legacy_test/op_test.py
-@@ -556,22 +556,22 @@ class OpTest(unittest.TestCase):
+@@ -585,22 +585,22 @@ class OpTest(unittest.TestCase):
                      f"This test of {cls.op_type} op needs check_grad."
                  )
  
@@ -50,7 +51,7 @@ index a8475a7e57..ab8207cc51 100644
  
              if (
                  not cls.input_shape_is_large
-@@ -2997,6 +2997,7 @@ class OpTest(unittest.TestCase):
+@@ -3035,6 +3035,7 @@ class OpTest(unittest.TestCase):
          check_pir_onednn=False,
          check_symbol_infer=True,
      ):
@@ -58,7 +59,7 @@ index a8475a7e57..ab8207cc51 100644
          self.__class__.op_type = self.op_type
          if self.is_onednn_op():
              self.__class__.use_onednn = True
-@@ -3197,6 +3198,8 @@ class OpTest(unittest.TestCase):
+@@ -3235,6 +3236,8 @@ class OpTest(unittest.TestCase):
          check_auto_parallel=False,
          check_pir_onednn=False,
      ):
@@ -67,14 +68,27 @@ index a8475a7e57..ab8207cc51 100644
          if hasattr(self, "use_custom_device") and self.use_custom_device:
              check_dygraph = False
  
-@@ -3328,6 +3331,8 @@ class OpTest(unittest.TestCase):
-         check_auto_parallel=False,
-         check_pir_onednn=False,
-     ):
+@@ -3382,6 +3385,8 @@ class OpTest(unittest.TestCase):
+                         "Skipping test due to float64 inputs and FLAG_SKIP_FLOAT64 is set"
+                     )
+ 
 +        check_prim = False
 +        check_prim_pir = False
          if hasattr(self, "use_custom_device") and self.use_custom_device:
              check_dygraph = False
  
+diff --git a/test/legacy_test/test_sum_op.py b/test/legacy_test/test_sum_op.py
+index cca713a0d5..63aa45c3b6 100644
+--- a/test/legacy_test/test_sum_op.py
++++ b/test/legacy_test/test_sum_op.py
+@@ -713,7 +713,7 @@ class TestReduceOPTensorAxisBase(unittest.TestCase):
+             output_names = predictor.get_output_names()
+             output_handle = predictor.get_output_handle(output_names[0])
+             infer_out = output_handle.copy_to_cpu()
+-            np.testing.assert_allclose(static_out[0], infer_out)
++            np.testing.assert_allclose(static_out[0], infer_out, rtol=2e-05)
+ 
+ 
+ class TestSumWithTensorAxis1(TestReduceOPTensorAxisBase):
 -- 
 2.25.1

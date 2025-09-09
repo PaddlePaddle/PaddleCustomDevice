@@ -20,7 +20,6 @@ PD_CUSTOM_KERNEL_REGISTER(dropout,
                           ALL_LAYOUT,
                           phi::DropoutRawKernel,
                           float,
-                          double,
                           phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
@@ -32,7 +31,6 @@ PD_CUSTOM_KERNEL_REGISTER(dropout_nd,
                           ALL_LAYOUT,
                           phi::DropoutNdKernel,
                           float,
-                          double,
                           phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);

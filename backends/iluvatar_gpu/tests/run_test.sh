@@ -30,6 +30,7 @@ elif [[ ! -f "${LD_LIBRARY_PATH}/libcuda.so.1" ]]; then
 fi
 
 export LD_PRELOAD="${LD_LIBRARY_PATH}/libcuda.so.1"
+export FLAG_SKIP_FLOAT64=1
 
 CURRENT_DIR=$(pwd)
 PADDLE_SOURCE_DIR="${CURRENT_DIR}/../../../Paddle"

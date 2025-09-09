@@ -19,21 +19,21 @@
 #include "paddle/phi/kernels/pool_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(pool2d,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::Pool2dKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(lp_pool2d,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LPPool2dKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(max_pool2d_with_index,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MaxPool2dWithIndexKernel,
                           float,
@@ -43,14 +43,14 @@ PD_CUSTOM_KERNEL_REGISTER(max_pool2d_with_index,
 }
 
 PD_CUSTOM_KERNEL_REGISTER(pool3d,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::Pool3dKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(max_pool3d_with_index,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MaxPool3dWithIndexKernel,
                           float,
@@ -60,7 +60,7 @@ PD_CUSTOM_KERNEL_REGISTER(max_pool3d_with_index,
 }
 
 PD_CUSTOM_KERNEL_REGISTER(fractional_max_pool2d,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FractionalMaxPool2dKernel,
                           float,
@@ -70,7 +70,7 @@ PD_CUSTOM_KERNEL_REGISTER(fractional_max_pool2d,
 }
 
 PD_CUSTOM_KERNEL_REGISTER(fractional_max_pool3d,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FractionalMaxPool3dKernel,
                           float,

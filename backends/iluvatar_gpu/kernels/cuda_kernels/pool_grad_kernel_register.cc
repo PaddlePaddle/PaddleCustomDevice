@@ -19,26 +19,26 @@
 #include "paddle/phi/kernels/pool_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(pool2d_grad,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::Pool2dGradKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(lp_pool2d_grad,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LPPool2dGradKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(pool2d_double_grad,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::Pool2dDoubleGradKernel,
                           float) {}
 PD_CUSTOM_KERNEL_REGISTER(max_pool2d_with_index_grad,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MaxPool2dWithIndexGradKernel,
                           float,
@@ -48,14 +48,14 @@ PD_CUSTOM_KERNEL_REGISTER(max_pool2d_with_index_grad,
 }
 
 PD_CUSTOM_KERNEL_REGISTER(pool3d_grad,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::Pool3dGradKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(max_pool3d_with_index_grad,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MaxPool3dWithIndexGradKernel,
                           float,
@@ -65,7 +65,7 @@ PD_CUSTOM_KERNEL_REGISTER(max_pool3d_with_index_grad,
 }
 
 PD_CUSTOM_KERNEL_REGISTER(fractional_max_pool2d_grad,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FractionalMaxPool2dGradKernel,
                           float,
@@ -75,7 +75,7 @@ PD_CUSTOM_KERNEL_REGISTER(fractional_max_pool2d_grad,
 }
 
 PD_CUSTOM_KERNEL_REGISTER(fractional_max_pool3d_grad,
-                          ILUVATAR_GPU,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FractionalMaxPool3dGradKernel,
                           float,

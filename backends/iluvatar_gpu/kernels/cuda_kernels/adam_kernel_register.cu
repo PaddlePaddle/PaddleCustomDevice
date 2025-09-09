@@ -1,5 +1,4 @@
 
-
 // Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +21,6 @@ PD_CUSTOM_KERNEL_REGISTER(adam,
                           ALL_LAYOUT,
                           phi::AdamDenseKernel,
                           float,
-                          double,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {
   // Skip beta1_pow, beta2_pow, skip_update data transform
@@ -48,7 +46,6 @@ PD_CUSTOM_KERNEL_REGISTER(merged_adam,
                           ALL_LAYOUT,
                           phi::MergedAdamKernel,
                           float,
-                          double,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {
   // Skip beta1_pow, beta2_pow data transform

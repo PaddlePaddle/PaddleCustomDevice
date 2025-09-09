@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <ixattnbkd.h>
+
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_launch_config.h"
 #include "paddle/phi/core/enforce.h"
@@ -80,4 +82,43 @@ inline void copyDimsAndStrides(DenseTensor* tensor,
     stride.push_back(static_cast<int>(tensor->strides()[i]));
   }
 }
+
+inline void SetIxAttnBkdTensor(ixAttnBkdTensorDesc* desc,
+                               const phi::DenseTensor& t,
+                               ixAttnBkdDataType_t dataType) {
+  PADDLE_ENFORCE_NOT_NULL(desc,
+                          phi::errors::InvalidArgument(
+                              "Output tensor desc pointer cannot be null."));
+  desc->n_dims = t.dims().size();
+  std::vector<int64_t> dims = phi::vectorize(t.dims());
+  desc->dim = std::vector<size_t>(dims.begin(), dims.end());
+  desc->dataType = dataType;
+  std::vector<int64_t> strides = phi::vectorize(t.strides());
+  desc->stride = std::vector<size_t>(strides.begin(), strides.end());
+}
+
+inline void SetIxAttnBkdTensor(ixAttnBkdTensorDesc* desc,
+                               const phi::DenseTensor* t,
+                               ixAttnBkdDataType_t dataType) {
+  PADDLE_ENFORCE_NOT_NULL(
+      t, phi::errors::InvalidArgument("Input tensor pointer cannot be null."));
+  PADDLE_ENFORCE_NOT_NULL(desc,
+                          phi::errors::InvalidArgument(
+                              "Output tensor desc pointer cannot be null."));
+  desc->n_dims = t->dims().size();
+  std::vector<int64_t> dims = phi::vectorize(t->dims());
+  desc->dim = std::vector<size_t>(dims.begin(), dims.end());
+  desc->dataType = dataType;
+  std::vector<int64_t> strides = phi::vectorize(t->strides());
+  desc->stride = std::vector<size_t>(strides.begin(), strides.end());
+}
+
+#define PADDLE_IXATTNBKD_CHECK(EXPR)                                     \
+  do {                                                                   \
+    ixAttnBkdStatus_t __err = EXPR;                                      \
+    PADDLE_ENFORCE_EQ(__err,                                             \
+                      IXATTNBKD_STATUS_SUCCESS,                          \
+                      common::errors::External(                          \
+                          "Ixattnbkd error, when calling `%s`", #EXPR)); \
+  } while (0)
 }  // namespace phi

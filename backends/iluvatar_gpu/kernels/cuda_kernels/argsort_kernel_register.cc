@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/argsort_kernel.h"
-#include "paddle/phi/kernels/gpu/argsort_grad_kernel.cu"  //NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(argsort_grad,
+PD_CUSTOM_KERNEL_REGISTER(argsort,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::ArgsortGradKernel,
+                          phi::ArgsortKernel,
                           float,
-                          double,
                           int,
                           int64_t,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::dtype::bfloat16) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+}

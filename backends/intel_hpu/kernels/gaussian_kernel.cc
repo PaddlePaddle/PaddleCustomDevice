@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
+
 #include "habanalabs/perf_lib_layer_params.h"
 #include "habanalabs/synapse_api.h"
 #include "habanalabs/synapse_common_types.h"
@@ -73,16 +75,19 @@ void GaussianKernel(const Context& dev_ctx,
   ConvertTensors ct;
   ct.Add(out, false);
 
+  if (seed == 0) {
+    seed = std::chrono::system_clock::now().time_since_epoch().count();
+  }
   GaussianParams params;
   params.params.seed = seed;
   params.params.mean = mean;
   params.params.stddev = std;
 
-  std::vector<DIMS> inputs_dims = ct.GetDims();
+  std::vector<DIMS> outputs_dims = ct.GetDims(false);
 
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, GaussianParams>(
-      "GaussianKernel", inputs_dims, &params);
+      "GaussianKernel", outputs_dims, &params);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {

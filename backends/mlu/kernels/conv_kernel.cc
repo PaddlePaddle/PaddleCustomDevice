@@ -537,41 +537,260 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
   }
 }
 
-// template <typename T, typename Context>
-// void Conv3dKernel(const Context& dev_ctx,
-//                   const phi::DenseTensor& input,
-//                   const phi::DenseTensor& filter,
-//                   const std::vector<int>& strides,
-//                   const std::vector<int>& padding,
-//                   const std::string& padding_algorithm,
-//                   int groups,
-//                   const std::vector<int>& dilation,
-//                   const std::string& data_format,
-//                   bool use_addto,
-//                   int workspace_size_MB,
-//                   bool exhaustive_search,
-//                   phi::DenseTensor* out) {
+template <typename T, typename Context>
+void Conv3dKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& input,
+                  const phi::DenseTensor& filter,
+                  const std::vector<int>& strides_t,
+                  const std::vector<int>& paddings_t,
+                  const std::string& padding_algorithm,
+                  int groups,
+                  const std::vector<int>& dilations_t,
+                  const std::string& data_format,
+                  phi::DenseTensor* output) {
+  dev_ctx.template Alloc<T>(output);
+  auto strides = strides_t;
+  auto paddings = paddings_t;
+  auto dilations = dilations_t;
 
-// }
+  const bool channel_last = data_format == "NDHWC";
+  auto in_dims = input.dims();
+  auto filter_dims = filter.dims();
+  auto in_dims_size = in_dims.size();
+  phi::DDim in_data_dims;
+  phi::DDim filter_data_dims;
 
-// template <typename T, typename Context>
-// void Conv3dGradKernel(const Context& dev_ctx,
-//                       const phi::DenseTensor& input,
-//                       const phi::DenseTensor& filter,
-//                       const phi::DenseTensor& out_grad,
-//                       const std::vector<int>& strides,
-//                       const std::vector<int>& padding,
-//                       const std::string& padding_algorithm,
-//                       int groups,
-//                       const std::vector<int>& dilation,
-//                       const std::string& data_format,
-//                       bool use_addto,
-//                       int workspace_size_MB,
-//                       bool exhaustive_search,
-//                       phi::DenseTensor* input_grad,
-//                       phi::DenseTensor* filter_grad) {
+  if (channel_last) {  // NDHWC -> DHW
+    in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+  } else {  // NCDHW -> CDHW -> DHW
+    in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+  }
+  filter_data_dims = phi::slice_ddim(filter_dims, 2, filter_dims.size());
+  std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
+  UpdatePaddingAndDilation(
+      &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
 
-// }
+  Tensor input_tensor;
+  Tensor output_tensor;
+  // NCDHW (0,1,2,3,4) -> NDHWC (0,2,3,4,1)
+  const std::vector<int> perm_to_ndhwc = {0, 2, 3, 4, 1};
+
+  if (channel_last) {
+    input_tensor = input;
+    output_tensor = *output;
+  } else {
+    TransposeFromMLUTensor<T>(dev_ctx,
+                              perm_to_ndhwc,
+                              &input,
+                              &input_tensor,
+                              true /*need_reshape_or_alloc*/);
+    auto output_dims = output->dims();  // N, C, D, H, W
+    output_tensor.Resize({output_dims[0],
+                          output_dims[2],
+                          output_dims[3],
+                          output_dims[4],
+                          output_dims[1]});  // N, D, H, W, C
+    dev_ctx.template Alloc<T>(&output_tensor);
+  }
+
+  Tensor trans_filter;
+  TransposeFromMLUTensor<T>(dev_ctx,
+                            perm_to_ndhwc,
+                            &filter,
+                            &trans_filter,
+                            true /*need_reshape_or_alloc*/);
+
+  cnnlTensorLayout_t data_layout = CNNL_LAYOUT_NDHWC;
+  MLUCnnlTensorDesc input_desc(
+      input_tensor, data_layout, ToCnnlDataType(input_tensor.dtype()));
+  MLUCnnlTensorDesc filter_desc(
+      trans_filter, data_layout, ToCnnlDataType(trans_filter.dtype()));
+  MLUCnnlTensorDesc output_desc(
+      output_tensor, data_layout, ToCnnlDataType(output_tensor.dtype()));
+
+  MLUCnnlConvolutionDesc conv_desc(in_dims_size,
+                                   paddings.data(),
+                                   strides.data(),
+                                   dilations.data(),
+                                   groups,
+                                   ToCnnlDataType<T>());
+
+  MLUCnnl::ConvolutionForward(dev_ctx,
+                              conv_desc.get(),
+                              nullptr /*alpha*/,
+                              nullptr /*beta*/,
+                              nullptr /*bias_desc*/,
+                              nullptr /*bias_ptr*/,
+                              input_desc.get(),
+                              GetBasePtr(&input_tensor),
+                              filter_desc.get(),
+                              GetBasePtr(&trans_filter),
+                              output_desc.get(),
+                              GetBasePtr(&output_tensor));
+
+  if (!channel_last) {
+    // NDHWC (0,1,2,3,4) -> NCDHW (0,4,1,2,3)
+    const std::vector<int> perm_to_ncdhw = {0, 4, 1, 2, 3};
+    TransposeFromMLUTensor<T>(dev_ctx,
+                              perm_to_ncdhw,
+                              &output_tensor,
+                              output,
+                              false /*need_reshape_or_alloc*/);
+  }
+}
+
+template <typename T, typename Context>
+void Conv3dGradKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& input,
+                      const phi::DenseTensor& filter,
+                      const phi::DenseTensor& out_grad,
+                      const std::vector<int>& strides,
+                      const std::vector<int>& paddings,
+                      const std::string& padding_algorithm,
+                      int groups,
+                      const std::vector<int>& dilations,
+                      const std::string& data_format,
+                      phi::DenseTensor* input_grad,
+                      phi::DenseTensor* filter_grad) {
+  const bool channel_last = data_format == "NDHWC";
+  auto in_dims = input.dims();
+  auto filter_dims = filter.dims();
+  auto in_dims_size = in_dims.size();
+
+  auto updated_paddings = paddings;
+  auto updated_dilations = dilations;
+  phi::DDim in_data_dims;
+  phi::DDim filter_data_dims;
+  if (channel_last) {
+    in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+  } else {
+    in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+  }
+  filter_data_dims = phi::slice_ddim(filter_dims, 2, filter_dims.size());
+  std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
+  UpdatePaddingAndDilation(&updated_paddings,
+                           &updated_dilations,
+                           padding_algorithm,
+                           in_data_dims,
+                           strides,
+                           ksize);
+
+  const std::vector<int> perm_to_ndhwc = {0, 2, 3, 4, 1};
+  const std::vector<int> perm_to_ncdhw = {0, 4, 1, 2, 3};
+
+  Tensor input_tensor;
+  Tensor out_grad_tensor;
+  if (channel_last) {
+    input_tensor = input;
+    out_grad_tensor = out_grad;
+  } else {
+    TransposeFromMLUTensor<T>(dev_ctx,
+                              perm_to_ndhwc,
+                              &input,
+                              &input_tensor,
+                              true /*need_reshape_or_alloc*/);
+    TransposeFromMLUTensor<T>(dev_ctx,
+                              perm_to_ndhwc,
+                              &out_grad,
+                              &out_grad_tensor,
+                              true /*need_reshape_or_alloc*/);
+  }
+
+  if (filter_grad) {
+    dev_ctx.template Alloc<T>(filter_grad);
+    auto filter_grad_dims = filter_grad->dims();
+    Tensor temp_filter_grad;
+    temp_filter_grad.Resize({filter_grad_dims[0],
+                             filter_grad_dims[2],
+                             filter_grad_dims[3],
+                             filter_grad_dims[4],
+                             filter_grad_dims[1]});
+    dev_ctx.template Alloc<T>(&temp_filter_grad);
+
+    cnnlDataType_t tensor_dtype = ToCnnlDataType<T>();
+    cnnlTensorLayout_t data_layout = CNNL_LAYOUT_NDHWC;
+    MLUCnnlTensorDesc input_desc(input_tensor, data_layout, tensor_dtype);
+    MLUCnnlTensorDesc out_grad_desc(out_grad_tensor, data_layout, tensor_dtype);
+    MLUCnnlTensorDesc temp_filter_grad_desc(
+        temp_filter_grad, data_layout, tensor_dtype);
+
+    MLUCnnlConvolutionDesc conv_desc(in_dims_size,
+                                     updated_paddings.data(),
+                                     strides.data(),
+                                     updated_dilations.data(),
+                                     groups,
+                                     tensor_dtype);
+
+    MLUCnnl::ConvBackpropFilter(dev_ctx,
+                                conv_desc.get(),
+                                input_desc.get(),
+                                GetBasePtr(&input_tensor),
+                                out_grad_desc.get(),
+                                GetBasePtr(&out_grad_tensor),
+                                temp_filter_grad_desc.get(),
+                                GetBasePtr(&temp_filter_grad));
+
+    TransposeFromMLUTensor<T>(dev_ctx,
+                              perm_to_ncdhw,
+                              &temp_filter_grad,
+                              filter_grad,
+                              false /*need_reshape_or_alloc*/);
+  }
+
+  if (input_grad) {
+    dev_ctx.template Alloc<T>(input_grad);
+    Tensor input_grad_tensor;
+    if (channel_last) {
+      input_grad_tensor = *input_grad;
+    } else {
+      auto input_grad_dims = input_grad->dims();
+      input_grad_tensor.Resize({input_grad_dims[0],
+                                input_grad_dims[2],
+                                input_grad_dims[3],
+                                input_grad_dims[4],
+                                input_grad_dims[1]});
+      dev_ctx.template Alloc<T>(&input_grad_tensor);
+    }
+
+    Tensor trans_filter;
+    TransposeFromMLUTensor<T>(dev_ctx,
+                              perm_to_ndhwc,
+                              &filter,
+                              &trans_filter,
+                              true /*need_reshape_or_alloc*/);
+
+    cnnlDataType_t tensor_dtype = ToCnnlDataType<T>();
+    cnnlTensorLayout_t data_layout = CNNL_LAYOUT_NDHWC;
+    MLUCnnlTensorDesc filter_desc(trans_filter, data_layout, tensor_dtype);
+    MLUCnnlTensorDesc out_grad_desc(out_grad_tensor, data_layout, tensor_dtype);
+    MLUCnnlTensorDesc in_grad_desc(
+        input_grad_tensor, data_layout, tensor_dtype);
+
+    MLUCnnlConvolutionDesc conv_desc(in_dims_size,
+                                     updated_paddings.data(),
+                                     strides.data(),
+                                     updated_dilations.data(),
+                                     groups,
+                                     tensor_dtype);
+
+    MLUCnnl::ConvBackpropInput(dev_ctx,
+                               conv_desc.get(),
+                               filter_desc.get(),
+                               GetBasePtr(&trans_filter),
+                               out_grad_desc.get(),
+                               GetBasePtr(&out_grad_tensor),
+                               in_grad_desc.get(),
+                               GetBasePtr(&input_grad_tensor));
+
+    if (!channel_last) {
+      TransposeFromMLUTensor<T>(dev_ctx,
+                                perm_to_ncdhw,
+                                &input_grad_tensor,
+                                input_grad,
+                                false /*need_reshape_or_alloc*/);
+    }
+  }
+}
 
 }  // namespace custom_kernel
 
@@ -603,16 +822,16 @@ PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d_grad,
                           float,
                           phi::dtype::float16) {}
 
-// PD_REGISTER_PLUGIN_KERNEL(conv3d,
-//                           mlu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::Conv3dKernel,
-//                           float,
-//                           phi::dtype::float16) {}
+PD_REGISTER_PLUGIN_KERNEL(conv3d,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::Conv3dKernel,
+                          float,
+                          phi::dtype::float16) {}
 
-// PD_REGISTER_PLUGIN_KERNEL(conv3d_grad,
-//                           mlu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::Conv3dGradKernel,
-//                           float,
-//                           phi::dtype::float16) {}
+PD_REGISTER_PLUGIN_KERNEL(conv3d_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::Conv3dGradKernel,
+                          float,
+                          phi::dtype::float16) {}

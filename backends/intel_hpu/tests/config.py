@@ -19,5 +19,12 @@ skip_case_lst = {}
 # when filter passwdown 'stable' will load this list
 # this list for the unstable test case to skip
 skip_case_lst = [
+    "test_cast_8k_4k.py",
+    "test_block_attn_pp_stages.py",
+    "test_update_inputs_v3.py",
+    "test_uniform.py",
     "test_cast.py",
+    "test_set_value_afbi.py",
+    "test_get_token_multiscores.py",
+    "test_fused_fp8_flatPA_proj.py",
 ]

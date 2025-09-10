@@ -22,7 +22,6 @@
 #include "paddle/phi/kernels/contiguous_kernel.h"
 #include "paddle/phi/kernels/empty_kernel.h"
 #include "paddle/phi/kernels/full_kernel.h"
-#include "paddle/phi/kernels/moe_ops_partial_nosoftmaxtopk_grad_kernel.h"
 #include "paddle/phi/kernels/transpose_kernel.h"
 
 namespace phi {
@@ -139,7 +138,7 @@ void MoeGateDispatchPartialNoSoftMaxTopkGradKernel(
 }
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(moe_gate_dispatch_partial_nosoftmaxtopk_grad,
+PD_REGISTER_PLUGIN_KERNEL(moe_gate_dispatch_partial_nosoftmaxtopk_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MoeGateDispatchPartialNoSoftMaxTopkGradKernel,

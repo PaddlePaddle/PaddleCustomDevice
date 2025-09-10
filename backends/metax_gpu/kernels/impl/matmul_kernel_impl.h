@@ -15,22 +15,32 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
-
+// clang-format off
 #include "glog/logging.h"
-#include "kernels/funcs/blas/blas.h"
-#include "kernels/funcs/blas/blaslt_impl.cu.h"
+
 #include "paddle/phi/common/memory_utils.h"
 #include "paddle/phi/core/dense_tensor.h"
 #include "paddle/phi/kernels/autotune/cache_base.h"
 #include "paddle/phi/kernels/cast_kernel.h"
+#include "../funcs/blas/blas.h"
+#ifdef PADDLE_WITH_HIP
+#include "paddle/phi/kernels/funcs/blas/blaslt_impl.hip.h"
+#else
+#include "../funcs/blas/blaslt_impl.cu.h"
+#endif
 #include "paddle/phi/kernels/funcs/complex_functors.h"
+#include "paddle/phi/kernels/scale_kernel.h"
 #if defined(PADDLE_WITH_CUDA)
-// #include "kernels/funcs/blas/cublaslt.h"
+// #include "paddle/phi/kernels/funcs/cublaslt.h"
+#include "paddle/phi/kernels/gpu/cuda_gemm_kernel.h"
+#include "paddle/phi/kernels/transpose_kernel.h"
+#elif defined(PADDLE_WITH_HIP)
+#include "paddle/phi/kernels/funcs/hipblaslt.h"
 #endif
 #if defined(PADDLE_WITH_CUDA) && CUDA_VERSION >= 11060 && 0
 #include "paddle/phi/kernels/autotune/auto_tune_base.h"
 #endif
-
+// clang-format on
 namespace phi {
 
 static void GetBroadcastFromDims(const int x_ndim,

@@ -47,7 +47,7 @@ class FusedFlatPaBase : public HpuFusedOperator {
       synTensor scale_y = createTensorFromCT(&ct, scale_x_index + 1);
       inputs.push_back(scale_x);
       inputs.push_back(scale_y);
-      AddNodeFusedFp8Gemm<T>(
+      AddNodeFusedFP8Gemm<T>(
           inputs, outputs, gemm_params, guid_ + "fused_fp8_gemm_" + suffix);
     } else {
       AddNodeBatchGemm(
@@ -58,8 +58,8 @@ class FusedFlatPaBase : public HpuFusedOperator {
 
 class FusedFlatPaMHAProj : public FusedFlatPaBase {
  public:
-  explicit FusedFlatPaMHAProj(synDataType dtype)
-      : FusedFlatPaBase("fused_flatpa_proj_fwd_", false), dtype_(dtype) {}
+  explicit FusedFlatPaMHAProj(std::string name, synDataType dtype)
+      : FusedFlatPaBase(name, false), dtype_(dtype) {}
 
   template <typename T>
   void AddNode(ConvertTensors& ct, FusedFlatPaParams params) {
@@ -77,7 +77,8 @@ class FusedFlatPaMHAProj : public FusedFlatPaBase {
     int64_t block_size = kv_dims[1];
     int64_t num_kv_head = kv_dims[2];
     int64_t num_of_block = block_list_dims[0];
-    int64_t hidden_size = linear_weights_dims[0];
+    int64_t hidden_size =
+        params.use_fp8 ? linear_weights_dims[1] : linear_weights_dims[0];
 
     synGEMMParams gemm_params_f_f;
     gemm_params_f_f.transpose_a = false;
@@ -546,8 +547,10 @@ class FusedFlatPaMHAProj : public FusedFlatPaBase {
     std::vector<synTensor> proj_out;
     proj_out.push_back(linear_out);
 
+    synGEMMParams gemm_params =
+        params.use_fp8 ? gemm_params_f_t : gemm_params_f_f;
     AddNodeMixedPrecisionGemm<T>(
-        params.use_fp8, ct, 12, proj_in, proj_out, gemm_params_f_f, "proj");
+        params.use_fp8, ct, 12, proj_in, proj_out, gemm_params, "proj");
   }
 
  protected:
@@ -556,8 +559,8 @@ class FusedFlatPaMHAProj : public FusedFlatPaBase {
 
 class FusedFlatPaGQAProj : public FusedFlatPaBase {
  public:
-  explicit FusedFlatPaGQAProj(synDataType dtype)
-      : FusedFlatPaBase("fused_flatpa_proj_fwd_", false), dtype_(dtype) {}
+  explicit FusedFlatPaGQAProj(std::string name, synDataType dtype)
+      : FusedFlatPaBase(name, false), dtype_(dtype) {}
   template <typename T>
   void AddNode(ConvertTensors& ct, FusedFlatPaParams params) {
     auto inputs = ct.GetTensors();
@@ -574,7 +577,8 @@ class FusedFlatPaGQAProj : public FusedFlatPaBase {
     int64_t block_size = kv_dims[1];
     int64_t num_kv_head = kv_dims[2];
     int64_t num_of_block = block_list_dims[0];
-    int64_t hidden_size = linear_weights_dims[0];
+    int64_t hidden_size =
+        params.use_fp8 ? linear_weights_dims[1] : linear_weights_dims[0];
     int64_t ngroups = num_head / num_kv_head;
 
     synGEMMParams gemm_params_f_f;
@@ -1088,8 +1092,10 @@ class FusedFlatPaGQAProj : public FusedFlatPaBase {
     std::vector<synTensor> proj_out;
     proj_out.push_back(linear_out);
 
+    synGEMMParams gemm_params =
+        params.use_fp8 ? gemm_params_f_t : gemm_params_f_f;
     AddNodeMixedPrecisionGemm<T>(
-        params.use_fp8, ct, 12, proj_in, proj_out, gemm_params_f_f, "proj");
+        params.use_fp8, ct, 12, proj_in, proj_out, gemm_params, "proj");
   }
 
  protected:
@@ -1126,7 +1132,7 @@ void FusedFlatPaProjKernel(
   ct.Add(linear_weights);
   ct.Add(out_linear, false);
 
-  std::string recipe_name = "fused_flatpa_proj_fwd_";
+  std::string guid_prefix = "fused_flatpa_proj_fwd_";
   bool use_fp8 = false;
   if (qk_scale_x || qk_scale_y || av_scale_x || av_scale_y ||
       o_linear_scale_x || o_linear_scale_y) {
@@ -1137,7 +1143,7 @@ void FusedFlatPaProjKernel(
     }
 
     use_fp8 = true;
-    recipe_name = "fused_fp8_flatpa_proj_fwd_";
+    guid_prefix = "fused_fp8_flatpa_proj_fwd_";
     ct.Add(qk_scale_x.get());
     ct.Add(qk_scale_y.get());
     ct.Add(av_scale_x.get());
@@ -1149,7 +1155,7 @@ void FusedFlatPaProjKernel(
 
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, nullptr_t>(
-      recipe_name.c_str(), inputs_dims, nullptr);
+      guid_prefix.c_str(), inputs_dims, nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
@@ -1171,12 +1177,12 @@ void FusedFlatPaProjKernel(
     int64_t kv_head = key_cache_dims[1];
 
     if (q_head == kv_head) {
-      FusedFlatPaMHAProj op(op_info.datatype_);
+      FusedFlatPaMHAProj op(guid_prefix + "MHA_", op_info.datatype_);
       op.AddNode<T>(ct, params);
       op.Compile();
       op_info.setOp(op);
     } else {
-      FusedFlatPaGQAProj op(op_info.datatype_);
+      FusedFlatPaGQAProj op(guid_prefix + "GAQ_", op_info.datatype_);
       op.AddNode<T>(ct, params);
       op.Compile();
       op_info.setOp(op);
@@ -1400,7 +1406,7 @@ std::vector<paddle::Tensor> FusedFp8FlatPaProj(
 
   // allocate memory on device.
   int64_t batch_size = query.dims()[0];
-  int out_features = linear_weights.dims()[1];
+  int out_features = linear_weights.dims()[0];
 
   std::shared_ptr<phi::DenseTensor> out_linear =
       std::make_shared<phi::DenseTensor>();

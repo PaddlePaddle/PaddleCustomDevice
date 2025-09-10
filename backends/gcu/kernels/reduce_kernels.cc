@@ -177,7 +177,13 @@ void MaxKernel(const Context& dev_ctx,
         }
       }
     }
-    LAUNCH_TOPSATENOP(topsatenMax, dev_ctx, *out, x, reduce_axis, keep_dim);
+
+    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    phi::DenseTensor output =
+        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    LAUNCH_TOPSATENOP(
+        topsatenMax, dev_ctx, output, input_x, reduce_axis, keep_dim);
+    MaybeTransResult(dev_ctx, output, out);
 
   } else {  // kernel impl base on JIT
     ReduceBaseKernel<T, Context>(dev_ctx,
@@ -211,7 +217,13 @@ void MinKernel(const Context& dev_ctx,
         }
       }
     }
-    LAUNCH_TOPSATENOP(topsatenMin, dev_ctx, *out, x, reduce_axis, keep_dim);
+
+    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    phi::DenseTensor output =
+        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    LAUNCH_TOPSATENOP(
+        topsatenMin, dev_ctx, output, input_x, reduce_axis, keep_dim);
+    MaybeTransResult(dev_ctx, output, out);
 
   } else {  // kernel impl base on JIT
     ReduceBaseKernel<T, Context>(dev_ctx,
@@ -277,9 +289,19 @@ void SumKernel(const Context& dev_ctx,
         }
       }
     }
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+
+    phi::DenseTensor input_x;
+    phi::DenseTensor output;
+    if (x.dtype() == phi::DataType::BOOL) {
+      custom_kernel::Cast(dev_ctx, x, phi::DataType::INT32, &input_x);
+      auto meta = out->meta();
+      meta.dtype = phi::DataType::INT32;
+      output = custom_kernel::TensorEmpty(dev_ctx, meta);
+    } else {
+      input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+      output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    }
+
     LAUNCH_TOPSATENOP(topsatenSum,
                       dev_ctx,
                       output,
@@ -470,6 +492,7 @@ PD_REGISTER_PLUGIN_KERNEL(any,
                           float,
                           int,
                           bool,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
@@ -481,6 +504,7 @@ PD_REGISTER_PLUGIN_KERNEL(all,
                           float,
                           int,
                           bool,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
@@ -490,7 +514,9 @@ PD_REGISTER_PLUGIN_KERNEL(max,
                           ALL_LAYOUT,
                           custom_kernel::MaxKernel,
                           int32_t,
+                          int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(min,
@@ -498,7 +524,9 @@ PD_REGISTER_PLUGIN_KERNEL(min,
                           ALL_LAYOUT,
                           custom_kernel::MinKernel,
                           int32_t,
+                          int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(prod,
@@ -506,6 +534,7 @@ PD_REGISTER_PLUGIN_KERNEL(prod,
                           ALL_LAYOUT,
                           custom_kernel::ProdKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sum,
@@ -514,8 +543,10 @@ PD_REGISTER_PLUGIN_KERNEL(sum,
                           custom_kernel::SumKernel,
                           int32_t,
                           int64_t,
+                          bool,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
@@ -534,6 +565,7 @@ PD_REGISTER_PLUGIN_KERNEL(mean,
                           ALL_LAYOUT,
                           custom_kernel::MeanKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(mean_grad,
@@ -541,6 +573,7 @@ PD_REGISTER_PLUGIN_KERNEL(mean_grad,
                           ALL_LAYOUT,
                           custom_kernel::MeanGradKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(amax,
@@ -551,6 +584,7 @@ PD_REGISTER_PLUGIN_KERNEL(amax,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(amin,
@@ -561,4 +595,5 @@ PD_REGISTER_PLUGIN_KERNEL(amin,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

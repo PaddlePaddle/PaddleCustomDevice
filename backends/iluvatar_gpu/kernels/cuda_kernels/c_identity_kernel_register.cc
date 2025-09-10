@@ -12,8 +12,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
+#include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/c_identity_kernel.h"
+#include "paddle/phi/kernels/impl/c_identity_kernel_impl.h"
 
 PD_CUSTOM_KERNEL_REGISTER(c_identity,
                           iluvatar_gpu,

@@ -284,7 +284,12 @@ void SubtractKernel(const Context& dev_ctx,
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
     auto scalar = phi::Scalar(1.0f);
-    LAUNCH_TOPSATENOP(topsatenSub, dev_ctx, *out, x, y, scalar);
+    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    phi::DenseTensor output =
+        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    LAUNCH_TOPSATENOP(topsatenSub, dev_ctx, output, input_x, input_y, scalar);
+    MaybeTransResult(dev_ctx, output, out);
 
   } else {  // kernel impl base on JIT
     ElementBaseKernel<T, Context>(dev_ctx, x, y, -1, out, "elementwise_sub");
@@ -581,6 +586,7 @@ PD_REGISTER_PLUGIN_KERNEL(add_raw,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add,
@@ -591,6 +597,7 @@ PD_REGISTER_PLUGIN_KERNEL(add,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 // PD_REGISTER_PLUGIN_KERNEL(add_grad,
@@ -607,7 +614,9 @@ PD_REGISTER_PLUGIN_KERNEL(subtract,
                           ALL_LAYOUT,
                           custom_kernel::SubtractKernel,
                           int,
+                          int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(subtract_grad,
@@ -617,6 +626,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract_grad,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(multiply,
@@ -627,6 +637,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 // PD_REGISTER_PLUGIN_KERNEL(multiply_grad,
@@ -644,6 +655,7 @@ PD_REGISTER_PLUGIN_KERNEL(divide,
                           custom_kernel::DivideKernel,
                           int,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(divide_grad,
@@ -653,6 +665,7 @@ PD_REGISTER_PLUGIN_KERNEL(divide_grad,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(minimum,
@@ -662,6 +675,7 @@ PD_REGISTER_PLUGIN_KERNEL(minimum,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -672,6 +686,7 @@ PD_REGISTER_PLUGIN_KERNEL(minimum_grad,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -682,6 +697,7 @@ PD_REGISTER_PLUGIN_KERNEL(maximum,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -692,6 +708,7 @@ PD_REGISTER_PLUGIN_KERNEL(maximum_grad,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -712,6 +729,7 @@ PD_REGISTER_PLUGIN_KERNEL(remainder,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -733,6 +751,7 @@ PD_REGISTER_PLUGIN_KERNEL(fmax,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(fmin,
@@ -743,4 +762,5 @@ PD_REGISTER_PLUGIN_KERNEL(fmin,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

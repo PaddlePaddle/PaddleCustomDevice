@@ -15,6 +15,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <nccl.h>
+#if defined(PADDLE_WITH_FLAGCX)
+#include "runtime_flagcx.h"  // NOLINT
+#endif
 #include <semaphore.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -34,6 +37,7 @@
 
 #include "glog/logging.h"
 #include "paddle/phi/backends/device_ext.h"
+#include "paddle/phi/backends/dynload/cublasLt.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/allocator.h"
 #include "paddle/phi/core/enforce.h"
@@ -339,15 +343,25 @@ C_Status DestroyDevice(const C_Device device) {
 C_Status Finalize() { return C_SUCCESS; }
 
 C_Status GetDevicesCount(size_t *count) {
-  *count = 4;
+  int device_count = 0;
+  cudaError_t err = cudaGetDeviceCount(&device_count);
+  if (err != cudaSuccess) {
+    return C_ERROR;
+  }
+  *count = static_cast<size_t>(device_count);
   return C_SUCCESS;
 }
 
 C_Status GetDevicesList(size_t *devices) {
-  devices[0] = 0;
-  devices[1] = 1;
-  devices[2] = 2;
-  devices[3] = 3;
+  int device_count = 0;
+  cudaError_t err = cudaGetDeviceCount(&device_count);
+  if (err != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  for (int i = 0; i < device_count; ++i) {
+    devices[i] = static_cast<size_t>(i);
+  }
   return C_SUCCESS;
 }
 
@@ -440,7 +454,11 @@ C_Status AsyncMemCpyH2D(const C_Device device,
     return C_ERROR;
   }
 
-  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToDevice);
+  cudaErr = cudaMemcpyAsync(dst,
+                            src,
+                            size,
+                            cudaMemcpyHostToDevice,
+                            reinterpret_cast<cudaStream_t>(stream));
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
@@ -466,7 +484,11 @@ C_Status AsyncMemCpyD2H(const C_Device device,
     return C_ERROR;
   }
 
-  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToHost);
+  cudaErr = cudaMemcpyAsync(dst,
+                            src,
+                            size,
+                            cudaMemcpyDeviceToHost,
+                            reinterpret_cast<cudaStream_t>(stream));
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
@@ -492,7 +514,11 @@ C_Status AsyncMemCpyD2D(const C_Device device,
     return C_ERROR;
   }
 
-  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToDevice);
+  cudaErr = cudaMemcpyAsync(dst,
+                            src,
+                            size,
+                            cudaMemcpyDeviceToDevice,
+                            reinterpret_cast<cudaStream_t>(stream));
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
@@ -606,22 +632,22 @@ C_Status CreateEvent(const C_Device device, C_Event *event) {
     return C_ERROR;
   }
 
-  *event = NULL;
+  *event = (C_Event)0x1;
 
-  cudaError_t cuda_status;
+  // cudaError_t cuda_status;
 
-  cuda_status = cudaSetDevice(device->id);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
+  // cuda_status = cudaSetDevice(device->id);
+  // if (cuda_status != cudaSuccess) {
+  //   return C_ERROR;
+  // }
 
-  cudaEvent_t evt;
-  cuda_status = cudaEventCreate(&evt);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
+  // cudaEvent_t evt;
+  // cuda_status = cudaEventCreate(&evt);
+  // if (cuda_status != cudaSuccess) {
+  //   return C_ERROR;
+  // }
 
-  *event = (C_Event)evt;
+  // *event = (C_Event)evt;
   return C_SUCCESS;
 }
 
@@ -637,7 +663,8 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
     return C_ERROR;
   }
 
-  cuda_status = cudaEventRecord(cudaEvent_t(event), cudaStream_t(stream));
+  cuda_status = cudaStreamSynchronize(cudaStream_t(stream));
+  // cuda_status = cudaEventRecord(cudaEvent_t(event), cudaStream_t(stream));
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }
@@ -646,21 +673,21 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
 }
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
-  if (device == NULL || event == NULL) {
-    return C_ERROR;
-  }
+  // if (device == NULL || event == NULL) {
+  //   return C_ERROR;
+  // }
 
-  cudaError_t cuda_status;
+  // cudaError_t cuda_status;
 
-  cuda_status = cudaSetDevice(device->id);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
+  // cuda_status = cudaSetDevice(device->id);
+  // if (cuda_status != cudaSuccess) {
+  //   return C_ERROR;
+  // }
 
-  cuda_status = cudaEventDestroy(cudaEvent_t(event));
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
+  // cuda_status = cudaEventDestroy(cudaEvent_t(event));
+  // if (cuda_status != cudaSuccess) {
+  //   return C_ERROR;
+  // }
 
   return C_SUCCESS;
 }
@@ -712,7 +739,7 @@ C_Status SyncEvent(const C_Device device, C_Event event) {
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }
-  cuda_status = cudaEventSynchronize(cudaEvent_t(event));
+  cuda_status = cudaDeviceSynchronize();
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }
@@ -734,12 +761,7 @@ C_Status StreamWaitEvent(const C_Device device,
     return C_ERROR;
   }
 
-  cuda_status =
-      cudaStreamWaitEvent(cudaStream_t(stream), cudaEvent_t(event), 0);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
-
+  cuda_status = cudaStreamSynchronize(cudaStream_t(stream));
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }
@@ -932,6 +954,69 @@ C_Status XcclRecv(void *recv_buf,
   return C_SUCCESS;
 }
 
+C_Status InitBlasHandle(const C_Device device,
+                        C_BLASHandle *blas_handle,
+                        C_Stream stream) {
+  PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasCreate(
+      reinterpret_cast<cublasHandle_t *>(blas_handle)));
+  PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetStream(
+      *reinterpret_cast<cublasHandle_t *>(blas_handle),
+      reinterpret_cast<cudaStream_t>((stream))));
+  return C_SUCCESS;
+}
+
+C_Status InitBlasLtHandle(const C_Device device,
+                          C_BLASLtHandle *blaslt_handle) {
+  phi::dynload::cublasLtCreate(
+      reinterpret_cast<cublasLtHandle_t *>(blaslt_handle));
+  return C_SUCCESS;
+}
+
+C_Status DestroyBlasLtHandle(const C_Device device,
+                             C_BLASLtHandle blaslt_handle) {
+  if (blaslt_handle != nullptr) {
+    phi::dynload::cublasLtDestroy(
+        reinterpret_cast<cublasLtHandle_t>(blaslt_handle));
+    blaslt_handle = nullptr;
+  }
+  return C_SUCCESS;
+}
+
+C_Status DestroyBlasHandle(const C_Device device, C_BLASHandle blas_handle) {
+  if (blas_handle != nullptr) {
+    phi::dynload::cublasDestroy(reinterpret_cast<cublasHandle_t>(blas_handle));
+    blas_handle = nullptr;
+  }
+  return C_SUCCESS;
+}
+
+C_Status BlasSetMathMode(const C_Device device,
+                         C_BLASHandle blas_handle,
+                         int math_mode) {
+  if (math_mode == 1) {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetMathMode(
+        reinterpret_cast<cublasHandle_t>(blas_handle), CUBLAS_TENSOR_OP_MATH));
+  } else if (math_mode == 2) {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetMathMode(
+        reinterpret_cast<cublasHandle_t>(blas_handle), CUBLAS_TENSOR_OP_MATH));
+    // LOG(WARNING) << "CUBLAS_TF32_TENSOR_OP_MATH is not supported";
+  } else {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetMathMode(
+        reinterpret_cast<cublasHandle_t>(blas_handle), CUBLAS_DEFAULT_MATH));
+  }
+  return C_SUCCESS;
+}
+
+C_Status IsFloat16Supported(const C_Device device, bool *supported) {
+  *supported = true;
+  return C_SUCCESS;
+}
+
+C_Status IsBFloat16Supported(const C_Device device, bool *supported) {
+  *supported = true;
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = const_cast<char *>(DeviceType);
@@ -941,6 +1026,9 @@ void InitPlugin(CustomRuntimeParams *params) {
          0,
          sizeof(C_DeviceInterface));
 
+#if defined(PADDLE_WITH_FLAGCX)
+  flagcxHandleInit(&flagcx_handler);
+#endif
   params->interface->get_compute_capability = GetComputeCapability;
   params->interface->get_runtime_version = GetRuntimeVersion;
   params->interface->get_driver_version = GetDriverVersion;
@@ -991,6 +1079,22 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->init_eigen_device = InitEigenDevice;
   params->interface->destroy_eigen_device = DestroyEigenDevice;
 
+#if defined(PADDLE_WITH_FLAGCX)
+  params->interface->xccl_all_gather = XcclFlagcxAllGather;
+  params->interface->xccl_all_reduce = XcclFlagcxAllReduce;
+  params->interface->xccl_broadcast = XcclFlagcxBroadcast;
+  params->interface->xccl_comm_init_rank = XcclFlagcxCommInitRank;
+  params->interface->xccl_destroy_comm = XcclFlagcxDestroyComm;
+  params->interface->xccl_get_unique_id = XcclFlagcxGetUniqueId;
+  params->interface->xccl_get_unique_id_size = XcclFlagcxGetUniqueIdSize;
+  params->interface->xccl_group_end = XcclFlagcxGroupEnd;
+  params->interface->xccl_group_start = XcclFlagcxGroupStart;
+  params->interface->xccl_recv = XcclFlagcxRecv;
+  params->interface->xccl_reduce = XcclFlagcxReduce;
+  params->interface->xccl_reduce_scatter = XcclFlagcxReduceScatter;
+  params->interface->xccl_send = XcclFlagcxSend;
+  params->interface->xccl_all_to_all = XcclFlagcxAllToAll;
+#else
   params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;
   params->interface->xccl_broadcast = XcclBroadcast;
@@ -1004,6 +1108,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_reduce = XcclReduce;
   params->interface->xccl_reduce_scatter = XcclReduceScatter;
   params->interface->xccl_send = XcclSend;
+#endif
 
   params->interface->profiler_collect_trace_data = nullptr;
   params->interface->profiler_initialize = nullptr;
@@ -1011,4 +1116,13 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->profiler_start_tracing = nullptr;
   params->interface->profiler_stop_tracing = nullptr;
   params->interface->profiler_prepare_tracing = nullptr;
+
+  params->interface->is_float16_supported = IsFloat16Supported;
+  params->interface->is_bfloat16_supported = IsBFloat16Supported;
+
+  params->interface->init_blas_handle = InitBlasHandle;
+  params->interface->init_blaslt_handle = InitBlasLtHandle;
+  params->interface->destroy_blas_handle = DestroyBlasHandle;
+  params->interface->destroy_blaslt_handle = DestroyBlasLtHandle;
+  params->interface->blas_set_math_mode = BlasSetMathMode;
 }

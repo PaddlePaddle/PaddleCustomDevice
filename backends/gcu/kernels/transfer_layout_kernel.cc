@@ -64,4 +64,5 @@ PD_REGISTER_PLUGIN_KERNEL(transfer_layout,
                           custom_kernel::TransferLayoutKernel,
                           int,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

@@ -79,6 +79,11 @@ if(WITH_KERNELS)
   add_library(${GCU_DEPENDS_NAME} STATIC ${GCU_KERNEL_DEPENDS})
   set_target_properties(${GCU_DEPENDS_NAME} PROPERTIES CXX_VISIBILITY_PRESET
                                                        hidden)
+  find_package(OpenMP REQUIRED)
+  if(OpenMP_CXX_FOUND)
+    target_link_libraries(${GCU_DEPENDS_NAME} PUBLIC OpenMP::OpenMP_CXX)
+    target_compile_options(${GCU_DEPENDS_NAME} PUBLIC ${OpenMP_CXX_FLAGS})
+  endif()
   target_compile_options(${GCU_DEPENDS_NAME} PUBLIC -fPIC)
   add_dependencies(${GCU_DEPENDS_NAME} third_party)
 

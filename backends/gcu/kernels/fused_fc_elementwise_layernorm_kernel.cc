@@ -103,4 +103,5 @@ PD_REGISTER_PLUGIN_KERNEL(fused_fc_elementwise_layernorm,
                           ALL_LAYOUT,
                           custom_kernel::FusedFCElementwiseLayerNormKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

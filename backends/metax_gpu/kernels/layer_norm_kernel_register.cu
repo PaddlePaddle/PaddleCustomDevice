@@ -13,10 +13,10 @@
 // limitations under the License.
 
 #include "funcs/layer_norm_util.h"
+#include "impl/layer_norm_impl.cu.h"
 #include "paddle/common/flags.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/funcs/layer_norm_impl.cu.h"
 #include "paddle/phi/kernels/layer_norm_kernel.h"
 
 COMMON_DECLARE_bool(use_fast_math);
@@ -669,35 +669,35 @@ void LayerNormKernel(const Context &dev_ctx,
 
 #ifdef PADDLE_WITH_HIP
 // MIOPEN do not support double
-PD_REGISTER_KERNEL(layer_norm,
-                   GPU,
-                   ALL_LAYOUT,
-                   phi::LayerNormKernel,
-                   float,
-                   phi::dtype::float16) {
+PD_REGISTER_PLUGIN_KERNEL(layer_norm,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::LayerNormKernel,
+                          float,
+                          phi::dtype::float16) {
   kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
   kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
 }
 #elif CUDNN_VERSION_MIN(8, 1, 0)
-PD_REGISTER_KERNEL(layer_norm,
-                   GPU,
-                   ALL_LAYOUT,
-                   phi::LayerNormKernel,
-                   float,
-                   double,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16) {
+PD_REGISTER_PLUGIN_KERNEL(layer_norm,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::LayerNormKernel,
+                          float,
+                          double,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {
   kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
   kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
 }
 #else
-PD_REGISTER_KERNEL(layer_norm,
-                   GPU,
-                   ALL_LAYOUT,
-                   phi::LayerNormKernel,
-                   float,
-                   double,
-                   phi::dtype::float16) {
+PD_REGISTER_PLUGIN_KERNEL(layer_norm,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::LayerNormKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {
   kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
   kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
 }

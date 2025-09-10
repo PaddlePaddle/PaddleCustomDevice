@@ -1,3 +1,6 @@
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved.
+
 // Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +17,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/einsum_kernel.h"
-#include "paddle/phi/kernels/impl/einsum_grad_impl.h"
+#include "paddle/phi/kernels/impl/einsum_grad_kernel_impl.h"
 
 PD_CUSTOM_KERNEL_REGISTER(einsum_grad,
                           metax_gpu,

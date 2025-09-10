@@ -107,6 +107,7 @@ PD_REGISTER_PLUGIN_KERNEL(scale,
                           ALL_LAYOUT,
                           custom_kernel::ScaleKernel,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           int,
                           int64_t) {}

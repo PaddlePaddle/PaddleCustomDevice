@@ -56,4 +56,5 @@ PD_REGISTER_PLUGIN_KERNEL(logcumsumexp,
                           custom_kernel::LogcumsumexpKernel,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

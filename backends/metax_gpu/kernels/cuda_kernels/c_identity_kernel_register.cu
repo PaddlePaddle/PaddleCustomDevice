@@ -1,3 +1,6 @@
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved.
+
 // Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,9 +16,19 @@
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/c_identity_kernel.h"
+#include "paddle/phi/kernels/impl/c_identity_kernel_impl.h"
 
-#if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
-    defined(PADDLE_WITH_HIP)
+PD_REGISTER_KERNEL(c_identity,
+                   GPU,
+                   ALL_LAYOUT,
+                   phi::CIdentityKernel,
+                   float,
+                   double,
+                   int,
+                   int64_t,
+                   phi::dtype::bfloat16,
+                   phi::dtype::float16) {}
+
 PD_CUSTOM_KERNEL_REGISTER(c_identity,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -26,14 +39,3 @@ PD_CUSTOM_KERNEL_REGISTER(c_identity,
                           int64_t,
                           phi::dtype::bfloat16,
                           phi::dtype::float16) {}
-#else
-PD_CUSTOM_KERNEL_REGISTER(c_identity,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::CIdentityKernel,
-                          float,
-                          double,
-                          int,
-                          int64_t,
-                          phi::dtype::float16) {}
-#endif

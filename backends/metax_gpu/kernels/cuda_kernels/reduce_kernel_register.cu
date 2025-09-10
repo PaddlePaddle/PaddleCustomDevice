@@ -1,4 +1,5 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved. Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,13 +14,8 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/reduce_amax_grad_kernel.h"
-#include "paddle/phi/kernels/reduce_amin_grad_kernel.h"
+#include "paddle/phi/kernels/gpu/reduce_kernel.cu"  // NOLINT
 #include "paddle/phi/kernels/reduce_kernel.h"
-#include "paddle/phi/kernels/reduce_max_grad_kernel.h"
-#include "paddle/phi/kernels/reduce_mean_grad_kernel.h"
-#include "paddle/phi/kernels/reduce_min_grad_kernel.h"
-#include "paddle/phi/kernels/reduce_sum_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(reduce,
                           metax_gpu,

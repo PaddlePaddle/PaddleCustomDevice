@@ -1,3 +1,5 @@
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved.
 /* Copyright (c) 2016 PaddlePaddle Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -423,13 +425,15 @@ void* GetCublasLtDsoHandle() {
 #ifdef PADDLE_WITH_PIP_CUDA_LIBRARIES
     return GetDsoHandleFromSearchPath(FLAGS_cublas_dir, "libcublasLt.so.11");
 #else
-    return GetDsoHandleFromSearchPath(FLAGS_cublas_dir, "libcublasLt.so");
+    // return GetDsoHandleFromSearchPath(FLAGS_cublas_dir, "libcublasLt.so");
+    return GetDsoHandleFromSearchPath(FLAGS_cuda_dir, "libmcblasLt.so");
 #endif
   } else if (CUDA_VERSION >= 12000 && CUDA_VERSION < 13000) {
 #ifdef PADDLE_WITH_PIP_CUDA_LIBRARIES
     return GetDsoHandleFromSearchPath(FLAGS_cublas_dir, "libcublasLt.so.12");
 #else
-    return GetDsoHandleFromSearchPath(FLAGS_cublas_dir, "libcublasLt.so");
+    // return GetDsoHandleFromSearchPath(FLAGS_cublas_dir, "libcublasLt.so");
+    return GetDsoHandleFromSearchPath(FLAGS_cuda_dir, "libmcblasLt.so");
 #endif
   } else {
     std::string warning_msg(

@@ -55,4 +55,5 @@ PD_REGISTER_PLUGIN_KERNEL(isclose,
                           custom_kernel::IscloseKernel,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

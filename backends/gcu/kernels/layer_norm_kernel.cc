@@ -230,6 +230,7 @@ PD_REGISTER_PLUGIN_KERNEL(layer_norm,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(layer_norm_grad,

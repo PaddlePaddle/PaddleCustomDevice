@@ -126,6 +126,8 @@ template <typename T, typename Context>
 void InstanceNormGradKernel(const Context& dev_ctx,
                             const phi::DenseTensor& x,
                             const paddle::optional<phi::DenseTensor>& scale,
+                            const paddle::optional<phi::DenseTensor>& bias
+                                UNUSED,
                             const phi::DenseTensor& saved_mean,
                             const phi::DenseTensor& saved_variance,
                             const phi::DenseTensor& d_y,
@@ -187,6 +189,7 @@ PD_REGISTER_PLUGIN_KERNEL(instance_norm,
                           ALL_LAYOUT,
                           custom_kernel::InstanceNormKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(instance_norm_grad,

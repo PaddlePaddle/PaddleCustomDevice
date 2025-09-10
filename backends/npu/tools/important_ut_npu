@@ -22,3 +22,4 @@ test_split_op_npu_eager
 test_squared_l2_norm_op_npu_eager
 test_stack_op_npu_eager
 test_tril_triu_op_npu
+test_expand_v2_op_npu

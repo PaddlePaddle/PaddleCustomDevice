@@ -54,4 +54,5 @@ PD_REGISTER_PLUGIN_KERNEL(index_add,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

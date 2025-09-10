@@ -35,33 +35,133 @@ class BinaryOperator : public HpuOperator {
   void AddNode(const std::vector<DIMS>& ins,
                const std::vector<DIMS>& outs,
                synDataType datatype,
-               bool in_place = false) {
+               bool in_place = false,
+               bool need_cast = false) {
     assert(ins.size() == 2 && "input size should be 2");
     assert(outs.size() == 1 && "output size should be 1");
 
     synSectionHandle section = in_place ? createSection() : nullptr;
 
-    synTensor inputs[ins.size()] = {
-        createTensor(ins[0].size(), datatype, ins[0], true, "x", section),
-        createTensor(ins[1].size(), datatype, ins[1], true, "y")};
-    synTensor outputs[outs.size()] = {createTensor(
-        outs[0].size(), datatype, outs[0], true, "output", section)};
+    if (need_cast) {
+      std::string cast_bf16_guid = "cast_hf8_to_bf16";
+      std::string cast_bf16_name = guid_ + "_cast_hf8_to_bf16";
+      std::string cast_hf8_guid = "cast_bf16_to_hf8";
+      std::string cast_hf8_name = guid_ + "_cast_bf16_to_hf8";
+      guid_ = guid_ + SynDataTypeToStr(syn_type_bf16);
 
-    guid_ = guid_ + SynDataTypeToStr(datatype);
-    synStatus status = synNodeCreate(graphHandle_,
-                                     inputs,
-                                     outputs,
-                                     ins.size(),
-                                     outs.size(),
-                                     nullptr,
-                                     0,
-                                     guid_.c_str(),
-                                     "bianary",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] synNodeCreate binary fwd () failed = %d",
-             status);
+      synTensor x =
+          createTensor(ins[0].size(), datatype, ins[0], true, "x", section);
+      synTensor y = createTensor(ins[1].size(), datatype, ins[1], true, "y");
+      synStatus status = synFail;
+
+      std::vector<synTensor> cast_x_in;
+      cast_x_in.push_back(x);
+
+      synTensor cast_x = createTensor(
+          outs[0].size(), syn_type_bf16, outs[0], false, "x_out_bf16");
+      std::vector<synTensor> cast_x_out;
+      cast_x_out.push_back(cast_x);
+
+      status = synNodeCreate(graphHandle_,
+                             cast_x_in.data(),
+                             cast_x_out.data(),
+                             cast_x_in.size(),
+                             cast_x_out.size(),
+                             nullptr,
+                             0,
+                             cast_bf16_guid.c_str(),
+                             cast_bf16_name.c_str(),
+                             nullptr,
+                             nullptr);
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synNodeCreate cast x failed = %d",
+               status);
+
+      std::vector<synTensor> cast_y_in;
+      cast_y_in.push_back(y);
+
+      synTensor cast_y = createTensor(
+          outs[0].size(), syn_type_bf16, outs[0], false, "y_out_bf16");
+      std::vector<synTensor> cast_y_out;
+      cast_y_out.push_back(cast_y);
+
+      status = synNodeCreate(graphHandle_,
+                             cast_y_in.data(),
+                             cast_y_out.data(),
+                             cast_y_in.size(),
+                             cast_y_out.size(),
+                             nullptr,
+                             0,
+                             cast_bf16_guid.c_str(),
+                             cast_bf16_name.c_str(),
+                             nullptr,
+                             nullptr);
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synNodeCreate cast y failed = %d",
+               status);
+
+      std::vector<synTensor> elementwise_in;
+      elementwise_in.push_back(cast_x);
+      elementwise_in.push_back(cast_y);
+
+      std::vector<synTensor> elementwise_out;
+      synTensor elementwise = (createTensor(
+          outs[0].size(), syn_type_bf16, outs[0], false, "elementwise"));
+      elementwise_out.push_back(elementwise);
+
+      status = synNodeCreate(graphHandle_,
+                             elementwise_in.data(),
+                             elementwise_out.data(),
+                             elementwise_in.size(),
+                             elementwise_out.size(),
+                             nullptr,
+                             0,
+                             guid_.c_str(),
+                             "bianary",
+                             nullptr,
+                             nullptr);
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synNodeCreate binary fwd () failed = %d",
+               status);
+
+      std::vector<synTensor> outputs;
+      outputs.push_back(createTensor(
+          outs[0].size(), datatype, outs[0], true, "output", section));
+      status = synNodeCreate(graphHandle_,
+                             elementwise_out.data(),
+                             outputs.data(),
+                             elementwise_out.size(),
+                             outputs.size(),
+                             nullptr,
+                             0,
+                             cast_hf8_guid.c_str(),
+                             cast_hf8_name.c_str(),
+                             nullptr,
+                             nullptr);
+
+    } else {
+      synTensor inputs[ins.size()] = {
+          createTensor(ins[0].size(), datatype, ins[0], true, "x", section),
+          createTensor(ins[1].size(), datatype, ins[1], true, "y")};
+      synTensor outputs[outs.size()] = {createTensor(
+          outs[0].size(), datatype, outs[0], true, "output", section)};
+
+      guid_ = guid_ + SynDataTypeToStr(datatype);
+      synStatus status = synNodeCreate(graphHandle_,
+                                       inputs,
+                                       outputs,
+                                       ins.size(),
+                                       outs.size(),
+                                       nullptr,
+                                       0,
+                                       guid_.c_str(),
+                                       "bianary",
+                                       nullptr,
+                                       nullptr);
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synNodeCreate binary fwd () failed = %d",
+               status);
+    }
   }
 };
 
@@ -93,10 +193,15 @@ class BinaryOperator : public HpuOperator {
         {x_dim, y_dim},                                                       \
         nullptr);                                                             \
     auto recipe = op_info.GetRecipe();                                        \
-                                                                              \
+    bool need_cast = op_info.datatype_ == syn_type_fp8_143 &&                 \
+                     strcmp(#node_name, "div") == 0;                          \
     if (recipe == nullptr) {                                                  \
       BinaryOperator op(std::string(#node_name) + "_");                       \
-      op.AddNode({x_dim, y_dim}, {outputs_dim}, op_info.datatype_, in_place); \
+      op.AddNode({x_dim, y_dim},                                              \
+                 {outputs_dim},                                               \
+                 op_info.datatype_,                                           \
+                 in_place,                                                    \
+                 need_cast);                                                  \
       op.Compile();                                                           \
       op_info.setOp(op);                                                      \
       recipe = op_info.GetRecipe();                                           \
@@ -189,12 +294,28 @@ void PowKernelScalar(const Context& dev_ctx,
   HPU_KERNEL_REGISTER(GUID##_raw, OP_NAME##RawKernel, float) \
   HPU_KERNEL_REGISTER(GUID, OP_NAME##Kernel, float, phi::dtype::bfloat16)
 
-PD_REGISTER_PLUGIN_KERNEL_FPx3(Add, add);
-PD_REGISTER_PLUGIN_KERNEL_FPx3(Max, maximum);
-PD_REGISTER_PLUGIN_KERNEL_FPx3(Min, minimum);
+#define PD_REGISTER_PLUGIN_KERNEL_FPx4(OP_NAME, GUID) \
+  HPU_KERNEL_REGISTER(GUID##_raw,                     \
+                      OP_NAME##RawKernel,             \
+                      float,                          \
+                      int32_t,                        \
+                      phi::dtype::float16,            \
+                      phi::dtype::bfloat16,           \
+                      phi::dtype::float8_e4m3fn)      \
+  HPU_KERNEL_REGISTER(GUID,                           \
+                      OP_NAME##Kernel,                \
+                      float,                          \
+                      int32_t,                        \
+                      phi::dtype::float16,            \
+                      phi::dtype::bfloat16,           \
+                      phi::dtype::float8_e4m3fn)
+
+PD_REGISTER_PLUGIN_KERNEL_FPx4(Add, add);
+PD_REGISTER_PLUGIN_KERNEL_FPx4(Max, maximum);
+PD_REGISTER_PLUGIN_KERNEL_FPx4(Min, minimum);
+PD_REGISTER_PLUGIN_KERNEL_FPx4(Sub, subtract);
+PD_REGISTER_PLUGIN_KERNEL_FPx4(Div, divide);
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Pow, elementwise_pow);
-PD_REGISTER_PLUGIN_KERNEL_FPx3(Sub, subtract);
-PD_REGISTER_PLUGIN_KERNEL_FPx3(Div, divide);
 PD_REGISTER_PLUGIN_KERNEL_FPx2(Mod, remainder);
 
 PD_REGISTER_PLUGIN_KERNEL(pow,

@@ -14,6 +14,7 @@
 
 #include "habanalabs/perf_lib_layer_params.h"
 #include "kernels/funcs.h"
+#include "kernels/hpu_funcs.h"
 #include "kernels/hpu_operator.h"
 #include "utils/utils.h"
 
@@ -85,12 +86,21 @@ void IndexSelectKernel(const Context& dev_ctx,
     dim += x.dims().size();
   }
 
+  std::string op_name = "IndexSelectKernel";
+  if (index.dtype() == phi::DataType::INT32) {
+    op_name += "_int32";
+  } else if (index.dtype() == phi::DataType::INT64) {
+    op_name += "_int64";
+  } else {
+    throw std::runtime_error(
+        "index_select supports only int64 and int32 for index!");
+  }
+
   OpCacheOperator op_info;
   IndexSelectParams params;
   params.params.axis = static_cast<int32_t>(x.dims().size()) - 1 - dim;
   std::vector<DIMS> inputs_dims = ct.GetDims();
-  op_info.prepareOpInfo<T, IndexSelectParams>(
-      "IndexSelectKernel", inputs_dims, &params);
+  op_info.prepareOpInfo<T, IndexSelectParams>(op_name, inputs_dims, &params);
   auto recipe = op_info.GetRecipe();
   if (recipe == nullptr) {
     IndexSelect op;

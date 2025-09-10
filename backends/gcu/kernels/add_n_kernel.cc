@@ -66,4 +66,5 @@ PD_REGISTER_PLUGIN_KERNEL(add_n,
                           ALL_LAYOUT,
                           custom_kernel::AddNKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

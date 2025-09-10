@@ -14,11 +14,56 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
 LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
+export PATH=/usr/local/corex/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/corex/lib
+export LIBRARY_PATH=/usr/local/corex/lib
 export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}"
 
-mkdir -p build && cd build && cmake ..
-make run_test
-cd -
-rm -rf build
+if [[ -z "${LD_LIBRARY_PATH:-}" ]]; then
+    echo "ERROR: LD_LIBRARY_PATH is not set!" >&2
+    exit 1
+elif [[ ! -f "${LD_LIBRARY_PATH}/libcuda.so.1" ]]; then
+    echo "ERROR: libcuda.so.1 not found in LD_LIBRARY_PATH!" >&2
+    exit 1
+fi
+
+export LD_PRELOAD="${LD_LIBRARY_PATH}/libcuda.so.1"
+
+CURRENT_DIR=$(pwd)
+PADDLE_SOURCE_DIR="${CURRENT_DIR}/../../../Paddle"
+PATCH_FILE="${CURRENT_DIR}/../patches/paddle-corex-test.patch"
+
+if ! git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null 2>&1; then
+  if ! git -C "$PADDLE_SOURCE_DIR" apply "$PATCH_FILE"; then
+    echo "Error: Failed to apply patch!"
+    exit 1
+  fi
+  echo "Patch applied successfully!"
+fi
+
+mkdir -p build || { echo "ERROR: Failed to create build directory"; exit 1; }
+cd build || { echo "ERROR: Failed to enter build directory"; exit 1; }
+
+echo "=== Configuring project ==="
+cmake .. || { echo "ERROR: CMake configuration failed"; exit 1; }
+
+echo "=== Building project (if needed) ==="
+make -j$(nproc) || { echo "ERROR: Build failed"; exit 1; }
+
+echo "=== Running tests ==="
+ctest --output-on-failure -V || { 
+    echo "ERROR: Tests failed!" >&2
+    echo "Exit code: $?" >&2
+    exit 1
+}
+
+echo "=== All tests passed successfully ==="
+
+if git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null 2>&1; then
+  git -C "$PADDLE_SOURCE_DIR" apply --reverse "$PATCH_FILE"
+  echo "Patch successfully reverted!"
+fi
+
+cd - > /dev/null

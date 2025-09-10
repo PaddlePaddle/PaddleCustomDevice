@@ -18,12 +18,12 @@
 
 namespace custom_kernel {
 template <typename T, typename Context>
-extern void ScatterKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& index,
-                          const phi::DenseTensor& updates,
-                          bool overwrite,
-                          phi::DenseTensor* out);
+extern void IndexPutKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& x,
+                           const std::vector<const phi::DenseTensor*>& indices,
+                           const phi::DenseTensor& value,
+                           bool accumulate,
+                           phi::DenseTensor* out);
 
 template <typename T, typename Context>
 void SetTensorValueKernel(const Context& dev_ctx,
@@ -161,8 +161,12 @@ void SetTensorValueKernel(const Context& dev_ctx,
         ReshapeWithoutCopy(value_tensor, {value_tensor.numel()});
     phi::DenseTensor reshape_out = ReshapeWithoutCopy(*out, reshape_shape);
 
-    custom_kernel::ScatterKernel<T, Context>(
-        dev_ctx, reshape_x, index_tensor, reshape_updates, true, &reshape_out);
+    custom_kernel::IndexPutKernel<T, Context>(dev_ctx,
+                                              reshape_x,
+                                              {&index_tensor},
+                                              reshape_updates,
+                                              false,
+                                              &reshape_out);
     *out = ReshapeWithoutCopy(reshape_out, phi::vectorize(in_dims));
 
   } else {  // kernel impl base on JIT
@@ -257,7 +261,8 @@ void SetValueKernel(const Context& dev_ctx,
 //                           double,
 //                           int,
 //                           int64_t,
-//                           bool) {}
+//                           phi::dtype::bfloat16,
+//                           phi::dtype::float16) {}
 
 // PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
 //                           gcu,
@@ -267,4 +272,5 @@ void SetValueKernel(const Context& dev_ctx,
 //                           double,
 //                           int,
 //                           int64_t,
-//                           bool) {}
+//                           phi::dtype::bfloat16,
+//                           phi::dtype::float16) {}

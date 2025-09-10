@@ -51,6 +51,8 @@ ChipType ParseChipType() {
     type = ChipType::SCORPIO;
   } else if (dtu::driver::DeviceManager::instance()->IsPavo()) {
     type = ChipType::PAVO;
+  } else if (dtu::driver::DeviceManager::instance()->IsLibra()) {
+    type = ChipType::LIBRA;
   }
   PADDLE_ENFORCE_NE(
       type,
@@ -84,6 +86,16 @@ static std::string GetChipTypeStr(ChipType type) {
 }  // namespace
 
 std::string GetTargetName() { return GetChipTypeStr(ParseChipType()); }
+
+bool IsScorpio() {
+  static bool is_scorpio = dtu::driver::DeviceManager::instance()->IsScorpio();
+  return is_scorpio;
+}
+
+bool IsLibra() {
+  static bool is_libra = dtu::driver::DeviceManager::instance()->IsLibra();
+  return is_libra;
+}
 
 int64_t GetCurrentTimestap() {
   struct timeval tv;

@@ -25,13 +25,13 @@ namespace cub = hipcub;
 #include <iostream>
 
 #include "glog/logging.h"
-#include "kernels/funcs/fake_quantize_functor.h"
 #include "paddle/common/ddim.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/common/memory_utils.h"
 #include "paddle/phi/kernels/funcs/aligned_vector.h"
+#include "paddle/phi/kernels/funcs/fake_quantize_functor.h"
 
 namespace phi {
 namespace funcs {

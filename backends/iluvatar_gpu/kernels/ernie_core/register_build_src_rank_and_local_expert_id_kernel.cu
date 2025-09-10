@@ -91,7 +91,7 @@ void BuildSrcRankAndLocalExpertIdKernel(
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(build_src_rank_and_local_expert_id,
+PD_REGISTER_PLUGIN_KERNEL(build_src_rank_and_local_expert_id,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::BuildSrcRankAndLocalExpertIdKernel,

@@ -9,6 +9,12 @@ jobs:
   update-submodule-and-pr:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update Paddle Submodule
         run: |
           set -x
@@ -17,15 +23,27 @@ jobs:
           cd PaddleCustomDevice
           git config --global user.name "tianshuo78520a"
           git config --global user.email "tianshuo78520a@users.noreply.github.com"
+          
           cd Paddle
           git reset --hard HEAD
-          git clean -fd
+          git clean -fd -x
           cd ..
-          git submodule update --remote --init
-          git add -A
-          git commit -m "Update submodule" || echo "No changes to commit"
+          
+          git submodule deinit -f Paddle
+          rm -rf .git/modules/Paddle
+          git submodule update --init --remote --force --recursive
+          
+          echo "=== 子模块状态检查 ==="
+          cd Paddle
           git status
-          echo "check submodule status"
+          git rev-parse HEAD
+          cd ..
+          git add -A
+          git status
+          git commit -m "Update Paddle submodule" || echo "No changes to commit"
+          echo "=== 最终状态 ==="
+          git status
+          echo "=== 子模块状态 ==="
           git submodule status
 
       - name: Create Pull Request

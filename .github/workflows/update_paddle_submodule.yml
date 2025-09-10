@@ -28,7 +28,7 @@ jobs:
           git -C Paddle clean -fdx
 
           # 拉到远端最新的分支提交，并更新超级项目的指针
-          git submodule update --init --remote --recursive
+          git submodule update --init --remote --recursive --force
 
           echo "=== 状态检查 ==="
           git -C Paddle status

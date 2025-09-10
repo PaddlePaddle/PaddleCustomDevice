@@ -26,7 +26,7 @@ jobs:
           git clean -fd
           cd ..
           git submodule update --remote --init
-          git add .
+          git add -A
           git commit -m "Update submodule" || echo "No changes to commit"
           git status
           echo "check submodule status"

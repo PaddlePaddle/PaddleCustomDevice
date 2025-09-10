@@ -39,7 +39,6 @@ jobs:
             git checkout -B develop
             git add Paddle .gitmodules
             git commit -m "chore: Update Paddle submodule to latest develop"
-            git push -u origin develop
           else
             echo "No changes to commit"
           fi

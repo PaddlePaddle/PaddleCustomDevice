@@ -361,10 +361,6 @@ void FusedGateMoeKernel(
     const bool dynamic_scale,
     const int block_size,
     const int chunk_size) {
-  std::vector<int64_t> gate_up_weights_dims =
-      phi::vectorize<int64_t>(gate_up_weights.dims());
-  std::vector<int64_t> down_weights_dims =
-      phi::vectorize<int64_t>(down_weights.dims());
   FusedGateMoeParams params;
   memset(reinterpret_cast<void*>(&params), 0x00, sizeof(FusedGateMoeParams));
   params.topk = top_k;

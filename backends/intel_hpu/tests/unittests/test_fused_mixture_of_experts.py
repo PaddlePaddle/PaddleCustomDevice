@@ -582,14 +582,7 @@ class FusedMoE:
             1, (self.experts_max - self.experts_min + 1) // self.expert_slice
         )
 
-    def forward(
-        self,
-        hidden_states,
-        router_weights,
-        routing_table,
-        compute_amax=False,
-        chunk_size=0,
-    ):
+    def forward(self, hidden_states, router_weights, routing_table, compute_amax=False):
         common_inputs = (hidden_states, routing_table, router_weights)
         # final_hidden_states = paddle.zeros_like(hidden_states)
 
@@ -764,20 +757,19 @@ class FusedMoE:
 
 
 DTYPES = ["bfloat16", "fp8", "blockwise_fp8"]
-NUM_TOKENS = []
-CHUNK_SIZES = [0, 64, 256, 512]
-HIDDEN_DIMS = [2560]
-FFN_DIMS = [1536]
-TOP_K = [6]
-NUM_EXPERTS = [64]
-SLICE_MAX_EXPERT = [64]
-FUSED_WEIGHTS = [True]
-ACTIVATIONS = ["silu"]
-PERMUTED_WEIGHTS = [False]
+NUM_TOKENS = [32]
+HIDDEN_DIMS = [4096]
+FFN_DIMS = [2560]
+TOP_K = [2]
+NUM_EXPERTS = [8]
+SLICE_MAX_EXPERT = [8]
+FUSED_WEIGHTS = [True, False]
+ACTIVATIONS = ["gelu", "relu", "silu"]
+PERMUTED_WEIGHTS = [True, False]
 EP_SIZE = [1]
 TP_SIZE = [1]
 # for bfloat16 only
-COMPUTE_AMAX = [False]
+COMPUTE_AMAX = [True, False]
 # for fp8 only
 DYNAMIC_SCALE = [True, False]
 FP8_SCALES = [
@@ -817,22 +809,12 @@ FP8_SCALES = [
 # for blockwise_fp8 only
 BLOCK_SIZES = [128]
 
-import argparse
-
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--num_tokens", "-n", type=int, required=True, help="Batch Token 数量 (BT)"
-)
-args = parser.parse_args()
-NUM_TOKENS = [args.num_tokens]
-
 
 class MoETest(unittest.TestCase):
     @parameterized.expand(
         [
             (
                 num_tokens,
-                # chunk_size,
                 hidden_dim,
                 ffn_dim,
                 top_k,
@@ -847,7 +829,6 @@ class MoETest(unittest.TestCase):
                 # dtype,
             )
             for num_tokens in NUM_TOKENS
-            # for chunk_size in CHUNK_SIZES
             for hidden_dim in HIDDEN_DIMS
             for ffn_dim in FFN_DIMS
             for top_k in TOP_K
@@ -865,7 +846,6 @@ class MoETest(unittest.TestCase):
     def test_mixture_of_experts(
         self,
         num_tokens,
-        # chunk_size,
         hidden_dim,
         ffn_dim,
         top_k,
@@ -964,17 +944,6 @@ class MoETest(unittest.TestCase):
             },
         )
 
-        import paddle.profiler as profiler
-
-        prof = profiler.Profiler(
-            targets=[
-                profiler.ProfilerTarget.CPU,
-                profiler.ProfilerTarget.CUSTOM_DEVICE,
-            ],
-            scheduler=(0, 4),
-            on_trace_ready=profiler.export_chrome_tracing("./profile"),
-        )
-
         # paddlenlp_ops.moe operator
         fused_moe = FusedMoE(
             num_experts=num_experts,
@@ -997,21 +966,13 @@ class MoETest(unittest.TestCase):
             dtype=dtype,
             block_size=None,
         )
-        prof.start()
 
-        print(f"NUM_TOKENS={NUM_TOKENS}")
-        for chunk_size in CHUNK_SIZES:
-            print(f"execution in chunk size={chunk_size}")
-            final_hidden_states, amax_per_expert = fused_moe.forward(
-                hidden_states=hidden_states_pd,
-                router_weights=router_weights_pd,
-                routing_table=routing_table_pd,
-                compute_amax=compute_amax,
-                chunk_size=chunk_size,
-            )
-            prof.step()
-        prof.stop()
-
+        final_hidden_states, amax_per_expert = fused_moe.forward(
+            hidden_states=hidden_states_pd,
+            router_weights=router_weights_pd,
+            routing_table=routing_table_pd,
+            compute_amax=compute_amax,
+        )
         logger.debug(
             "\n===== paddlenlp_ops.mixture_of_experts Output =====\n",
             extra={
@@ -1060,7 +1021,6 @@ class MoETest(unittest.TestCase):
                 dist.destroy_process_group(ep_group)
                 dist.destroy_process_group(tp_group)
 
-    """
     @parameterized.expand(
         [
             (
@@ -1423,7 +1383,6 @@ class MoETest(unittest.TestCase):
             logger=logger,
         )
         assert similar, f"Cosine similarity check failed: {similar}"
-    """
 
 
 if __name__ == "__main__":

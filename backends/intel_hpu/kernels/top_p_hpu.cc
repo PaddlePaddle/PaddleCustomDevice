@@ -157,6 +157,8 @@ void TopPSamplingKernel_hpu(const Context& dev_ctx,
   auto x_dims = phi::vectorize<int64_t>(x.dims());
   int length = x_dims[1];
   ns_TopkNodeV2::ParamsV4 params{};
+  memset(
+      reinterpret_cast<void*>(&params), 0x00, sizeof(ns_TopkNodeV2::ParamsV4));
   params.bsw = length;
   params.axis = 0;
   params.bottomK = false;

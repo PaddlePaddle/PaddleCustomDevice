@@ -1,5 +1,4 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved. Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// #include "paddle/phi/backends/gpu/gpu_context.h"
-// #ifndef PADDLE_WITH_XPU_KP
-// #include "paddle/phi/common/complex.h"
-// #include "paddle/phi/common/float16.h"
-// #endif
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/impl/elementwise_kernel_impl.h"
 

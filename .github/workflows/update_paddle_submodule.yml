@@ -22,23 +22,27 @@ jobs:
           git config --global user.name "tianshuo78520a"
           git config --global user.email "tianshuo78520a@users.noreply.github.com"
           
-          cd Paddle
-          git reset --hard HEAD
-          git clean -fd -x
-          cd ..
-          
-          git submodule deinit -f Paddle
-          rm -rf .git/modules/Paddle
-          git submodule update --init --remote --force --recursive
-          
-          echo "=== 子模块状态检查 ==="
-          cd Paddle
-          git status
-          git rev-parse HEAD
-          cd ..
-          git add -A
-          git status
-          git commit -m "Update Paddle submodule" || echo "No changes to commit"
+          git submodule sync --recursive
+          # 清理子模块工作区，避免“modified content”
+          git -C Paddle reset --hard
+          git -C Paddle clean -fdx
+
+          # 拉到远端最新的分支提交，并更新超级项目的指针
+          git submodule update --init --remote --recursive
+
+          echo "=== 状态检查 ==="
+          git -C Paddle status
+          git -C Paddle rev-parse HEAD
+
+          # 仅在确实有变化时提交（包括 .gitmodules 改动）
+          if ! git diff --quiet -- Paddle .gitmodules; then
+            git checkout -B "$BRANCH_NAME"
+            git add Paddle .gitmodules
+            git commit -m "chore: Update Paddle submodule to latest develop"
+            git push -u origin "$BRANCH_NAME"
+          else
+            echo "No changes to commit"
+          fi
           echo "=== 最终状态 ==="
           git status
           echo "=== 子模块状态 ==="

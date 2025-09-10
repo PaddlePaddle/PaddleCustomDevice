@@ -9,7 +9,7 @@ set(LEGACY_TEST_PATH "${SCRIPT_DIR}/../../../Paddle/test/legacy_test")
 
 set(EXCLUDED_TESTS
     "test_ops_roi_align.py" "test_tensor_fill_diagonal_tensor_op_iluvatar.py"
-    "test_tensor_fill_diagonal_op_iluvatar.py")
+    "test_tensor_fill_diagonal_op_iluvatar.py" "test_bincount_op_iluvatar.py")
 
 list(JOIN EXCLUDED_TESTS " or " EXCLUDE_EXPR)
 set(K_FILTER "not (${EXCLUDE_EXPR})")

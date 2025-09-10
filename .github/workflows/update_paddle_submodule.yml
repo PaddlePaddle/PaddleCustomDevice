@@ -27,12 +27,11 @@ jobs:
           cd Paddle && git checkout develop && git pull origin develop
           cd ..
           
-          git submodule update --init --recursive --force
           git submodule status
           git add Paddle
           if [ -z "$(git diff --cached --name-only)" ]; then
               echo "No changes to commit in Paddle submodule"
-              else
+          else
               git commit -m "Update Paddle submodule to latest develop"
               echo "Paddle submodule updated successfully"
           fi

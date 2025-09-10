@@ -9,16 +9,12 @@ jobs:
   update-submodule-and-pr:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Update Paddle Submodule
         run: |
           set -x
           echo "BRANCH_NAME=update-paddle-submodule-$(date +'%Y%m%d')" >> $GITHUB_ENV
+          git clone --depth=1000 https://github.com/PaddlePaddle/PaddleCustomDevice.git
+          cd PaddleCustomDevice
           git config --global user.name "tianshuo78520a"
           git config --global user.email "tianshuo78520a@users.noreply.github.com"
           cd Paddle

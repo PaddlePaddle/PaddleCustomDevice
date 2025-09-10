@@ -36,10 +36,10 @@ jobs:
 
           # 仅在确实有变化时提交（包括 .gitmodules 改动）
           if ! git diff --quiet -- Paddle .gitmodules; then
-            git checkout -B "${{ env.BRANCH_NAME }}"
+            git checkout -B develop
             git add Paddle .gitmodules
             git commit -m "chore: Update Paddle submodule to latest develop"
-            git push -u origin "${{ env.BRANCH_NAME }}"
+            git push -u origin develop
           else
             echo "No changes to commit"
           fi

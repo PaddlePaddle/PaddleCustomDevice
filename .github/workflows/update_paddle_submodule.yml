@@ -23,7 +23,7 @@ jobs:
           git config --global user.email "tianshuo78520a@users.noreply.github.com"
           git submodule update --remote --init
           cd Paddle && git checkout develop && git pull
-          git commit -m "Update Paddle"
+          git commit -am "Update Paddle"
           cd ..
           git add Paddle
           git commit -m "Update submodule" || echo "No changes to commit"

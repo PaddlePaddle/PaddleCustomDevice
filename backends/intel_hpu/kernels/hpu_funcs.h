@@ -297,6 +297,14 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IOP<synGEMMParams>(inputs, outputs, params, "gemm", node_name);
   }
 
+  template <typename T>
+  inline void AddNodeRange(std::vector<synTensor> outputs,
+                           ns_RangeKernel::Params params,
+                           std::string node_name) {
+    std::string guid = "range_" + guid_dtype<T>();
+    AddNode_OP<ns_RangeKernel::Params>(outputs, params, guid, node_name);
+  }
+
   inline void AddNodeBatchGemm(std::vector<synTensor> inputs,
                                std::vector<synTensor> outputs,
                                synGEMMParams params,
@@ -379,6 +387,16 @@ class HpuFusedOperator : public HpuOperator {
                                 ns_ScatterKernel::Params params,
                                 std::string node_name) {
     std::string guid = "unsorted_scatter_add_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_ScatterKernel::Params>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeScatterFwd(std::vector<synTensor> inputs,
+                                std::vector<synTensor> outputs,
+                                ns_ScatterKernel::Params params,
+                                std::string node_name) {
+    std::string guid = "scatter_fwd_" + guid_dtype<T>();
     AddNode_IOP<ns_ScatterKernel::Params>(
         inputs, outputs, params, guid, node_name);
   }

@@ -1,0 +1,14 @@
+diff --git a/paddle/phi/kernels/primitive/compute_primitives.h b/paddle/phi/kernels/primitive/compute_primitives.h
+index 82bb7f71ff..a02d66a878 100644
+--- a/paddle/phi/kernels/primitive/compute_primitives.h
++++ b/paddle/phi/kernels/primitive/compute_primitives.h
+@@ -20,6 +20,9 @@
+ #ifdef PADDLE_WITH_HIP
+ #include <hip/hip_fp16.h>
+ #endif
++#ifdef PADDLE_WITH_MUSA
++#include <musa_fp16.h>
++#endif
+ 
+ #include "paddle/phi/backends/gpu/gpu_device_function.h"
+ #include "paddle/phi/common/amp_type_traits.h"

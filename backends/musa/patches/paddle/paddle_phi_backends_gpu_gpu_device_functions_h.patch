@@ -1,0 +1,13 @@
+diff --git a/paddle/phi/backends/gpu/gpu_device_function.h b/paddle/phi/backends/gpu/gpu_device_function.h
+index 0f79e2a645..48e92273af 100644
+--- a/paddle/phi/backends/gpu/gpu_device_function.h
++++ b/paddle/phi/backends/gpu/gpu_device_function.h
+@@ -22,3 +22,7 @@ limitations under the License. */
+ #endif
+ 
+ #endif
++
++#if defined(PADDLE_WITH_MUSA)
++#include "musa_device_function.h"
++#endif
+\ No newline at end of file

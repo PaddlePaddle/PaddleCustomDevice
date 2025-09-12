@@ -263,10 +263,16 @@ class FusedSamplerKernel : public HpuFusedOperator {
     range_params.delta.i = 1;
     range_params.limit.i = sampler_param.slice_start + sampler_param.slice_num;
     std::vector<int64_t> scatter_dims = {slice_num};
+    auto scatter_indices_1d = createTensorNoPresist(
+        "scatter_indices_1d", syn_type_int32, scatter_dims);
+    std::vector<synTensor> outputs = {scatter_indices_1d};
+    AddNodeRange<int>(outputs, range_params, guid_ + "_range_as_indices");
+    scatter_dims.push_back(1);
     auto scatter_indices =
         createTensorNoPresist("scatter_indices", syn_type_int32, scatter_dims);
-    std::vector<synTensor> outputs = {scatter_indices};
-    AddNodeRange<int>(outputs, range_params, guid_ + "_range_as_indices");
+    std::vector<synTensor> reshape_ins = {scatter_indices_1d};
+    std::vector<synTensor> reshape_outs = {scatter_indices};
+    AddNodeReshape(reshape_ins, reshape_outs, guid_ + "reshape_indices");
 
     ns_ScatterKernel::Params scatter_slice_params;
     scatter_slice_params.axis = 1;
@@ -505,12 +511,13 @@ class FusedSamplerKernel : public HpuFusedOperator {
     if (is_slice_needed) {
       auto token_indices_zero = createTensorNoPresist(
           "token_indices_zero", syn_type_int32, outputs_dims[TOP_ID]);
-      const_params.constant.f = 0.0f;
+      const_params.constant.i = 0;
       full_out[0] = token_indices_zero;
-      AddNodeFull<float>(full_out, const_params, guid_ + "token_indices_zero");
+      AddNodeFull<int>(full_out, const_params, guid_ + "token_indices_zero");
 
       token_out_i32 = createTensorNoPresist(
           "token_out_i32", syn_type_int32, outputs_dims[TOP_ID]);
+
       std::vector<synTensor> scatter_ins = {
           token_indices_zero, scatter_indices, token_indices};
       std::vector<synTensor> scatter_outs = {token_out_i32};
@@ -550,39 +557,47 @@ class FusedSamplerKernel : public HpuFusedOperator {
     ct.Add(*tnsr##_dt, is_input);                                             \
   }
 
-static std::vector<int> get_pp_slices(int rank_id, int rank_num, int bs) {
-  std::vector<int> slices;
+static std::vector<int> get_sampler_slices(int rank_num, int rank_id, int bs) {
+  std::vector<int> task_ids;
 
-  if (rank_num <= 0 || bs < 0 || rank_id < 0 || rank_id >= rank_num) {
-    return slices;
-  }
-  if (bs == 0) {
-    return slices;
+  if (rank_id < 0 || rank_id >= rank_num || bs <= 0) {
+    return task_ids;
   }
 
-  const int base_slices = bs / rank_num;
-  const int extra_slice_count = bs % rank_num;
+  int base_chunks = (bs / 8) / rank_num;
+  int extra_chunk_count = (bs / 8) % rank_num;
+  int final_remainder = bs % 8;
 
-  const int slice_count =
-      (rank_id < extra_slice_count) ? (base_slices + 1) : base_slices;
-
-  int start_slice;
-  if (rank_id < extra_slice_count) {
-    start_slice = rank_id * (base_slices + 1);
+  int workload_for_id;
+  if (rank_id < extra_chunk_count) {
+    workload_for_id = (base_chunks + 1) * 8;
   } else {
-    start_slice = extra_slice_count * (base_slices + 1) +
-                  (rank_id - extra_slice_count) * base_slices;
+    workload_for_id = base_chunks * 8;
   }
 
-  for (int i = 0; i < slice_count; ++i) {
-    const int slice = start_slice + i;
-    if (slice >= bs) {
-      break;
+  if (rank_id == extra_chunk_count) {
+    workload_for_id += final_remainder;
+  }
+
+  int start_id = 0;
+  for (int i = 0; i < rank_id; ++i) {
+    int workload_before;
+    if (i < extra_chunk_count) {
+      workload_before = (base_chunks + 1) * 8;
+    } else {
+      workload_before = base_chunks * 8;
     }
-    slices.push_back(slice);
+    if (i == extra_chunk_count) {
+      workload_before += final_remainder;
+    }
+    start_id += workload_before;
   }
 
-  return slices;
+  for (int i = 0; i < workload_for_id; ++i) {
+    task_ids.push_back(start_id + i);
+  }
+
+  return task_ids;
 }
 
 std::vector<paddle::Tensor> FusedSampler(const paddle::Tensor& pre_ids,
@@ -608,13 +623,24 @@ std::vector<paddle::Tensor> FusedSampler(const paddle::Tensor& pre_ids,
 
   auto dims = min_len.dims();
   int bs = dims[0];
-
-  std::vector<int> slices = get_pp_slices(0, 1, bs);
-  FusedSamplerParam sampler_param = {1, 0, bs, slices[0], slices.size()};
-
   auto out =
       paddle::full({bs, 1}, 0, paddle::DataType::FLOAT32, pre_ids.place());
   auto ids = paddle::full({bs, 1}, 0, paddle::DataType::INT64, pre_ids.place());
+
+  std::vector<int> slices = get_sampler_slices(rank_num, rank_id, bs);
+
+  if (rank_num == 1) {
+    PD_CHECK(slices.size() == static_cast<size_t>(bs),
+             "Slicing should not happen for rank_num 1 case.");
+  }
+
+  if (slices.size() == 0) {
+    // early out when no workload for current rank
+    return {out, ids};
+  }
+
+  FusedSamplerParam sampler_param = {
+      rank_num, rank_id, bs, slices[0], slices.size()};
 
   custom_kernel::ConvertTensors ct;
   INSERT_TENSOR_TO_CT(pre_ids, ct, 2, PRE_IDS, true);
@@ -636,10 +662,6 @@ std::vector<paddle::Tensor> FusedSampler(const paddle::Tensor& pre_ids,
   INSERT_TENSOR_TO_CT(pre_ids, ct, 2, PRE_IDS_OUT, false);
   INSERT_TENSOR_TO_CT(out, ct, 2, TOP_SCORE, false);
   INSERT_TENSOR_TO_CT(ids, ct, 2, TOP_ID, false);
-
-  if (slices.size() < 1) {
-    return {out, ids};
-  }
 
   std::vector<DIMS> inputs_dims = ct.GetDims();
   OpCacheOperator op_info;

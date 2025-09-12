@@ -1,0 +1,37 @@
+diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
+index 95f1d58c64..2cc5b5932c 100644
+--- a/paddle/phi/core/enforce.h
++++ b/paddle/phi/core/enforce.h
+@@ -77,6 +77,23 @@ limitations under the License. */
+ #include "xpu/bkcl.h"
+ #endif
+ 
++#ifdef PADDLE_WITH_MUSA
++#include <error.h>
++#include <mublas.h>
++#include <mudnn.h>
++#include <mufft.h>
++#include <murand.h>
++#include <musparse.h>
++#include <thrust/system/musa/error.h>
++#include <thrust/system_error.h>
++
++#include "mufft_dynload.h"
++#include "mublas_dynload.h"
++#include "mudnn_dynload.h"
++#include "murand_dynload.h"
++#include "mccl_dynload.h"
++#endif
++
+ namespace phi {
+ namespace enforce {
+ 
+@@ -97,7 +114,7 @@ inline bool is_error(bool stat) { return !stat; }
+ 
+ void ThrowWarnInternal(const std::string& message);
+ 
+-#if defined(__CUDA_ARCH__)
++#if defined(__CUDA_ARCH__) || defined(__MUSACC__)
+ // For cuda, the assertions can affect performance and it is therefore
+ // recommended to disable them in production code
+ // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#assertion

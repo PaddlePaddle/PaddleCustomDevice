@@ -618,7 +618,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bernoulli_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bmm_grad_kernel_impl.h
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bmm_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cufft.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/box_coder_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/broadcast_tensors_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/broadcast_tensors_grad_kernel.cu
@@ -684,9 +683,15 @@ file(
   ${CMAKE_SOURCE_DIR}/kernels/flash_attn_kernel.cu
   ${CMAKE_SOURCE_DIR}/kernels/flashattn.cc)
 
-list(REMOVE_ITEM CUDA_SRCS
-     ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax.cu
-     ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/weight_only_gemv.cu)
+list(
+  REMOVE_ITEM
+  CUDA_SRCS
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/gru_compute.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/multihead_matmul_functor.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/weight_only_gemv.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/context_project.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/fft.cu)
 
 file(
   GLOB

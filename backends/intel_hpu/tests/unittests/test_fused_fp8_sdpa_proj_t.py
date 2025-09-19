@@ -100,6 +100,7 @@ BATCH_SIZE = [4, 8, 16]
 SEQ_LEN = [16]
 KV_SEQ_LEN = [16]
 MAX_SEQ_LENGTH = [2048]
+SCALE_O = [None, paddle.to_tensor([1.0], dtype=paddle.float32)]
 
 
 class FP8_SDPA_Proj_T_Test(unittest.TestCase):
@@ -112,6 +113,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
                 seq_len,
                 kv_seq_len,
                 max_seq_length,
+                scale_o,
             )
             for head_dim in HEAD_DIM
             for num_head in NUM_HEAD
@@ -119,6 +121,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             for seq_len in SEQ_LEN
             for kv_seq_len in KV_SEQ_LEN
             for max_seq_length in MAX_SEQ_LENGTH
+            for scale_o in SCALE_O
         ]
     )
     def test(
@@ -129,6 +132,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
         seq_len,
         kv_seq_len,
         max_seq_length,
+        scale_o,
     ):
         kv_num_head = num_head
         hidden_size = num_head * head_dim
@@ -171,7 +175,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
         d_scale_k = paddle.to_tensor([scaleKInv])
         d_scale_v = paddle.to_tensor([scaleVInv])
         q_scale_s = paddle.to_tensor([scaleS])
-        q_scale_o = None
+        q_scale_o = scale_o
         d_scale_s = paddle.to_tensor([scaleSInv])
 
         out_linear_out_ref = ref_result(

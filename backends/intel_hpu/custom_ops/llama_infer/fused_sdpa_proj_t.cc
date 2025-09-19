@@ -48,6 +48,8 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
+    auto weight_dtype = inputs[2].type;
+
     std::vector<synTensor> kv_inputs;
     kv_inputs.push_back(createTensorFromCT(&ct, 1));
     auto k_v_dims = inputs[1].dims;
@@ -137,6 +139,11 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
     AddNodeTranspose(
         value_squeezed, v_transpose, trans_params, guid_ + "transpose_v");
 
+    auto atten_dtype = dtype_;  // qkv dtype
+    if (params.sdpa_params.flags & SdpaFlags_t::SDPA_FLAGS_Q_SCALE_O) {
+      atten_dtype = weight_dtype;
+    }
+
     std::vector<synTensor> attn_outputs;
     if (params.is_GQA) {
       int q_heads = qt_dims[1];
@@ -190,7 +197,7 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
         }
       }
       std::vector<synTensor> attn_outputs_r;
-      auto attn = createTensorNoPresist("attn", dtype_, q_reshape);
+      auto attn = createTensorNoPresist("attn", atten_dtype, q_reshape);
       attn_outputs_r.push_back(attn);
 
       if (params.fp8_sdpa) {
@@ -204,11 +211,11 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
                              params.sdpa_params,
                              guid_ + "sdpa_recomp");
       }
-
-      auto attn_o = createTensorNoPresist("attn_o", dtype_, qt_dims);
+      auto attn_o = createTensorNoPresist("attn_o", atten_dtype, qt_dims);
       attn_outputs.push_back(attn_o);
       AddNodeReshape(attn_outputs_r, attn_outputs, guid_ + "reshape_sdpa");
     } else {
+      // is_MQA
       std::vector<synTensor> attn_inputs;
       attn_inputs.push_back(q_t);
       attn_inputs.push_back(k_t);
@@ -226,7 +233,7 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
       }
       // params.is_causal = true; ==> input[3] is not used
       // input[3] is in use ==> params.is_causal = false;
-      auto attn = createTensorNoPresist("attn", dtype_, qt_dims);
+      auto attn = createTensorNoPresist("attn", atten_dtype, qt_dims);
       attn_outputs.push_back(attn);
 
       if (params.fp8_sdpa) {
@@ -243,7 +250,7 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
     }
 
     std::vector<synTensor> attn_out_transpose;
-    auto attn_t = createTensorNoPresist("attn_t", dtype_, q_dims);
+    auto attn_t = createTensorNoPresist("attn_t", atten_dtype, q_dims);
     attn_out_transpose.push_back(attn_t);
 
     AddNodeTranspose(attn_outputs,
@@ -256,18 +263,18 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
     attn_reshape.push_back(q_dims[2] * q_dims[3]);
 
     std::vector<synTensor> attn_out_reshape;
-    auto attn_r = createTensorNoPresist("attn_r", dtype_, attn_reshape);
+    auto attn_r = createTensorNoPresist("attn_r", atten_dtype, attn_reshape);
     attn_out_reshape.push_back(attn_r);
 
     AddNodeReshape(attn_out_transpose, attn_out_reshape, guid_ + "reshape_out");
 
     std::vector<synTensor> mul_inputs;
-    if (params.fp8_sdpa) {
+    if (params.fp8_sdpa &&
+        !(params.sdpa_params.flags & SdpaFlags_t::SDPA_FLAGS_Q_SCALE_O)) {
       ns_CastKernel::Params cast_to_fp8_params;
       cast_to_fp8_params.round_mode = CAST_ROUND_HALF_NE;
       std::vector<synTensor> attn_out_cast;
-      auto attn_c =
-          createTensorNoPresist("attn_c", inputs[2].type, attn_reshape);
+      auto attn_c = createTensorNoPresist("attn_c", weight_dtype, attn_reshape);
       attn_out_cast.push_back(attn_c);
       AddNodeConvertToFP8<T>(attn_out_reshape,
                              attn_out_cast,
@@ -372,27 +379,28 @@ void FusedSdpaProjBTMHKernel(
   }
   guid_prefix += "fwd_";
 
+  FusedSdpaProjParams params;
+  memset(reinterpret_cast<void*>(&params), 0x00, sizeof(FusedSdpaProjParams));
+  params.sdpa_params.scale = scaling_factor.to<float>();
+  params.sdpa_params.is_causal = causal.to<bool>();
+  params.sdpa_params.dropout.ratio = 0.0;
+  params.sdpa_params.dropout.disableMaskOut = false;
+  params.sdpa_params.is_inference = true;
+  params.sdpa_params.softmax_mode =
+      static_cast<SdpaSoftmaxMode_t>(mode.to<int>());
+  params.sdpa_params.flags = flags;
+  params.fp8_sdpa = (query_states.dtype() == phi::DataType::FLOAT8_E4M3FN);
+  params.fp8_gemm = (linear_weights.dtype() == phi::DataType::FLOAT8_E4M3FN);
+  if (num_head != num_kv_head) {
+    params.is_GQA = true;
+  }
+
   OpCacheOperator op_info;
-  op_info.prepareOpInfo<T, nullptr_t>(guid_prefix, in_out_dims, nullptr);
+  op_info.prepareOpInfo<T, FusedSdpaProjParams>(
+      guid_prefix, in_out_dims, &params);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
-    FusedSdpaProjParams params;
-    memset(reinterpret_cast<void*>(&params), 0x00, sizeof(FusedSdpaProjParams));
-    params.sdpa_params.scale = scaling_factor.to<float>();
-    params.sdpa_params.is_causal = causal.to<bool>();
-    params.sdpa_params.dropout.ratio = 0.0;
-    params.sdpa_params.dropout.disableMaskOut = false;
-    params.sdpa_params.is_inference = true;
-    params.sdpa_params.softmax_mode =
-        static_cast<SdpaSoftmaxMode_t>(mode.to<int>());
-    params.sdpa_params.flags = flags;
-    params.fp8_sdpa = (query_states.dtype() == phi::DataType::FLOAT8_E4M3FN);
-    params.fp8_gemm = (linear_weights.dtype() == phi::DataType::FLOAT8_E4M3FN);
-    if (num_head != num_kv_head) {
-      params.is_GQA = true;
-    }
-
     FusedSdpaProjBTMH op(guid_prefix, op_info.datatype_);
     op.AddNode<T>(ct, params);
     op.Compile();

@@ -29,6 +29,15 @@ elif [[ ! -f "${LD_LIBRARY_PATH}/libcuda.so.1" ]]; then
     exit 1
 fi
 
+NUM_GPUS=$(ixsmi --query-gpu=name --format=csv,noheader | wc -l)
+if [ "$NUM_GPUS" -eq 0 ]; then
+    echo "No GPU found!"
+    exit 1
+fi
+LAST_GPU=$((NUM_GPUS - 1))
+echo "Using last GPU: $LAST_GPU"
+export CUDA_VISIBLE_DEVICES=$LAST_GPU
+
 export LD_PRELOAD="${LD_LIBRARY_PATH}/libcuda.so.1"
 export FLAG_SKIP_FLOAT64=1
 

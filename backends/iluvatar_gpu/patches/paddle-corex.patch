@@ -253,33 +253,6 @@ index 189e97534e..8f805afe8c 100644
      case phi::DataType::BFLOAT16:
        type = CUDNN_DATA_BFLOAT16;
        break;
-@@ -167,12 +167,26 @@ class TensorDescriptor {
-     } else {
-       transformed_dims = dims;
-     }
-+#ifdef PADDLE_WITH_COREX
-+    std::vector<int> strides(dims.size());
-+    strides[dims.size() - 1] = 1;
-+    for (int i = dims.size() - 2; i >= 0; i--) {
-+      strides[i] = dims[i + 1] * strides[i + 1];
-+    }
-+    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSetTensorNdDescriptor(
-+        desc_.get(),
-+        dtype,
-+        transformed_dims.size(),
-+        transformed_dims.data(),
-+        strides.data()));
-+#else
-     PADDLE_ENFORCE_GPU_SUCCESS(
-         phi::dynload::cudnnSetTensorNdDescriptorEx(desc_.get(),
-                                                    format,
-                                                    dtype,
-                                                    transformed_dims.size(),
-                                                    transformed_dims.data()));
-+#endif
-   }
- 
-   void set(const phi::DenseTensor& tensor, const cudnnTensorFormat_t format) {
 diff --git a/paddle/phi/backends/gpu/cuda/cudnn_helper.h b/paddle/phi/backends/gpu/cuda/cudnn_helper.h
 index 28c3d14d37..5dc5f79178 100644
 --- a/paddle/phi/backends/gpu/cuda/cudnn_helper.h

@@ -157,6 +157,7 @@ class Fused_Sdpa_Proj_t(paddle.nn.Layer):
             self.linear_weights[i],
             self.scaling_factor,
             causal=True,
+            softmax_mode=0,
         )
         return out_linear_out
 

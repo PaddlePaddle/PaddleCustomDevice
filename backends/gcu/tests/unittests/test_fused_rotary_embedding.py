@@ -149,7 +149,13 @@ class TestFusedRotaryEmbedding(TestAPIBase):
         )
         cos_sin = self.cos_sin.astype(self.dtype)
         return paddle.base.core.eager._run_custom_op(
-            "fused_rotary_embedding_gcu", q, k, cos_sin, position_ids, self.is_neox
+            "fused_rotary_embedding_gcu",
+            q,
+            k,
+            cos_sin,
+            position_ids,
+            self.is_neox,
+            self.head_dim,
         )
 
     def fused_rotary_embedding_impl(self, dtype):

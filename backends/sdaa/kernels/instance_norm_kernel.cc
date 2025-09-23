@@ -169,6 +169,8 @@ template <typename T, typename Context>
 void InstanceNormGradKernel(const Context &dev_ctx,
                             const phi::DenseTensor &x,
                             const paddle::optional<phi::DenseTensor> &scale,
+                            const paddle::optional<phi::DenseTensor> &bias
+                                UNUSED,
                             const phi::DenseTensor &saved_mean,
                             const phi::DenseTensor &saved_variance,
                             const phi::DenseTensor &d_y,

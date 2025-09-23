@@ -32,7 +32,8 @@ std::vector<paddle::Tensor> FusedRotaryEmbedding(
     const paddle::Tensor &key,
     const paddle::Tensor &cos_sin_table,
     const paddle::Tensor &positions,
-    bool is_neox);
+    bool is_neox,
+    int64_t head_size = 0);
 
 std::vector<paddle::Tensor> FusedSdpFlashAttention(
     const paddle::Tensor &query,

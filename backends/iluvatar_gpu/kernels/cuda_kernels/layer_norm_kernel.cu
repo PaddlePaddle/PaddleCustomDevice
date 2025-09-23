@@ -604,11 +604,13 @@ void LayerNormKernel(const Context &dev_ctx,
 
 #ifdef PADDLE_WITH_CUDA
   bool can_call_fast_kernel = false;
-  if ((feature_size >= 768 && feature_size <= 2048 && feature_size % 256 == 0 ||
-       feature_size == 4096) &&
-      scale != nullptr && bias != nullptr) {
-    can_call_fast_kernel = true;
-  }
+  // NOTE: Temporarily disabled fast_kernel due to accuracy issue. Re-enable
+  // after fix. if ((feature_size >= 768 && feature_size <= 2048 && feature_size
+  // % 256 == 0 ||
+  //      feature_size == 4096) &&
+  //     scale != nullptr && bias != nullptr) {
+  //   can_call_fast_kernel = true;
+  // }
 
   if (can_call_fast_kernel) {
     if (is_scale_bias_same_dtype_with_x) {

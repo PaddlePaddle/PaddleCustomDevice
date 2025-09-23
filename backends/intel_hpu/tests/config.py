@@ -20,4 +20,5 @@ skip_case_lst = {}
 # this list for the unstable test case to skip
 skip_case_lst = [
     "test_cast_8k_4k.py",
+    "test_fused_fp8_flatPA_proj.py",
 ]

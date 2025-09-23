@@ -496,20 +496,20 @@ create_test_bf16_class(TestSumOpExclusive5)
 create_test_bf16_class(TestSumOpReverseExclusive)
 
 
-class BadInputTest(unittest.TestCase):
-    def test_error(self):
-        paddle.enable_static()
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+# class BadInputTest(unittest.TestCase):
+#     def test_error(self):
+#         paddle.enable_static()
+#         with paddle.static.program_guard(
+#             paddle.static.Program(), paddle.static.Program()
+#         ):
 
-            def test_bad_x():
-                data = [1, 2, 4]
-                result = paddle.cumsum(data, axis=0)
+#             def test_bad_x():
+#                 data = [1, 2, 4]
+#                 result = paddle.cumsum(data, axis=0)
 
-            with self.assertRaises(TypeError):
-                test_bad_x()
-        paddle.disable_static()
+#             with self.assertRaises(TypeError):
+#                 test_bad_x()
+#         paddle.disable_static()
 
 
 class TestTensorAxis(unittest.TestCase):

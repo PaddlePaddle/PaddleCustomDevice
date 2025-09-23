@@ -24,6 +24,8 @@
 #include "paddle/phi/common/complex.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 
+#define INT_MAX_VALUE 2147483647
+
 namespace phi {
 namespace funcs {
 
@@ -1051,14 +1053,19 @@ template <>
 template <typename T>
 void Blas<phi::CPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                  CBLAS_TRANSPOSE transB,
-                                 int M,
-                                 int N,
-                                 int K,
+                                 int64_t M,
+                                 int64_t N,
+                                 int64_t K,
                                  T alpha,
                                  const T *A,
                                  const T *B,
                                  T beta,
                                  T *C) const {
+  if (M > INT_MAX_VALUE || N > INT_MAX_VALUE || K > INT_MAX_VALUE) {
+    PADDLE_THROW(
+        common::errors::Unimplemented("GEMM not supported for large tensor "
+                                      "size on CPU, please check your code!"));
+  }
   int lda = (transA == CblasNoTrans) ? K : M;
   int ldb = (transB == CblasNoTrans) ? N : K;
   int ldc = N;
@@ -1068,6 +1075,42 @@ void Blas<phi::CPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                  M,
                  N,
                  K,
+                 alpha,
+                 A,
+                 lda,
+                 B,
+                 ldb,
+                 beta,
+                 C,
+                 ldc);
+}
+
+template <>
+template <typename T, typename U>
+void Blas<phi::CPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+                                 CBLAS_TRANSPOSE transB,
+                                 int64_t M,
+                                 int64_t N,
+                                 int64_t K,
+                                 U alpha,
+                                 const T *A,
+                                 const T *B,
+                                 U beta,
+                                 T *C) const {
+  if (M > INT_MAX_VALUE || N > INT_MAX_VALUE || K > INT_MAX_VALUE) {
+    PADDLE_THROW(
+        common::errors::Unimplemented("GEMM not supported for large tensor "
+                                      "size on CPU, please check your code!"));
+  }
+  int lda = (transA == CblasNoTrans) ? K : M;
+  int ldb = (transB == CblasNoTrans) ? N : K;
+  int ldc = N;
+  CBlas<T>::GEMM(CblasRowMajor,
+                 transA,
+                 transB,
+                 static_cast<int>(M),
+                 static_cast<int>(N),
+                 static_cast<int>(K),
                  alpha,
                  A,
                  lda,
@@ -1352,15 +1395,15 @@ template <>
 template <typename T>
 void Blas<phi::CPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
                                         CBLAS_TRANSPOSE transB,
-                                        int M,
-                                        int N,
-                                        int K,
+                                        int64_t M,
+                                        int64_t N,
+                                        int64_t K,
                                         T alpha,
                                         const T *A,
                                         const T *B,
                                         T beta,
                                         T *C,
-                                        int batchCount,
+                                        int64_t batchCount,
                                         int64_t strideA,
                                         int64_t strideB) const {
   PADDLE_ENFORCE_NOT_NULL(
@@ -1369,7 +1412,19 @@ void Blas<phi::CPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
       B, phi::errors::InvalidArgument("Pointer B should not be null."));
   PADDLE_ENFORCE_NOT_NULL(
       C, phi::errors::InvalidArgument("Pointer C should not be null."));
+
+  if (M > INT_MAX_VALUE || N > INT_MAX_VALUE || K > INT_MAX_VALUE) {
+    PADDLE_THROW(
+        common::errors::Unimplemented("CPU GEMM not supported for large tensor "
+                                      "size."));
+  }
+
 #ifdef PADDLE_WITH_MKLML
+  if (batchCount > INT_MAX_VALUE) {
+    PADDLE_THROW(common::errors::Unimplemented(
+        "CPU GEMM not supported for large batch size in MKLML."));
+  }
+
   int lda = (transA == CblasNoTrans) ? K : M;
   int ldb = (transB == CblasNoTrans) ? N : K;
   int ldc = N;
@@ -1385,9 +1440,9 @@ void Blas<phi::CPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
   CBlas<T>::GEMM_BATCH(CblasRowMajor,
                        &transA,
                        &transB,
-                       &M,
-                       &N,
-                       &K,
+                       reinterpret_cast<int *>(&M),
+                       reinterpret_cast<int *>(&N),
+                       reinterpret_cast<int *>(&K),
                        &alpha,
                        a_array.data(),
                        &lda,
@@ -1397,13 +1452,22 @@ void Blas<phi::CPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
                        c_array.data(),
                        &ldc,
                        1 /* group_count */,
-                       &batchCount);
+                       reinterpret_cast<int *>(&batchCount));
 #else
   for (int k = 0; k < batchCount; ++k) {
     auto *Ak = &A[k * strideA];
     auto *Bk = &B[k * strideB];
     auto *Ck = &C[k * M * N];
-    this->template GEMM<T>(transA, transB, M, N, K, alpha, Ak, Bk, beta, Ck);
+    this->template GEMM<T>(transA,
+                           transB,
+                           reinterpret_cast<int *>(M),
+                           reinterpret_cast<int *>(N),
+                           reinterpret_cast<int *>(K),
+                           alpha,
+                           Ak,
+                           Bk,
+                           beta,
+                           Ck);
   }
 #endif
 }

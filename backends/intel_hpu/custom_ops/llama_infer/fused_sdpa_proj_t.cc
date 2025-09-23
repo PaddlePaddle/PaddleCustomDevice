@@ -314,6 +314,7 @@ void FusedSdpaProjBTMHKernel(
     phi::DenseTensor* out_linear,
     const phi::Scalar& scaling_factor,
     const phi::Scalar& causal,
+    const phi::Scalar& mode,
     const paddle::optional<phi::DenseTensor>& d_scale_q,
     const paddle::optional<phi::DenseTensor>& d_scale_k,
     const paddle::optional<phi::DenseTensor>& d_scale_v,
@@ -373,7 +374,8 @@ void FusedSdpaProjBTMHKernel(
     params.sdpa_params.dropout.ratio = 0.0;
     params.sdpa_params.dropout.disableMaskOut = false;
     params.sdpa_params.is_inference = true;
-    params.sdpa_params.softmax_mode = SDPA_DEFAULT_SOFTMAX;
+    params.sdpa_params.softmax_mode =
+        static_cast<SdpaSoftmaxMode_t>(mode.to<int>());
     params.sdpa_params.flags = flags;
     params.fp8_sdpa = (query_states.dtype() == phi::DataType::FLOAT8_E4M3FN);
     params.fp8_gemm = (linear_weights.dtype() == phi::DataType::FLOAT8_E4M3FN);
@@ -404,6 +406,7 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
     const paddle::Tensor& linear_weights,
     float scaling_factor,
     bool causal,
+    int mode,
     const paddle::optional<paddle::Tensor>& d_scale_q,
     const paddle::optional<paddle::Tensor>& d_scale_k,
     const paddle::optional<paddle::Tensor>& d_scale_v,
@@ -510,6 +513,7 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
           out_linear.get(),
           phi::Scalar(scaling_factor),
           phi::Scalar(causal),
+          phi::Scalar(mode),
           paddle::optional<phi::DenseTensor>(),
           paddle::optional<phi::DenseTensor>(),
           paddle::optional<phi::DenseTensor>(),
@@ -528,6 +532,7 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
           out_linear.get(),
           phi::Scalar(scaling_factor),
           phi::Scalar(causal),
+          phi::Scalar(mode),
           d_scale_q ? *d_scale_q_tensor : paddle::optional<phi::DenseTensor>(),
           d_scale_k ? *d_scale_k_tensor : paddle::optional<phi::DenseTensor>(),
           d_scale_v ? *d_scale_v_tensor : paddle::optional<phi::DenseTensor>(),
@@ -553,7 +558,8 @@ std::vector<paddle::Tensor> FusedSdpaProjBTMH(
     const paddle::optional<paddle::Tensor>& valid_seq_len,
     const paddle::Tensor& linear_weights,
     float scaling_factor,
-    bool causal = false) {
+    bool causal = false,
+    int mode = 0) {
   return FusedBaseSdpaProjBTMH(query_states,
                                key_value_states,
                                attn_mask,
@@ -561,6 +567,7 @@ std::vector<paddle::Tensor> FusedSdpaProjBTMH(
                                linear_weights,
                                scaling_factor,
                                causal,
+                               mode,
                                paddle::optional<paddle::Tensor>(),
                                paddle::optional<paddle::Tensor>(),
                                paddle::optional<paddle::Tensor>(),
@@ -586,7 +593,8 @@ std::vector<paddle::Tensor> FusedSdpaFp8ProjBTMH(
     const paddle::optional<paddle::Tensor>& linear_in_scale,
     const paddle::optional<paddle::Tensor>& weight_scale,
     float scaling_factor,
-    bool causal = false) {
+    bool causal = false,
+    int mode = 0) {
   return FusedBaseSdpaProjBTMH(query_states,
                                key_value_states,
                                attn_mask,
@@ -594,6 +602,7 @@ std::vector<paddle::Tensor> FusedSdpaFp8ProjBTMH(
                                linear_weights,
                                scaling_factor,
                                causal,
+                               mode,
                                d_scale_q,
                                d_scale_k,
                                d_scale_v,
@@ -632,7 +641,7 @@ PD_BUILD_OP(fused_sdpa_proj_t)
              paddle::Optional("valid_seq_len"),
              "linear_weights"})
     .Outputs({"out_linear"})
-    .Attrs({"scaling_factor: float", "causal:bool"})
+    .Attrs({"scaling_factor: float", "causal:bool", "softmax_mode:int"})
     .SetKernelFn(PD_KERNEL(FusedSdpaProjBTMH))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedSdpaProjBTMHShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedSdpaProjBTMHDtype));
@@ -652,7 +661,7 @@ PD_BUILD_OP(fused_fp8_sdpa_proj_t)
              paddle::Optional("linear_in_scale"),
              paddle::Optional("weight_scale")})
     .Outputs({"out_linear"})
-    .Attrs({"scaling_factor: float", "causal:bool"})
+    .Attrs({"scaling_factor:float", "causal:bool", "softmax_mode:int"})
     .SetKernelFn(PD_KERNEL(FusedSdpaFp8ProjBTMH))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedSdpaProjBTMHShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedSdpaProjBTMHDtype));

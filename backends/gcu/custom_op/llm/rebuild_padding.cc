@@ -16,7 +16,7 @@
 
 void DoRebuildPadding(float *output_data,
                       const float *input_data,
-                      const int *cum_offset,
+                      const int *cu_seqlens_q,
                       const int *seq_len_this_time,
                       const int *seq_len_decoder,
                       const int *seq_len_encoder,
@@ -42,37 +42,29 @@ void DoRebuildPadding(float *output_data,
     // if encoder, get last token; just decoder, get first token.
     if (seq_len_encoder[bi] > 0) seq_id = seq_len_encoder[bi] - 1;
 
-    int input_token_id = 0;
-    if (output_padding_offset != nullptr) {
-      input_token_id = ori_token_id - cum_offset[bi] + seq_id;
-    } else {
-      input_token_id = bi * max_input_length - cum_offset[bi] + seq_id;
-    }
-    int src_offset = input_token_id * hidden_dim + bias_idx;
+    const int input_token_id = cu_seqlens_q[bi] + seq_id;
+    const int src_offset = input_token_id * hidden_dim + bias_idx;
     output_data[i] = input_data[src_offset];
   }
 }
 
-std::vector<paddle::Tensor> RebuildPadding(
-    const paddle::Tensor &tmp_out,            // [token_num, hidden_dim]
-    const paddle::Tensor &cum_offsets,        // [bsz]
+std::vector<paddle::Tensor> RebuildPaddingCPU(
+    const paddle::Tensor &input,              // [token_num, hidden_dim]
+    const paddle::Tensor &cu_seqlens_q,       // [bsz + 1]
     const paddle::Tensor &seq_len_this_time,  // [bsz]
     const paddle::Tensor &seq_lens_decoder,   // [bsz, 1]
     const paddle::Tensor &seq_lens_encoder,   // [bsz, 1]
     const paddle::optional<paddle::Tensor>
         &output_padding_offset,  // [token_num]
     int max_input_length) {
-  PADDLE_GCU_KERNEL_TRACE("rebuild_padding_gcu");
-  VLOG(6) << "[CUSTOM_KERNEL] Custom Operator: rebuild_padding_gcu";
-  std::vector<int64_t> tmp_out_shape = tmp_out.shape();
-  const int token_num = tmp_out_shape[0];
-  const int hidden_dim = tmp_out_shape[1];
-  const int bsz = cum_offsets.shape()[0];
-  auto tmp_out_f32 =
-      paddle::experimental::cast(tmp_out, phi::DataType::FLOAT32);
+  std::vector<int64_t> input_shape = input.shape();
+  const int token_num = input_shape[0];
+  const int hidden_dim = input_shape[1];
+  const int bsz = cu_seqlens_q.shape()[0] - 1;
+  auto input_f32 = paddle::experimental::cast(input, phi::DataType::FLOAT32);
 
-  auto tmp_out_f32_cpu = tmp_out_f32.copy_to(paddle::CPUPlace(), false);
-  auto cum_offsets_cpu = cum_offsets.copy_to(paddle::CPUPlace(), false);
+  auto input_f32_cpu = input_f32.copy_to(paddle::CPUPlace(), false);
+  auto cu_seqlens_q_cpu = cu_seqlens_q.copy_to(paddle::CPUPlace(), false);
   auto seq_len_this_time_cpu =
       seq_len_this_time.copy_to(paddle::CPUPlace(), false);
   auto seq_lens_decoder_cpu =
@@ -102,8 +94,8 @@ std::vector<paddle::Tensor> RebuildPadding(
 
   int output_elem_nums = out_f32_cpu.numel();
   DoRebuildPadding(out_f32_cpu.data<float>(),
-                   tmp_out_f32_cpu.data<float>(),
-                   cum_offsets_cpu.data<int>(),
+                   input_f32_cpu.data<float>(),
+                   cu_seqlens_q_cpu.data<int>(),
                    seq_len_this_time_cpu.data<int>(),
                    seq_lens_decoder_cpu.data<int>(),
                    seq_lens_encoder_cpu.data<int>(),
@@ -112,47 +104,150 @@ std::vector<paddle::Tensor> RebuildPadding(
                    hidden_dim,
                    output_elem_nums);
 
-  auto out_f32 = out_f32_cpu.copy_to(tmp_out.place(), true);
-  auto out = paddle::experimental::cast(out_f32, tmp_out.dtype());
+  auto out_f32 = out_f32_cpu.copy_to(input.place(), true);
+  auto out = paddle::experimental::cast(out_f32, input.dtype());
   return {out};
 }
 
+std::vector<paddle::Tensor> RebuildPadding(
+    const paddle::Tensor &input,              // [token_num, hidden_dim]
+    const paddle::Tensor &cu_seqlens_q,       // [bsz + 1]
+    const paddle::Tensor &seq_len_this_time,  // [bsz]
+    const paddle::Tensor &seq_lens_decoder,   // [bsz, 1]
+    const paddle::Tensor &seq_lens_encoder,   // [bsz, 1]
+    const paddle::optional<paddle::Tensor>
+        &output_padding_offset,  // [token_num]
+    int max_input_length) {
+  auto dev_ctx = static_cast<const phi::CustomContext *>(
+      paddle::experimental::DeviceContextPool::Instance().Get(input.place()));
+
+  std::vector<int64_t> input_shape = input.shape();
+  const int token_num = input_shape[0];
+  const int hidden_dim = input_shape[1];
+  const int bsz = cu_seqlens_q.shape()[0] - 1;
+
+  paddle::Tensor out;
+  if (output_padding_offset) {
+    int need_delete_token_num = 0;
+    auto seq_lens_encoder_cpu =
+        seq_lens_encoder.copy_to(paddle::CPUPlace(), true);
+    const int *seq_lens_encoder_ptr = seq_lens_encoder_cpu.data<int>();
+    for (int i = 0; i < bsz; ++i) {
+      if (seq_lens_encoder_ptr[i] > 0) {
+        need_delete_token_num += seq_lens_encoder_ptr[i] - 1;
+      }
+    }
+    out = paddle::full({token_num - need_delete_token_num, hidden_dim},
+                       0,
+                       input.type(),
+                       input.place());
+  } else {
+    out = paddle::full({bsz, hidden_dim}, 0, input.type(), input.place());
+  }
+
+  // Inputs
+  auto input_tensor = static_cast<const phi::DenseTensor *>(input.impl().get());
+  auto cu_seqlens_q_tensor =
+      static_cast<const phi::DenseTensor *>(cu_seqlens_q.impl().get());
+  auto seq_len_this_time_tensor =
+      static_cast<const phi::DenseTensor *>(seq_len_this_time.impl().get());
+  auto seq_lens_decoder_tensor =
+      static_cast<const phi::DenseTensor *>(seq_lens_decoder.impl().get());
+  auto seq_lens_encoder_tensor =
+      static_cast<const phi::DenseTensor *>(seq_lens_encoder.impl().get());
+
+  phi::DenseTensor tmp;
+  phi::DenseTensor *output_padding_offset_tensor = &tmp;
+  if (output_padding_offset.is_initialized()) {
+    output_padding_offset_tensor = static_cast<phi::DenseTensor *>(
+        output_padding_offset.get().impl().get());
+  }
+
+  // Outputs
+  auto out_tensor = static_cast<phi::DenseTensor *>(out.impl().get());
+
+#if 0
+  LAUNCH_TOPSATENOP(topspaddleRebuildPadding,
+                    (*dev_ctx),
+                    *out_tensor,
+                    *input_tensor,
+                    *cu_seqlens_q_tensor,
+                    *seq_len_this_time_tensor,
+                    *seq_lens_decoder_tensor,
+                    *seq_lens_encoder_tensor,
+                    *output_padding_offset_tensor,
+                    max_input_length);
+#endif
+
+  return {out};
+}
+
+std::vector<paddle::Tensor> RebuildPaddingKernel(
+    const paddle::Tensor &input,              // [token_num, hidden_dim]
+    const paddle::Tensor &cu_seqlens_q,       // [bsz + 1]
+    const paddle::Tensor &seq_len_this_time,  // [bsz]
+    const paddle::Tensor &seq_lens_decoder,   // [bsz, 1]
+    const paddle::Tensor &seq_lens_encoder,   // [bsz, 1]
+    const paddle::optional<paddle::Tensor>
+        &output_padding_offset,  // [token_num]
+    int max_input_length) {
+  PADDLE_GCU_KERNEL_TRACE("rebuild_padding_gcu");
+  VLOG(6) << "[CUSTOM_KERNEL] Custom Operator: rebuild_padding_gcu";
+  if (custom_kernel::IsScorpio()) {
+    return RebuildPaddingCPU(input,
+                             cu_seqlens_q,
+                             seq_len_this_time,
+                             seq_lens_decoder,
+                             seq_lens_encoder,
+                             output_padding_offset,
+                             max_input_length);
+  } else {
+    return RebuildPadding(input,
+                          cu_seqlens_q,
+                          seq_len_this_time,
+                          seq_lens_decoder,
+                          seq_lens_encoder,
+                          output_padding_offset,
+                          max_input_length);
+  }
+}
+
 std::vector<std::vector<int64_t>> RebuildPaddingInferShape(
-    const std::vector<int64_t> &tmp_out_shape,
-    const std::vector<int64_t> &cum_offsets_shape,
+    const std::vector<int64_t> &input_shape,
+    const std::vector<int64_t> &cu_seqlens_q_shape,
     const std::vector<int64_t> &seq_len_this_time_shape,
     const std::vector<int64_t> &seq_lens_decoder_shape,
     const std::vector<int64_t> &seq_lens_encoder_shape,
     const paddle::optional<std::vector<int64_t>> &output_padding_offset_shape) {
-  int64_t dim_embed = tmp_out_shape[1];
+  int64_t dim_embed = input_shape[1];
   // whether speculative decoding
   if (output_padding_offset_shape) {
     return {{-1, dim_embed}};
   } else {
-    int64_t bsz = cum_offsets_shape[0];
+    int64_t bsz = cu_seqlens_q_shape[0] - 1;
     return {{bsz, dim_embed}};
   }
 }
 
 std::vector<paddle::DataType> RebuildPaddingInferDtype(
-    const paddle::DataType &tmp_out_dtype,
-    const paddle::DataType &cum_offsets_dtype,
+    const paddle::DataType &input_dtype,
+    const paddle::DataType &cu_seqlens_q_dtype,
     const paddle::DataType &seq_len_this_time_dtype,
     const paddle::DataType &seq_lens_decoder_dtype,
     const paddle::DataType &seq_lens_encoder_dtype,
     const paddle::optional<paddle::DataType> &output_padding_offset_dtype) {
-  return {tmp_out_dtype};
+  return {input_dtype};
 }
 
 PD_BUILD_OP(rebuild_padding_gcu)
-    .Inputs({"tmp_out",
-             "cum_offsets",
+    .Inputs({"input",
+             "cu_seqlens_q",
              "seq_len_this_time",
              "seq_lens_decoder",
              "seq_lens_encoder",
              paddle::Optional("output_padding_offset")})
     .Outputs({"out"})
     .Attrs({"max_input_length: int"})
-    .SetKernelFn(PD_KERNEL(RebuildPadding))
+    .SetKernelFn(PD_KERNEL(RebuildPaddingKernel))
     .SetInferShapeFn(PD_INFER_SHAPE(RebuildPaddingInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(RebuildPaddingInferDtype));

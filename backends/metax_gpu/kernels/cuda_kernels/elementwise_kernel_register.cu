@@ -17,7 +17,7 @@
 #include "paddle/phi/kernels/kps/elementwise_kernel.cu"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(maximum,
-                          metax,
+                          metax_gpu,
                           ALL_LAYOUT,
                           phi::MaximumKernel,
                           float,

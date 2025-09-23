@@ -284,7 +284,12 @@ void SubtractKernel(const Context& dev_ctx,
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
     auto scalar = phi::Scalar(1.0f);
-    LAUNCH_TOPSATENOP(topsatenSub, dev_ctx, *out, x, y, scalar);
+    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    phi::DenseTensor output =
+        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    LAUNCH_TOPSATENOP(topsatenSub, dev_ctx, output, input_x, input_y, scalar);
+    MaybeTransResult(dev_ctx, output, out);
 
   } else {  // kernel impl base on JIT
     ElementBaseKernel<T, Context>(dev_ctx, x, y, -1, out, "elementwise_sub");
@@ -609,6 +614,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract,
                           ALL_LAYOUT,
                           custom_kernel::SubtractKernel,
                           int,
+                          int64_t,
                           float,
                           phi::dtype::bfloat16,
                           phi::dtype::float16) {}

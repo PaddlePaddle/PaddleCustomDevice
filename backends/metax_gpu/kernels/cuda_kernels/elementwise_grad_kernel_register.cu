@@ -1,5 +1,3 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved.
 //   Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,16 +13,14 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/elementwise_add_grad_kernel.h"
-#include "paddle/phi/kernels/elementwise_divide_grad_kernel.h"
-#include "paddle/phi/kernels/elementwise_grad_kernel.h"
-#include "paddle/phi/kernels/elementwise_multiply_grad_kernel.h"
+#include "paddle/phi/kernels/gpu/elementwise_grad_kernel.cu"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(fmax_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::ElementwiseFMaxGradKernel,
                           float,
+                          double,
                           int,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
@@ -35,6 +31,7 @@ PD_CUSTOM_KERNEL_REGISTER(fmin_grad,
                           ALL_LAYOUT,
                           phi::ElementwiseFMinGradKernel,
                           float,
+                          double,
                           int,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
@@ -45,6 +42,7 @@ PD_CUSTOM_KERNEL_REGISTER(maximum_grad,
                           ALL_LAYOUT,
                           phi::MaximumGradKernel,
                           float,
+                          double,
                           int,
                           int64_t,
                           phi::dtype::float16,
@@ -55,6 +53,7 @@ PD_CUSTOM_KERNEL_REGISTER(minimum_grad,
                           ALL_LAYOUT,
                           phi::MinimumGradKernel,
                           float,
+                          double,
                           int,
                           int64_t,
                           phi::dtype::float16,
@@ -65,6 +64,7 @@ PD_CUSTOM_KERNEL_REGISTER(remainder_grad,
                           ALL_LAYOUT,
                           phi::RemainderGradKernel,
                           float,
+                          double,
                           int,
                           int64_t,
                           phi::dtype::float16,
@@ -75,6 +75,7 @@ PD_CUSTOM_KERNEL_REGISTER(heaviside_grad,
                           ALL_LAYOUT,
                           phi::HeavisideGradKernel,
                           float,
+                          double,
                           int,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
@@ -85,43 +86,52 @@ PD_CUSTOM_KERNEL_REGISTER(elementwise_pow_grad,
                           ALL_LAYOUT,
                           phi::ElementwisePowGradKernel,
                           float,
+                          double,
                           int,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
-                          int64_t) {}
+                          int64_t,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(add_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::AddGradKernel,
                           float,
+                          double,
                           int,
                           int64_t,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>) {}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(add_double_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::AddDoubleGradKernel,
                           float,
+                          double,
                           int,
                           int64_t,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>) {}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(add_triple_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::AddTripleGradKernel,
                           float,
+                          double,
                           int,
                           int64_t,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>) {}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(divide_grad,
                           metax_gpu,
@@ -130,13 +140,15 @@ PD_CUSTOM_KERNEL_REGISTER(divide_grad,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
+                          double,
                           int8_t,
                           uint8_t,
                           int16_t,
                           int,
                           int64_t,
                           bool,
-                          phi::dtype::complex<float>) {}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(divide_double_grad,
                           metax_gpu,
@@ -145,10 +157,12 @@ PD_CUSTOM_KERNEL_REGISTER(divide_double_grad,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
+                          double,
                           int,
                           int64_t,
                           bool,
-                          phi::dtype::complex<float>) {}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(multiply_grad,
                           metax_gpu,
@@ -156,11 +170,13 @@ PD_CUSTOM_KERNEL_REGISTER(multiply_grad,
                           phi::MultiplyGradKernel,
                           float,
                           phi::dtype::float16,
+                          double,
                           int,
                           int64_t,
                           bool,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>) {}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(multiply_double_grad,
                           metax_gpu,
@@ -173,7 +189,8 @@ PD_CUSTOM_KERNEL_REGISTER(multiply_double_grad,
                           int64_t,
                           bool,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>) {}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(multiply_triple_grad,
                           metax_gpu,
@@ -181,11 +198,39 @@ PD_CUSTOM_KERNEL_REGISTER(multiply_triple_grad,
                           phi::MultiplyTripleGradKernel,
                           float,
                           phi::dtype::float16,
+                          double,
                           int,
                           int64_t,
                           bool,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>) {}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
+
+PD_CUSTOM_KERNEL_REGISTER(subtract_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::SubtractGradKernel,
+                          float,
+                          double,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
+
+PD_CUSTOM_KERNEL_REGISTER(subtract_double_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::SubtractDoubleGradKernel,
+                          float,
+                          double,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(copysign_grad,
                           metax_gpu,
@@ -198,5 +243,6 @@ PD_CUSTOM_KERNEL_REGISTER(copysign_grad,
                           int,
                           int64_t,
                           float,
+                          double,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

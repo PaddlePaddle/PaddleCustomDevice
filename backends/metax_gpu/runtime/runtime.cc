@@ -36,6 +36,7 @@
 #include <unordered_map>
 
 #include "glog/logging.h"
+#include "kernels/funcs/blas/cublasLt.h"
 #include "paddle/fluid/platform/profiler/cuda_tracer.h"
 #include "paddle/fluid/platform/profiler/cupti_data_process.h"
 #include "paddle/phi/api/profiler/trace_event_collector.h"
@@ -51,6 +52,7 @@
 #include "paddle/phi/core/platform/device/gpu/gpu_info.h"
 #include "paddle/phi/core/platform/profiler/utils.cc"  //NOLINT
 #include "paddle/phi/core/platform/profiler/utils.h"
+#include "passes/pattern_passes.h"
 #include "runtime/process_cupti_data.cc"  //NOLINT
 #include "unsupported/Eigen/CXX11/Tensor"
 #define MEMORY_FRACTION 0.5f
@@ -907,15 +909,6 @@ ncclRedOp_t PDReduceOpToNcclReduceOp(C_CCLReduceOp op) {
   }
 }
 
-C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
-  return C_SUCCESS;
-}
-
-C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
-  // CUPTI_CALL(cuptiRelease());
-  return C_SUCCESS;
-}
-
 void BufferRequestedCallback(uint8_t **buffer,
                              size_t *size,
                              size_t *max_num_records) {
@@ -937,6 +930,44 @@ void BufferCompletedCallback(CUcontext ctx,
   }
 }
 
+int ProcessCuptiActivity(C_Profiler prof, uint64_t tracing_start_ns_) {
+  int record_cnt = 0;
+  CUPTI_CALL(cuptiActivityFlushAll(CUPTI_ACTIVITY_FLAG_FLUSH_FORCED));
+  auto mapping = details::CreateThreadIdMapping();
+  std::vector<ActivityBuffer> buffers = Tracer::Instance().ConsumeBuffers();
+  for (auto &buffer : buffers) {
+    if (buffer.addr == nullptr || buffer.valid_size == 0) {
+      continue;
+    }
+    CUpti_Activity *record = nullptr;
+    while (true) {
+      CUptiResult status =
+          cuptiActivityGetNextRecord(buffer.addr, buffer.valid_size, &record);
+      if (status == CUPTI_SUCCESS) {
+        ProcessCuptiActivityRecord(record, tracing_start_ns_, mapping, prof);
+        ++record_cnt;
+      } else if (status == CUPTI_ERROR_MAX_LIMIT_REACHED) {
+        break;
+      } else {
+        CUPTI_CALL(status);
+      }
+    }
+
+    Tracer::Instance().ReleaseBuffer(buffer.addr);
+    // ReleaseBuffer(buffer.addr);
+  }
+  return record_cnt;
+}
+
+C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
+  return C_SUCCESS;
+}
+
+C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
+  // CUPTI_CALL(cuptiRelease());
+  return C_SUCCESS;
+}
+
 C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
   CUPTI_CALL(cuptiActivityRegisterCallbacks(BufferRequestedCallback,
                                             BufferCompletedCallback));
@@ -950,25 +981,8 @@ C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
   return C_SUCCESS;
 }
 
-std::vector<ActivityBuffer> Tracer::ConsumeBuffers() {
-  std::vector<ActivityBuffer> buffers;
-  {
-    std::lock_guard<std::mutex> guard(activity_buffer_lock_);
-    buffers.swap(activity_buffers_);
-  }
-  return buffers;
-}
-
 C_Status ProfilerStart(C_Profiler prof, void *user_data) {
-  CUPTI_CALL(cuptiActivityRegisterCallbacks(BufferRequestedCallback,
-                                            BufferCompletedCallback));
-
-  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMCPY));
-  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL));
-  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_DRIVER));
-  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_RUNTIME));
-  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMSET));
-  VLOG(3) << "enable cupti activity";
+  Tracer::Instance().ConsumeBuffers();
   return C_SUCCESS;
 }
 
@@ -1179,6 +1193,70 @@ C_Status Xccl_all_to_all(const void **send_buf,
   NCCL_CHECK(ncclGroupEnd());
   return C_SUCCESS;
 }
+
+C_Status InitBlasHandle(const C_Device device,
+                        C_BLASHandle *blas_handle,
+                        C_Stream stream) {
+  PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasCreate(
+      reinterpret_cast<cublasHandle_t *>(blas_handle)));
+  PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetStream(
+      *reinterpret_cast<cublasHandle_t *>(blas_handle),
+      reinterpret_cast<cudaStream_t>((stream))));
+  return C_SUCCESS;
+}
+
+C_Status InitBlasLtHandle(const C_Device device,
+                          C_BLASLtHandle *blaslt_handle) {
+  phi::dynload::cublasLtCreate(
+      reinterpret_cast<cublasLtHandle_t *>(blaslt_handle));
+  return C_SUCCESS;
+}
+
+C_Status DestroyBlasLtHandle(const C_Device device,
+                             C_BLASLtHandle blaslt_handle) {
+  if (blaslt_handle != nullptr) {
+    phi::dynload::cublasLtDestroy(
+        reinterpret_cast<cublasLtHandle_t>(blaslt_handle));
+    blaslt_handle = nullptr;
+  }
+  return C_SUCCESS;
+}
+
+C_Status DestroyBlasHandle(const C_Device device, C_BLASHandle blas_handle) {
+  if (blas_handle != nullptr) {
+    phi::dynload::cublasDestroy(reinterpret_cast<cublasHandle_t>(blas_handle));
+    blas_handle = nullptr;
+  }
+  return C_SUCCESS;
+}
+
+C_Status BlasSetMathMode(const C_Device device,
+                         C_BLASHandle blas_handle,
+                         int math_mode) {
+  if (math_mode == 1) {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetMathMode(
+        reinterpret_cast<cublasHandle_t>(blas_handle), CUBLAS_TENSOR_OP_MATH));
+  } else if (math_mode == 2) {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetMathMode(
+        reinterpret_cast<cublasHandle_t>(blas_handle),
+        CUBLAS_TF32_TENSOR_OP_MATH));
+  } else {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cublasSetMathMode(
+        reinterpret_cast<cublasHandle_t>(blas_handle), CUBLAS_DEFAULT_MATH));
+  }
+  return C_SUCCESS;
+}
+
+C_Status IsFloat16Supported(const C_Device device, bool *supported) {
+  *supported = true;
+  return C_SUCCESS;
+}
+
+C_Status IsBFloat16Supported(const C_Device device, bool *supported) {
+  *supported = true;
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = const_cast<char *>(DeviceType);
@@ -1239,6 +1317,16 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->init_eigen_device = InitEigenDevice;
   params->interface->destroy_eigen_device = DestroyEigenDevice;
 
+  params->interface->is_float16_supported = IsFloat16Supported;
+
+  params->interface->is_bfloat16_supported = IsBFloat16Supported;
+
+  params->interface->init_blas_handle = InitBlasHandle;
+  params->interface->init_blaslt_handle = InitBlasLtHandle;
+  params->interface->destroy_blas_handle = DestroyBlasHandle;
+  params->interface->destroy_blaslt_handle = DestroyBlasLtHandle;
+  params->interface->blas_set_math_mode = BlasSetMathMode;
+
   params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;
   params->interface->xccl_broadcast = XcclBroadcast;
@@ -1261,4 +1349,8 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->profiler_start_tracing = ProfilerStart;
   params->interface->profiler_stop_tracing = ProfilerStop;
   params->interface->profiler_prepare_tracing = ProfilerPrepare;
+
+  // PIR pass pipeline
+  params->pir_default_passes = reinterpret_cast<void *>(
+      const_cast<std::vector<std::string> *>(GetPirMetaxGpuPasses()));
 }

@@ -68,9 +68,7 @@ class OpDescCreationMethod:
 
     def __init__(self, op_proto):
         if not isinstance(op_proto, framework_pb2.OpProto):
-            raise TypeError(
-                "Type of op_proto should be OpProto in PaddlePaddle."
-            )
+            raise TypeError("Type of op_proto should be OpProto in PaddlePaddle.")
         self.__op_proto__ = op_proto
         self.__extra_attrs__ = core.get_op_extra_attrs(op_proto.type)
 
@@ -154,9 +152,7 @@ class OpDescCreationMethod:
                     scalar = make_scalar_proto(user_defined_attr)
                     new_attr.scalar.CopyFrom(scalar)
                 elif attr.type == framework_pb2.SCALARS:
-                    scalars = [
-                        make_scalar_proto(item) for item in user_defined_attr
-                    ]
+                    scalars = [make_scalar_proto(item) for item in user_defined_attr]
                     for item in scalars:
                         new_attr.scalars.MergeFrom(item)
                 else:
@@ -166,9 +162,7 @@ class OpDescCreationMethod:
         for attr_name, default_val in self.__extra_attrs__.items():
             user_defined_attr = kwargs.get(attr_name, None)
             if user_defined_attr is not None:
-                attr_type = int(
-                    core.get_attribute_type(op_desc.type, attr_name)
-                )
+                attr_type = int(core.get_attribute_type(op_desc.type, attr_name))
                 new_attr = op_desc.attrs.add()
                 new_attr.name = attr_name
                 new_attr.type = attr_type
@@ -203,9 +197,7 @@ class OpDescCreationMethod:
                     scalar = make_scalar_proto(user_defined_attr)
                     new_attr.scalar.CopyFrom(scalar)
                 elif attr.type == framework_pb2.SCALARS:
-                    scalars = [
-                        make_scalar_proto(item) for item in user_defined_attr
-                    ]
+                    scalars = [make_scalar_proto(item) for item in user_defined_attr]
                     for item in scalars:
                         new_attr.scalars.MergeFrom(item)
                 else:
@@ -272,14 +264,14 @@ class OperatorFactory:
             if len(args) != 0:
                 raise ValueError(
                     'Except the argument "type",'
-                    'all of the other arguments should be keyword arguments.'
+                    "all of the other arguments should be keyword arguments."
                 )
             t = kwargs.pop("type")
         else:
             if len(args) != 1:
                 raise ValueError(
                     'Except the argument "type",'
-                    'all of the other arguments should be keyword arguments.'
+                    "all of the other arguments should be keyword arguments."
                 )
             t = args[0]
 

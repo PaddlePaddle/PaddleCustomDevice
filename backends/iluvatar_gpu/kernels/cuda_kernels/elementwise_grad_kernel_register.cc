@@ -17,6 +17,7 @@
 #include "paddle/phi/kernels/elementwise_divide_grad_kernel.h"
 #include "paddle/phi/kernels/elementwise_grad_kernel.h"
 #include "paddle/phi/kernels/elementwise_multiply_grad_kernel.h"
+#include "paddle/phi/kernels/elementwise_subtract_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fmax_grad,
                           iluvatar_gpu,
@@ -182,6 +183,28 @@ PD_CUSTOM_KERNEL_REGISTER(multiply_triple_grad,
                           int,
                           int64_t,
                           bool,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>) {}
+
+PD_CUSTOM_KERNEL_REGISTER(subtract_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::SubtractGradKernel,
+                          float,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>) {}
+
+PD_CUSTOM_KERNEL_REGISTER(subtract_double_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::SubtractDoubleGradKernel,
+                          float,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
                           phi::dtype::bfloat16,
                           phi::dtype::complex<float>) {}
 

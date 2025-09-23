@@ -13,13 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
+#include <glog/logging.h>
 #include <mufft.h>
 #include <mufftXt.h>
-#include <glog/logging.h>
 
 #include <mutex>  // NOLINT
 
-#include "musa_dynamic_loader.h"
+#include "musa_dynamic_loader.h"  // NOLINT
 #include "paddle/phi/common/port.h"
 
 namespace phi {
@@ -48,58 +48,57 @@ extern void EnforceMUFFTLoaded(const char* fn_name);
  * include all needed mufft functions in HPPL
  * different mufft version has different interfaces
  **/
-#define MUFFT_FFT_ROUTINE_EACH(__macro)  \
-  __macro(mufftPlan1d);                  \
-  __macro(mufftPlan2d);                  \
-  __macro(mufftPlan3d);                  \
-  __macro(mufftPlanMany);                \
-  __macro(mufftMakePlan1d);              \
-  __macro(mufftMakePlan2d);              \
-  __macro(mufftMakePlan3d);              \
-  __macro(mufftMakePlanMany);            \
-  __macro(mufftEstimate1d);              \
-  __macro(mufftEstimate2d);              \
-  __macro(mufftEstimate3d);              \
-  __macro(mufftEstimateMany);            \
-  __macro(mufftCreate);                  \
-  __macro(mufftGetSize1d);               \
-  __macro(mufftGetSize2d);               \
-  __macro(mufftGetSize3d);               \
-  __macro(mufftGetSizeMany);             \
-  __macro(mufftGetSize);                 \
-  __macro(mufftSetWorkArea);             \
-  __macro(mufftSetAutoAllocation);       \
-  __macro(mufftExecC2C);                 \
-  __macro(mufftExecR2C);                 \
-  __macro(mufftExecC2R);                 \
-  __macro(mufftExecZ2Z);                 \
-  __macro(mufftExecD2Z);                 \
-  __macro(mufftExecZ2D);                 \
-  __macro(mufftSetStream);               \
-  __macro(mufftDestroy);                 \
-  __macro(mufftGetVersion);              \
-  __macro(mufftGetProperty);             \
-  __macro(mufftXtSetGPUs);               \
-  __macro(mufftXtMalloc);                \
-  __macro(mufftXtMemcpy);                \
-  __macro(mufftXtFree);                  \
-  __macro(mufftXtExecDescriptorC2C);     \
-  __macro(mufftXtExecDescriptorR2C);     \
-  __macro(mufftXtExecDescriptorC2R);     \
-  __macro(mufftXtExecDescriptorZ2Z);     \
-  __macro(mufftXtExecDescriptorD2Z);     \
-  __macro(mufftXtExecDescriptorZ2D);     \
-  __macro(mufftXtQueryPlan);             \
-  __macro(mufftXtSetCallback);           \
-  __macro(mufftXtClearCallback);         \
-  __macro(mufftXtMakePlanMany);          \
-  __macro(mufftXtGetSizeMany);           \
-  __macro(mufftXtExec);                  \
-  __macro(mufftXtExecDescriptor);        
+#define MUFFT_FFT_ROUTINE_EACH(__macro) \
+  __macro(mufftPlan1d);                 \
+  __macro(mufftPlan2d);                 \
+  __macro(mufftPlan3d);                 \
+  __macro(mufftPlanMany);               \
+  __macro(mufftMakePlan1d);             \
+  __macro(mufftMakePlan2d);             \
+  __macro(mufftMakePlan3d);             \
+  __macro(mufftMakePlanMany);           \
+  __macro(mufftEstimate1d);             \
+  __macro(mufftEstimate2d);             \
+  __macro(mufftEstimate3d);             \
+  __macro(mufftEstimateMany);           \
+  __macro(mufftCreate);                 \
+  __macro(mufftGetSize1d);              \
+  __macro(mufftGetSize2d);              \
+  __macro(mufftGetSize3d);              \
+  __macro(mufftGetSizeMany);            \
+  __macro(mufftGetSize);                \
+  __macro(mufftSetWorkArea);            \
+  __macro(mufftSetAutoAllocation);      \
+  __macro(mufftExecC2C);                \
+  __macro(mufftExecR2C);                \
+  __macro(mufftExecC2R);                \
+  __macro(mufftExecZ2Z);                \
+  __macro(mufftExecD2Z);                \
+  __macro(mufftExecZ2D);                \
+  __macro(mufftSetStream);              \
+  __macro(mufftDestroy);                \
+  __macro(mufftGetVersion);             \
+  __macro(mufftGetProperty);            \
+  __macro(mufftXtSetGPUs);              \
+  __macro(mufftXtMalloc);               \
+  __macro(mufftXtMemcpy);               \
+  __macro(mufftXtFree);                 \
+  __macro(mufftXtExecDescriptorC2C);    \
+  __macro(mufftXtExecDescriptorR2C);    \
+  __macro(mufftXtExecDescriptorC2R);    \
+  __macro(mufftXtExecDescriptorZ2Z);    \
+  __macro(mufftXtExecDescriptorD2Z);    \
+  __macro(mufftXtExecDescriptorZ2D);    \
+  __macro(mufftXtQueryPlan);            \
+  __macro(mufftXtSetCallback);          \
+  __macro(mufftXtClearCallback);        \
+  __macro(mufftXtMakePlanMany);         \
+  __macro(mufftXtGetSizeMany);          \
+  __macro(mufftXtExec);                 \
+  __macro(mufftXtExecDescriptor);
 MUFFT_FFT_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_MUFFT_WRAP)
 
-
-inline const char *mufftGetErrorString(mufftResult_t status) {
+inline const char* mufftGetErrorString(mufftResult_t status) {
   switch (status) {
     case MUFFT_SUCCESS:
       return "'MUFFT_SUCCESS'. The mufft operation was successful.";
@@ -142,7 +141,7 @@ inline const char *mufftGetErrorString(mufftResult_t status) {
              "parameters given.";
     case MUFFT_NOT_SUPPORTED:
       return "'MUFFT_NOT_SUPPORTED'. Operation is not supported for "
-             "parameters given.";                 
+             "parameters given.";
     default:
       return "mufft_STATUS_UNKNOWN_ERROR";
   }

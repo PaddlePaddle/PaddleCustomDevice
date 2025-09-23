@@ -10,15 +10,16 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License. 
+limitations under the License.
 
 Modifications:
-Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+rights reserved.
 
 - [modify the code to adapt to musa backend] */
-#include "musa_driver_platform_dynload.h"
+#include "hack/paddle_platform_dyload_hack/musa_driver_platform_dynload.h"
 
-#include "musa_driver_dynload.h"
+#include "hack/paddle_backend_dyload_hack/musa_driver_dynload.h"
 
 namespace paddle {
 namespace platform {

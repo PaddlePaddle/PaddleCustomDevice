@@ -18,19 +18,21 @@ def write_custom_op_api_py(init_file='python/paddle_custom_device/gcu/ops/__init
     dirname = os.path.dirname(init_file)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    op_name_strs = '\n\n__all__ = [\n'
+    all_module_strs = '\n\n__all__ = [\n'
     for op_name in op_names:
-        op_name_strs += '    \'' + op_name + '\',\n'
+        all_module_strs += '    \'' + op_name + '\',\n'
         if op_name.endswith("_gcu"):
             op_name_new = op_name.removesuffix("_gcu")
-            op_name_strs += '    \'' + op_name_new + '\',\n'
+            all_module_strs += '    \'' + op_name_new + '\',\n'
 
-    op_name_strs += ']\n'
+    all_module_strs += '    \'' + 'is_S60' + '\',\n'
+    all_module_strs += '    \'' + 'is_L600' + '\',\n'
+    all_module_strs += ']\n'
     with open(init_file, 'w') as f_init:
         f_init.write('''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY\n\n''')
         f_init.write('''from .custom_ops import *  # noqa: F403\n''')
         f_init.write('''from .custom_ops_api import *  # noqa: F403''')
-        # f_init.write(op_name_strs)
+        # f_init.write(all_module_strs)
         f_init.write('''
 
 def run_once(f):

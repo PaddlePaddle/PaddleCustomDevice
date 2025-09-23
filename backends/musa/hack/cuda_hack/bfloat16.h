@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 // - [Modify the relevant code to adapt to musa]
 #pragma once
 
@@ -24,6 +25,7 @@
 #include <cstring>
 #include <iostream>
 #include <limits>
+
 #include "paddle/common/backend_header.h"
 #include "paddle/common/hostdevice.h"
 
@@ -97,7 +99,7 @@ struct PADDLE_ALIGN(2) bfloat16 {
 #if defined(PADDLE_CUDA_BF16)
     __nv_bfloat16 tmp = __float2bfloat16(val);
     x = *reinterpret_cast<uint16_t*>(&tmp);
-#elif defined (PADDLE_MUSA_BF16)
+#elif defined(PADDLE_MUSA_BF16)
     __mt_bfloat16 tmp = __float2bfloat16(val);
     x = *reinterpret_cast<uint16_t*>(&tmp);
 #else
@@ -110,7 +112,7 @@ struct PADDLE_ALIGN(2) bfloat16 {
   HOSTDEVICE inline explicit bfloat16(const __nv_bfloat16& val) {
     x = *reinterpret_cast<const unsigned short*>(&val);  // NOLINT
   }
-#elif defined (PADDLE_MUSA_BF16)
+#elif defined(PADDLE_MUSA_BF16)
   HOSTDEVICE inline explicit bfloat16(const __mt_bfloat16& val) {
     x = *reinterpret_cast<const unsigned short*>(&val);  // NOLINT
   }
@@ -227,7 +229,6 @@ struct PADDLE_ALIGN(2) bfloat16 {
     return *reinterpret_cast<const __mt_bfloat16*>(&x);
   }
 #endif
-
 
   HOSTDEVICE inline explicit operator bool() const { return (x & 0x7fff) != 0; }
 

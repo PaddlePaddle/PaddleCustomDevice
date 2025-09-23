@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 // - [register musa backend]
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/adamax_kernel.h"

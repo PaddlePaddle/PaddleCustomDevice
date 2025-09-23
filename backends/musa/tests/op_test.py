@@ -103,9 +103,7 @@ def check_out_dtype(api_fn, in_specs, expect_dtypes, target_index=0, **configs):
                 for index, spec in enumerate(in_specs):
                     if len(spec) == 1:
                         shape = spec[0]
-                        dtype = (
-                            expect_dtype if target_index == index else 'float32'
-                        )
+                        dtype = expect_dtype if target_index == index else "float32"
                     elif len(spec) == 2:
                         shape, dtype = spec
                     else:
@@ -114,7 +112,7 @@ def check_out_dtype(api_fn, in_specs, expect_dtypes, target_index=0, **configs):
                         )
                     input_t.append(
                         paddle.static.data(
-                            name=f'data_{index}', shape=shape, dtype=dtype
+                            name=f"data_{index}", shape=shape, dtype=dtype
                         )
                     )
 
@@ -135,10 +133,8 @@ def _set_use_system_allocator(value=None):
     return old_value
 
 
-def randomize_probability(batch_size, class_num, dtype='float32'):
-    prob = np.random.uniform(0.1, 1.0, size=(batch_size, class_num)).astype(
-        dtype
-    )
+def randomize_probability(batch_size, class_num, dtype="float32"):
+    prob = np.random.uniform(0.1, 1.0, size=(batch_size, class_num)).astype(dtype)
     prob_sum = prob.sum(axis=1)
     for i in range(len(prob)):
         prob[i] /= prob_sum[i]
@@ -210,8 +206,8 @@ def get_numeric_gradient(
             numpy_tensor = np.array(tensor).astype(np.uint16)
             numpy_tensor = numpy_tensor.flatten()
             return struct.unpack(
-                '<f',
-                struct.pack('<I', np.uint32(numpy_tensor[i]) << np.uint32(16)),
+                "<f",
+                struct.pack("<I", np.uint32(numpy_tensor[i]) << np.uint32(16)),
             )[0]
         elif tensor_to_check_dtype == np.float32:
             return tensor._get_float_element(i)
@@ -222,9 +218,7 @@ def get_numeric_gradient(
         elif tensor_to_check_dtype == np.complex128:
             return tensor._get_complex128_element(i)
         else:
-            raise TypeError(
-                f"Unsupported test data type {tensor_to_check_dtype}."
-            )
+            raise TypeError(f"Unsupported test data type {tensor_to_check_dtype}.")
 
     def __set_elem__(tensor, i, e):
         if tensor_to_check_dtype == np.float16:
@@ -250,9 +244,7 @@ def get_numeric_gradient(
         elif tensor_to_check_dtype == np.complex128:
             return tensor._set_complex128_element(i, e)
         else:
-            raise TypeError(
-                f"Unsupported test data type {tensor_to_check_dtype}."
-            )
+            raise TypeError(f"Unsupported test data type {tensor_to_check_dtype}.")
 
     # we only compute gradient of one element each time.
     # we use a for loop to compute the gradient of every element.
@@ -307,12 +299,8 @@ def get_numeric_gradient(
 
             du_over_di, dv_over_di = df_over_di.real, df_over_di.imag
 
-            dl_over_dr = np.sum(
-                dl_over_du * du_over_dr + dl_over_dv * dv_over_dr
-            )
-            dl_over_di = np.sum(
-                dl_over_du * du_over_di + dl_over_dv * dv_over_di
-            )
+            dl_over_dr = np.sum(dl_over_du * du_over_dr + dl_over_dv * dv_over_dr)
+            dl_over_di = np.sum(dl_over_du * du_over_di + dl_over_dv * dv_over_di)
             gradient_flat[i] = dl_over_dr + 1j * dl_over_di
         else:
             df_over_dr = y_pos - y_neg
@@ -349,9 +337,7 @@ def skip_check_grad_ci(reason=None):
 
 def skip_check_inplace_ci(reason=None):
     if not isinstance(reason, str):
-        raise AssertionError(
-            "The reason for skipping check_inplace is required."
-        )
+        raise AssertionError("The reason for skipping check_inplace is required.")
 
     def wrapper(cls):
         cls.no_need_check_inplace = True
@@ -361,7 +347,7 @@ def skip_check_inplace_ci(reason=None):
 
 
 def copy_bits_from_float_to_uint16(f):
-    return struct.unpack('<I', struct.pack('<f', f))[0] >> 16
+    return struct.unpack("<I", struct.pack("<f", f))[0] >> 16
 
 
 def convert_float_to_uint16(float_list, data_format="NCHW"):
@@ -381,9 +367,9 @@ def convert_float_to_uint16(float_list, data_format="NCHW"):
 def convert_uint16_to_float(in_list):
     in_list = np.asarray(in_list)
     out = np.vectorize(
-        lambda x: struct.unpack(
-            '<f', struct.pack('<I', np.uint32(x) << np.uint32(16))
-        )[0],
+        lambda x: struct.unpack("<f", struct.pack("<I", np.uint32(x) << np.uint32(16)))[
+            0
+        ],
         otypes=[np.float32],
     )(in_list.flat)
     return np.reshape(out, in_list.shape)
@@ -392,8 +378,8 @@ def convert_uint16_to_float(in_list):
 def get_places():
     places = []
     if (
-        os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-        in ['1', 'true', 'on']
+        os.environ.get("FLAGS_CI_both_cpu_and_gpu", "False").lower()
+        in ["1", "true", "on"]
         or not core.is_compiled_with_cuda()
     ):
         places.append(base.CPUPlace())
@@ -408,16 +394,16 @@ def get_places():
 def get_devices():
     devices = []
     if (
-        os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-        in ['1', 'true', 'on']
+        os.environ.get("FLAGS_CI_both_cpu_and_gpu", "False").lower()
+        in ["1", "true", "on"]
         or not paddle.is_compiled_with_cuda()
     ):
-        devices.append('cpu')
+        devices.append("cpu")
     if paddle.is_compiled_with_cuda():
-        devices.append('gpu')
+        devices.append("gpu")
     if is_custom_device():
         dev_type = paddle.device.get_all_custom_device_type()[0]
-        devices.append(f'{dev_type}:0')
+        devices.append(f"{dev_type}:0")
     return devices
 
 
@@ -425,9 +411,7 @@ def get_device_place():
     if core.is_compiled_with_cuda():
         return base.CUDAPlace(0)
     custom_dev_types = paddle.device.get_all_custom_device_type()
-    if custom_dev_types and core.is_compiled_with_custom_device(
-        custom_dev_types[0]
-    ):
+    if custom_dev_types and core.is_compiled_with_custom_device(custom_dev_types[0]):
         return base.CustomPlace(custom_dev_types[0], 0)
     return base.CPUPlace()
 
@@ -470,7 +454,7 @@ def auto_parallel_test_guard(test_info_path, generated_test_file_path):
 class OpTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        '''Fix random seeds to remove randomness from tests'''
+        """Fix random seeds to remove randomness from tests"""
         cls._np_rand_state = np.random.get_state()
         cls._py_rand_state = random.getstate()
         cls.call_once = False
@@ -499,17 +483,17 @@ class OpTest(unittest.TestCase):
 
         _set_use_system_allocator(cls._use_system_allocator)
 
-        if hasattr(cls, 'check_prim') and os.getenv('FLAGS_prim_test_log'):
+        if hasattr(cls, "check_prim") and os.getenv("FLAGS_prim_test_log"):
             print("check prim end!")
 
         def is_empty_grad_op(op_type):
             all_op_kernels = core._get_all_register_op_kernels()
-            grad_op = op_type + '_grad'
+            grad_op = op_type + "_grad"
             if grad_op in all_op_kernels.keys():
                 if is_onednn_op_test():
                     grad_op_kernels = all_op_kernels[grad_op]
                     for grad_op_kernel in grad_op_kernels:
-                        if 'MKLDNN' in grad_op_kernel:
+                        if "MKLDNN" in grad_op_kernel:
                             return False
                 else:
                     return False
@@ -548,20 +532,16 @@ class OpTest(unittest.TestCase):
         ):
             if cls.dtype is None or (
                 cls.dtype == np.float16
-                and cls.op_type
-                not in op_accuracy_white_list.NO_FP16_CHECK_GRAD_OP_LIST
+                and cls.op_type not in op_accuracy_white_list.NO_FP16_CHECK_GRAD_OP_LIST
                 and not hasattr(cls, "exist_check_grad")
             ):
-                raise AssertionError(
-                    f"This test of {cls.op_type} op needs check_grad."
-                )
+                raise AssertionError(f"This test of {cls.op_type} op needs check_grad.")
 
             # check for op test with fp64 precision, but not check onednn op test for now
             if (
                 cls.dtype in [np.float32, np.float64]
-                and cls.op_type
-                not in op_accuracy_white_list.NO_FP64_CHECK_GRAD_OP_LIST
-                and not hasattr(cls, 'exist_fp64_check_grad')
+                and cls.op_type not in op_accuracy_white_list.NO_FP64_CHECK_GRAD_OP_LIST
+                and not hasattr(cls, "exist_fp64_check_grad")
                 and not is_xpu_op_test()
                 and not is_onednn_op_test()
                 and not is_rocm_op_test()
@@ -575,8 +555,7 @@ class OpTest(unittest.TestCase):
 
             if (
                 not cls.input_shape_is_large
-                and cls.op_type
-                not in check_shape_white_list.NEED_TO_FIX_OP_LIST
+                and cls.op_type not in check_shape_white_list.NEED_TO_FIX_OP_LIST
                 and not is_xpu_op_test()
             ):
                 raise AssertionError(
@@ -595,16 +574,14 @@ class OpTest(unittest.TestCase):
         # Make sure this function is called after calling infer_dtype_from_inputs_outputs.
         return (
             self.dtype == np.uint16
+            or (hasattr(self, "output_dtype") and self.output_dtype == np.uint16)
             or (
-                hasattr(self, 'output_dtype') and self.output_dtype == np.uint16
+                hasattr(self, "attrs")
+                and "mkldnn_data_type" in self.attrs
+                and self.attrs["mkldnn_data_type"] == "bfloat16"
             )
             or (
-                hasattr(self, 'attrs')
-                and 'mkldnn_data_type' in self.attrs
-                and self.attrs['mkldnn_data_type'] == 'bfloat16'
-            )
-            or (
-                hasattr(self, 'onednn_data_type')
+                hasattr(self, "onednn_data_type")
                 and self.onednn_data_type == "bfloat16"
             )
         )
@@ -615,18 +592,14 @@ class OpTest(unittest.TestCase):
         return (
             self.dtype == np.float16
             or self.dtype == "float16"
+            or (hasattr(self, "output_dtype") and self.output_dtype == np.float16)
             or (
-                hasattr(self, 'output_dtype')
-                and self.output_dtype == np.float16
+                hasattr(self, "attrs")
+                and "mkldnn_data_type" in self.attrs
+                and self.attrs["mkldnn_data_type"] == "float16"
             )
             or (
-                hasattr(self, 'attrs')
-                and 'mkldnn_data_type' in self.attrs
-                and self.attrs['mkldnn_data_type'] == 'float16'
-            )
-            or (
-                hasattr(self, 'onednn_data_type')
-                and self.onednn_data_type == "float16"
+                hasattr(self, "onednn_data_type") and self.onednn_data_type == "float16"
             )
         )
 
@@ -641,9 +614,7 @@ class OpTest(unittest.TestCase):
 
     def is_xpu_op(self):
         return (hasattr(self, "use_xpu") and self.use_xpu) or (
-            hasattr(self, "attrs")
-            and "use_xpu" in self.attrs
-            and self.attrs["use_xpu"]
+            hasattr(self, "attrs") and "use_xpu" in self.attrs and self.attrs["use_xpu"]
         )
 
     def is_fp16_compared_with_fp32(self):
@@ -659,10 +630,7 @@ class OpTest(unittest.TestCase):
         )
 
     def is_compared_with_fp32(self):
-        return (
-            self.is_fp16_compared_with_fp32()
-            or self.is_bf16_compared_with_fp32()
-        )
+        return self.is_fp16_compared_with_fp32() or self.is_bf16_compared_with_fp32()
 
     def is_0size_test(self):
         def numel(shape):
@@ -806,18 +774,14 @@ class OpTest(unittest.TestCase):
                             elif dtype == np.uint16:
                                 if isinstance(np_value[1], list):
                                     tensor.set_recursive_sequence_lengths(
-                                        convert_uint16_to_float(
-                                            np.array(np_value[1])
-                                        )
+                                        convert_uint16_to_float(np.array(np_value[1]))
                                     )
                                 else:
                                     tensor.set_recursive_sequence_lengths(
                                         convert_uint16_to_float(np_value[1])
                                     )
                             else:
-                                tensor.set_recursive_sequence_lengths(
-                                    np_value[1]
-                                )
+                                tensor.set_recursive_sequence_lengths(np_value[1])
                         else:
                             tensor.set_recursive_sequence_lengths(np_value[1])
                     else:
@@ -825,9 +789,7 @@ class OpTest(unittest.TestCase):
                             if np_value.dtype == np.float16:
                                 tensor.set(np_value.astype(np.float32), place)
                             elif np_value.dtype == np.uint16:
-                                tensor.set(
-                                    convert_uint16_to_float(np_value), place
-                                )
+                                tensor.set(convert_uint16_to_float(np_value), place)
                             else:
                                 tensor.set(np_value, place)
                         else:
@@ -863,24 +825,18 @@ class OpTest(unittest.TestCase):
                             )
                         elif self.inputs[var_name][1].dtype == np.uint16:
                             tensor.set_recursive_sequence_lengths(
-                                convert_uint16_to_float(
-                                    self.inputs[var_name][1]
-                                )
+                                convert_uint16_to_float(self.inputs[var_name][1])
                             )
                         else:
                             tensor.set_recursive_sequence_lengths(
                                 self.inputs[var_name][1]
                             )
                     else:
-                        tensor.set_recursive_sequence_lengths(
-                            self.inputs[var_name][1]
-                        )
+                        tensor.set_recursive_sequence_lengths(self.inputs[var_name][1])
                 else:
                     if self.is_calc_ref:
                         if self.inputs[var_name].dtype == np.float16:
-                            tensor.set(
-                                self.inputs[var_name].astype(np.float32), place
-                            )
+                            tensor.set(self.inputs[var_name].astype(np.float32), place)
                         elif self.inputs[var_name].dtype == np.uint16:
                             tensor.set(
                                 convert_uint16_to_float(self.inputs[var_name]),
@@ -949,9 +905,7 @@ class OpTest(unittest.TestCase):
         inputs = {}
         for name, value in numpy_inputs.items():
             if isinstance(value, list):
-                var_list = [
-                    block.var(sub_name) for sub_name, sub_value in value
-                ]
+                var_list = [block.var(sub_name) for sub_name, sub_value in value]
                 inputs[name] = var_list
             else:
                 inputs[name] = block.var(name)
@@ -992,7 +946,7 @@ class OpTest(unittest.TestCase):
             shape = [13, 23]
         assert len(lod[0]) == 1
         assert lod[0][0] == shape[0]
-        x = np.random.uniform(0.1, 1, shape).astype('float32')
+        x = np.random.uniform(0.1, 1, shape).astype("float32")
         return (x, lod)
 
     def lod_has_single_zero(self, lod):
@@ -1003,12 +957,7 @@ class OpTest(unittest.TestCase):
 
     def lod_has_continuous_zero(self, lod):
         for i in range(len(lod) - 3):
-            if (
-                lod[i] != 0
-                and lod[i + 1] == 0
-                and lod[i + 2] == 0
-                and lod[i + 3] != 0
-            ):
+            if lod[i] != 0 and lod[i + 1] == 0 and lod[i + 2] == 0 and lod[i + 3] != 0:
                 return True
         return False
 
@@ -1026,17 +975,12 @@ class OpTest(unittest.TestCase):
         if shape is None:
             shape = [12, 10]
         assert len(lod[0]) >= 8
-        assert (
-            lod[0][0] == 0
-            and lod[0][1] == 0
-            and lod[0][-1] == 0
-            and lod[0][-2] == 0
-        )
+        assert lod[0][0] == 0 and lod[0][1] == 0 and lod[0][-1] == 0 and lod[0][-2] == 0
         assert self.lod_has_single_zero(lod[0]) is True
         assert self.lod_has_continuous_zero(lod[0]) is True
         assert sum(lod[0]) == shape[0]
 
-        x = np.random.uniform(0.1, 1, shape).astype('float32')
+        x = np.random.uniform(0.1, 1, shape).astype("float32")
         return (x, lod)
 
     def append_input_output_for_dygraph(
@@ -1059,9 +1003,7 @@ class OpTest(unittest.TestCase):
 
             if is_input:
                 if self.is_calc_ref and np_value_temp.dtype == np.float16:
-                    v = self._create_var_from_numpy(
-                        np_value_temp.astype(np.float32)
-                    )
+                    v = self._create_var_from_numpy(np_value_temp.astype(np.float32))
                 else:
                     v = self._create_var_from_numpy(np_value_temp)
 
@@ -1070,9 +1012,7 @@ class OpTest(unittest.TestCase):
                     v.retain_grads()
 
                 if has_lod:
-                    v.value().get_tensor().set_recursive_sequence_lengths(
-                        lod_temp
-                    )
+                    v.value().get_tensor().set_recursive_sequence_lengths(lod_temp)
             else:
                 if self.is_calc_ref and np_value_temp.dtype == np.float16:
                     v = block.create_var(
@@ -1104,7 +1044,7 @@ class OpTest(unittest.TestCase):
             if name not in np_list:
                 assert var_proto.intermediate, f"{name} not found"
                 v = block.create_var(
-                    dtype='float32', type=core.VarDesc.VarType.DENSE_TENSOR
+                    dtype="float32", type=core.VarDesc.VarType.DENSE_TENSOR
                 )
                 var_dict[name].append(v)
                 if if_return_inputs_grad_dict:
@@ -1170,18 +1110,18 @@ class OpTest(unittest.TestCase):
                 np_dyg,
                 rtol=1e-05,
                 equal_nan=False,
-                err_msg='Operator ('
+                err_msg="Operator ("
                 + self.op_type
-                + ') Output ('
+                + ") Output ("
                 + name
-                + ') has diff at '
+                + ") has diff at "
                 + str(place)
-                + '\nExpect '
+                + "\nExpect "
                 + str(np_dyg)
-                + '\n'
-                + 'But Got'
+                + "\n"
+                + "But Got"
                 + str(np_api)
-                + ' in class '
+                + " in class "
                 + self.__class__.__name__,
             )
 
@@ -1205,17 +1145,13 @@ class OpTest(unittest.TestCase):
 
         def cal_python_api(python_api, args, kernel_sig):
             inputs_sig, attrs_sig, outputs_sig = kernel_sig
-            args = OpTestUtils.assumption_assert_and_transform(
-                args, len(inputs_sig)
-            )
+            args = OpTestUtils.assumption_assert_and_transform(args, len(inputs_sig))
             ret_tuple = python_api(*args)
             result = construct_output_dict_by_kernel_sig(ret_tuple, outputs_sig)
             if hasattr(self, "python_out_sig_sub_name"):
                 for key in self.python_out_sig_sub_name.keys():
                     for i in range(len(self.python_out_sig_sub_name[key])):
-                        result[key][0][i].name = self.python_out_sig_sub_name[
-                            key
-                        ][i]
+                        result[key][0][i].name = self.python_out_sig_sub_name[key][i]
             return result
 
         with base.dygraph.base.guard(place=place):
@@ -1458,9 +1394,7 @@ class OpTest(unittest.TestCase):
             inputs_sig, attrs_sig, outputs_sig = kernel_sig
             if hasattr(self, "python_out_sig"):
                 outputs_sig = self.python_out_sig
-            args = OpTestUtils.assumption_assert_and_transform(
-                args, len(inputs_sig)
-            )
+            args = OpTestUtils.assumption_assert_and_transform(args, len(inputs_sig))
             ret_tuple = self.python_api(*args)
             fetch_list = getattr(self, "fetch_list", [])
             # if the fetch_list is customized by user, we use it directly.
@@ -1496,14 +1430,12 @@ class OpTest(unittest.TestCase):
             executor = Executor(place)
             outs = executor.run(ir_program, feed=feed, fetch_list=[fetch_list])
             outputs_sig = [
-                sig_name
-                for sig_name in outputs_sig
-                if self._need_fetch(sig_name)
+                sig_name for sig_name in outputs_sig if self._need_fetch(sig_name)
             ]
 
-            if paddle.utils.is_sequence(
-                ret_to_check
-            ) and paddle.utils.is_sequence(outs):
+            if paddle.utils.is_sequence(ret_to_check) and paddle.utils.is_sequence(
+                outs
+            ):
                 outs = paddle.utils.pack_sequence_as(ret_to_check, outs)
 
             result = construct_output_dict_by_kernel_sig(outs, outputs_sig)
@@ -1529,7 +1461,7 @@ class OpTest(unittest.TestCase):
             return
         stored_flag = get_flags(
             [
-                'FLAGS_enable_pir_in_executor',
+                "FLAGS_enable_pir_in_executor",
                 "FLAGS_pir_apply_inplace_pass",
             ]
         )
@@ -1576,16 +1508,16 @@ class OpTest(unittest.TestCase):
                 check_method(
                     outs[i],
                     ir_outs[i],
-                    err_msg='Operator Check ('
+                    err_msg="Operator Check ("
                     + self.op_type
-                    + ') has diff at '
+                    + ") has diff at "
                     + str(place)
-                    + '\nExpect '
+                    + "\nExpect "
                     + str(outs[i])
-                    + '\n'
-                    + 'But Got'
+                    + "\n"
+                    + "But Got"
                     + str(ir_outs[i])
-                    + ' in class '
+                    + " in class "
                     + self.__class__.__name__,
                 )
         finally:
@@ -1651,9 +1583,9 @@ class OpTest(unittest.TestCase):
                 place, feed_map, outputs
             )
             if enable_cinn_test:
-                if hasattr(self, 'cinn_atol'):
+                if hasattr(self, "cinn_atol"):
                     self.atol = self.cinn_atol
-                if hasattr(self, 'cinn_rtol'):
+                if hasattr(self, "cinn_rtol"):
                     self.rtol = self.cinn_rtol
 
             if (enable_inplace is not None) or enable_cinn_test:
@@ -1692,23 +1624,16 @@ class OpTest(unittest.TestCase):
         # check that all ops have defined the InferSymbolicShapeInterface
         if paddle.base.libpaddle.pir.all_ops_defined_symbol_infer(program):
             # compare expect & actual
-            shape_analysis = (
-                paddle.base.libpaddle.pir.get_shape_constraint_ir_analysis(
-                    program
-                )
+            shape_analysis = paddle.base.libpaddle.pir.get_shape_constraint_ir_analysis(
+                program
             )
             for block in program.blocks:
                 for op in block.ops:
                     if op.name() == "pd_op.fetch":
                         for j, var in enumerate(op.results()):
-                            if (
-                                var.is_dense_tensor_type()
-                                or var.is_selected_row_type()
-                            ):
+                            if var.is_dense_tensor_type() or var.is_selected_row_type():
                                 shape_or_data = (
-                                    shape_analysis.get_shape_or_data_for_var(
-                                        var
-                                    )
+                                    shape_analysis.get_shape_or_data_for_var(var)
                                 )
                                 expect_shape = outs[i].shape
                                 if np.issubdtype(outs[i].dtype, np.integer):
@@ -1790,17 +1715,19 @@ class OpTest(unittest.TestCase):
                 outs = executor.run(program, feed=feed, fetch_list=[fetch_list])
                 # get fetch program
                 fetch_list = executor._check_fetch_list([fetch_list])
-                fetch_program, _, _ = (
-                    executor._executor_cache.get_pir_program_and_executor(
-                        program=program,
-                        feed=feed,
-                        fetch_list=fetch_list,
-                        feed_var_name='feed',
-                        fetch_var_name='fetch',
-                        place=place,
-                        scope=scope,
-                        plan=None,
-                    )
+                (
+                    fetch_program,
+                    _,
+                    _,
+                ) = executor._executor_cache.get_pir_program_and_executor(
+                    program=program,
+                    feed=feed,
+                    fetch_list=fetch_list,
+                    feed_var_name="feed",
+                    fetch_var_name="fetch",
+                    place=place,
+                    scope=scope,
+                    plan=None,
                 )
 
                 self._compare_symbol(fetch_program, outs)
@@ -1837,38 +1764,38 @@ class OpTest(unittest.TestCase):
                     actual_out,
                     rtol=1e-03 if self.dtype == np.uint16 else 1e-5,
                     atol=inplace_atol,
-                    err_msg='Operator ('
+                    err_msg="Operator ("
                     + self.op_type
-                    + ') Output ('
+                    + ") Output ("
                     + name
-                    + ') has diff at '
+                    + ") has diff at "
                     + str(place)
-                    + ' when using and not using inplace'
-                    + '\nExpect '
+                    + " when using and not using inplace"
+                    + "\nExpect "
                     + str(expect_out)
-                    + '\n'
-                    + 'But Got'
+                    + "\n"
+                    + "But Got"
                     + str(actual_out)
-                    + ' in class '
+                    + " in class "
                     + self.__class__.__name__,
                 )
             else:
                 np.testing.assert_array_equal(
                     expect_out,
                     actual_out,
-                    err_msg='Output ('
+                    err_msg="Output ("
                     + name
-                    + ') has diff at '
+                    + ") has diff at "
                     + str(place)
-                    + ' when using and not using inplace'
-                    + '\nExpect '
+                    + " when using and not using inplace"
+                    + "\nExpect "
                     + str(expect_out)
-                    + '\n'
-                    + 'But Got'
+                    + "\n"
+                    + "But Got"
                     + str(actual_out)
-                    + ' in class '
+                    + " in class "
                     + self.__class__.__name__
-                    + '\n',
+                    + "\n",
                 )
 
     def _construct_grad_program_from_forward(
@@ -1892,9 +1819,7 @@ class OpTest(unittest.TestCase):
             grad_program._sync_with_cpp()
 
             # Create grad vars based on fwd vars (shape and dtype)
-            for arg in (
-                grad_op_desc.input_arg_names() + grad_op_desc.output_arg_names()
-            ):
+            for arg in grad_op_desc.input_arg_names() + grad_op_desc.output_arg_names():
                 fwd_var_name = op_grad_to_var.get(arg, None)
                 if fwd_var_name is None:
                     fwd_var_name = arg
@@ -1997,9 +1922,8 @@ class OpTest(unittest.TestCase):
                     has_infer_inplace_in_grad_descendants = False
                 else:
                     for i, grad_op_desc in enumerate(grad_op_desc_list):
-                        if (
-                            grad_op_desc.type() not in visited_ops
-                            and _dfs_grad_op(grad_op_desc, fwd_op_desc=op_desc)
+                        if grad_op_desc.type() not in visited_ops and _dfs_grad_op(
+                            grad_op_desc, fwd_op_desc=op_desc
                         ):
                             has_infer_inplace_in_grad_descendants = True
             if has_infer_inplace or has_infer_inplace_in_grad_descendants:
@@ -2011,9 +1935,7 @@ class OpTest(unittest.TestCase):
         _dfs_grad_op(op_desc, fwd_op_desc=fwd_op_desc)
         return need_run_ops
 
-    def _check_forward_inplace(
-        self, place, no_check_set=None, inplace_atol=None
-    ):
+    def _check_forward_inplace(self, place, no_check_set=None, inplace_atol=None):
         """Check the inplace correctness of given op (self.op_type).
         Run the op twice with same inputs, one enable inplace and another disable, compare their outputs.
 
@@ -2049,9 +1971,7 @@ class OpTest(unittest.TestCase):
         )
         return expect_res
 
-    def _calc_grad_output(
-        self, place, fwd_res, grad_op_desc, enable_inplace=None
-    ):
+    def _calc_grad_output(self, place, fwd_res, grad_op_desc, enable_inplace=None):
         """Calculate grad_output for given grad_op_desc.
 
         since we don`t really check gradient accuracy, but check the consistency when using and not using inplace,
@@ -2103,9 +2023,7 @@ class OpTest(unittest.TestCase):
             )
         return outs, grad_fetch_list, grad_feed_map, grad_program, grad_op_desc
 
-    def _check_grad_inplace(
-        self, place, fwd_res, grad_op_desc, inplace_atol=None
-    ):
+    def _check_grad_inplace(self, place, fwd_res, grad_op_desc, inplace_atol=None):
         """Check the inplace correctness of given grad_op_desc.
 
         Run the grad op twice with same inputs, one enable inplace and another disable, compare their outputs.
@@ -2161,9 +2079,7 @@ class OpTest(unittest.TestCase):
         if (
             os.getenv("FLAGS_enable_pir_in_executor")
             or os.getenv("FLAGS_enable_pir_api")
-            or get_flags("FLAGS_enable_pir_in_executor")[
-                "FLAGS_enable_pir_in_executor"
-            ]
+            or get_flags("FLAGS_enable_pir_in_executor")["FLAGS_enable_pir_in_executor"]
             or get_flags("FLAGS_enable_pir_api")["FLAGS_enable_pir_api"]
         ):
             return
@@ -2177,7 +2093,7 @@ class OpTest(unittest.TestCase):
         need_run_ops = self._get_need_run_ops(op_desc)
 
         res = {}
-        if hasattr(self, 'attrs') and bool(self.attrs.get('use_xpu', False)):
+        if hasattr(self, "attrs") and bool(self.attrs.get("use_xpu", False)):
             return
         for op_desc, father_op_desc in reversed(need_run_ops):
             # The first one is the forward op
@@ -2197,11 +2113,11 @@ class OpTest(unittest.TestCase):
                 # TODO(zhiqiu): enhance inplace_grad test for ops (sum and activation) using mkldnn
                 # skip op that use_mkldnn currently
                 flags_use_onednn = base.core.globals()["FLAGS_use_onednn"]
-                attrs_use_mkldnn = hasattr(self, 'attrs') and bool(
-                    self.attrs.get('use_mkldnn', False)
+                attrs_use_mkldnn = hasattr(self, "attrs") and bool(
+                    self.attrs.get("use_mkldnn", False)
                 )
-                attrs_use_onednn = hasattr(self, 'attrs') and bool(
-                    self.attrs.get('use_onednn', False)
+                attrs_use_onednn = hasattr(self, "attrs") and bool(
+                    self.attrs.get("use_onednn", False)
                 )
                 if flags_use_onednn or attrs_use_mkldnn or attrs_use_onednn:
                     warnings.warn(
@@ -2214,9 +2130,7 @@ class OpTest(unittest.TestCase):
                         place, fwd_res, op_desc, inplace_atol=inplace_atol
                     )
                 else:
-                    res[op_desc] = self._calc_grad_output(
-                        place, fwd_res, op_desc
-                    )
+                    res[op_desc] = self._calc_grad_output(place, fwd_res, op_desc)
 
     def check_output_with_place(
         self,
@@ -2254,10 +2168,7 @@ class OpTest(unittest.TestCase):
                         for tensor in var:
                             if tensor.name == target_name:
                                 return tensor
-                    elif (
-                        isinstance(var, paddle.Tensor)
-                        and var.name == target_name
-                    ):
+                    elif isinstance(var, paddle.Tensor) and var.name == target_name:
                         return dygraph_outs[name][i]
             self.assertTrue(
                 False,
@@ -2279,24 +2190,16 @@ class OpTest(unittest.TestCase):
 
         def find_actual(target_name, fetch_list):
             found = [
-                i
-                for i, var_name in enumerate(fetch_list)
-                if var_name == target_name
+                i for i, var_name in enumerate(fetch_list) if var_name == target_name
             ]
-            self.assertTrue(
-                len(found) == 1, f"Found {len(found)} {target_name}"
-            )
+            self.assertTrue(len(found) == 1, f"Found {len(found)} {target_name}")
             return found[0]
 
         def find_expect(target_name, fetch_list):
             found = [
-                i
-                for i, var_name in enumerate(fetch_list)
-                if var_name == target_name
+                i for i, var_name in enumerate(fetch_list) if var_name == target_name
             ]
-            self.assertTrue(
-                len(found) == 1, f"Found {len(found)} {target_name}"
-            )
+            self.assertTrue(len(found) == 1, f"Found {len(found)} {target_name}")
             return found[0]
 
         class Checker:
@@ -2348,8 +2251,8 @@ class OpTest(unittest.TestCase):
                 np.testing.assert_allclose(
                     actual_np,
                     expect_np,
-                    atol=self.atol if hasattr(self, 'atol') else atol,
-                    rtol=self.rtol if hasattr(self, 'rtol') else rtol,
+                    atol=self.atol if hasattr(self, "atol") else atol,
+                    rtol=self.rtol if hasattr(self, "rtol") else rtol,
                     equal_nan=equal_nan,
                     err_msg=(
                         "Operator ("
@@ -2370,9 +2273,7 @@ class OpTest(unittest.TestCase):
                     expect, expect_np = self.find_expect_value(name)
                 else:
                     expect_np = (
-                        expect[0]
-                        if isinstance(expect, (tuple, list))
-                        else expect
+                        expect[0] if isinstance(expect, (tuple, list)) else expect
                     )
                 actual_np, expect_np = self.convert_uint16_to_float_ifneed(
                     actual_np, expect_np
@@ -2393,9 +2294,7 @@ class OpTest(unittest.TestCase):
                             )
                         for item in sub_out:
                             sub_out_name, expect = item[0], item[1]
-                            self.compare_single_output_with_expect(
-                                sub_out_name, expect
-                            )
+                            self.compare_single_output_with_expect(sub_out_name, expect)
                     else:
                         expect = self.expects[out_name]
                         self.compare_single_output_with_expect(out_name, expect)
@@ -2454,10 +2353,7 @@ class OpTest(unittest.TestCase):
                     self.rtol = 1.0e-3
                 else:
                     self.rtol = 1.0e-5
-                if (
-                    expect_np.dtype == np.uint16
-                    and actual_np.dtype == np.uint16
-                ):
+                if expect_np.dtype == np.uint16 and actual_np.dtype == np.uint16:
                     nonlocal atol
                     expect_np = convert_uint16_to_float(expect_np)
                     actual_np = convert_uint16_to_float(actual_np)
@@ -2482,9 +2378,7 @@ class OpTest(unittest.TestCase):
                 if self.op_test.is_compared_with_fp32():
                     self.op_test.enable_cal_ref_output()
                     self.is_python_api_test = True
-                    self.ref_outputs = self.op_test._calc_python_api_output(
-                        place
-                    )
+                    self.ref_outputs = self.op_test._calc_python_api_output(place)
                     if self.ref_outputs is None:
                         self.is_python_api_test = False
                         # missing KernelSignature, fall back to eager middle output.
@@ -2502,7 +2396,7 @@ class OpTest(unittest.TestCase):
                     actual_np,
                     expect_np,
                     atol=atol,
-                    rtol=self.rtol if hasattr(self, 'rtol') else rtol,
+                    rtol=self.rtol if hasattr(self, "rtol") else rtol,
                     equal_nan=equal_nan,
                     err_msg=(
                         "Operator ("
@@ -2596,7 +2490,7 @@ class OpTest(unittest.TestCase):
                     actual_np,
                     expect_np,
                     atol=atol,
-                    rtol=self.rtol if hasattr(self, 'rtol') else rtol,
+                    rtol=self.rtol if hasattr(self, "rtol") else rtol,
                     equal_nan=equal_nan,
                     err_msg=(
                         "Operator ("
@@ -2647,10 +2541,7 @@ class OpTest(unittest.TestCase):
                             for tensor in var:
                                 if tensor.name == target_name:
                                     return tensor
-                        elif (
-                            isinstance(var, paddle.Tensor)
-                            and var.name == target_name
-                        ):
+                        elif isinstance(var, paddle.Tensor) and var.name == target_name:
                             return dygraph_outs[name][i]
                 raise AssertionError("No pir ref_output named " + target_name)
 
@@ -2658,9 +2549,7 @@ class OpTest(unittest.TestCase):
                 with paddle.pir.core.program_guard(
                     paddle.pir.core.default_main_program()
                 ):
-                    actual = self.find_pir_actual(
-                        target_name, self.outputs, place
-                    )
+                    actual = self.find_pir_actual(target_name, self.outputs, place)
                     actual_t = np.array(actual)
                     return actual, actual_t
 
@@ -2668,9 +2557,7 @@ class OpTest(unittest.TestCase):
                 with paddle.pir.core.program_guard(
                     paddle.pir.core.default_main_program()
                 ):
-                    expect = self.find_pir_expect(
-                        target_name, self.ref_outputs, place
-                    )
+                    expect = self.find_pir_expect(target_name, self.ref_outputs, place)
                     expect_t = np.array(expect)
                     return expect, expect_t
 
@@ -2720,10 +2607,7 @@ class OpTest(unittest.TestCase):
             if self.is_onednn_op():
                 check_dygraph = False
 
-                if (
-                    hasattr(self, 'force_fp32_output')
-                    and self.force_fp32_output
-                ):
+                if hasattr(self, "force_fp32_output") and self.force_fp32_output:
                     atol = max(atol, 0.01)
                 else:
                     atol = max(atol, 2)
@@ -2734,10 +2618,7 @@ class OpTest(unittest.TestCase):
             atol = max(atol, 0.001)
 
         if no_check_set is not None:
-            if (
-                self.op_type
-                not in no_check_set_white_list.no_check_set_white_list
-            ):
+            if self.op_type not in no_check_set_white_list.no_check_set_white_list:
                 raise AssertionError(
                     f"no_check_set of op {self.op_type} must be set to None."
                 )
@@ -2773,16 +2654,14 @@ class OpTest(unittest.TestCase):
                 with auto_parallel_test_guard(
                     forward_test_info_path, generated_forward_test_path
                 ):
-                    dump_test_info(
-                        self, place, forward_test_info_path, backward=False
-                    )
+                    dump_test_info(self, place, forward_test_info_path, backward=False)
                     python_api_info = {
                         "api_name": self.python_api.__name__,
                         "api_module": (
                             inspect.getmodule(self.python_api).__name__
-                            if inspect.getmodule(
-                                self.python_api
-                            ).__name__.startswith("paddle")
+                            if inspect.getmodule(self.python_api).__name__.startswith(
+                                "paddle"
+                            )
                             else pathlib.Path(
                                 inspect.getmodule(self.python_api).__file__
                             ).stem
@@ -2799,9 +2678,7 @@ class OpTest(unittest.TestCase):
                     start_command = get_subprocess_command(
                         runtime_envs["CUDA_VISIBLE_DEVICES"],
                         generated_forward_test_path,
-                        log_dir=(
-                            self.log_dir if hasattr(self, "log_dir") else None
-                        ),
+                        log_dir=(self.log_dir if hasattr(self, "log_dir") else None),
                     )
                     run_subprocess(start_command, runtime_envs, timeout=120)
 
@@ -2809,9 +2686,7 @@ class OpTest(unittest.TestCase):
         static_checker.check()
         outs, fetch_list = static_checker.outputs, static_checker.fetch_list
 
-        if check_pir_onednn and isinstance(
-            place, paddle.base.libpaddle.CPUPlace
-        ):
+        if check_pir_onednn and isinstance(place, paddle.base.libpaddle.CPUPlace):
             with pir_executor_guard():
                 pir_onednn_static_checker = StaticChecker(self, self.outputs)
                 pir_onednn_static_checker.check()
@@ -2868,9 +2743,7 @@ class OpTest(unittest.TestCase):
     def check_compile_vs_runtime(self, fetch_list, fetch_outs):
         def find_fetch_index(target_name, fetch_list):
             found = [
-                i
-                for i, var_name in enumerate(fetch_list)
-                if var_name == target_name
+                i for i, var_name in enumerate(fetch_list) if var_name == target_name
             ]
             if len(found) == 0:
                 return -1
@@ -2917,9 +2790,7 @@ class OpTest(unittest.TestCase):
 
     def _get_places(self):
         if self.dtype == np.float16 or self.dtype == "float16":
-            if core.is_compiled_with_cuda() and core.op_support_gpu(
-                self.op_type
-            ):
+            if core.is_compiled_with_cuda() and core.op_support_gpu(self.op_type):
                 place = core.CUDAPlace(0)
                 if core.is_float16_supported(place):
                     return [place]
@@ -2935,13 +2806,13 @@ class OpTest(unittest.TestCase):
             else:
                 return []
         places = []
-        cpu_only = self._cpu_only if hasattr(self, '_cpu_only') else False
+        cpu_only = self._cpu_only if hasattr(self, "_cpu_only") else False
         if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
+            os.environ.get("FLAGS_CI_both_cpu_and_gpu", "False").lower()
             in [
-                '1',
-                'true',
-                'on',
+                "1",
+                "true",
+                "on",
             ]
             or not (
                 core.is_compiled_with_cuda()
@@ -2950,8 +2821,8 @@ class OpTest(unittest.TestCase):
             )
             or self.op_type
             in [
-                'gaussian_random',
-                'lrn',
+                "gaussian_random",
+                "lrn",
             ]
         ):
             places.append(base.CPUPlace())
@@ -3026,9 +2897,7 @@ class OpTest(unittest.TestCase):
                     return
                 self.check_compile_vs_runtime(fetch_list, outs)
 
-    def check_output_customized(
-        self, checker, custom_place=None, check_pir=False
-    ):
+    def check_output_customized(self, checker, custom_place=None, check_pir=False):
         self.__class__.op_type = self.op_type
         places = self._get_places()
         if custom_place:
@@ -3045,9 +2914,7 @@ class OpTest(unittest.TestCase):
                     outs_p.sort(key=len)
                     checker(outs_p[0])
 
-    def check_output_with_place_customized(
-        self, checker, place, check_pir=False
-    ):
+    def check_output_with_place_customized(self, checker, place, check_pir=False):
         outs = self.calc_output(place)
         outs = [np.array(out) for out in outs]
         outs.sort(key=len)
@@ -3104,12 +2971,8 @@ class OpTest(unittest.TestCase):
                         not in op_threshold_white_list.NEED_FIX_FP64_CHECK_GRAD_THRESHOLD_OP_LIST
                     ):
                         abs_a[abs_a < 1e-10] = 1e-3
-                        abs_a[
-                            np.logical_and(abs_a > 1e-10, abs_a <= 1e-8)
-                        ] *= 1e4
-                        abs_a[
-                            np.logical_and(abs_a > 1e-8, abs_a <= 1e-6)
-                        ] *= 1e2
+                        abs_a[np.logical_and(abs_a > 1e-10, abs_a <= 1e-8)] *= 1e4
+                        abs_a[np.logical_and(abs_a > 1e-8, abs_a <= 1e-6)] *= 1e2
                     elif self.is_bfloat16_op():
                         abs_a[abs_a < 1e-2] = 1
                     else:
@@ -3369,14 +3232,12 @@ class OpTest(unittest.TestCase):
                     grad_test_info_path, generated_grad_test_path
                 ):
                     backward_extra_test_info = {}
-                    backward_extra_test_info["inputs_to_check"] = (
-                        inputs_to_check
-                    )
+                    backward_extra_test_info["inputs_to_check"] = inputs_to_check
                     backward_extra_test_info["output_names"] = output_names
                     backward_extra_test_info["no_grad_set"] = no_grad_set
-                    backward_extra_test_info["user_defined_grad_outputs"] = (
-                        user_defined_grad_outputs
-                    )
+                    backward_extra_test_info[
+                        "user_defined_grad_outputs"
+                    ] = user_defined_grad_outputs
                     dump_test_info(
                         self,
                         place,
@@ -3388,9 +3249,9 @@ class OpTest(unittest.TestCase):
                         "api_name": self.python_api.__name__,
                         "api_module": (
                             inspect.getmodule(self.python_api).__name__
-                            if inspect.getmodule(
-                                self.python_api
-                            ).__name__.startswith("paddle")
+                            if inspect.getmodule(self.python_api).__name__.startswith(
+                                "paddle"
+                            )
                             else pathlib.Path(
                                 inspect.getmodule(self.python_api).__file__
                             ).stem
@@ -3405,18 +3266,14 @@ class OpTest(unittest.TestCase):
                     )
                     runtime_envs = get_subprocess_runtime_envs(place)
 
-                    num_devices = len(
-                        runtime_envs["CUDA_VISIBLE_DEVICES"].split(",")
-                    )
+                    num_devices = len(runtime_envs["CUDA_VISIBLE_DEVICES"].split(","))
                     if num_devices > paddle.device.cuda.device_count():
                         self.skipTest("number of GPUs is not enough")
 
                     start_command = get_subprocess_command(
                         runtime_envs["CUDA_VISIBLE_DEVICES"],
                         generated_grad_test_path,
-                        log_dir=(
-                            self.log_dir if hasattr(self, "log_dir") else None
-                        ),
+                        log_dir=(self.log_dir if hasattr(self, "log_dir") else None),
                     )
                     run_subprocess(start_command, runtime_envs, timeout=120)
 
@@ -3478,15 +3335,11 @@ class OpTest(unittest.TestCase):
         else:
             if (
                 (self.op_type not in no_grad_set_white_list.NEED_TO_FIX_OP_LIST)
-                and (
-                    self.op_type not in no_grad_set_white_list.NOT_CHECK_OP_LIST
-                )
+                and (self.op_type not in no_grad_set_white_list.NOT_CHECK_OP_LIST)
                 and (not self.is_bfloat16_op())
             ):
                 raise AssertionError(
-                    "no_grad_set must be None, op_type is "
-                    + self.op_type
-                    + " Op."
+                    "no_grad_set must be None, op_type is " + self.op_type + " Op."
                 )
 
         for input_to_check in inputs_to_check:
@@ -3497,11 +3350,7 @@ class OpTest(unittest.TestCase):
             )
             tensor_ndim = len(tensor_to_check.shape())
             # for 0D Tensor, it's additional case for OP, so not raise error
-            if (
-                tensor_ndim > 0
-                and tensor_size < 100
-                and not self.is_0size_test()
-            ):
+            if tensor_ndim > 0 and tensor_size < 100 and not self.is_0size_test():
                 self.__class__.input_shape_is_large = False
 
         if type(output_names) is not list:
@@ -3526,9 +3375,7 @@ class OpTest(unittest.TestCase):
                 atol,
             )
 
-        if check_pir_onednn and isinstance(
-            place, paddle.base.libpaddle.CPUPlace
-        ):
+        if check_pir_onednn and isinstance(place, paddle.base.libpaddle.CPUPlace):
             with pir_executor_guard():
                 self.check_grad_with_place_for_static(
                     user_defined_grads,
@@ -3653,9 +3500,7 @@ class OpTest(unittest.TestCase):
                         attrs_outputs[attrs_name] = self.attrs[attrs_name]
 
             if check_dygraph:
-                dygraph_outputs = self._calc_python_api_output(
-                    place, inputs, outputs
-                )
+                dygraph_outputs = self._calc_python_api_output(place, inputs, outputs)
                 if dygraph_outputs is None:
                     # missing KernelSignature, fall back to eager middle output.
                     dygraph_outputs = self._calc_dygraph_output(
@@ -3672,9 +3517,7 @@ class OpTest(unittest.TestCase):
                 cast_outputs = []
                 for cast_input in cast_inputs:
                     if isinstance(cast_input, paddle.Tensor):
-                        cast_outputs.append(
-                            paddle.cast(cast_input, paddle.float32)
-                        )
+                        cast_outputs.append(paddle.cast(cast_input, paddle.float32))
                     else:
                         raise TypeError(
                             f"Unsupported test data type {type(cast_input)}."
@@ -3699,9 +3542,7 @@ class OpTest(unittest.TestCase):
                         cur_avg_loss = paddle.mean(outputs_valid[cur_loss][0])
                         avg_sum.append(cur_avg_loss)
                     loss_sum = paddle.add_n(avg_sum)
-                    loss = paddle.scale(
-                        loss_sum, scale=1.0 / float(len(avg_sum))
-                    )
+                    loss = paddle.scale(loss_sum, scale=1.0 / float(len(avg_sum)))
                 loss.backward()
 
                 fetch_list_grad = []
@@ -3749,9 +3590,7 @@ class OpTest(unittest.TestCase):
     def cast_bf16_output(self, block, cast_inputs):
         output_names = []
         for i in range(0, len(cast_inputs)):
-            cast_output = block.create_var(
-                dtype="float32", shape=cast_inputs[i].shape
-            )
+            cast_output = block.create_var(dtype="float32", shape=cast_inputs[i].shape)
             cast_op = block.append_op(
                 inputs={"X": cast_inputs[i]},
                 outputs={"Out": cast_output},
@@ -3780,7 +3619,7 @@ class OpTest(unittest.TestCase):
 
         stored_flag = get_flags(
             [
-                'FLAGS_enable_pir_in_executor',
+                "FLAGS_enable_pir_in_executor",
                 "FLAGS_pir_apply_inplace_pass",
             ]
         )
@@ -3831,16 +3670,16 @@ class OpTest(unittest.TestCase):
                 check_method(
                     gradients[i],
                     new_gradients[i],
-                    err_msg='Operator GradCheck ('
+                    err_msg="Operator GradCheck ("
                     + self.op_type
-                    + ') has diff at '
+                    + ") has diff at "
                     + str(place)
-                    + '\nExpect '
+                    + "\nExpect "
                     + str(gradients[i])
-                    + '\n'
-                    + 'But Got'
+                    + "\n"
+                    + "But Got"
                     + str(new_gradients[i])
-                    + ' in class '
+                    + " in class "
                     + self.__class__.__name__,
                 )
         finally:
@@ -3919,12 +3758,8 @@ class OpTest(unittest.TestCase):
                         ir_tensor = ir_true_var.get_tensor()
                         ir_tensor.set(grad_out_value, place)
 
-                targets = [
-                    outputs[name] for name in outputs if name in output_names
-                ]
-                inputs = [
-                    inputs[name] for name in input_to_check if name in inputs
-                ]
+                targets = [outputs[name] for name in outputs if name in output_names]
+                inputs = [inputs[name] for name in input_to_check if name in inputs]
                 grad_inputs = paddle.static.gradients(
                     targets, inputs, grad_outputs, no_grad_set
                 )
@@ -3934,9 +3769,9 @@ class OpTest(unittest.TestCase):
                 place, feed_dict, outputs
             )
             if enable_cinn_test:
-                if hasattr(self, 'cinn_atol'):
+                if hasattr(self, "cinn_atol"):
                     self.atol = self.cinn_atol
-                if hasattr(self, 'cinn_rtol'):
+                if hasattr(self, "cinn_rtol"):
                     self.rtol = self.cinn_rtol
 
             if parallel or enable_cinn_test:
@@ -3982,9 +3817,7 @@ class OpTest(unittest.TestCase):
                 for key, value in sub_dict.items():
                     if key == target_name:
                         return value
-        raise AssertionError(
-            target_name, " not in outputs:", output_vars.keys()
-        )
+        raise AssertionError(target_name, " not in outputs:", output_vars.keys())
 
     def _get_ir_gradient(
         self,
@@ -4032,9 +3865,7 @@ class OpTest(unittest.TestCase):
                 target_dtype=paddle.pir.core.DataType,
             )
             inputs_sig, attrs_sig, outputs_sig = kernel_sig
-            args = OpTestUtils.assumption_assert_and_transform(
-                args, len(inputs_sig)
-            )
+            args = OpTestUtils.assumption_assert_and_transform(args, len(inputs_sig))
             grad_outputs = []
             if user_defined_grad_outputs is not None:
                 # user_defined_grad_outputs here are numpy arrays
@@ -4045,20 +3876,18 @@ class OpTest(unittest.TestCase):
                     range(len(user_defined_grad_outputs)),
                 ):
                     grad_val = paddle.static.data(
-                        name=f'val_grad_{idx}',
+                        name=f"val_grad_{idx}",
                         shape=grad_out_value.shape,
                         dtype=grad_out_value.dtype,
                     )
                     grad_outputs.append(grad_val)
-                    feed.update({f'val_grad_{idx}': grad_out_value})
+                    feed.update({f"val_grad_{idx}": grad_out_value})
                 # delete the inputs which no need to calculate grad
                 for no_grad_val in no_grad_set:
                     del static_inputs[no_grad_val]
 
             ret_tuple = self.python_api(*args)
-            outputs = construct_output_dict_by_kernel_sig(
-                ret_tuple, outputs_sig
-            )
+            outputs = construct_output_dict_by_kernel_sig(ret_tuple, outputs_sig)
             if hasattr(self, "python_out_sig_sub_name"):
                 for key in self.python_out_sig_sub_name.keys():
                     outputs[key][0] = {
@@ -4096,9 +3925,7 @@ class OpTest(unittest.TestCase):
 
             outputs_valid = {}
             for output_name in output_names:
-                outputs_valid[output_name] = self._find_var_in_pir(
-                    outputs, output_name
-                )
+                outputs_valid[output_name] = self._find_var_in_pir(outputs, output_name)
             loss_inputs = []
             for input_name in inputs_to_check:
                 loss_inputs.append(inputs_dict[input_name])
@@ -4113,9 +3940,7 @@ class OpTest(unittest.TestCase):
                         cur_avg_loss = paddle.mean(outputs_valid[cur_loss][0])
                         avg_sum.append(cur_avg_loss)
                     loss_sum = paddle.add_n(avg_sum)
-                    loss = paddle.scale(
-                        loss_sum, scale=1.0 / float(len(avg_sum))
-                    )
+                    loss = paddle.scale(loss_sum, scale=1.0 / float(len(avg_sum)))
 
                 grad_inputs = ir_grad(
                     outputs=paddle.utils.flatten(loss),

@@ -42,60 +42,106 @@ std::vector<paddle::Tensor> FusedRotaryEmbedding(
     const paddle::Tensor &key,
     const paddle::Tensor &cos_sin_table,
     const paddle::Tensor &positions,
-    bool is_neox) {
+    bool is_neox,
+    int64_t head_size) {
   //   PADDLE_GCU_KERNEL_TRACE("common_FusedRotaryEmbedding");
   auto dev_ctx = static_cast<const phi::CustomContext *>(
       paddle::experimental::DeviceContextPool::Instance().Get(query.place()));
 
-  // [batch_size, seq_len, num_heads, head_dim]
+  // [batch_size, seq_len, num_heads, head_dim] or [num_tokens, num_heads,
+  // head_dim] or [num_tokens, hidden_size_q]
   auto query_tensor = static_cast<const phi::DenseTensor *>(query.impl().get());
 
-  // [batch_size, seq_len, num_kv_heads, head_dim]
+  // [batch_size, seq_len, num_kv_heads, head_dim] or [num_tokens, num_kv_heads,
+  // head_dim] or [num_tokens, hidden_size_kv]
   auto key_tensor = static_cast<const phi::DenseTensor *>(key.impl().get());
 
   // [max_position, rotary_dim]
   auto cos_sin_tensor =
       static_cast<const phi::DenseTensor *>(cos_sin_table.impl().get());
 
-  // [batch_size, seq_len]
+  // [batch_size, seq_len] or [num_tokens]
   auto positions_tensor =
       static_cast<const phi::DenseTensor *>(positions.impl().get());
 
   auto query_dims = query_tensor->dims();
   auto key_dims = key_tensor->dims();
+  PADDLE_ENFORCE_EQ(query_dims.size() == 4 || query_dims.size() == 3 ||
+                        query_dims.size() == 2,
+                    true,
+                    phi::errors::InvalidArgument(
+                        "The rank of query must be 4 or 3 or 2, but get %zu.",
+                        query_dims.size()));
   PADDLE_ENFORCE_EQ(
-      query_dims.size(),
-      4,
-      phi::errors::InvalidArgument("The rank of query must be 4, but get %zu.",
-                                   query_dims.size()));
-  PADDLE_ENFORCE_EQ(
-      key_dims.size(),
-      4,
-      phi::errors::InvalidArgument("The rank of key must be 4, but get %zu.",
-                                   key_dims.size()));
+      key_dims.size() == 4 || key_dims.size() == 3 || key_dims.size() == 2,
+      true,
+      phi::errors::InvalidArgument(
+          "The rank of key must be 4 or 3 or 2, but get %zu.",
+          key_dims.size()));
   PADDLE_ENFORCE_EQ(cos_sin_tensor->dims().size(),
                     2,
                     phi::errors::InvalidArgument(
                         "The rank of cos_sin_tensor must be 2, but get %zu.",
                         cos_sin_tensor->dims().size()));
-  PADDLE_ENFORCE_EQ(positions_tensor->dims().size(),
-                    2,
+  PADDLE_ENFORCE_EQ(positions_tensor->dims().size() == 2 ||
+                        positions_tensor->dims().size() == 1,
+                    true,
                     phi::errors::InvalidArgument(
-                        "The rank of positions must be 2, but get %zu.",
+                        "The rank of positions must be 2 or 1, but get %zu.",
                         positions_tensor->dims().size()));
 
-  auto head_dim = query_dims.at(3);
-  auto num_tokens = query_dims.at(0) * query_dims.at(1);
+  int64_t head_dim = head_size;
+  int64_t num_tokens = 0;
+  int64_t hidden_size_q = 0;
+  if (query_dims.size() == 4) {
+    num_tokens = query_dims.at(0) * query_dims.at(1);
+    head_dim = query_dims.at(3);
+    hidden_size_q = query_dims.at(2) * query_dims.at(3);
+  } else if (query_dims.size() == 3) {
+    num_tokens = query_dims.at(0);
+    head_dim = query_dims.at(2);
+    hidden_size_q = query_dims.at(1) * query_dims.at(2);
+  } else {
+    num_tokens = query_dims.at(0);
+    hidden_size_q = query_dims.at(1);
+    PADDLE_ENFORCE_NE(
+        head_size,
+        0,
+        phi::errors::InvalidArgument("head_size must be inited when the rank "
+                                     "of query is 1, but get %ld.",
+                                     head_size));
+  }
 
-  // [num_tokens, num_heads * head_dim]
-  auto query_reshape = custom_kernel::ReshapeWithoutCopy(
-      *query_tensor, {num_tokens, query_dims.at(2) * query_dims.at(3)});
-  // [num_tokens, num_kv_heads * head_dim]
-  auto key_reshape = custom_kernel::ReshapeWithoutCopy(
-      *key_tensor, {num_tokens, key_dims.at(2) * key_dims.at(3)});
-  // [num_tokens]
-  auto positions_reshape = custom_kernel::ReshapeWithoutCopy(
-      *positions_tensor, {positions_tensor->numel()});
+  int64_t hidden_size_kv = 0;
+  if (key_dims.size() == 4) {
+    hidden_size_kv = key_dims.at(2) * key_dims.at(3);
+  } else if (key_dims.size() == 3) {
+    hidden_size_kv = key_dims.at(1) * key_dims.at(2);
+  } else {
+    hidden_size_kv = key_dims.at(1);
+  }
+
+  phi::DenseTensor query_reshape = *query_tensor;
+  phi::DenseTensor key_reshape = *key_tensor;
+  phi::DenseTensor positions_reshape = *positions_tensor;
+
+  if (query_dims.size() != 2) {
+    // [num_tokens, num_heads * head_dim]
+    query_reshape = custom_kernel::ReshapeWithoutCopy(
+        *query_tensor, {num_tokens, hidden_size_q});
+  }
+
+  if (key_dims.size() != 2) {
+    // [num_tokens, num_kv_heads * head_dim]
+    key_reshape = custom_kernel::ReshapeWithoutCopy(
+        *key_tensor, {num_tokens, hidden_size_kv});
+  }
+
+  if (positions_tensor->dims().size() != 1) {
+    // [num_tokens]
+    positions_reshape = custom_kernel::ReshapeWithoutCopy(
+        *positions_tensor, {positions_tensor->numel()});
+  }
 
   LAUNCH_TOPSATENOP(topsvllmRotaryEmbedding,
                     (*dev_ctx),

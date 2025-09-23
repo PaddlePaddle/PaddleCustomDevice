@@ -49,14 +49,12 @@ void set_value_by_flags(bool *stop_flags,
   }
 }
 
-void GetStopFlagsMulti(const paddle::Tensor &topk_ids,
-                       const paddle::Tensor &stop_flags,
-                       const paddle::Tensor &seq_lens,
-                       const paddle::Tensor &end_ids,
-                       const paddle::Tensor &next_tokens,
-                       const bool beam_search) {
-  PADDLE_GCU_KERNEL_TRACE("set_stop_value_multi_ends_gcu");
-  VLOG(6) << "[CUSTOM_KERNEL] Custom Operator: set_stop_value_multi_ends_gcu";
+void GetStopFlagsMultiCPU(const paddle::Tensor &topk_ids,
+                          const paddle::Tensor &stop_flags,
+                          const paddle::Tensor &seq_lens,
+                          const paddle::Tensor &end_ids,
+                          const paddle::Tensor &next_tokens,
+                          const bool beam_search) {
   std::vector<int64_t> shape = topk_ids.shape();
   int64_t bs_now = shape[0];
   int64_t end_length = end_ids.shape()[0];
@@ -86,6 +84,106 @@ void GetStopFlagsMulti(const paddle::Tensor &topk_ids,
   next_tokens_ptr->copy_(next_tokens_cpu, next_tokens.place(), true);
 }
 
+void GetStopFlagsMulti(const paddle::Tensor &topk_ids,
+                       const paddle::Tensor &stop_flags,
+                       const paddle::Tensor &seq_lens,
+                       const paddle::Tensor &end_ids,
+                       const paddle::Tensor &next_tokens,
+                       const bool beam_search) {
+  auto dev_ctx = static_cast<const phi::CustomContext *>(
+      paddle::experimental::DeviceContextPool::Instance().Get(
+          topk_ids.place()));
+
+  // Inplace: in & out
+  auto topk_ids_tensor =
+      static_cast<const phi::DenseTensor *>(topk_ids.impl().get());
+  auto stop_flags_tensor =
+      static_cast<const phi::DenseTensor *>(stop_flags.impl().get());
+  auto next_tokens_tensor =
+      static_cast<const phi::DenseTensor *>(next_tokens.impl().get());
+
+  // Inputs
+  auto seq_lens_tensor =
+      static_cast<const phi::DenseTensor *>(seq_lens.impl().get());
+  auto end_ids_tensor =
+      static_cast<const phi::DenseTensor *>(end_ids.impl().get());
+
+  // aten inputs and outputs
+  auto stop_flags_aten =
+      custom_kernel::CreateTopsatenTensor(*stop_flags_tensor);
+  auto topk_ids_aten = custom_kernel::CreateTopsatenTensor(*topk_ids_tensor);
+  auto next_tokens_aten =
+      custom_kernel::CreateTopsatenTensor(*next_tokens_tensor);
+  auto end_ids_aten = custom_kernel::CreateTopsatenTensor(*end_ids_tensor);
+  auto seq_lens_aten = custom_kernel::CreateTopsatenTensor(*seq_lens_tensor);
+
+  auto stream = static_cast<topsStream_t>(dev_ctx->stream());
+
+  auto op_info = [&]() -> std::string {
+    return custom_kernel::GetOpInfo("topspaddleGetStopFlagsMulti",
+                                    *stop_flags_tensor,
+                                    *topk_ids_tensor,
+                                    *next_tokens_tensor,
+                                    *end_ids_tensor,
+                                    *seq_lens_tensor,
+                                    beam_search,
+                                    stream);
+  };
+  auto abstract_info = [&]() -> std::string {
+    return custom_kernel::GetAbstractInfo("topspaddleGetStopFlagsMulti",
+                                          *stop_flags_tensor,
+                                          *topk_ids_tensor,
+                                          *next_tokens_tensor,
+                                          *end_ids_tensor,
+                                          *seq_lens_tensor,
+                                          beam_search,
+                                          stream);
+  };
+
+  VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info();
+  if (custom_kernel::ProfilerIsOn()) {
+    auto abstract_info_str = abstract_info();
+    GCU_AOT_KERNEL_TRACE(abstract_info_str);
+  }
+
+#if 0
+  auto status = topspaddle::topspaddleGetStopFlagsMulti(stop_flags_aten,
+                                                        topk_ids_aten,
+                                                        next_tokens_aten,
+                                                        end_ids_aten,
+                                                        seq_lens_aten,
+                                                        beam_search,
+                                                        stream);
+  PADDLE_ENFORCE_EQ(
+      status,
+      TOPSATEN_STATUS_SUCCESS,
+      phi::errors::Fatal("Failed to call aten op "
+                         "topspaddle::topspaddleGetStopFlagsMulti, get "
+                         "error: %d, details: %s",
+                         status,
+                         op_info().c_str()));
+#endif
+
+  VLOG(6) << "Launch tops aten op successfully, details:" << op_info();
+}
+
+void GetStopFlagsMultiKernel(const paddle::Tensor &topk_ids,
+                             const paddle::Tensor &stop_flags,
+                             const paddle::Tensor &seq_lens,
+                             const paddle::Tensor &end_ids,
+                             const paddle::Tensor &next_tokens,
+                             const bool beam_search) {
+  PADDLE_GCU_KERNEL_TRACE("set_stop_value_multi_ends_gcu");
+  VLOG(6) << "[CUSTOM_KERNEL] Custom Operator: set_stop_value_multi_ends_gcu";
+  if (custom_kernel::IsScorpio() || custom_kernel::IsLibra()) {
+    GetStopFlagsMultiCPU(
+        topk_ids, stop_flags, seq_lens, end_ids, next_tokens, beam_search);
+  } else {
+    GetStopFlagsMulti(
+        topk_ids, stop_flags, seq_lens, end_ids, next_tokens, beam_search);
+  }
+}
+
 PD_BUILD_OP(set_stop_value_multi_ends_gcu)
     .Inputs({"topk_ids", "stop_flags", "seq_lens", "end_ids", "next_tokens"})
     .Attrs({"beam_search: bool"})
@@ -93,4 +191,4 @@ PD_BUILD_OP(set_stop_value_multi_ends_gcu)
     .SetInplaceMap({{"topk_ids", "topk_ids_out"},
                     {"stop_flags", "stop_flags_out"},
                     {"next_tokens", "next_tokens_out"}})
-    .SetKernelFn(PD_KERNEL(GetStopFlagsMulti));
+    .SetKernelFn(PD_KERNEL(GetStopFlagsMultiKernel));

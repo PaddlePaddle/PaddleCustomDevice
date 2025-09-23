@@ -13,21 +13,29 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/cast_kernel.h"
+#include "paddle/phi/kernels/gpu/cast_kernel.cu"  // NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(cast,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::CastKernel,
-                          float,
-                          int,
-                          int64_t,
-                          int16_t,
-                          bool,
-                          int8_t,
-                          uint8_t,
-                          phi::dtype::float16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
-}
+#define PTEN_REGISTER_CAST_CUDA_BASE_TYPE(op_name, ...)        \
+  PD_CUSTOM_KERNEL_REGISTER(cast,                              \
+                            metax_gpu,                         \
+                            ALL_LAYOUT,                        \
+                            phi::CastKernel,                   \
+                            float,                             \
+                            double,                            \
+                            int,                               \
+                            int64_t,                           \
+                            int16_t,                           \
+                            bool,                              \
+                            int8_t,                            \
+                            uint8_t,                           \
+                            phi::dtype::float16,               \
+                            phi::dtype::complex<float>,        \
+                            phi::dtype::complex<double>,       \
+                            ##__VA_ARGS__) {                   \
+    kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED); \
+  }
+
+PTEN_REGISTER_CAST_CUDA_BASE_TYPE(cast,
+                                  phi::dtype::bfloat16,
+                                  phi::dtype::float8_e4m3fn,
+                                  phi::dtype::float8_e5m2)

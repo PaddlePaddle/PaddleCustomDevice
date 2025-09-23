@@ -14,7 +14,26 @@
 
 from typing import Any, Dict, List, Optional
 import paddle
+import numpy as np
 from paddle.base import core
+
+_device_type = None
+
+
+def get_device_type():
+    global _device_type
+    if _device_type is None:
+        _type_tensor = core.eager._run_custom_op("get_device_type_gcu")[0]
+        _device_type = _type_tensor.tolist()[0]
+    return _device_type
+
+
+def is_S60():
+    return get_device_type() == 3
+
+
+def is_L600():
+    return get_device_type() == 4
 
 
 def mem_efficient_attention(
@@ -93,6 +112,23 @@ def flash_attn_var_len(
         False,  # return_softmax
     )[0]
     return attn_output
+
+
+def reshape_and_cache_flash(
+    key_cache,
+    value_cache,
+    key,
+    value,
+    slot_mapping,
+):
+    core.eager._run_custom_op(
+        "reshape_and_cache_flash_gcu",
+        key_cache,
+        value_cache,
+        key,
+        value,
+        slot_mapping,
+    )
 
 
 def reshape_and_cache(
@@ -190,12 +226,20 @@ def top_p_sampling(
     top_p,
     version=1,
 ):
+    np_top_p = top_p.numpy()
+    zero_cnt = (np.abs(np_top_p - 0.0) < 1e-4).astype(np.bool_).astype(np.int32).sum()
+    if zero_cnt != 0:
+        next_tokens = paddle.argmax(probs, axis=-1, keepdim=True)
+        return None, next_tokens
+
     if version == 1:
         sorted_probs, sorted_indices = paddle._C_ops.argsort(probs, -1, True, False)
         cumulative_probs = paddle.cumsum(sorted_probs, axis=-1)
 
         # Remove tokens with cumulative probs above the top_p, But keep at
         # least min_tokens_to_keep tokens
+        if probs.shape[0] != top_p.shape[0]:
+            top_p = top_p[: probs.shape[0], :]
         sorted_indices_to_remove = cumulative_probs > top_p
 
         # Keep the first token

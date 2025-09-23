@@ -2,23 +2,16 @@ if(NOT WITH_MUSA)
   return()
 endif()
 
-##if(NOT DEFINED ENV{MUSA_PATH})
-#set(MUSA_PATH
-#    "/usr/local/musa"
-#    CACHE PATH "Path to which musa has been installed")
-##else()
-##  set(MUSA_PATH
-##      $ENV{MUSA_PATH}
-##      CACHE PATH "Path to which ROCm has been installed")
-##endif()
-#list(APPEND CMAKE_MODULE_PATH "${MUSA_PATH}/cmake")
+# if(NOT DEFINED ENV{MUSA_PATH}) set(MUSA_PATH "/usr/local/musa" CACHE PATH
+# "Path to which musa has been installed") else() set(MUSA_PATH $ENV{MUSA_PATH}
+# CACHE PATH "Path to which ROCm has been installed") endif() list(APPEND
+# CMAKE_MODULE_PATH "${MUSA_PATH}/cmake")
 
 set(MUSA_LIB_DIR ${MUSA_PATH}/lib/)
 
 set(musart_lib ${MUSA_LIB_DIR}/libmusart.so)
 set(mccl_lib ${MUSA_LIB_DIR}/libmccl.so)
 set(mudnn_lib ${MUSA_LIB_DIR}/libmudnn.so)
-
 
 find_package(MUSA REQUIRED)
 include_directories(${MUSA_PATH}/include)
@@ -31,7 +24,7 @@ find_path(
   OPENMP_INCLUDE_DIR omp.h
   PATHS ${llvm_openmp_search_list} REQUIRED
   NO_DEFAULT_PATH)
-#include_directories(${OPENMP_INCLUDE_DIR})
+# include_directories(${OPENMP_INCLUDE_DIR})
 musa_include_directories(${OPENMP_INCLUDE_DIR})
 
 macro(find_musa_version musa_version_file)
@@ -118,10 +111,11 @@ endif()
 
 list(APPEND MUSA_MCC_FLAGS --cuda-gpu-arch=mp_31)
 list(APPEND MUSA_MCC_FLAGS -U__CUDA__)
-# MUSA has compile conflicts of float16.h as platform::float16 overload std::is_floating_point and std::is_integer
+# MUSA has compile conflicts of float16.h as platform::float16 overload
+# std::is_floating_point and std::is_integer
 list(APPEND MUSA_MCC_FLAGS -D__MUSA_NO_HALF_CONVERSIONS__)
 
-#set(MUSA_VERBOSE_BUILD ON)
+# set(MUSA_VERBOSE_BUILD ON)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   list(APPEND MUSA_MCC_FLAGS -g2)
   list(APPEND MUSA_MCC_FLAGS -O0)

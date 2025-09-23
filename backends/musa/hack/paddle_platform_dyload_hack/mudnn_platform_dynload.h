@@ -13,14 +13,16 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 
 // - [Modify the relevant code to adapt to musa backend]
 #pragma once
 #ifdef PADDLE_WITH_MUSA
 #include <glog/logging.h>
 #include <mudnn.h>
-#include "mudnn_dynload.h"
+
+#include "mudnn_dynload.h"  // NOLINT
 
 namespace paddle {
 namespace platform {

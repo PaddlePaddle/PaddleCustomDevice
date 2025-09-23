@@ -60,9 +60,11 @@ std::vector<paddle::Tensor> FlashAttnVarLenKernel(
 
   // [total_q, q_num_heads, head_size]
   auto query_tensor = static_cast<const phi::DenseTensor*>(query.impl().get());
-  // [total_k, k_num_heads, head_size]
+  // [total_k, k_num_heads, head_size] or [num_blocks, block_size, k_num_heads,
+  // head_size]
   auto key_tensor = static_cast<const phi::DenseTensor*>(key.impl().get());
-  // [total_k, k_num_heads, head_size]
+  // [total_k, k_num_heads, head_size] or [num_blocks, block_size, k_num_heads,
+  // head_size]
   auto value_tensor = static_cast<const phi::DenseTensor*>(value.impl().get());
   // [batch_size + 1]
   auto cu_seqlens_q_tensor =
@@ -106,7 +108,6 @@ std::vector<paddle::Tensor> FlashAttnVarLenKernel(
   }
 
   auto query_dims = query_tensor->dims();
-  auto kv_dims = key_tensor->dims();
   const int64_t batch_size = cu_seqlens_q_tensor->numel() - 1;
   const int64_t total_q = query_dims.at(0);
   const int64_t q_num_heads = query_dims.at(1);

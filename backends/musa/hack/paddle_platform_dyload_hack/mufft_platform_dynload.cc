@@ -13,12 +13,13 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 
 // - [Modify the relevant code to adapt to musa backend]
-#include "mufft_platform_dynload.h"
+#include "mufft_platform_dynload.h"  // NOLINT
 
-#include "mufft_dynload.h"
+#include "mufft_dynload.h"  // NOLINT
 
 namespace paddle {
 namespace platform {
@@ -27,7 +28,6 @@ namespace dynload {
 #define DEFINE_WRAP(__name) DynLoad__##__name __name
 
 MUFFT_FFT_ROUTINE_EACH(DEFINE_WRAP);
-
 
 }  // namespace dynload
 }  // namespace platform

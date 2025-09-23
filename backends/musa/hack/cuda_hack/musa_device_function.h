@@ -68,12 +68,13 @@ __forceinline__ __device__ phi::dtype::float16 CudaShuffleDownSync(
 template <>
 __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleDownSync(
     unsigned mask, phi::dtype::bfloat16 val, int delta, int width) {
-#if defined(PADDLE_MUSA_BF16) && defined(MARCH_TYPE) && MARCH_TYPE >=220
+#if defined(PADDLE_MUSA_BF16) && defined(MARCH_TYPE) && MARCH_TYPE >= 220
   return phi::dtype::bfloat16(__shfl_down_sync(
       mask, val.to_mt_bfloat16(), static_cast<unsigned>(delta), width));
 #else
   PADDLE_ENFORCE(
-      false, "__shfl_down_sync with bfloat16 is not supported on musa arch < 220");
+      false,
+      "__shfl_down_sync with bfloat16 is not supported on musa arch < 220");
 #endif
 }
 

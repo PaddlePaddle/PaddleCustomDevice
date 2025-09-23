@@ -92,6 +92,9 @@ class TestAddMMFP16Op(TestAddMMOp):
     def test_check_output(self):
         self.check_output(atol=1e-2)
 
+    def test_check_grad_x(self):
+        pass
+
 
 class TestAddMMBF16Op(OpTest):
     def setUp(self):

@@ -39,8 +39,10 @@ PD_CUSTOM_KERNEL_REGISTER(assign_value,
                           bool,
                           int,
                           float,
+                          double,
                           int8_t,
                           int64_t,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>) {}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}

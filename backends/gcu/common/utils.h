@@ -29,6 +29,10 @@ namespace custom_kernel {
 
 std::string GetTargetName();
 
+bool IsScorpio();
+
+bool IsLibra();
+
 int64_t GetCurrentTimestap();
 
 double GetTimeCostInMs(int64_t start_time, int64_t end_time);

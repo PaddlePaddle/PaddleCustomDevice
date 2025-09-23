@@ -166,16 +166,16 @@ void token_penalty_multi_scores_kernel(const paddle::Tensor &pre_ids,
   logits_ptr->copy_(logits_cpu, logits.place(), true);
 }
 
-void TokenPenaltyMultiScores(const paddle::Tensor &pre_ids,
-                             const paddle::Tensor &logits,
-                             const paddle::Tensor &penalty_scores,
-                             const paddle::Tensor &frequency_scores,
-                             const paddle::Tensor &presence_scores,
-                             const paddle::Tensor &temperatures,
-                             const paddle::Tensor &bad_tokens,
-                             const paddle::Tensor &cur_len,
-                             const paddle::Tensor &min_len,
-                             const paddle::Tensor &eos_token_id) {
+void TokenPenaltyMultiScoresCPU(const paddle::Tensor &pre_ids,
+                                const paddle::Tensor &logits,
+                                const paddle::Tensor &penalty_scores,
+                                const paddle::Tensor &frequency_scores,
+                                const paddle::Tensor &presence_scores,
+                                const paddle::Tensor &temperatures,
+                                const paddle::Tensor &bad_tokens,
+                                const paddle::Tensor &cur_len,
+                                const paddle::Tensor &min_len,
+                                const paddle::Tensor &eos_token_id) {
   PADDLE_GCU_KERNEL_TRACE("get_token_penalty_multi_scores_gcu");
   VLOG(6)
       << "[CUSTOM_KERNEL] Custom Operator: get_token_penalty_multi_scores_gcu";
@@ -192,8 +192,197 @@ void TokenPenaltyMultiScores(const paddle::Tensor &pre_ids,
       eos_token_id);
 }
 
+void TokenPenaltyMultiScores(const paddle::Tensor &pre_ids,
+                             const paddle::Tensor &prompt_ids,
+                             const paddle::Tensor &prompt_len,
+                             const paddle::Tensor &logits,
+                             const paddle::Tensor &penalty_scores,
+                             const paddle::Tensor &frequency_scores,
+                             const paddle::Tensor &presence_scores,
+                             const paddle::Tensor &temperatures,
+                             const paddle::Tensor &bad_tokens,
+                             const paddle::Tensor &cur_len,
+                             const paddle::Tensor &min_len,
+                             const paddle::Tensor &eos_token_id) {
+  auto dev_ctx = static_cast<const phi::CustomContext *>(
+      paddle::experimental::DeviceContextPool::Instance().Get(logits.place()));
+
+  // Inplace: in & out
+  auto logits_tensor =
+      static_cast<const phi::DenseTensor *>(logits.impl().get());
+
+  // Inputs
+  auto pre_ids_tensor =
+      static_cast<const phi::DenseTensor *>(pre_ids.impl().get());
+  auto prompt_ids_tensor =
+      static_cast<const phi::DenseTensor *>(prompt_ids.impl().get());
+  auto prompt_len_tensor =
+      static_cast<const phi::DenseTensor *>(prompt_len.impl().get());
+  auto penalty_scores_tensor =
+      static_cast<const phi::DenseTensor *>(penalty_scores.impl().get());
+  auto frequency_scores_tensor =
+      static_cast<const phi::DenseTensor *>(frequency_scores.impl().get());
+  auto presence_scores_tensor =
+      static_cast<const phi::DenseTensor *>(presence_scores.impl().get());
+  auto temperatures_tensor =
+      static_cast<const phi::DenseTensor *>(temperatures.impl().get());
+  auto bad_tokens_tensor =
+      static_cast<const phi::DenseTensor *>(bad_tokens.impl().get());
+  auto cur_len_tensor =
+      static_cast<const phi::DenseTensor *>(cur_len.impl().get());
+  auto min_len_tensor =
+      static_cast<const phi::DenseTensor *>(min_len.impl().get());
+  auto eos_token_id_tensor =
+      static_cast<const phi::DenseTensor *>(eos_token_id.impl().get());
+
+  // aten inputs and outputs
+  auto logits_aten = custom_kernel::CreateTopsatenTensor(*logits_tensor);
+  auto pre_ids_aten = custom_kernel::CreateTopsatenTensor(*pre_ids_tensor);
+  auto prompt_ids_aten =
+      custom_kernel::CreateTopsatenTensor(*prompt_ids_tensor);
+  auto prompt_len_aten =
+      custom_kernel::CreateTopsatenTensor(custom_kernel::ReshapeWithoutCopy(
+          *prompt_len_tensor, {prompt_len_tensor->numel()}));
+  auto penalty_scores_aten =
+      custom_kernel::CreateTopsatenTensor(custom_kernel::ReshapeWithoutCopy(
+          *penalty_scores_tensor, {penalty_scores_tensor->numel()}));
+  auto frequency_scores_aten =
+      custom_kernel::CreateTopsatenTensor(custom_kernel::ReshapeWithoutCopy(
+          *frequency_scores_tensor, {frequency_scores_tensor->numel()}));
+  auto presence_scores_aten =
+      custom_kernel::CreateTopsatenTensor(custom_kernel::ReshapeWithoutCopy(
+          *presence_scores_tensor, {presence_scores_tensor->numel()}));
+  auto temperatures_aten =
+      custom_kernel::CreateTopsatenTensor(custom_kernel::ReshapeWithoutCopy(
+          *temperatures_tensor, {temperatures_tensor->numel()}));
+  auto bad_tokens_aten =
+      custom_kernel::CreateTopsatenTensor(custom_kernel::ReshapeWithoutCopy(
+          *bad_tokens_tensor, {bad_tokens_tensor->numel()}));
+  auto cur_len_aten =
+      custom_kernel::CreateTopsatenTensor(custom_kernel::ReshapeWithoutCopy(
+          *cur_len_tensor, {cur_len_tensor->numel()}));
+  auto min_len_aten =
+      custom_kernel::CreateTopsatenTensor(custom_kernel::ReshapeWithoutCopy(
+          *min_len_tensor, {min_len_tensor->numel()}));
+  auto eos_token_id_aten =
+      custom_kernel::CreateTopsatenTensor(custom_kernel::ReshapeWithoutCopy(
+          *eos_token_id_tensor, {eos_token_id_tensor->numel()}));
+
+  auto stream = static_cast<topsStream_t>(dev_ctx->stream());
+
+  auto op_info = [&]() -> std::string {
+    return custom_kernel::GetOpInfo("topspaddleGetTokenPenaltyMultiScores",
+                                    *logits_tensor,
+                                    *pre_ids_tensor,
+                                    *prompt_ids_tensor,
+                                    *prompt_len_tensor,
+                                    *penalty_scores_tensor,
+                                    *frequency_scores_tensor,
+                                    *presence_scores_tensor,
+                                    *temperatures_tensor,
+                                    *bad_tokens_tensor,
+                                    *cur_len_tensor,
+                                    *min_len_tensor,
+                                    *eos_token_id_tensor,
+                                    stream);
+  };
+  auto abstract_info = [&]() -> std::string {
+    return custom_kernel::GetAbstractInfo(
+        "topspaddleGetTokenPenaltyMultiScores",
+        *logits_tensor,
+        *pre_ids_tensor,
+        *prompt_ids_tensor,
+        *prompt_len_tensor,
+        *penalty_scores_tensor,
+        *frequency_scores_tensor,
+        *presence_scores_tensor,
+        *temperatures_tensor,
+        *bad_tokens_tensor,
+        *cur_len_tensor,
+        *min_len_tensor,
+        *eos_token_id_tensor,
+        stream);
+  };
+
+  VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info();
+  if (custom_kernel::ProfilerIsOn()) {
+    auto abstract_info_str = abstract_info();
+    GCU_AOT_KERNEL_TRACE(abstract_info_str);
+  }
+
+#if 0
+  auto status =
+      topspaddle::topspaddleGetTokenPenaltyMultiScores(logits_aten,
+                                                       pre_ids_aten,
+                                                       prompt_ids_aten,
+                                                       prompt_len_aten,
+                                                       penalty_scores_aten,
+                                                       frequency_scores_aten,
+                                                       presence_scores_aten,
+                                                       temperatures_aten,
+                                                       bad_tokens_aten,
+                                                       cur_len_aten,
+                                                       min_len_aten,
+                                                       eos_token_id_aten,
+                                                       stream);
+  PADDLE_ENFORCE_EQ(status,
+                    TOPSATEN_STATUS_SUCCESS,
+                    phi::errors::Fatal(
+                        "Failed to call aten op "
+                        "topspaddle::topspaddleGetTokenPenaltyMultiScores, get "
+                        "error: %d, details: %s",
+                        status,
+                        op_info().c_str()));
+#endif
+  VLOG(6) << "Launch tops aten op successfully, details:" << op_info();
+}
+
+void TokenPenaltyMultiScoresKernel(const paddle::Tensor &pre_ids,
+                                   const paddle::Tensor &prompt_ids,
+                                   const paddle::Tensor &prompt_len,
+                                   const paddle::Tensor &logits,
+                                   const paddle::Tensor &penalty_scores,
+                                   const paddle::Tensor &frequency_scores,
+                                   const paddle::Tensor &presence_scores,
+                                   const paddle::Tensor &temperatures,
+                                   const paddle::Tensor &bad_tokens,
+                                   const paddle::Tensor &cur_len,
+                                   const paddle::Tensor &min_len,
+                                   const paddle::Tensor &eos_token_id) {
+  PADDLE_GCU_KERNEL_TRACE("get_token_penalty_multi_scores_gcu");
+  VLOG(6)
+      << "[CUSTOM_KERNEL] Custom Operator: get_token_penalty_multi_scores_gcu";
+  if (custom_kernel::IsScorpio()) {
+    TokenPenaltyMultiScoresCPU(pre_ids,
+                               logits,
+                               penalty_scores,
+                               frequency_scores,
+                               presence_scores,
+                               temperatures,
+                               bad_tokens,
+                               cur_len,
+                               min_len,
+                               eos_token_id);
+  } else {
+    TokenPenaltyMultiScores(pre_ids,
+                            prompt_ids,
+                            prompt_len,
+                            logits,
+                            penalty_scores,
+                            frequency_scores,
+                            presence_scores,
+                            temperatures,
+                            bad_tokens,
+                            cur_len,
+                            min_len,
+                            eos_token_id);
+  }
+}
+
 PD_BUILD_OP(get_token_penalty_multi_scores_gcu)
     .Inputs({"pre_ids",
+             "prompt_ids",
+             "prompt_len",
              "logits",
              "penalty_scores",
              "frequency_scores",
@@ -205,4 +394,4 @@ PD_BUILD_OP(get_token_penalty_multi_scores_gcu)
              "eos_token_id"})
     .Outputs({"logits_out"})
     .SetInplaceMap({{"logits", "logits_out"}})
-    .SetKernelFn(PD_KERNEL(TokenPenaltyMultiScores));
+    .SetKernelFn(PD_KERNEL(TokenPenaltyMultiScoresKernel));

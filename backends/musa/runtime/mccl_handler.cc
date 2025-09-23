@@ -1,4 +1,5 @@
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "mccl_handler.h"
+#include "mccl_handler.h"  // NOLINT
 
 namespace musa {
 
@@ -125,14 +126,13 @@ C_Status McclReduceScatter(void *send_buf,
                            C_CCLReduceOp op,
                            C_CCLComm comm,
                            C_Stream stream) {
-  MCCL_CHECK(
-      mcclReduceScatter(send_buf,
-                        recv_buf,
-                        count,
-                        PDDataType2McclDataType(data_type),
-                        PDReduceOp2McclReduceOp(op),
-                        reinterpret_cast<mcclComm_t>(comm),
-                        reinterpret_cast<musaStream_t>(stream)));
+  MCCL_CHECK(mcclReduceScatter(send_buf,
+                               recv_buf,
+                               count,
+                               PDDataType2McclDataType(data_type),
+                               PDReduceOp2McclReduceOp(op),
+                               reinterpret_cast<mcclComm_t>(comm),
+                               reinterpret_cast<musaStream_t>(stream)));
   return C_SUCCESS;
 }
 
@@ -188,26 +188,24 @@ C_Status McclAll2All(const void **send_buf,
   MCCL_CHECK(mcclGroupStart());
   for (size_t i = 0; i < nranks; ++i) {
     if (send_count[i] != 0)
-      MCCL_CHECK(
-          mcclSend(send_buf[i],
-                   send_count[i],
-                   PDDataType2McclDataType(send_dtype[i]),
-                   i,
-                   reinterpret_cast<mcclComm_t>(comm),
-                   reinterpret_cast<musaStream_t>(stream)));
+      MCCL_CHECK(mcclSend(send_buf[i],
+                          send_count[i],
+                          PDDataType2McclDataType(send_dtype[i]),
+                          i,
+                          reinterpret_cast<mcclComm_t>(comm),
+                          reinterpret_cast<musaStream_t>(stream)));
     if (recv_count[i] != 0)
-      MCCL_CHECK(
-          mcclRecv(recv_buf[i],
-                   recv_count[i],
-                   PDDataType2McclDataType(recv_dtype[i]),
-                   i,
-                   reinterpret_cast<mcclComm_t>(comm),
-                   reinterpret_cast<musaStream_t>(stream)));
+      MCCL_CHECK(mcclRecv(recv_buf[i],
+                          recv_count[i],
+                          PDDataType2McclDataType(recv_dtype[i]),
+                          i,
+                          reinterpret_cast<mcclComm_t>(comm),
+                          reinterpret_cast<musaStream_t>(stream)));
   }
   MCCL_CHECK(mcclGroupEnd());
   return C_SUCCESS;
 }
 
-}
+}  // namespace mccl
 
-}
+}  // namespace musa

@@ -38,15 +38,13 @@ void set_value_by_flag_and_id(const bool *stop_flags,
   }
 }
 
-void SetValueByFlagsAndIdx(const paddle::Tensor &pre_ids_all,
-                           const paddle::Tensor &input_ids,
-                           const paddle::Tensor &seq_lens_this_time,
-                           const paddle::Tensor &seq_lens_encoder,
-                           const paddle::Tensor &seq_lens_decoder,
-                           const paddle::Tensor &step_idx,
-                           const paddle::Tensor &stop_flags) {
-  PADDLE_GCU_KERNEL_TRACE("set_value_by_flags_and_idx_gcu");
-  VLOG(6) << "[CUSTOM_KERNEL] Custom Operator: set_value_by_flags_and_idx_gcu";
+void SetValueByFlagsAndIdxCPU(const paddle::Tensor &pre_ids_all,
+                              const paddle::Tensor &input_ids,
+                              const paddle::Tensor &seq_lens_this_time,
+                              const paddle::Tensor &seq_lens_encoder,
+                              const paddle::Tensor &seq_lens_decoder,
+                              const paddle::Tensor &step_idx,
+                              const paddle::Tensor &stop_flags) {
   std::vector<int64_t> pre_ids_all_shape = pre_ids_all.shape();
   int bs = seq_lens_this_time.shape()[0];
   int length = pre_ids_all_shape[1];
@@ -78,6 +76,137 @@ void SetValueByFlagsAndIdx(const paddle::Tensor &pre_ids_all,
   pre_ids_all_ptr->copy_(pre_ids_all_cpu, pre_ids_all.place(), true);
 }
 
+void SetValueByFlagsAndIdx(const paddle::Tensor &pre_ids_all,
+                           const paddle::Tensor &input_ids,
+                           const paddle::Tensor &seq_lens_this_time,
+                           const paddle::Tensor &seq_lens_encoder,
+                           const paddle::Tensor &seq_lens_decoder,
+                           const paddle::Tensor &step_idx,
+                           const paddle::Tensor &stop_flags) {
+  auto dev_ctx = static_cast<const phi::CustomContext *>(
+      paddle::experimental::DeviceContextPool::Instance().Get(
+          input_ids.place()));
+
+  // Inplace: in & out
+  auto pre_ids_all_tensor =
+      static_cast<const phi::DenseTensor *>(pre_ids_all.impl().get());
+
+  // Inputs
+  auto input_ids_tensor =
+      static_cast<const phi::DenseTensor *>(input_ids.impl().get());
+  auto seq_lens_this_time_tensor =
+      static_cast<const phi::DenseTensor *>(seq_lens_this_time.impl().get());
+  auto seq_lens_encoder_tensor =
+      static_cast<const phi::DenseTensor *>(seq_lens_encoder.impl().get());
+  auto seq_lens_decoder_tensor =
+      static_cast<const phi::DenseTensor *>(seq_lens_decoder.impl().get());
+  auto step_idx_tensor =
+      static_cast<const phi::DenseTensor *>(step_idx.impl().get());
+  auto stop_flags_tensor =
+      static_cast<const phi::DenseTensor *>(stop_flags.impl().get());
+
+  // aten inputs and outputs
+  auto pre_ids_all_aten =
+      custom_kernel::CreateTopsatenTensor(*pre_ids_all_tensor);
+  auto input_ids_aten = custom_kernel::CreateTopsatenTensor(*input_ids_tensor);
+  phi::DenseTensor seq_lens_this_time_tensor_reshape =
+      *seq_lens_this_time_tensor;
+  if (seq_lens_this_time_tensor->dims().size() != 1) {
+    seq_lens_this_time_tensor_reshape = custom_kernel::ReshapeWithoutCopy(
+        *seq_lens_this_time_tensor, {seq_lens_this_time_tensor->numel()});
+  }
+  auto seq_lens_this_time_aten =
+      custom_kernel::CreateTopsatenTensor(seq_lens_this_time_tensor_reshape);
+  auto seq_lens_encoder_aten =
+      custom_kernel::CreateTopsatenTensor(*seq_lens_encoder_tensor);
+  auto seq_lens_decoder_aten =
+      custom_kernel::CreateTopsatenTensor(*seq_lens_decoder_tensor);
+  auto step_idx_aten = custom_kernel::CreateTopsatenTensor(*step_idx_tensor);
+  auto stop_flags_aten =
+      custom_kernel::CreateTopsatenTensor(*stop_flags_tensor);
+
+  auto stream = static_cast<topsStream_t>(dev_ctx->stream());
+
+  auto op_info = [&]() -> std::string {
+    return custom_kernel::GetOpInfo("topspaddleSetValueByFlagsAndIdx",
+                                    *pre_ids_all_tensor,
+                                    *input_ids_tensor,
+                                    seq_lens_this_time_tensor_reshape,
+                                    *seq_lens_encoder_tensor,
+                                    *seq_lens_decoder_tensor,
+                                    *step_idx_tensor,
+                                    *stop_flags_tensor,
+                                    stream);
+  };
+  auto abstract_info = [&]() -> std::string {
+    return custom_kernel::GetAbstractInfo("topspaddleSetValueByFlagsAndIdx",
+                                          *pre_ids_all_tensor,
+                                          *input_ids_tensor,
+                                          seq_lens_this_time_tensor_reshape,
+                                          *seq_lens_encoder_tensor,
+                                          *seq_lens_decoder_tensor,
+                                          *step_idx_tensor,
+                                          *stop_flags_tensor,
+                                          stream);
+  };
+
+  VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info();
+  if (custom_kernel::ProfilerIsOn()) {
+    auto abstract_info_str = abstract_info();
+    GCU_AOT_KERNEL_TRACE(abstract_info_str);
+  }
+
+#if 0
+  auto status =
+      topspaddle::topspaddleSetValueByFlagsAndIdx(pre_ids_all_aten,
+                                                  input_ids_aten,
+                                                  seq_lens_this_time_aten,
+                                                  seq_lens_encoder_aten,
+                                                  seq_lens_decoder_aten,
+                                                  step_idx_aten,
+                                                  stop_flags_aten,
+                                                  stream);
+  PADDLE_ENFORCE_EQ(
+      status,
+      TOPSATEN_STATUS_SUCCESS,
+      phi::errors::Fatal("Failed to call aten op "
+                         "topspaddle::topspaddleSetValueByFlagsAndIdx, get "
+                         "error: %d, details: %s",
+                         status,
+                         op_info().c_str()));
+#endif
+
+  VLOG(6) << "Launch tops aten op successfully, details:" << op_info();
+}
+
+void SetValueByFlagsAndIdxKernel(const paddle::Tensor &pre_ids_all,
+                                 const paddle::Tensor &input_ids,
+                                 const paddle::Tensor &seq_lens_this_time,
+                                 const paddle::Tensor &seq_lens_encoder,
+                                 const paddle::Tensor &seq_lens_decoder,
+                                 const paddle::Tensor &step_idx,
+                                 const paddle::Tensor &stop_flags) {
+  PADDLE_GCU_KERNEL_TRACE("set_value_by_flags_and_idx_gcu");
+  VLOG(6) << "[CUSTOM_KERNEL] Custom Operator: set_value_by_flags_and_idx_gcu";
+  if (custom_kernel::IsScorpio()) {
+    SetValueByFlagsAndIdxCPU(pre_ids_all,
+                             input_ids,
+                             seq_lens_this_time,
+                             seq_lens_encoder,
+                             seq_lens_decoder,
+                             step_idx,
+                             stop_flags);
+  } else {
+    SetValueByFlagsAndIdx(pre_ids_all,
+                          input_ids,
+                          seq_lens_this_time,
+                          seq_lens_encoder,
+                          seq_lens_decoder,
+                          step_idx,
+                          stop_flags);
+  }
+}
+
 PD_BUILD_OP(set_value_by_flags_and_idx_gcu)
     .Inputs({"pre_ids_all",
              "input_ids",
@@ -88,4 +217,4 @@ PD_BUILD_OP(set_value_by_flags_and_idx_gcu)
              "stop_flags"})
     .Outputs({"pre_ids_all_out"})
     .SetInplaceMap({{"pre_ids_all", "pre_ids_all_out"}})
-    .SetKernelFn(PD_KERNEL(SetValueByFlagsAndIdx));
+    .SetKernelFn(PD_KERNEL(SetValueByFlagsAndIdxKernel));

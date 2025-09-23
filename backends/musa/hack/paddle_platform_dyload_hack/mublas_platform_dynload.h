@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 
 // - [Modify the relevant code to adapt to musa backend]
 #pragma once
@@ -24,7 +25,7 @@
 #include <mutex>  // NOLINT
 #include <type_traits>
 
-#include "mublas_dynload.h"
+#include "mublas_dynload.h"  // NOLINT
 
 namespace paddle {
 namespace platform {
@@ -41,15 +42,11 @@ namespace dynload {
   using DynLoad__##__name = phi::dynload::DynLoad__##__name; \
   extern DynLoad__##__name __name
 
-
 MUBLAS_BLAS_ROUTINE_EACH(PLATFORM_DECLARE_DYNAMIC_LOAD_MUBLAS_WRAP)
-
 
 MUBLAS_BLAS_ROUTINE_EACH_R2(PLATFORM_DECLARE_DYNAMIC_LOAD_MUBLAS_WRAP)
 
-
 MUBLAS_BLAS_ROUTINE_EACH_R3(PLATFORM_DECLARE_DYNAMIC_LOAD_MUBLAS_WRAP)
-
 
 MUBLAS_BLAS_ROUTINE_EACH_R4(PLATFORM_DECLARE_DYNAMIC_LOAD_MUBLAS_WRAP)
 

@@ -10,10 +10,11 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License. 
+limitations under the License.
 
 Modifications:
-Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+rights reserved.
 
 - [Modify the relevant code to adapt to musa backend]*/
 
@@ -23,8 +24,8 @@ Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All right
 
 #include <mutex>  // NOLINT
 
-#include "musa_dynamic_loader.h"
-#include "paddle/phi/common/port.h"
+#include "musa_dynamic_loader.h"     // NOLINT
+#include "paddle/phi/common/port.h"  // NOLINT
 
 namespace phi {
 namespace dynload {

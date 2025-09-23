@@ -55,6 +55,7 @@ class TestCastBF16(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
+        self.use_onednn = True
 
     def init_shape(self):
         self.shape = [10, 10]

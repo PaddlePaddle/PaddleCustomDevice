@@ -17,7 +17,7 @@
 PD_CUSTOM_KERNEL_REGISTER(moe_gate_dispatch,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::MoeGradDispatchKernel,
+                          phi::MoeGateDispatchKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 
 // - [modify the code to adapt to musa backend]
 #pragma once
@@ -22,7 +23,7 @@
 
 #include <mutex>  // NOLINT
 
-#include "musa_driver_dynload.h"
+#include "musa_driver_dynload.h"  // NOLINT
 
 namespace paddle {
 namespace platform {

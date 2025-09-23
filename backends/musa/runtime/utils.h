@@ -1,4 +1,5 @@
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +14,11 @@
 // limitations under the License.
 #pragma once
 
+#include <glog/logging.h>
+#include <mccl.h>
+#include <musa.h>
+#include <musa_runtime.h>
+
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -20,45 +26,37 @@
 #include <mutex>
 #include <optional>
 
-#include "paddle/phi/backends/device_ext.h"
 #include "paddle/common/exception.h"
-
-#include <musa_runtime.h>
-#include <musa.h>
-#include <mccl.h>
-
-#include <glog/logging.h>
-
+#include "paddle/phi/backends/device_ext.h"
 
 namespace musa {
 
 #if defined(PADDLE_WITH_MUSA)
-#define MUSA_CHECK(EXPR)                                             \
-  do {                                                               \
-    const musaError_t __err = EXPR;                                  \
-    if (__err != musaSuccess) {                                      \
-      PD_CHECK(false, "MUSA error: ", musaGetErrorString(__err));    \
-    }                                                                \
+#define MUSA_CHECK(EXPR)                                          \
+  do {                                                            \
+    const musaError_t __err = EXPR;                               \
+    if (__err != musaSuccess) {                                   \
+      PD_CHECK(false, "MUSA error: ", musaGetErrorString(__err)); \
+    }                                                             \
   } while (0);
 
-#define MUSA_CHECK_WARN(EXPR)                                  \
-  do {                                                         \
-    const musaError_t __err = EXPR;                            \
-    if (PD_UNLIKELY(__err != musaSuccess)) {                   \
-      auto error_unused = musaGetLastError();                  \
-      (void)error_unused;                                      \
-      PD_WARN("MUSA warning: ", musaGetErrorString(__err));    \
-    }                                                          \
+#define MUSA_CHECK_WARN(EXPR)                               \
+  do {                                                      \
+    const musaError_t __err = EXPR;                         \
+    if (PD_UNLIKELY(__err != musaSuccess)) {                \
+      auto error_unused = musaGetLastError();               \
+      (void)error_unused;                                   \
+      PD_WARN("MUSA warning: ", musaGetErrorString(__err)); \
+    }                                                       \
   } while (0);
 
-#define MUDNN_CHECK(rst, msg)              \
-  PD_CHECK(                                \
-      rst == ::musa::dnn::Status::SUCCESS, \
-      __FUNCTION__,                        \
-      " MUDNN failed at: ",                \
-      msg);
+#define MUDNN_CHECK(rst, msg)                   \
+  PD_CHECK(rst == ::musa::dnn::Status::SUCCESS, \
+           __FUNCTION__,                        \
+           " MUDNN failed at: ",                \
+           msg);
 
-#if defined (PADDLE_WITH_MCCL)
+#if defined(PADDLE_WITH_MCCL)
 
 static std::string GetMcclVer() {
   static std::once_flag mcclGetVersionFlag;
@@ -75,7 +73,8 @@ static std::string GetMcclVer() {
       int mcclMinor = (version % majorBase) / minorBase;
       int mcclPatch = version % minorBase;
       versionString = std::to_string(mcclMajor) + "." +
-          std::to_string(mcclMinor) + "." + std::to_string(mcclPatch);
+                      std::to_string(mcclMinor) + "." +
+                      std::to_string(mcclPatch);
     }
   });
   return versionString;
@@ -83,27 +82,28 @@ static std::string GetMcclVer() {
 
 extern inline std::string McclGetErrorWithVersion(mcclResult_t error) {
   return std::string(mcclGetErrorString(error)) + ", MCCL version " +
-      GetMcclVer();
+         GetMcclVer();
 }
 
 extern inline std::string GetMcclErrorDetailStr(
-    mcclResult_t error,
-    std::optional<std::string> processGroupFailureReason) {
+    mcclResult_t error, std::optional<std::string> processGroupFailureReason) {
   if (processGroupFailureReason != std::nullopt) {
     return *processGroupFailureReason;
   }
   return McclGetErrorWithVersion(error);
 }
 
-#define MCCL_CHECK(cmd)                                                             \
-  do {                                                                              \
-    mcclResult_t result = cmd;                                                      \
-    if (result != mcclSuccess) {                                                    \
-      std::string err = "MCCL error at: " + std::string(__FILE__) + ":" +           \
-          std::to_string(__LINE__) + ", " + McclGetErrorWithVersion(result) +       \
-          "\n" + GetMcclErrorDetailStr(result, "call mccl failed at paddle-musa");  \
-      PD_CHECK(false, err);                                                         \
-    }                                                                               \
+#define MCCL_CHECK(cmd)                                                       \
+  do {                                                                        \
+    mcclResult_t result = cmd;                                                \
+    if (result != mcclSuccess) {                                              \
+      std::string err =                                                       \
+          "MCCL error at: " + std::string(__FILE__) + ":" +                   \
+          std::to_string(__LINE__) + ", " + McclGetErrorWithVersion(result) + \
+          "\n" +                                                              \
+          GetMcclErrorDetailStr(result, "call mccl failed at paddle-musa");   \
+      PD_CHECK(false, err);                                                   \
+    }                                                                         \
   } while (0);
 
 // Macro to print and abort on a non-successful MCCL return value.
@@ -112,17 +112,15 @@ extern inline std::string GetMcclErrorDetailStr(
     mcclResult_t result = cmd;                           \
     if (result != mcclSuccess) {                         \
       std::string err = McclGetErrorWithVersion(result); \
-      fprintf(                                           \
-          stderr,                                        \
-          "[Error] MCCL error at: %s:%d, %s\n",          \
-          __FILE__,                                      \
-          __LINE__,                                      \
-          err.c_str());                                  \
+      fprintf(stderr,                                    \
+              "[Error] MCCL error at: %s:%d, %s\n",      \
+              __FILE__,                                  \
+              __LINE__,                                  \
+              err.c_str());                              \
       abort();                                           \
     }                                                    \
   } while (0);
-#endif // PADDLE_WITH_MCCL
-
+#endif  // PADDLE_WITH_MCCL
 
 #define DECLARE_TYPE_FOR_MUSA(GPU_TYPE, CUSTME_TYPE) \
   using GPU_TYPE = CUSTME_TYPE;
@@ -134,7 +132,6 @@ DECLARE_TYPE_FOR_MUSA(gpuMemcpyKind, musaMemcpyKind);
 DECLARE_TYPE_FOR_MUSA(gpuDeviceProp, musaDeviceProp);
 // DECLARE_TYPE_FOR_GPU(dnnDataType_t, musaDataType_t);
 
-#endif // PADDLE_WITH_MUSA
+#endif  // PADDLE_WITH_MUSA
 
-
-} // namespace musa
+}  // namespace musa

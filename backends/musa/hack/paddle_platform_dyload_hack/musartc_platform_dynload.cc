@@ -13,12 +13,13 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 
 // - [modify the code to adapt to musa backend]
-#include "musartc_platform_dynload.h"
+#include "musartc_platform_dynload.h"  // NOLINT
 
-#include "musartc_dynload.h"
+#include "musartc_dynload.h"  // NOLINT
 
 namespace paddle {
 namespace platform {

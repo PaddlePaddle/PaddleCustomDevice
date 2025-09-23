@@ -13,14 +13,13 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 // - [register musa backend]
+#include "paddle/phi/common/bfloat16.h"
 #include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/abs_kernel.h"
-
-#include "paddle/phi/common/bfloat16.h"
-#include "paddle/phi/core/kernel_registry.h"
 
 PD_CUSTOM_KERNEL_REGISTER(abs,
                           musa,

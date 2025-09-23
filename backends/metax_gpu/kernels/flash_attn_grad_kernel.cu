@@ -20,6 +20,7 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/core/tensor_utils.h"
 #include "paddle/phi/kernels/flash_attn_grad_kernel.h"
+#include "paddle/phi/kernels/reduce_sum_kernel.h"
 
 namespace phi {
 
@@ -47,6 +48,7 @@ void FlashAttnUnpaddedGradKernel_(
     DenseTensor* dk,
     DenseTensor* dv) {
 #ifdef PADDLE_WITH_FLASHATTN
+  printf("************ FlashAttnUnpaddedGradKernel_ ****************\n");
   ctx.template Alloc<T>(dq);
 
   DenseTensor dk_tmp;
@@ -169,22 +171,23 @@ void FlashAttnGradKernel(const Context& ctx,
                          DenseTensor* dv) {
 #ifdef PADDLE_WITH_FLASHATTN
 
-  ctx.template Alloc<T>(dq);
-  DenseTensor dk_tmp;
-  if (dk) {
-    ctx.template Alloc<T>(dk);
-    dk_tmp = *dk;
-  } else {
-    dk_tmp = EmptyLike<T, Context>(ctx, k);
-  }
+  // ctx.template Alloc<T>(dq);
+  // DenseTensor dk_tmp;
+  // if (dk) {
+  //   ctx.template Alloc<T>(dk);
+  //   dk_tmp = *dk;
+  // } else {
+  //   dk_tmp = EmptyLike<T, Context>(ctx, k);
+  // }
 
-  DenseTensor dv_tmp;
-  if (dv) {
-    ctx.template Alloc<T>(dv);
-    dv_tmp = *dv;
-  } else {
-    dv_tmp = EmptyLike<T, Context>(ctx, v);
-  }
+  // DenseTensor dv_tmp;
+  // if (dv) {
+  //   ctx.template Alloc<T>(dv);
+  //   dv_tmp = *dv;
+  // } else {
+  //   dv_tmp = EmptyLike<T, Context>(ctx, v);
+  // }
+
   // q, k, v [batch_size, seq_len, num_heads, head_dim]
   const auto& dims = q.dims();
   PADDLE_ENFORCE_EQ(dims.size(),
@@ -205,6 +208,44 @@ void FlashAttnGradKernel(const Context& ctx,
       head_size,
       phi::errors::InvalidArgument(
           "flash_attn_bwd receive input with head_size_og == head_size"));
+
+  bool is_mha = (num_heads == num_heads_k);
+
+  ctx.template Alloc<T>(dq);
+  DenseTensor dk_tmp;
+  if (dk) {
+    printf("dk input pointer is not nullptr!\n");
+    if (!is_mha) {
+      dk_tmp.Resize({batch_size, seqlen_k, num_heads, head_size_og});
+      ctx.template Alloc<T>(&dk_tmp);
+    } else {
+      ctx.template Alloc<T>(dk);
+      dk_tmp = *dk;
+    }
+
+  } else {
+    printf("dk input pointer is nullptr!\n");
+    dk_tmp = EmptyLike<T, Context>(ctx, k);
+  }
+
+  DenseTensor dv_tmp;
+  if (dv) {
+    if (!is_mha) {
+      dv_tmp.Resize({batch_size, seqlen_k, num_heads, head_size_og});
+      ctx.template Alloc<T>(&dv_tmp);
+    } else {
+      ctx.template Alloc<T>(dv);
+      dv_tmp = *dv;
+    }
+  } else {
+    dv_tmp = EmptyLike<T, Context>(ctx, v);
+  }
+
+  if (dk_tmp.meta().is_contiguous()) {
+    printf("dk_tmp alloc memory is contiguous!\n");
+  } else {
+    printf("dk_tmp alloc memory is not contiguous!\n");
+  }
 
   FlashAttnParamsBwd params = FlashAttnParamsBwd(ctx,
                                                  attn_mask,
@@ -237,6 +278,12 @@ void FlashAttnGradKernel(const Context& ctx,
     VLOG(10) << "[FlashAttn Backward] attn_mask.shape=["
              << (attn_mask.get_ptr())->dims() << "]";
   }
+  // printf("params.dq dims[2]:%d, params.dk dims[2]:%d, params.dv
+  // dims[2]:%d\n", params.dq->head_num, params.dk->head_num,
+  // params.dv->head_num);
+  print_tensor_info(params.dq);
+  print_tensor_info(params.dk);
+  // print_tensor_info(params.dv);
   mcflashattnStatus_t succ = phi::dynload::mha_bwd(params.batch_size,
                                                    params.seqlen_q,
                                                    params.num_heads,
@@ -267,6 +314,37 @@ void FlashAttnGradKernel(const Context& ctx,
                                                    params.extend_parameter);
 
   CheckFlashAttnStatus(succ);
+
+  if (!is_mha) {
+    if (dk) {
+      dk_tmp.Resize({batch_size,
+                     seqlen_k,
+                     num_heads_k,
+                     num_heads / num_heads_k,
+                     head_size_og});
+      if (dk->meta().is_contiguous()) {
+        phi::SumKernel<T, Context>(ctx, dk_tmp, {3}, dk->type(), false, dk);
+      } else {
+        // kvReduceBatchedForGQA<T, Context>(ctx, dk_tmp, dk);
+        printf("[%s: %d] - Need to complete!\n", __func__, __LINE__);
+      }
+    }
+
+    if (dv) {
+      dv_tmp.Resize({batch_size,
+                     seqlen_k,
+                     num_heads_k,
+                     num_heads / num_heads_k,
+                     head_size_og});
+      if (dv->meta().is_contiguous()) {
+        phi::SumKernel<T, Context>(ctx, dv_tmp, {3}, dv->type(), false, dv);
+      } else {
+        // kvReduceBatchedForGQA<T, Context>(ctx, dv_tmp, dv);
+        printf("[%s: %d] - Need to complete!\n", __func__, __LINE__);
+      }
+    }
+  }
+
 #else
   RaiseNotSupportedError();
 #endif

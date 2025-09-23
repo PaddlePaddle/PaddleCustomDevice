@@ -50,12 +50,11 @@ void get_padding_offset_kernel(int *padding_offset,
   }
 }
 
-std::vector<paddle::Tensor> GetPaddingOffset(const paddle::Tensor &input_ids,
-                                             const paddle::Tensor &cum_offsets,
-                                             const paddle::Tensor &token_num,
-                                             const paddle::Tensor &seq_len) {
-  PADDLE_GCU_KERNEL_TRACE("get_padding_offset_gcu");
-  VLOG(6) << "[CUSTOM_KERNEL] Custom Operator: get_padding_offset_gcu";
+std::vector<paddle::Tensor> GetPaddingOffsetCPU(
+    const paddle::Tensor &input_ids,
+    const paddle::Tensor &cum_offsets,
+    const paddle::Tensor &token_num,
+    const paddle::Tensor &seq_len) {
   std::vector<int64_t> input_ids_shape = input_ids.shape();
   const int bsz = seq_len.shape()[0];
   const int seq_length = input_ids_shape[1];
@@ -92,16 +91,144 @@ std::vector<paddle::Tensor> GetPaddingOffset(const paddle::Tensor &input_ids,
 
   auto x_remove_padding =
       x_remove_padding_cpu.copy_to(input_ids.place(), false);
-  auto cum_offsets_out = cum_offsets_out_cpu.copy_to(input_ids.place(), false);
-  auto padding_offset = padding_offset_cpu.copy_to(input_ids.place(), false);
+  auto batch_id_per_token =
+      padding_offset_cpu.copy_to(input_ids.place(), false);
   auto cu_seqlens_q = cu_seqlens_q_cpu.copy_to(input_ids.place(), false);
   auto cu_seqlens_k = cu_seqlens_k_cpu.copy_to(input_ids.place(), true);
 
-  return {x_remove_padding,
-          cum_offsets_out,
-          padding_offset,
-          cu_seqlens_q,
-          cu_seqlens_k};
+  return {x_remove_padding, batch_id_per_token, cu_seqlens_q, cu_seqlens_k};
+}
+
+std::vector<paddle::Tensor> GetPaddingOffset(const paddle::Tensor &input_ids,
+                                             const paddle::Tensor &cum_offsets,
+                                             const paddle::Tensor &token_num,
+                                             const paddle::Tensor &seq_len) {
+  auto dev_ctx = static_cast<const phi::CustomContext *>(
+      paddle::experimental::DeviceContextPool::Instance().Get(
+          input_ids.place()));
+
+  std::vector<int64_t> input_ids_shape = input_ids.shape();
+  const int bsz = seq_len.shape()[0];
+  const int seq_length = input_ids_shape[1];
+
+  auto cpu_token_num = token_num.copy_to(paddle::CPUPlace(), true);
+  const int token_num_data = cpu_token_num.data<int>()[0];
+
+  // Inputs
+  auto input_ids_tensor =
+      static_cast<const phi::DenseTensor *>(input_ids.impl().get());
+  auto cum_offsets_tensor =
+      static_cast<const phi::DenseTensor *>(cum_offsets.impl().get());
+  auto seq_len_tensor =
+      static_cast<const phi::DenseTensor *>(seq_len.impl().get());
+
+  // Outputs
+  auto x_remove_padding = paddle::empty(
+      {token_num_data}, paddle::DataType::INT64, input_ids.place());
+  auto batch_id_per_token = paddle::empty(
+      {token_num_data}, paddle::DataType::INT32, input_ids.place());
+  auto cu_seqlens_q =
+      paddle::full({bsz + 1}, 0, paddle::DataType::INT32, input_ids.place());
+  auto cu_seqlens_k =
+      paddle::full({bsz + 1}, 0, paddle::DataType::INT32, input_ids.place());
+
+  auto x_remove_padding_tensor =
+      static_cast<const phi::DenseTensor *>(x_remove_padding.impl().get());
+  auto batch_id_per_token_tensor =
+      static_cast<const phi::DenseTensor *>(batch_id_per_token.impl().get());
+  auto cu_seqlens_q_tensor =
+      static_cast<const phi::DenseTensor *>(cu_seqlens_q.impl().get());
+  auto cu_seqlens_k_tensor =
+      static_cast<const phi::DenseTensor *>(cu_seqlens_k.impl().get());
+
+  // aten inputs and outputs
+  auto input_ids_aten = custom_kernel::CreateTopsatenTensor(*input_ids_tensor);
+  auto cum_offsets_aten =
+      custom_kernel::CreateTopsatenTensor(*cum_offsets_tensor);
+  phi::DenseTensor seq_len_tensor_reshape = *seq_len_tensor;
+  if (seq_len_tensor->dims().size() != 1) {
+    seq_len_tensor_reshape = custom_kernel::ReshapeWithoutCopy(
+        *seq_len_tensor, {seq_len_tensor->numel()});
+  }
+  auto seq_len_aten =
+      custom_kernel::CreateTopsatenTensor(seq_len_tensor_reshape);
+
+  auto x_remove_padding_aten =
+      custom_kernel::CreateTopsatenTensor(*x_remove_padding_tensor);
+  auto batch_id_per_token_aten =
+      custom_kernel::CreateTopsatenTensor(*batch_id_per_token_tensor);
+  auto cu_seqlens_q_aten =
+      custom_kernel::CreateTopsatenTensor(*cu_seqlens_q_tensor);
+  auto cu_seqlens_k_aten =
+      custom_kernel::CreateTopsatenTensor(*cu_seqlens_k_tensor);
+
+  auto stream = static_cast<topsStream_t>(dev_ctx->stream());
+
+  auto op_info = [&]() -> std::string {
+    return custom_kernel::GetOpInfo("topspaddleGetPaddingOffset",
+                                    *x_remove_padding_tensor,
+                                    *batch_id_per_token_tensor,
+                                    *cu_seqlens_q_tensor,
+                                    *cu_seqlens_k_tensor,
+                                    *input_ids_tensor,
+                                    *cum_offsets_tensor,
+                                    seq_len_tensor_reshape,
+                                    stream);
+  };
+  auto abstract_info = [&]() -> std::string {
+    return custom_kernel::GetAbstractInfo("topspaddleGetPaddingOffset",
+                                          *x_remove_padding_tensor,
+                                          *batch_id_per_token_tensor,
+                                          *cu_seqlens_q_tensor,
+                                          *cu_seqlens_k_tensor,
+                                          *input_ids_tensor,
+                                          *cum_offsets_tensor,
+                                          seq_len_tensor_reshape,
+                                          stream);
+  };
+
+  VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info();
+  if (custom_kernel::ProfilerIsOn()) {
+    auto abstract_info_str = abstract_info();
+    GCU_AOT_KERNEL_TRACE(abstract_info_str);
+  }
+
+#if 0
+  auto status = topspaddle::topspaddleGetPaddingOffset(x_remove_padding_aten,
+                                                       batch_id_per_token_aten,
+                                                       cu_seqlens_q_aten,
+                                                       cu_seqlens_k_aten,
+                                                       input_ids_aten,
+                                                       cum_offsets_aten,
+                                                       seq_len_aten,
+                                                       stream);
+  PADDLE_ENFORCE_EQ(
+      status,
+      TOPSATEN_STATUS_SUCCESS,
+      phi::errors::Fatal(
+          "Failed to call aten op "
+          "topspaddle::topspaddleGetPaddingOffset, get error: %d, details: %s",
+          status,
+          op_info().c_str()));
+#endif
+
+  VLOG(6) << "Launch tops aten op successfully, details:" << op_info();
+
+  return {x_remove_padding, batch_id_per_token, cu_seqlens_q, cu_seqlens_k};
+}
+
+std::vector<paddle::Tensor> GetPaddingOffsetKernel(
+    const paddle::Tensor &input_ids,
+    const paddle::Tensor &cum_offsets,
+    const paddle::Tensor &token_num,
+    const paddle::Tensor &seq_len) {
+  PADDLE_GCU_KERNEL_TRACE("get_padding_offset_gcu");
+  VLOG(0) << "[CUSTOM_KERNEL] Custom Operator: get_padding_offset_gcu";
+  if (custom_kernel::IsScorpio()) {
+    return GetPaddingOffsetCPU(input_ids, cum_offsets, token_num, seq_len);
+  } else {
+    return GetPaddingOffset(input_ids, cum_offsets, token_num, seq_len);
+  }
 }
 
 std::vector<std::vector<int64_t>> GetPaddingOffsetInferShape(
@@ -111,7 +238,7 @@ std::vector<std::vector<int64_t>> GetPaddingOffsetInferShape(
     const std::vector<int64_t> &seq_len_shape) {
   int64_t bsz = seq_len_shape[0];
   int64_t seq_len = input_ids_shape[1];
-  return {{-1}, {bsz}, {-1}, {bsz + 1}, {bsz + 1}};
+  return {{-1}, {-1}, {bsz + 1}, {bsz + 1}};
 }
 
 std::vector<paddle::DataType> GetPaddingOffsetInferDtype(
@@ -119,20 +246,15 @@ std::vector<paddle::DataType> GetPaddingOffsetInferDtype(
     const paddle::DataType &cum_offsets_dtype,
     const paddle::DataType &token_num_dtype,
     const paddle::DataType &seq_len_dtype) {
-  return {input_ids_dtype,
-          seq_len_dtype,
-          seq_len_dtype,
-          seq_len_dtype,
-          seq_len_dtype};
+  return {input_ids_dtype, seq_len_dtype, seq_len_dtype, seq_len_dtype};
 }
 
 PD_BUILD_OP(get_padding_offset_gcu)
     .Inputs({"input_ids", "cum_offsets", "token_num", "seq_len"})
     .Outputs({"x_remove_padding",
-              "cum_offsets_out",
-              "padding_offset",
+              "batch_id_per_token",
               "cu_seqlens_q",
               "cu_seqlens_k"})
-    .SetKernelFn(PD_KERNEL(GetPaddingOffset))
+    .SetKernelFn(PD_KERNEL(GetPaddingOffsetKernel))
     .SetInferShapeFn(PD_INFER_SHAPE(GetPaddingOffsetInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(GetPaddingOffsetInferDtype));

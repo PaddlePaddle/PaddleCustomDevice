@@ -1,4 +1,5 @@
-# Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+# Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+# rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy of
@@ -38,7 +39,6 @@ option(WITH_COVERAGE "Compile PaddlePaddle with code coverage" OFF)
 option(WITH_MUSA "Compile PaddlePaddle with MUSA" ON)
 option(WITH_MCCL "Compile PaddlePaddle with MCCL support" ON)
 
-
 message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}, version: "
                "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "C compiler: ${CMAKE_C_COMPILER}, version: "
@@ -64,53 +64,50 @@ include(external/eigen)
 include(version)
 include(generic)
 include_directories(${CMAKE_SOURCE_DIR})
-include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR}
-                    ${CMAKE_SOURCE_DIR}/kernels
-                    ${CMAKE_SOURCE_DIR}/kernels/paddle_kernels
-                    ${CMAKE_SOURCE_DIR}/hack/cuda_hack
-                    ${CMAKE_SOURCE_DIR}/hack/thrust_hack
-                    ${CMAKE_SOURCE_DIR}/hack/paddle_backend_dyload_hack
-                    ${CMAKE_SOURCE_DIR}/hack/paddle_platform_dyload_hack)
+include_directories(
+  ${PADDLE_INC_DIR}
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/kernels
+  ${CMAKE_SOURCE_DIR}/kernels/paddle_kernels
+  ${CMAKE_SOURCE_DIR}/hack/cuda_hack
+  ${CMAKE_SOURCE_DIR}/hack/thrust_hack
+  ${CMAKE_SOURCE_DIR}/hack/paddle_backend_dyload_hack
+  ${CMAKE_SOURCE_DIR}/hack/paddle_platform_dyload_hack)
 include_directories(${PADDLE_SOURCE_DIR})
 file(
   GLOB
   PADDLE_KERNEL_SRCS
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_grad_kernel.cu
-  #${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cross_entropy2_kernel.cu
-  #${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cross_entropy2_grad_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cross_entropy2_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cross_entropy2_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cross_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cross_grad_kernel.cu
-  #${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu
-  #${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/activation_kernel.cc
-  #${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_grad_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/activation_kernel.cc
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adam_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adamw_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/adamw_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adamax_kernel.cu
-  #${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/angle_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/angle_kernel.cu
-)
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/angle_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/angle_kernel.cu)
 file(
   GLOB_RECURSE PLUGIN_SRCS
   RELATIVE ${CMAKE_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/runtime/*.cc
-  kernels/*.cc
-  kernels/paddle_kernels/*.cc
-  #kernels/paddle_kernels/*.mu
-  hack/paddle_backend_dyload_hack/*.cc
-  hack/paddle_platform_dyload_hack/*.cc
-  )
+  ${CMAKE_SOURCE_DIR}/runtime/*.cc kernels/*.cc kernels/paddle_kernels/*.cc
+  # kernels/paddle_kernels/*.mu
+  hack/paddle_backend_dyload_hack/*.cc hack/paddle_platform_dyload_hack/*.cc)
 set(CUSTOM_DEVICE_SRCS ${PLUGIN_SRCS} ${PADDLE_KERNEL_SRCS})
-#target_include_directories(${PLUGIN_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/hack/paddle_backend_dyload_hack)
+# target_include_directories(${PLUGIN_NAME} PUBLIC
+# ${CMAKE_SOURCE_DIR}/hack/paddle_backend_dyload_hack)
 include(musa)
 include(mudnn)
 musa_add_library(${PLUGIN_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
-target_include_directories(${PLUGIN_NAME} PUBLIC 
-                          ${CMAKE_SOURCE_DIR}/hack/cuda_hack
-                          ${CMAKE_SOURCE_DIR}/hack/thrust_hack)
+target_include_directories(
+  ${PLUGIN_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/hack/cuda_hack
+                        ${CMAKE_SOURCE_DIR}/hack/thrust_hack)
 link_directories(${PADDLE_LIB_DIR})
-
 
 # link paddle core lib
 if(ON_INFER)
@@ -118,12 +115,12 @@ if(ON_INFER)
   target_link_libraries(${PLUGIN_NAME} paddle_inference)
 else()
   target_link_libraries(${PLUGIN_NAME} ${PADDLE_CORE_LIB})
-  #target_link_libraries(${PLUGIN_NAME} PRIVATE pybind)
+  # target_link_libraries(${PLUGIN_NAME} PRIVATE pybind)
 endif()
 
 # link musa rt mudnn
 target_link_libraries(${PLUGIN_NAME} ${musart_lib} ${mudnn_lib})
-#target_link_libraries(${PLUGIN_NAME} ${mudnn_lib})
+# target_link_libraries(${PLUGIN_NAME} ${mudnn_lib})
 
 # link mccl
 if(WITH_MCCL)
@@ -144,21 +141,22 @@ include(third_party)
 add_dependencies(${PLUGIN_NAME} third_party)
 target_link_libraries(${PLUGIN_NAME} eigen3 gflags glog)
 target_compile_definitions(
- ${PLUGIN_NAME}
- PUBLIC __NVCC__=__MUSACC__
-        __CUDACC_VER_MAJOR__=99
-        __CUDACC_VER_MINOR__=10000
-        MARCH_TYPE=310 # TODO: the version num should be obtained automatically here
-        GPUContext=CustomContext
-        KPSContext=CustomContext
-        STREAM_TYPE=musaStream_t
-        EVENT_TYPE=musaEvent_t
-        EIGEN_USE_GPU=1
-        PADDLE_WITH_MUSA=1
-        PADDLE_WITH_CUSTOM_DEVICE=1
-        EIGEN_USE_MUSA=1)
+  ${PLUGIN_NAME}
+  PUBLIC __NVCC__=__MUSACC__
+         __CUDACC_VER_MAJOR__=99
+         __CUDACC_VER_MINOR__=10000
+         MARCH_TYPE=310 # TODO: the version num should be obtained automatically
+                        # here
+         GPUContext=CustomContext
+         KPSContext=CustomContext
+         STREAM_TYPE=musaStream_t
+         EVENT_TYPE=musaEvent_t
+         EIGEN_USE_GPU=1
+         PADDLE_WITH_MUSA=1
+         PADDLE_WITH_CUSTOM_DEVICE=1
+         EIGEN_USE_MUSA=1)
 
-#packing wheel package
+# packing wheel package
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
 

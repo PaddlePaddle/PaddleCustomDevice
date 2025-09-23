@@ -13,22 +13,22 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 
 // - [Modify the relevant code to adapt to musa backend]
 #pragma once
+#include <glog/logging.h>
 #include <mufft.h>
 #include <mufftXt.h>
-#include <glog/logging.h>
 
 #include <mutex>  // NOLINT
 
-#include "mufft_dynload.h"
+#include "mufft_dynload.h"  // NOLINT
 
 namespace paddle {
 namespace platform {
 namespace dynload {
-
 
 #define PLATFORM_DECLARE_DYNAMIC_LOAD_MUFFT_WRAP(__name)     \
   using DynLoad__##__name = phi::dynload::DynLoad__##__name; \
@@ -38,54 +38,54 @@ namespace dynload {
  * include all needed cufft functions in HPPL
  * different cufft version has different interfaces
  **/
-#define MUFFT_FFT_ROUTINE_EACH(__macro)  \
-  __macro(mufftPlan1d);                  \
-  __macro(mufftPlan2d);                  \
-  __macro(mufftPlan3d);                  \
-  __macro(mufftPlanMany);                \
-  __macro(mufftMakePlan1d);              \
-  __macro(mufftMakePlan2d);              \
-  __macro(mufftMakePlan3d);              \
-  __macro(mufftMakePlanMany);            \
-  __macro(mufftEstimate1d);              \
-  __macro(mufftEstimate2d);              \
-  __macro(mufftEstimate3d);              \
-  __macro(mufftEstimateMany);            \
-  __macro(mufftCreate);                  \
-  __macro(mufftGetSize1d);               \
-  __macro(mufftGetSize2d);               \
-  __macro(mufftGetSize3d);               \
-  __macro(mufftGetSizeMany);             \
-  __macro(mufftGetSize);                 \
-  __macro(mufftSetWorkArea);             \
-  __macro(mufftSetAutoAllocation);       \
-  __macro(mufftExecC2C);                 \
-  __macro(mufftExecR2C);                 \
-  __macro(mufftExecC2R);                 \
-  __macro(mufftExecZ2Z);                 \
-  __macro(mufftExecD2Z);                 \
-  __macro(mufftExecZ2D);                 \
-  __macro(mufftSetStream);               \
-  __macro(mufftDestroy);                 \
-  __macro(mufftGetVersion);              \
-  __macro(mufftGetProperty);             \
-  __macro(mufftXtSetGPUs);               \
-  __macro(mufftXtMalloc);                \
-  __macro(mufftXtMemcpy);                \
-  __macro(mufftXtFree);                  \
-  __macro(mufftXtExecDescriptorC2C);     \
-  __macro(mufftXtExecDescriptorR2C);     \
-  __macro(mufftXtExecDescriptorC2R);     \
-  __macro(mufftXtExecDescriptorZ2Z);     \
-  __macro(mufftXtExecDescriptorD2Z);     \
-  __macro(mufftXtExecDescriptorZ2D);     \
-  __macro(mufftXtQueryPlan);             \
-  __macro(mufftXtSetCallback);           \
-  __macro(mufftXtClearCallback);         \
-  __macro(mufftXtMakePlanMany);          \
-  __macro(mufftXtGetSizeMany);           \
-  __macro(mufftXtExec);                  \
-  __macro(mufftXtExecDescriptor);        
+#define MUFFT_FFT_ROUTINE_EACH(__macro) \
+  __macro(mufftPlan1d);                 \
+  __macro(mufftPlan2d);                 \
+  __macro(mufftPlan3d);                 \
+  __macro(mufftPlanMany);               \
+  __macro(mufftMakePlan1d);             \
+  __macro(mufftMakePlan2d);             \
+  __macro(mufftMakePlan3d);             \
+  __macro(mufftMakePlanMany);           \
+  __macro(mufftEstimate1d);             \
+  __macro(mufftEstimate2d);             \
+  __macro(mufftEstimate3d);             \
+  __macro(mufftEstimateMany);           \
+  __macro(mufftCreate);                 \
+  __macro(mufftGetSize1d);              \
+  __macro(mufftGetSize2d);              \
+  __macro(mufftGetSize3d);              \
+  __macro(mufftGetSizeMany);            \
+  __macro(mufftGetSize);                \
+  __macro(mufftSetWorkArea);            \
+  __macro(mufftSetAutoAllocation);      \
+  __macro(mufftExecC2C);                \
+  __macro(mufftExecR2C);                \
+  __macro(mufftExecC2R);                \
+  __macro(mufftExecZ2Z);                \
+  __macro(mufftExecD2Z);                \
+  __macro(mufftExecZ2D);                \
+  __macro(mufftSetStream);              \
+  __macro(mufftDestroy);                \
+  __macro(mufftGetVersion);             \
+  __macro(mufftGetProperty);            \
+  __macro(mufftXtSetGPUs);              \
+  __macro(mufftXtMalloc);               \
+  __macro(mufftXtMemcpy);               \
+  __macro(mufftXtFree);                 \
+  __macro(mufftXtExecDescriptorC2C);    \
+  __macro(mufftXtExecDescriptorR2C);    \
+  __macro(mufftXtExecDescriptorC2R);    \
+  __macro(mufftXtExecDescriptorZ2Z);    \
+  __macro(mufftXtExecDescriptorD2Z);    \
+  __macro(mufftXtExecDescriptorZ2D);    \
+  __macro(mufftXtQueryPlan);            \
+  __macro(mufftXtSetCallback);          \
+  __macro(mufftXtClearCallback);        \
+  __macro(mufftXtMakePlanMany);         \
+  __macro(mufftXtGetSizeMany);          \
+  __macro(mufftXtExec);                 \
+  __macro(mufftXtExecDescriptor);
 
 MUFFT_FFT_ROUTINE_EACH(PLATFORM_DECLARE_DYNAMIC_LOAD_MUFFT_WRAP)
 

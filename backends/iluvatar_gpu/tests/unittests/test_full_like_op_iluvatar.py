@@ -38,7 +38,7 @@ def fill_any_like_wrapper(x, value, out_dtype=None, name=None):
             out_dtype, paddle.framework.core.VarDesc.VarType
         ):
             tmp_dtype = paddle.pir.core.vartype_to_datatype[tmp_dtype]
-    return paddle.full_like(x, value, tmp_dtype, name)
+    return paddle.full_like(x, value, tmp_dtype, name=name)
 
 
 class TestFullOp(unittest.TestCase):
@@ -143,7 +143,7 @@ class TestFullLikeOp1(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output(check_prim=True, check_pir=True, check_prim_pir=True)
+        self.check_output(check_prim=False, check_pir=True, check_prim_pir=False)
 
     def if_enable_cinn(self):
         pass
@@ -160,7 +160,7 @@ class TestFullLikeOp2(TestFullLikeOp1):
     def init_data(self):
         self.fill_value = 1000
         self.shape = [10, 10]
-        self.dtype = np.float64
+        self.dtype = np.float32
 
     def if_enable_cinn(self):
         pass

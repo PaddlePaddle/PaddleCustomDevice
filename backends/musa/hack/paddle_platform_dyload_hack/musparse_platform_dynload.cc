@@ -13,9 +13,10 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 // - [modify the code to adapt to musa backend]
-#include "musparse_platform_dynload.h"
+#include "musparse_platform_dynload.h"  // NOLINT
 
 namespace paddle {
 namespace platform {
@@ -30,4 +31,3 @@ MUSPARSE_ROUTINE_EACH(DEFINE_WRAP);
 }  // namespace dynload
 }  // namespace platform
 }  // namespace paddle
-

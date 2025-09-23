@@ -284,9 +284,9 @@ __device__ __forceinline__ void ThreadGetTopK(Pair<T> topk[],
           topk[k] = topk[k + *beam];
         } else {
           if (largest) {
-            topk[k].set(-static_cast<T>(INFINITY), -1);
+            topk[k].set(std::numeric_limits<T>::lowest(), -1);
           } else {
-            topk[k].set(static_cast<T>(INFINITY), -1);
+            topk[k].set(std::numeric_limits<T>::max(), -1);
           }
         }
       }
@@ -356,11 +356,11 @@ __device__ __forceinline__ void BlockReduce(Pair<T> shared_max[],
     if (largest) {
       input_now = (tid < BlockSize / WARP_SIZE)
                       ? shared_max[lane]
-                      : Pair<T>(-static_cast<T>(INFINITY), -1);
+                      : Pair<T>(std::numeric_limits<T>::lowest(), -1);
     } else {
       input_now = (tid < BlockSize / WARP_SIZE)
                       ? shared_max[lane]
-                      : Pair<T>(static_cast<T>(INFINITY), -1);
+                      : Pair<T>(std::numeric_limits<T>::max(), -1);
     }
     if (wid == 0) {
       input_now = WarpReduce(input_now, largest);
@@ -430,9 +430,9 @@ __global__ void KeMatrixTopK(T* output,
 
     for (int j = 0; j < MaxLength; j++) {
       if (largest) {
-        topk[j].set(-static_cast<T>(INFINITY), -1);
+        topk[j].set(std::numeric_limits<T>::lowest(), -1);
       } else {
-        topk[j].set(static_cast<T>(INFINITY), -1);
+        topk[j].set(std::numeric_limits<T>::max(), -1);
       }
     }
     while (top_num) {

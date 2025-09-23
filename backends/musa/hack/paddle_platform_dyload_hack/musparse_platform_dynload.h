@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // Modifications:
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 // - [modify the macro of dynload to adapt to musa backend]
 
 #pragma once
@@ -23,7 +24,7 @@
 
 #include <mutex>  // NOLINT
 
-#include "musparse_dynload.h"
+#include "musparse_dynload.h"  // NOLINT
 
 namespace paddle {
 namespace platform {
@@ -35,7 +36,6 @@ namespace dynload {
 
 #if defined(PADDLE_WITH_MUSA)
 
-
 MUSPARSE_ROUTINE_EACH(PLATFORM_DECLARE_DYNAMIC_LOAD_MUSPARSE_WRAP)
 #endif  // PADDLE_WITH_MUSA
 
@@ -43,4 +43,3 @@ MUSPARSE_ROUTINE_EACH(PLATFORM_DECLARE_DYNAMIC_LOAD_MUSPARSE_WRAP)
 }  // namespace dynload
 }  // namespace platform
 }  // namespace paddle
-

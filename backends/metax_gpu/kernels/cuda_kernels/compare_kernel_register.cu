@@ -22,26 +22,10 @@ PD_CUSTOM_KERNEL_REGISTER(equal_all,
                           bool,
                           int,
                           int64_t,
-                          float) {
+                          float,
+                          double) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
-
-#define PD_REGISTER_COMPARE_KERNEL(name, func)            \
-  PD_CUSTOM_KERNEL_REGISTER(name,                         \
-                            metax_gpu,                    \
-                            ALL_LAYOUT,                   \
-                            phi::func##Kernel,            \
-                            bool,                         \
-                            int,                          \
-                            uint8_t,                      \
-                            int8_t,                       \
-                            int16_t,                      \
-                            int64_t,                      \
-                            float,                        \
-                            phi::dtype::float16,          \
-                            phi::dtype::bfloat16) {       \
-    kernel->OutputAt(0).SetDataType(phi::DataType::BOOL); \
-  }
 
 #define PD_REGISTER_COMPLEX_COMPARE_KERNEL(name, func)    \
   PD_CUSTOM_KERNEL_REGISTER(name,                         \
@@ -55,16 +39,17 @@ PD_CUSTOM_KERNEL_REGISTER(equal_all,
                             int16_t,                      \
                             int64_t,                      \
                             phi::dtype::complex<float>,   \
+                            phi::dtype::complex<double>,  \
                             float,                        \
+                            double,                       \
                             phi::dtype::float16,          \
                             phi::dtype::bfloat16) {       \
     kernel->OutputAt(0).SetDataType(phi::DataType::BOOL); \
   }
 
-PD_REGISTER_COMPARE_KERNEL(less_than, LessThan)
-PD_REGISTER_COMPARE_KERNEL(less_equal, LessEqual)
-PD_REGISTER_COMPARE_KERNEL(greater_than, GreaterThan)
-PD_REGISTER_COMPARE_KERNEL(greater_equal, GreaterEqual)
-
+PD_REGISTER_COMPLEX_COMPARE_KERNEL(less_than, LessThan)
+PD_REGISTER_COMPLEX_COMPARE_KERNEL(less_equal, LessEqual)
+PD_REGISTER_COMPLEX_COMPARE_KERNEL(greater_than, GreaterThan)
+PD_REGISTER_COMPLEX_COMPARE_KERNEL(greater_equal, GreaterEqual)
 PD_REGISTER_COMPLEX_COMPARE_KERNEL(equal, Equal)
 PD_REGISTER_COMPLEX_COMPARE_KERNEL(not_equal, NotEqual)

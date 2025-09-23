@@ -1,4 +1,5 @@
-// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,50 +13,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once
-#include <unordered_map>
 #include <sstream>
+#include <unordered_map>
 
-#include "utils.h"
+#include "utils.h"  // NOLINT
 namespace musa {
 
 namespace mccl {
 
 static mcclRedOp_t PDReduceOp2McclReduceOp(C_CCLReduceOp op) {
-  static std::unordered_map<C_CCLReduceOp, mcclRedOp_t> pd_op_to_mccl_op {
-    {C_CCLReduceOp::MIN, mcclMin},
-    {C_CCLReduceOp::MAX, mcclMax},
-    {C_CCLReduceOp::SUM, mcclSum},
-    {C_CCLReduceOp::PRODUCT, mcclProd},
-    {C_CCLReduceOp::AVG, mcclAvg}
-  };
-  
+  static std::unordered_map<C_CCLReduceOp, mcclRedOp_t> pd_op_to_mccl_op{
+      {C_CCLReduceOp::MIN, mcclMin},
+      {C_CCLReduceOp::MAX, mcclMax},
+      {C_CCLReduceOp::SUM, mcclSum},
+      {C_CCLReduceOp::PRODUCT, mcclProd},
+      {C_CCLReduceOp::AVG, mcclAvg}};
+
   auto iter = pd_op_to_mccl_op.find(op);
   if (iter == pd_op_to_mccl_op.end()) {
-     std::stringstream ss;
-     ss << "Reduceop " << op << " in mccl is not supported.";
-     LOG(ERROR) << ss.str();
-     PD_CHECK(false, ss.str().c_str());
+    std::stringstream ss;
+    ss << "Reduceop " << op << " in mccl is not supported.";
+    LOG(ERROR) << ss.str();
+    PD_CHECK(false, ss.str().c_str());
   }
-  
+
   return iter->second;
 }
 
 static mcclDataType_t PDDataType2McclDataType(C_DataType type) {
-
-  static std::unordered_map<C_DataType, mcclDataType_t> pd_type_to_mccl_type {
-    {C_DataType::UINT8, mcclUint8},
-    {C_DataType::UINT32, mcclUint32},
-    {C_DataType::UINT64, mcclUint64},
-    {C_DataType::UINT8, mcclUint8},
-    {C_DataType::INT8, mcclInt8},
-    {C_DataType::INT32, mcclInt32},
-    {C_DataType::INT64, mcclInt64},
-    {C_DataType::FLOAT16, mcclFloat16},
-    {C_DataType::FLOAT32, mcclFloat32},
-    {C_DataType::FLOAT64, mcclFloat64}
-    // {C_DataType::BFLOAT16, mcclBfloat16}, TODO(jihong.zhong)： fix it 
+  static std::unordered_map<C_DataType, mcclDataType_t> pd_type_to_mccl_type{
+      {C_DataType::UINT8, mcclUint8},
+      {C_DataType::UINT32, mcclUint32},
+      {C_DataType::UINT64, mcclUint64},
+      {C_DataType::UINT8, mcclUint8},
+      {C_DataType::INT8, mcclInt8},
+      {C_DataType::INT32, mcclInt32},
+      {C_DataType::INT64, mcclInt64},
+      {C_DataType::FLOAT16, mcclFloat16},
+      {C_DataType::FLOAT32, mcclFloat32},
+      {C_DataType::FLOAT64, mcclFloat64}
+      // {C_DataType::BFLOAT16, mcclBfloat16}, TODO(jihong.zhong)： fix it
   };
-  
+
   auto iter = pd_type_to_mccl_type.find(type);
   if (iter == pd_type_to_mccl_type.end()) {
     std::stringstream ss;
@@ -133,6 +132,6 @@ C_Status McclAll2All(const void **send_buf,
                      size_t nranks,
                      C_CCLComm comm,
                      C_Stream stream);
-}
+}  // namespace mccl
 
-}
+}  // namespace musa

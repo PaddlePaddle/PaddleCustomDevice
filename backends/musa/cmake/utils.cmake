@@ -11,11 +11,14 @@ function(paddle_musa_parse_version_str lib_name version_str)
                        "${version_str}")
   string(REGEX REPLACE "[0-9]+\\.[0-9]+\\.([0-9]+).*$" "\\1"
                        ${lib_name}_VERSION_PATCH "${version_str}")
-  set(${lib_name}_VERSION_MAJOR ${${lib_name}_VERSION_MAJOR} ${ARGN}
+  set(${lib_name}_VERSION_MAJOR
+      ${${lib_name}_VERSION_MAJOR} ${ARGN}
       PARENT_SCOPE)
-  set(${lib_name}_VERSION_MINOR ${${lib_name}_VERSION_MINOR} ${ARGN}
+  set(${lib_name}_VERSION_MINOR
+      ${${lib_name}_VERSION_MINOR} ${ARGN}
       PARENT_SCOPE)
-  set(${lib_name}_VERSION_PATCH ${${lib_name}_VERSION_PATCH} ${ARGN}
+  set(${lib_name}_VERSION_PATCH
+      ${${lib_name}_VERSION_PATCH} ${ARGN}
       PARENT_SCOPE)
   set(${lib_name}_VERSION
       "${${lib_name}_VERSION_MAJOR}.${${lib_name}_VERSION_MINOR}.${${lib_name}_VERSION_PATCH}"
@@ -28,7 +31,9 @@ function(append_cxx_flag_if_supported flag outputvar)
   check_cxx_compiler_flag("${flag}" ${_FLAG_NAME})
   if(${_FLAG_NAME})
     string(APPEND ${outputvar} " ${flag}")
-    set(${outputvar} "${${outputvar}}" PARENT_SCOPE)
+    set(${outputvar}
+        "${${outputvar}}"
+        PARENT_SCOPE)
   endif()
 endfunction()
 
@@ -55,7 +60,9 @@ function(parse_real_musa_version outputvar)
       MUSA_TOOLKITS_VERSION_INT
       "${MUSA_TOOLKITS_VERSION_MAJOR} * 1000 + ${MUSA_TOOLKITS_VERSION_MINOR} * 10 + ${MUSA_TOOLKITS_VERSION_PATCH}"
     )
-    set(${outputvar} "${MUSA_TOOLKITS_VERSION_INT}" PARENT_SCOPE)
+    set(${outputvar}
+        "${MUSA_TOOLKITS_VERSION_INT}"
+        PARENT_SCOPE)
     mark_as_advanced(${outputvar})
   endif()
 endfunction()

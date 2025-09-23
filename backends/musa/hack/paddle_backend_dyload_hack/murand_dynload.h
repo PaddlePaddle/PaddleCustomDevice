@@ -17,7 +17,7 @@ limitations under the License. */
 
 #include <mutex>  // NOLINT
 
-#include "musa_dynamic_loader.h"
+#include "musa_dynamic_loader.h"  // NOLINT
 #include "paddle/phi/common/port.h"
 
 namespace phi {
@@ -25,18 +25,18 @@ namespace dynload {
 extern std::once_flag murand_dso_flag;
 extern void *murand_dso_handle;
 
-#define DECLARE_DYNAMIC_LOAD_CURAND_WRAP(__name)                    \
-  struct DynLoad__##__name {                                        \
-    template <typename... Args>                                     \
+#define DECLARE_DYNAMIC_LOAD_CURAND_WRAP(__name)                   \
+  struct DynLoad__##__name {                                       \
+    template <typename... Args>                                    \
     murandStatus_t operator()(Args... args) {                      \
       using murandFunc = decltype(&::__name);                      \
       std::call_once(murand_dso_flag, []() {                       \
         murand_dso_handle = phi::dynload::GetMurandDsoHandle();    \
-      });                                                           \
+      });                                                          \
       static void *p_##__name = dlsym(murand_dso_handle, #__name); \
       return reinterpret_cast<murandFunc>(p_##__name)(args...);    \
-    }                                                               \
-  };                                                                \
+    }                                                              \
+  };                                                               \
   extern DynLoad__##__name __name
 
 #define MURAND_RAND_ROUTINE_EACH(__macro)      \

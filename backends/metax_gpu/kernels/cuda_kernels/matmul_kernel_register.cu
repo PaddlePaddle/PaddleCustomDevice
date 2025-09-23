@@ -14,25 +14,44 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 // clang-format off
+#include "paddle/phi/kernels/matmul_kernel.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/complex.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/matmul_kernel.h"
 #include "kernels/impl/matmul_kernel_impl.h"
-// clang-format on
 
+
+#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#if CUDA_VERSION >= 12010 && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
 PD_CUSTOM_KERNEL_REGISTER(matmul,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::MatmulKernel,
-                          float,
-                          double,
-                          int32_t,
-                          int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          int8_t) {
+                   metax_gpu,
+                   ALL_LAYOUT,
+                   phi::MatmulKernel,
+                   float,
+                   double,
+                   int32_t,
+                   int64_t,
+                   phi::dtype::float8_e4m3fn,
+                   phi::dtype::float16,
+                   phi::dtype::bfloat16,
+                   phi::dtype::complex<float>,
+                   phi::dtype::complex<double>,
+                   int8_t) {
+#else
+PD_CUSTOM_KERNEL_REGISTER(matmul,
+  metax_gpu,
+                   ALL_LAYOUT,
+                   phi::MatmulKernel,
+                   float,
+                   double,
+                   int32_t,
+                   int64_t,
+                   phi::dtype::float16,
+                   phi::dtype::bfloat16,
+                   phi::dtype::complex<float>,
+                   phi::dtype::complex<double>,
+                   int8_t) {
+#endif
   if (kernel_key.dtype() == phi::DataType::INT8) {
     kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
   }
@@ -40,28 +59,21 @@ PD_CUSTOM_KERNEL_REGISTER(matmul,
     kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT16);
   }
 }
-
-PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::MatmulWithFlattenKernel,
-                          int8_t,
-                          float,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {
+#else
+PD_CUSTOM_KERNEL_REGISTER(matmul,
+  metax_gpu,
+                   ALL_LAYOUT,
+                   phi::MatmulKernel,
+                   float,
+                   double,
+                   int32_t,
+                   int64_t,
+                   phi::dtype::float16,
+                   phi::dtype::bfloat16,
+                   phi::dtype::complex<float>,
+                   phi::dtype::complex<double>) {
   if (kernel_key.dtype() == phi::DataType::INT8) {
     kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
   }
 }
-
-PD_CUSTOM_KERNEL_REGISTER(legacy_matmul,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::LegacyMatmulKernel,
-                          float,
-                          phi::dtype::float16,
-                          int8_t) {
-  if (kernel_key.dtype() == phi::DataType::INT8) {
-    kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
-  }
-}
+#endif

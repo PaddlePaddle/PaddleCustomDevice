@@ -12,7 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "mccl_dynload.h"
+#include "hack/paddle_backend_dyload_hack/mccl_dynload.h"
 
 namespace phi {
 namespace dynload {

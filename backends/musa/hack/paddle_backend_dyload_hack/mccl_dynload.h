@@ -17,7 +17,7 @@ limitations under the License. */
 
 #include <mutex>  // NOLINT
 
-#include "musa_dynamic_loader.h"
+#include "musa_dynamic_loader.h"  // NOLINT
 #include "paddle/phi/common/port.h"
 
 namespace phi {

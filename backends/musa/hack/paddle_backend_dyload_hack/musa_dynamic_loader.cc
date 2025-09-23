@@ -1,5 +1,5 @@
-/* Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
+/* Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+rights reserved. Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
@@ -12,20 +12,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 Modifications:
-Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All rights reserved.
+Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+rights reserved.
 
 - [Modify the relevant code to adapt to musa backend] */
-#include "musa_dynamic_loader.h"
+#include "musa_dynamic_loader.h"  // NOLINT
 
 #include <cstdlib>
 #include <string>
 #include <vector>
-#include "glog/logging.h"
 
+#include "glog/logging.h"
+#include "paddle/common/flags.h"
 #include "paddle/phi/common/port.h"
 #include "paddle/phi/core/enforce.h"
-#include "paddle/common/flags.h"
-
 
 PHI_DEFINE_string(mudnn_dir,
                   "",
@@ -185,48 +185,54 @@ static void* GetDsoHandleFromSearchPath(
   return dso_handle;
 }
 
-}// namespace musa_dl_utils
+}  // namespace musa_dl_utils
 
 void* GetMublasDsoHandle() {
- return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_musa_dir, "libmublas.so");
+  return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_musa_dir,
+                                                   "libmublas.so");
 }
 
 void* GetMUDNNDsoHandle() {
- return musa_dl_utils::GetDsoHandleFromSearchPath(
-      FLAGS_mudnn_dir, "libmudnn.so");
+  return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_mudnn_dir,
+                                                   "libmudnn.so");
 }
 
 void* GetMUPTIDsoHandle() {
-  // TODO: implement mupti load
+  // TODO(someone): implement mupti load
 }
 void* GetMusolverDsoHandle() {
-  // TODO: implement muslover load
+  // TODO(someone): implement muslover load
 }
 
 void* GetMurandDsoHandle() {
- return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_musa_dir, "libmurand.so");
+  return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_musa_dir,
+                                                   "libmurand.so");
 }
 
 void* GetMUFFTDsoHandle() {
- return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_musa_dir, "libmufft.so");
+  return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_musa_dir,
+                                                   "libmufft.so");
 }
 void* GetMusparseDsoHandle() {
- return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_musa_dir, "libmusparse.so");
+  return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_musa_dir,
+                                                   "libmusparse.so");
 }
 
 void* GetMURTCDsoHandle() {
- return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_musa_dir, "libmusart.so", false);
+  return musa_dl_utils::GetDsoHandleFromSearchPath(
+      FLAGS_musa_dir, "libmusart.so", false);
 }
 
 void* GetMUSADsoHandle() {
- return musa_dl_utils::GetDsoHandleFromSearchPath(FLAGS_musa_dir, "libmusa.so", false);
+  return musa_dl_utils::GetDsoHandleFromSearchPath(
+      FLAGS_musa_dir, "libmusa.so", false);
 }
 
 void* GetMCCLDsoHandle() {
   std::string warning_msg(
       "You may need to install 'mccl' from musa official website.");
 
- return musa_dl_utils::GetDsoHandleFromSearchPath(
+  return musa_dl_utils::GetDsoHandleFromSearchPath(
       FLAGS_mccl_dir, "libmccl.so", true, {}, warning_msg);
 }
 

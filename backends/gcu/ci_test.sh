@@ -16,6 +16,7 @@
 
 WORKSPACE=`pwd`
 
+pip install safetensors==0.6.2
 python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 python -c "import paddle; print(paddle.__version__)"
 python -c "import paddle; print(paddle.version.commit)"

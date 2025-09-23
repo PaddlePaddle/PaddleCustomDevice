@@ -52,6 +52,7 @@ class TestCastBF16(OpTest):
             "in_dtype": self.in_dtype,
             "out_dtype": self.out_dtype,
         }
+        self.use_onednn = True
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -139,7 +140,7 @@ class TestCastBF16_7(TestCastBF16):
         self.out_dtype = int(core.VarDesc.VarType.BOOL)
 
 
-class TestCastOpFp32ToFp64(OpTest):
+class TestCastOpFp32ToFp64(TestCastBF16):
     def setUp(self):
         self.set_npu()
         self.op_type = "cast"
@@ -163,7 +164,7 @@ class TestCastOpFp32ToFp64(OpTest):
         self.check_grad(["X"], ["Out"])
 
 
-class TestCastOpFp16ToFp32(OpTest):
+class TestCastOpFp16ToFp32(TestCastBF16):
     def setUp(self):
         self.set_npu()
         ipt = np.random.random(size=[10, 10])
@@ -183,7 +184,7 @@ class TestCastOpFp16ToFp32(OpTest):
         self.check_output(atol=1e-3)
 
 
-class TestCastOpBf16ToFp32(OpTest):
+class TestCastOpBf16ToFp32(TestCastBF16):
     def setUp(self):
         self.set_npu()
         ipt = np.array(np.random.randint(10, size=[10, 10])).astype("uint16")

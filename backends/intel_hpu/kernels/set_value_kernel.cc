@@ -118,7 +118,7 @@ class SetTensorValueExp : public HpuOperator {
 template <typename T, typename Context>
 void SetTensorValueKernel(const Context& dev_ctx,
                           const phi::DenseTensor& x,
-                          const phi::DenseTensor& value,
+                          const phi::DenseTensor& val,
                           const phi::IntArray& starts,
                           const phi::IntArray& ends,
                           const phi::IntArray& steps,
@@ -130,8 +130,14 @@ void SetTensorValueKernel(const Context& dev_ctx,
   auto starts_v = starts.GetData();
   auto ends_v = ends.GetData();
 
+  paddle::Tensor val_tensor(std::make_shared<phi::DenseTensor>(val));
+  auto value_tensor =
+      custom_kernel::copy_tensor_wrapper(&dev_ctx, val_tensor, val.place());
+
+  auto value = static_cast<phi::DenseTensor*>(value_tensor.impl().get());
+
   const auto& x_dims = x.dims();
-  const auto& value_dims = value.dims();
+  const auto& value_dims = value->dims();
 
   PADDLE_ENFORCE_EQ(
       starts_v.size(),
@@ -181,7 +187,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
   synRecipeHandle recipe;
   if (v_sum != v_new_sum) {
     std::vector<int64_t> input_dim = phi::vectorize<int64_t>(x_dims);
-    std::vector<int64_t> value_dim = phi::vectorize<int64_t>(value.dims());
+    std::vector<int64_t> value_dim = phi::vectorize<int64_t>(value->dims());
     std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
     std::vector<int64_t> value_new_dim = phi::vectorize<int64_t>(new_dims);
 
@@ -226,7 +232,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
   // runtime
   std::map<std::string, uint64_t> tensors;
   tensors["input"] = reinterpret_cast<uint64_t>(x.data<T>());
-  tensors["value"] = reinterpret_cast<uint64_t>(value.data<T>());
+  tensors["value"] = reinterpret_cast<uint64_t>(value->data<T>());
   tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
 
   RecipeRunner runner(recipe);

@@ -116,6 +116,18 @@ RecipeCache::RecipeCache() {
   }
 }
 
+std::string get_local_time() {
+  timeval tv;
+  gettimeofday(&tv, nullptr);
+
+  char buf[30];
+  strftime(buf, sizeof(buf), "%F %T", localtime(&tv.tv_sec));
+
+  std::stringstream ss;
+  ss << buf << "." << tv.tv_usec;
+  return ss.str();
+}
+
 void RecipeCache::store(std::string cache_id, synRecipeHandle recipe_handle) {
   if (isEnabled() == false) return;
 
@@ -124,10 +136,14 @@ void RecipeCache::store(std::string cache_id, synRecipeHandle recipe_handle) {
   LOG_IF(INFO, FLAGS_intel_hpu_recipe_cache_debug)
       << "save recipe: key=" << cache_id << ", file=" << recipe_path
       << std::endl;
-  auto status = synRecipeSerialize(recipe_handle, recipe_path.c_str());
+  std::string tmp_recipe_path = recipe_path + get_local_time();
+  auto status = synRecipeSerialize(recipe_handle, tmp_recipe_path.c_str());
   PD_CHECK(status == synSuccess,
            "[Recipe] serialize recipe failed, ",
            ShowErrorMsg(status));
+  rename(tmp_recipe_path.c_str(), recipe_path.c_str());
+  LOG_IF(INFO, FLAGS_intel_hpu_recipe_cache_debug)
+      << "save recipe " << recipe_path << " done\n";
   return;
 }
 

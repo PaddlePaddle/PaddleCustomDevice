@@ -19,7 +19,8 @@ std::vector<std::vector<int64_t>> FusedRotaryEmbeddingInferShape(
     std::vector<int64_t> key_shape,
     std::vector<int64_t> cos_sin_table_shape,
     std::vector<int64_t> positions_shape,
-    bool is_neox) {
+    bool is_neox,
+    int64_t head_size) {
   return {query_shape, key_shape};
 }
 
@@ -28,17 +29,18 @@ std::vector<paddle::Tensor> FusedRotaryEmbeddingKernel(
     const paddle::Tensor& key,
     const paddle::Tensor& cos_sin_table,
     const paddle::Tensor& positions,
-    bool is_neox) {
+    bool is_neox,
+    int64_t head_size = 0) {
   PADDLE_GCU_KERNEL_TRACE("fused_rotary_embedding_gcu");
   VLOG(6) << "[CUSTOM_KERNEL] Custom Operator: fused_rotary_embedding_gcu";
   return custom_op_common::FusedRotaryEmbedding(
-      query, key, cos_sin_table, positions, is_neox);
+      query, key, cos_sin_table, positions, is_neox, head_size);
 }
 
 PD_BUILD_OP(fused_rotary_embedding_gcu)
     .Inputs({"query", "key", "cos_sin_table", "positions"})
     .Outputs({"query_out", "key_out"})
-    .Attrs({"is_neox: bool"})
+    .Attrs({"is_neox: bool", "head_size: int64_t"})
     .SetKernelFn(PD_KERNEL(FusedRotaryEmbeddingKernel))
     .SetInferShapeFn(
         PD_INFER_SHAPE(FusedRotaryEmbeddingInferShape));  // neccessary if the

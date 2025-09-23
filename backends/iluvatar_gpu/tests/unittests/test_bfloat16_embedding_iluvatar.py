@@ -52,7 +52,7 @@ class BF16EmbeddingTest(unittest.TestCase):
         return ids, weight, dout
 
     def test_main(self):
-
+        paddle.disable_static()
         ret1 = self.run_main("float32")
         ret2 = self.run_main("bfloat16")
         self.assertEqual(len(ret1), len(ret2))

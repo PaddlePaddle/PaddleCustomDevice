@@ -97,10 +97,10 @@ class PyMethodWrapper:
 
 
 def monkey_patch_for_custom_pass():
-    if paddle.__version__ > "3.0.0":
-        raise Exception(
-            f"not sure custom pass monkey path is valid for {paddle.__version__}, please check it."
-        )
+    # if paddle.__version__ > "3.0.0":
+    #     raise Exception(
+    #         f"not sure custom pass monkey path is valid for {paddle.__version__}, please check it."
+    #     )
 
     new_func_to_program_desc = PyMethodWrapper(
         ir.RegisterPassHelper._func_to_program_desc

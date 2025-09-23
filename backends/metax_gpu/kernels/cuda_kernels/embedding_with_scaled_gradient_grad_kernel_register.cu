@@ -13,8 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/embedding_with_scaled_gradient_grad_kernel.h"
+#include "paddle/phi/kernels/gpu/embedding_with_scaled_gradient_grad_kernel.cu"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(embedding_with_scaled_gradient_grad,
                           metax_gpu,

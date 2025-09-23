@@ -21,6 +21,34 @@
 // }  // namespace paddle_flags
 
 #include "paddle/common/flags.h"
+/**
+ * CUDNN related FLAG
+ * Name: FLAGS_cudnn_exhaustive_search
+ * Since Version: 1.2.0
+ * Value Range: bool, default=false
+ * Example:
+ * Note: Represents whether an exhaustive search method is used to
+ *       select a convolution algorithm. There are two search methods in cuDNN,
+ *       heuristic search and exhaustive search. Exhaustive search attempts
+ *       all cuDNN algorithms to select the fastest. This method is very
+ *       time-consuming, and the selected algorithm will be cached for a given
+ *       layer specification. Once you change the layer specifications
+ *       (such as batch size, feature map size), it will search again.
+ */
+
+static constexpr int kDefaultConvWorkspaceSizeLimitMB = 512;
+
+PHI_DEFINE_EXPORTED_bool(
+    cudnn_exhaustive_search,
+    false,
+    "Whether enable exhaustive search for cuDNN convolution or "
+    "not, default is False.");
+
+PHI_DEFINE_EXPORTED_bool(
+    cudnn_batchnorm_spatial_persistent,
+    false,
+    "Whether enable CUDNN_BATCHNORM_SPATIAL_PERSISTENT mode for cudnn "
+    "batch_norm, default is False.");
 
 PHI_DEFINE_EXPORTED_int64(
     embedding_deterministic,

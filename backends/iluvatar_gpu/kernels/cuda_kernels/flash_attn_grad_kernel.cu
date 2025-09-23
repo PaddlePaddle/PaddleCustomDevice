@@ -28,8 +28,8 @@
 #include "paddle/phi/kernels/pad_kernel.h"
 #include "paddle/phi/kernels/reduce_sum_kernel.h"
 #include "paddle/phi/kernels/slice_kernel.h"
-COMMON_DECLARE_int32(ixdnn_imp_mode);
-COMMON_DECLARE_int32(ixdnn_causal_mode);
+COMMON_DECLARE_int32(imp_mode);
+COMMON_DECLARE_int32(causal_mode);
 
 COMMON_DECLARE_bool(cudnn_deterministic);
 
@@ -314,14 +314,14 @@ void FlashAttnUnpaddedGradBaseKernel(
   flashAttnInfo.softmax_scale = std::sqrt(1.f / head_size);
   flashAttnInfo.dropout_prob = dropout;
   flashAttnInfo.is_causal = causal;
-  flashAttnInfo.causal_mode = FLAGS_ixdnn_causal_mode;
+  flashAttnInfo.causal_mode = FLAGS_causal_mode;
   // flashAttnInfo.is_alibi              = use_alibi;
   // flashAttnInfo.alibi_mode            = alibi_mode;
   flashAttnInfo.return_softmax_lse = false;
   flashAttnInfo.philox_args =
       *(reinterpret_cast<cudnnPhiloxCudaState*>(&philox_state));
-  flashAttnInfo.imp_mode = FLAGS_ixdnn_imp_mode ? CUDNN_FATTN_LEAST_MEM_MODE
-                                                : CUDNN_FATTN_BALANCE_MODE;
+  flashAttnInfo.imp_mode =
+      FLAGS_imp_mode ? CUDNN_FATTN_LEAST_MEM_MODE : CUDNN_FATTN_BALANCE_MODE;
   flashAttnInfo.is_unpad = is_unpad;
   flashAttnInfo.batch = batch_size;
   flashAttnInfo.max_seq_len_src = max_seqlen_q;
@@ -340,7 +340,7 @@ void FlashAttnUnpaddedGradBaseKernel(
     dataType = CUDNN_DATA_BFLOAT16;
   }
 
-  cudnnHandle_t cudnn;
+  cudnnHandle_t cudnn = GetDnnHandle(ctx.stream(), ctx.GetPlace());
   PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnCreate(&cudnn));
 
   cudnnFlashAttnDescriptor_t flashAttnDesc;
@@ -720,14 +720,14 @@ void FlashAttnGradBaseKernel(
   flashAttnInfo.softmax_scale = softmax_scale;
   flashAttnInfo.dropout_prob = dropout;
   flashAttnInfo.is_causal = causal;
-  flashAttnInfo.causal_mode = FLAGS_ixdnn_causal_mode;
+  flashAttnInfo.causal_mode = FLAGS_causal_mode;
   // flashAttnInfo.is_alibi              = use_alibi;
   // flashAttnInfo.alibi_mode            = alibi_mode;
   flashAttnInfo.return_softmax_lse = false;
   flashAttnInfo.philox_args =
       *(reinterpret_cast<cudnnPhiloxCudaState*>(&philox_state));
-  flashAttnInfo.imp_mode = FLAGS_ixdnn_imp_mode ? CUDNN_FATTN_LEAST_MEM_MODE
-                                                : CUDNN_FATTN_BALANCE_MODE;
+  flashAttnInfo.imp_mode =
+      FLAGS_imp_mode ? CUDNN_FATTN_LEAST_MEM_MODE : CUDNN_FATTN_BALANCE_MODE;
   flashAttnInfo.is_unpad = false;
   flashAttnInfo.batch = batch_size;
   flashAttnInfo.max_seq_len_src = seqlen_q;
@@ -748,7 +748,7 @@ void FlashAttnGradBaseKernel(
     dataType = CUDNN_DATA_FLOAT;
   }
 
-  cudnnHandle_t cudnn;
+  cudnnHandle_t cudnn = GetDnnHandle(ctx.stream(), ctx.GetPlace());
   PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnCreate(&cudnn));
 
   cudnnFlashAttnDescriptor_t flashAttnDesc;

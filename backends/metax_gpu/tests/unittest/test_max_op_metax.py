@@ -23,7 +23,7 @@ sys.path.append("../../legacy_test")
 import os
 
 from op_test import OpTest
-from test_sum_op import TestReduceOPTensorAxisBase
+from test_sum_op_metax import TestReduceOPTensorAxisBase
 from utils import dygraph_guard, static_guard
 
 import paddle

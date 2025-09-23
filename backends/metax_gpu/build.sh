@@ -2,13 +2,13 @@
 #!/bin/bash
 
 # Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,6 +21,7 @@ pip  uninstall paddlepaddle -y
 
 
 export http_proxy=http://10.2.192.21:1080 https_proxy=http://10.2.192.21:1080
+pip install safetensors==0.6.2 -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
 # install paddle
 python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 
@@ -30,25 +31,7 @@ git submodule sync --recursive && git submodule update --init --recursive
 
 
 # apply patch
-
-rm -r ../../Paddle/third_party/eigen3
-
-
-cd patch 
-
-unzip mcEigen_3.4.0_paddle_final.zip
-
-mv mcEigen_3.4.0_paddle_final eigen3
-
-cd ..
-
-cp -r patch/eigen3/ ../../Paddle/third_party/eigen3
-
-cd ../../Paddle/
-
-git apply --verbose ../backends/metax_gpu/patch/paddle.patch
-
-cd -
+bash change_patch.sh
 
 
 export MACA_PATH=/opt/maca

@@ -1,7 +1,7 @@
-From ff1fd8aa1871f9e3c48b014f4ada7a52bec40cdb Mon Sep 17 00:00:00 2001
+From 136d1a7b85775bfe8fd3d589d610c4100e955e08 Mon Sep 17 00:00:00 2001
 From: tianyuzhou668 <2431054748@qq.com>
-Date: Tue, 16 Sep 2025 19:13:45 +0800
-Subject: [PATCH] Add patch
+Date: Mon, 22 Sep 2025 16:00:24 +0800
+Subject: [PATCH] [ILUVATAR_GPU] Fix bug
 
 ---
  CMakeLists.txt                                |  2 +-
@@ -12,8 +12,10 @@ Subject: [PATCH] Add patch
  paddle/phi/backends/dynload/cudnn.h           |  9 +++++++
  paddle/phi/backends/dynload/cusolver.h        |  6 -----
  .../backends/gpu/cuda/cuda_device_function.h  |  4 +--
- paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  8 +++++-
+ paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 +--
+ paddle/phi/backends/gpu/cuda/cuda_graph.h     |  2 +-
  paddle/phi/backends/gpu/cuda/cuda_helper.h    |  2 +-
+ paddle/phi/backends/gpu/cuda/cudnn_desc.h     | 16 +++++++++++-
  paddle/phi/backends/gpu/cuda/cudnn_helper.h   |  2 +-
  paddle/phi/backends/gpu/gpu_launch_config.h   | 16 +++++++++---
  paddle/phi/backends/gpu/gpu_primitives.h      | 25 +++++++++++++++++++
@@ -39,7 +41,7 @@ Subject: [PATCH] Add patch
  paddle/phi/kernels/squeeze_kernel.cc          |  2 ++
  paddle/phi/kernels/strided_slice_kernel.cc    |  2 ++
  paddle/phi/kernels/unsqueeze_kernel.cc        |  2 ++
- 35 files changed, 134 insertions(+), 65 deletions(-)
+ 37 files changed, 145 insertions(+), 68 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 3d5f0b4132..c633f1a117 100755
@@ -191,10 +193,10 @@ index 4ff2e528a9..956bac0c64 100644
    unsigned mask = 0u;
    CREATE_SHFL_MASK(mask, tid < len);
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.cc b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
-index cb8b27fa4b..b6ea51c49b 100644
+index 6b62e328d6..3c12905e09 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_graph.cc
 +++ b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
-@@ -198,7 +198,7 @@ inline void sync_streams(gpuStream_t to_record, gpuStream_t to_wait) {
+@@ -206,7 +206,7 @@ inline void sync_streams(gpuStream_t to_record, gpuStream_t to_wait) {
    PADDLE_ENFORCE_GPU_SUCCESS(
        cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventRecord(event, to_record));
@@ -203,22 +205,28 @@ index cb8b27fa4b..b6ea51c49b 100644
    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventDestroy(event));
  }
  
-@@ -241,9 +241,15 @@ void CUDAGraph::EndSegmentCapture() {
-   cudaGraphExec_t exec_graph;
-   if (FLAGS_use_cuda_malloc_async_allocator &&
-       FLAGS_auto_free_cudagraph_allocations_on_launch) {
-+#ifndef PADDLE_WITH_COREX
-     VLOG(1) << "cudaGraphInstantiateFlagAutoFreeOnLaunch is enabled!";
-     PADDLE_ENFORCE_GPU_SUCCESS(cudaGraphInstantiateWithFlags(
-         &exec_graph, graph, cudaGraphInstantiateFlagAutoFreeOnLaunch));
-+#else
-+    PADDLE_THROW(common::errors::Unimplemented(
-+        "The cudaGraphInstantiateFlagAutoFreeOnLaunch is only supported when "
-+        "CUDA version >= 11.4.0"));
-+#endif
-   } else {
-     PADDLE_ENFORCE_GPU_SUCCESS(
-         cudaGraphInstantiate(&exec_graph, graph, nullptr, nullptr, 0));
+@@ -323,7 +323,7 @@ void CUDAGraph::PrintToDotFiles(const std::string &dirname,
+ #endif
+ }
+ 
+-#if CUDA_VERSION >= 11000
++#if CUDA_VERSION >= 11000 || defined(PADDLE_WITH_COREX)
+ void CUDAGraphNodeLauncher::KernelNodeLaunch(
+     parameterSetter_t parameterSetter, gpuKernelCallback_t cudakernelCallback) {
+   if (UNLIKELY(phi::backends::gpu::CUDAGraph::IsThisThreadCapturing())) {
+diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.h b/paddle/phi/backends/gpu/cuda/cuda_graph.h
+index f0408b8b03..98a01868db 100644
+--- a/paddle/phi/backends/gpu/cuda/cuda_graph.h
++++ b/paddle/phi/backends/gpu/cuda/cuda_graph.h
+@@ -39,7 +39,7 @@
+ 
+ #ifdef PADDLE_WITH_CUDA
+ 
+-#if CUDA_VERSION < 11000
++#if CUDA_VERSION < 11000 && !defined(PADDLE_WITH_COREX)
+ // For CUDA versions less than 11.0, use a dummy type for cudaFunction_t.
+ using cudaFunction_t = void *;
+ cudaError_t cudaGetFuncBySymbol(cudaFunction_t *functionPtr,
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_helper.h b/paddle/phi/backends/gpu/cuda/cuda_helper.h
 index 02753c0333..bcf435dfae 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_helper.h
@@ -232,6 +240,19 @@ index 02753c0333..bcf435dfae 100644
    } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
      return CUDA_R_16BF;
  #endif
+diff --git a/paddle/phi/backends/gpu/cuda/cudnn_desc.h b/paddle/phi/backends/gpu/cuda/cudnn_desc.h
+index 189e97534e..8f805afe8c 100644
+--- a/paddle/phi/backends/gpu/cuda/cudnn_desc.h
++++ b/paddle/phi/backends/gpu/cuda/cudnn_desc.h
+@@ -77,7 +77,7 @@ inline cudnnDataType_t ToCudnnDataType(const phi::DataType& t) {
+       type = CUDNN_DATA_FP8_E5M2;
+       break;
+ #endif
+-#if CUDNN_VERSION_MIN(8, 1, 0)
++#if CUDNN_VERSION_MIN(8, 1, 0) || defined(PADDLE_WITH_COREX)
+     case phi::DataType::BFLOAT16:
+       type = CUDNN_DATA_BFLOAT16;
+       break;
 diff --git a/paddle/phi/backends/gpu/cuda/cudnn_helper.h b/paddle/phi/backends/gpu/cuda/cudnn_helper.h
 index 28c3d14d37..5dc5f79178 100644
 --- a/paddle/phi/backends/gpu/cuda/cudnn_helper.h
@@ -246,7 +267,7 @@ index 28c3d14d37..5dc5f79178 100644
  class CudnnDataType<phi::dtype::bfloat16> {
   public:
 diff --git a/paddle/phi/backends/gpu/gpu_launch_config.h b/paddle/phi/backends/gpu/gpu_launch_config.h
-index 67b22088bc..11df733373 100644
+index af1c7ba8b9..132e488061 100644
 --- a/paddle/phi/backends/gpu/gpu_launch_config.h
 +++ b/paddle/phi/backends/gpu/gpu_launch_config.h
 @@ -37,6 +37,10 @@
@@ -288,7 +309,7 @@ index 67b22088bc..11df733373 100644
    const int capability = dev_ctx.GetComputeCapability();
    GpuLaunchConfig config;
 diff --git a/paddle/phi/backends/gpu/gpu_primitives.h b/paddle/phi/backends/gpu/gpu_primitives.h
-index 3ee4fbe808..546a0a9dc8 100644
+index 8f43d1019f..bc9b0fde02 100644
 --- a/paddle/phi/backends/gpu/gpu_primitives.h
 +++ b/paddle/phi/backends/gpu/gpu_primitives.h
 @@ -134,13 +134,38 @@ CUDA_ATOMIC_WRAPPER(Add, int16_t) {
@@ -409,7 +430,7 @@ index 1d20fa3173..fab2b90ed2 100644
      return ncclBfloat16;
  #endif
 diff --git a/paddle/phi/kernels/funcs/activation_functor.h b/paddle/phi/kernels/funcs/activation_functor.h
-index c38fcf2579..52cc48732f 100644
+index 4ded414c63..874ac52e30 100644
 --- a/paddle/phi/kernels/funcs/activation_functor.h
 +++ b/paddle/phi/kernels/funcs/activation_functor.h
 @@ -3683,12 +3683,14 @@ struct CudaReciprocalFunctor<ComplexType<T>>
@@ -693,10 +714,10 @@ index 2645060f4c..6a38e20776 100644
                     GPU,
                     ALL_LAYOUT,
 diff --git a/paddle/phi/kernels/gpu/layer_norm_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
-index 28121f02e9..dbe1eaf10f 100644
+index ed5f6438ab..52f1e9e1c7 100644
 --- a/paddle/phi/kernels/gpu/layer_norm_kernel.cu
 +++ b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
-@@ -688,7 +688,7 @@ PD_REGISTER_KERNEL(
+@@ -708,7 +708,7 @@ PD_REGISTER_KERNEL(
    kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
    kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
  }

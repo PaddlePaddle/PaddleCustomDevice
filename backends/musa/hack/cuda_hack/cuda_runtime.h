@@ -1,4 +1,4 @@
-// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/grid_sample_kernel.h"
+#pragma once
 
-PD_CUSTOM_KERNEL_REGISTER(
-    grid_sample, iluvatar_gpu, ALL_LAYOUT, phi::GridSampleKernel, float) {}
+#include <musa_runtime.h>

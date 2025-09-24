@@ -1,4 +1,4 @@
-// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/grid_sample_grad_kernel.h"
+// Modifications:
+// Copyright (c) 2025 Moore Threads Technology Co., Ltd("Moore Threads"). All
+// rights reserved.
+// - [register musa backend]
 
-PD_CUSTOM_KERNEL_REGISTER(grid_sample_grad,
-                          iluvatar_gpu,
+#include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/cross_kernel.h"
+
+PD_CUSTOM_KERNEL_REGISTER(cross,
+                          musa,
                           ALL_LAYOUT,
-                          phi::GridSampleGradKernel,
-                          float) {}
+                          phi::CrossKernel,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          float,
+                          double,
+                          int,
+                          int64_t) {}

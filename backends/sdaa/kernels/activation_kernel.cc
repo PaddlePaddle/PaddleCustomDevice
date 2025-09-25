@@ -722,10 +722,11 @@ void SoftplusGradKernel(const Context& dev_ctx,
   tecodnnTensorDescriptor_t desc =
       sdaa_ops::GetTecodnnTensorDesc(dims, x.dtype(), TensorFormat::NHWC);
 
-  const double coef = beta;
-  const double alpha = 1.0, beta_ = 0.0;
+  const float coef = static_cast<float>(beta);
+  const float threshold_ = static_cast<float>(threshold);
+  const float alpha = 1.0f, beta_ = 0.0f;
   TECODNN_CHECK(tecodnnSoftplusBackward(handle,
-                                        &threshold,
+                                        &threshold_,
                                         &coef,
                                         &alpha,
                                         desc,

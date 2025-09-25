@@ -758,8 +758,8 @@ void SoftShrinkKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void SoftplusKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
-                    float beta,
-                    float threshold,
+                    double beta,
+                    double threshold,
                     phi::DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("softplus");
   if (LaunchAOTKernel()) {

@@ -1486,8 +1486,8 @@ void HardSwishGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void SoftplusKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
-                    const float beta,
-                    const float threshold,
+                    const double beta,
+                    const double threshold,
                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
@@ -1500,8 +1500,8 @@ template <typename T, typename Context>
 void SoftplusGradKernel(const Context& dev_ctx,
                         const phi::DenseTensor& a,
                         const phi::DenseTensor& dout,
-                        const float beta,
-                        const float threshold,
+                        const double beta,
+                        const double threshold,
                         phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();

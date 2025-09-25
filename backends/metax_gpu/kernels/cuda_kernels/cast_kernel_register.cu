@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/cast_kernel.h"
+#include "paddle/phi/kernels/gpu/cast_kernel.cu"  // NOLINT
 
 #define PTEN_REGISTER_CAST_CUDA_BASE_TYPE(op_name, ...)        \
   PD_CUSTOM_KERNEL_REGISTER(cast,                              \
@@ -35,4 +35,7 @@
     kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED); \
   }
 
-PTEN_REGISTER_CAST_CUDA_BASE_TYPE(cast, phi::dtype::bfloat16)
+PTEN_REGISTER_CAST_CUDA_BASE_TYPE(cast,
+                                  phi::dtype::bfloat16,
+                                  phi::dtype::float8_e4m3fn,
+                                  phi::dtype::float8_e5m2)

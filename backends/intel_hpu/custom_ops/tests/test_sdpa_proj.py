@@ -237,6 +237,7 @@ def main():
         linear_weights,
         scaling_factor,
         causal=True,
+        softmax_mode=0,
     )
 
     if (out_linear_out_ref == out_linear_out_op).all():

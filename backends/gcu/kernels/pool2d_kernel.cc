@@ -351,6 +351,7 @@ PD_REGISTER_PLUGIN_KERNEL(pool2d,
                           ALL_LAYOUT,
                           custom_kernel::Pool2dKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pool2d_grad,

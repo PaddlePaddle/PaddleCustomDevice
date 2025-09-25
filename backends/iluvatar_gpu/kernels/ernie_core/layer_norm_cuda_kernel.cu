@@ -81,8 +81,8 @@ void RMSLnBwd(const Context &ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(
+PD_REGISTER_PLUGIN_KERNEL(
     fused_rms_norm_ext, iluvatar_gpu, ALL_LAYOUT, phi::RMSLnFwd, float) {}
 
-PD_CUSTOM_KERNEL_REGISTER(
+PD_REGISTER_PLUGIN_KERNEL(
     fused_rms_norm_ext_grad, iluvatar_gpu, ALL_LAYOUT, phi::RMSLnBwd, float) {}

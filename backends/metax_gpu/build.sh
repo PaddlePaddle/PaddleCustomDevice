@@ -1,13 +1,14 @@
+# 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
 #!/bin/bash
 
 # Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,30 +16,30 @@
 # limitations under the License.
 
 set -e
-# init paddle
-git submodule sync --recursive && git submodule update --init --recursive
+# uninstall paddle
+pip  uninstall paddlepaddle -y
 
+
+# init paddle
+# git submodule sync --recursive && git submodule update --init --recursive
+
+# sleep 1000000
+# unset http_proxy https_proxy
+
+
+# export http_proxy=https://172.17.0.1:1080 https_proxy=http://10.2.192.21:1080
+# export
+pip install safetensors==0.6.2 -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
+# install paddle
+
+
+python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
+
+
+# unset http_proxy https_proxy
 
 # apply patch
-
-rm -r ../../Paddle/third_party/eigen3
-
-
-cd patch 
-
-unzip mcEigen_3.4.0_paddle_final.zip
-
-mv mcEigen_3.4.0_paddle_final eigen3
-
-cd ..
-
-cp -r patch/eigen3/ ../../Paddle/third_party/eigen3
-
-cd ../../Paddle/
-
-git apply --verbose ../backends/metax_gpu/patch/paddle.patch
-
-cd -
+bash change_patch.sh
 
 
 export MACA_PATH=/opt/maca
@@ -56,8 +57,8 @@ fi
 
 echo "make_maca"
 cd build
-cmake_maca .. -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON
-make_maca -j8
+cmake_maca .. -DCMAKE_BUILD_TYPE=Release -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON
+make_maca -j60
 
 echo "install whl"
 pip install dist/paddle_metax_gpu*.whl --force-reinstall

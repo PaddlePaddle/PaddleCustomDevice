@@ -93,9 +93,11 @@ void free_and_dispatch_block(bool *stop_flags,
       }
     } else if (seq_lens_this_time[bid] != 0 &&
                block_table_now[seq_lens_decoder[bid] / block_size] == -1) {
-#pragma omp atomic
-      need_block_len[0]++;
-      need_block_list[need_block_len[0] - 1] = bid;
+#pragma omp critical
+      {
+        need_block_list[need_block_len[0]] = bid;
+        need_block_len[0]++;
+      }
     }
   }
 
@@ -111,7 +113,8 @@ void free_and_dispatch_block(bool *stop_flags,
         int used_block_num = used_list_len[i];
 #pragma omp critical
         {
-          if (used_block_num > max_used_block_num) {
+          if (used_block_num > max_used_block_num ||
+              (used_block_num == max_used_block_num && i < max_bid)) {
             max_used_block_num = used_block_num;
             max_bid = i;
           }

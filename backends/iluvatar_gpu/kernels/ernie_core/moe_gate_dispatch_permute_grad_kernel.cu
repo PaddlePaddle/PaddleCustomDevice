@@ -18,7 +18,6 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/contiguous_kernel.h"
 #include "paddle/phi/kernels/empty_kernel.h"
-#include "paddle/phi/kernels/moe_gate_dispatch_permute_grad_kernel.h"
 #include "paddle/phi/kernels/transpose_kernel.h"
 namespace phi {
 
@@ -142,7 +141,7 @@ void MoeGateDispatchGradKernel(
 }
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(moe_gate_dispatch_permute_grad,
+PD_REGISTER_PLUGIN_KERNEL(moe_gate_dispatch_permute_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MoeGateDispatchGradKernel,

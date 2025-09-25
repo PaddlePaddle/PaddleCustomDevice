@@ -202,6 +202,22 @@ class HpuFusedOperator : public HpuOperator {
   }
 
   template <typename T>
+  inline void AddNodeAbs(std::vector<synTensor> inputs,
+                         std::vector<synTensor> outputs,
+                         std::string node_name) {
+    std::string guid = "abs_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeSilu(std::vector<synTensor> inputs,
+                          std::vector<synTensor> outputs,
+                          std::string node_name) {
+    std::string guid = "silu_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  template <typename T>
   inline void AddNodeLinear(std::vector<synTensor> inputs,
                             std::vector<synTensor> outputs,
                             std::string node_name) {
@@ -209,10 +225,26 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IO(inputs, outputs, guid, node_name);
   }
 
+  template <typename T>
+  inline void AddNodeLessEqual(std::vector<synTensor> inputs,
+                               std::vector<synTensor> outputs,
+                               std::string node_name) {
+    std::string guid = "less_equal_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
   inline void AddNodeReshape(std::vector<synTensor> inputs,
                              std::vector<synTensor> outputs,
                              std::string node_name) {
     AddNode_IO(inputs, outputs, "reshape", node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeWhere(std::vector<synTensor> inputs,
+                           std::vector<synTensor> outputs,
+                           std::string node_name) {
+    std::string guid = "where_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
   }
 
   inline void AddNodeTranspose(std::vector<synTensor> inputs,
@@ -265,6 +297,14 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IOP<synGEMMParams>(inputs, outputs, params, "gemm", node_name);
   }
 
+  template <typename T>
+  inline void AddNodeRange(std::vector<synTensor> outputs,
+                           ns_RangeKernel::Params params,
+                           std::string node_name) {
+    std::string guid = "range_" + guid_dtype<T>();
+    AddNode_OP<ns_RangeKernel::Params>(outputs, params, guid, node_name);
+  }
+
   inline void AddNodeBatchGemm(std::vector<synTensor> inputs,
                                std::vector<synTensor> outputs,
                                synGEMMParams params,
@@ -274,11 +314,31 @@ class HpuFusedOperator : public HpuOperator {
   }
 
   template <typename T>
+  inline void AddNodeCumsum(std::vector<synTensor> inputs,
+                            std::vector<synTensor> outputs,
+                            ns_CumSumKernel::Params params,
+                            std::string node_name) {
+    std::string guid = "cumsum_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_CumSumKernel::Params>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
   inline void AddNodeIndexSelect(std::vector<synTensor> inputs,
                                  std::vector<synTensor> outputs,
                                  ns_GatherKernel::Params params,
                                  std::string node_name) {
     std::string guid = "gather_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_GatherKernel::Params>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeIndexSample(std::vector<synTensor> inputs,
+                                 std::vector<synTensor> outputs,
+                                 ns_GatherKernel::Params params,
+                                 std::string node_name) {
+    std::string guid = "gather_elements_fwd_" + guid_dtype<T>();
     AddNode_IOP<ns_GatherKernel::Params>(
         inputs, outputs, params, guid, node_name);
   }
@@ -312,6 +372,16 @@ class HpuFusedOperator : public HpuOperator {
   }
 
   template <typename T>
+  inline void AddNodeMaximumMultidimensional(std::vector<synTensor> inputs,
+                                             std::vector<synTensor> outputs,
+                                             ns_Reduction::ParamsV2 params,
+                                             std::string node_name) {
+    std::string guid = "reduce_max_multi_dim_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_Reduction::ParamsV2>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
   inline void AddNodeScatterAdd(std::vector<synTensor> inputs,
                                 std::vector<synTensor> outputs,
                                 ns_ScatterKernel::Params params,
@@ -322,18 +392,20 @@ class HpuFusedOperator : public HpuOperator {
   }
 
   template <typename T>
+  inline void AddNodeScatterFwd(std::vector<synTensor> inputs,
+                                std::vector<synTensor> outputs,
+                                ns_ScatterKernel::Params params,
+                                std::string node_name) {
+    std::string guid = "scatter_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_ScatterKernel::Params>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
   inline void AddNodeScatter(std::vector<synTensor> inputs,
                              std::vector<synTensor> outputs,
                              std::string node_name) {
     std::string guid = "scatter_nd_onnx_fwd_" + guid_dtype<T>();
-    AddNode_IO(inputs, outputs, guid, node_name);
-  }
-
-  template <typename T>
-  inline void AddNodeSilu(std::vector<synTensor> inputs,
-                          std::vector<synTensor> outputs,
-                          std::string node_name) {
-    std::string guid = "silu_fwd_" + guid_dtype<T>();
     AddNode_IO(inputs, outputs, guid, node_name);
   }
 
@@ -369,6 +441,42 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IOP<synSqueezeParams>(inputs, outputs, params, guid, node_name);
   }
 
+  inline void AddNodeTopK(std::vector<synTensor> inputs,
+                          std::vector<synTensor> outputs,
+                          ns_TopkNodeV2::ParamsV4 params,
+                          std::string node_name) {
+    std::string guid = "topk";
+    AddNode_IOP<ns_TopkNodeV2::ParamsV4>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  inline void AddNodeTopK(std::vector<synTensor> inputs,
+                          std::vector<synTensor> outputs,
+                          synBeamParams params,
+                          std::string node_name) {
+    std::string guid = "topk";
+    AddNode_IOP<synBeamParams>(inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeMultinomial(std::vector<synTensor> inputs,
+                                 std::vector<synTensor> outputs,
+                                 ns_RandomMultinomial::ParamsV2 params,
+                                 std::string node_name) {
+    std::string guid = "random_multinomial_pt_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_RandomMultinomial::ParamsV2>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeSoftmax(std::vector<synTensor> inputs,
+                             std::vector<synTensor> outputs,
+                             ns_Softmax::Params params,
+                             std::string node_name) {
+    std::string guid = "softmax_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_Softmax::Params>(inputs, outputs, params, guid, node_name);
+  }
+
   template <typename T>
   inline void AddNodeRmsNorm(std::vector<synTensor> inputs,
                              std::vector<synTensor> outputs,
@@ -397,6 +505,25 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IOP<ns_Sdpa::ParamsV3>(inputs, outputs, params, guid, node_name);
   }
 
+  template <typename T>
+  // ns_QuantizationPerTensor ignored
+  inline void AddNodeQuantizePerTensor(std::vector<synTensor> inputs,
+                                       std::vector<synTensor> outputs,
+                                       std::string node_name) {
+    std::string guid = "quantize_per_tensor_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeMoeForward(std::vector<synTensor> inputs,
+                                std::vector<synTensor> outputs,
+                                std::shared_ptr<ns_MoeKernel::ParamsV4> params,
+                                std::string node_name) {
+    std::string guid = "moe_" + guid_dtype<T>();
+    AddNode_IOP<ns_MoeKernel::ParamsV4>(
+        inputs, outputs, *params, guid, node_name);
+  }
+
   synTensor cloneTensor(std::string name, synTensor base, synDataType type) {
     synTensorGeometry geometry;
     synTensorGetGeometry(base, &geometry, synGeometrySizes);
@@ -410,7 +537,7 @@ class HpuFusedOperator : public HpuOperator {
   }
 
   template <typename T>
-  void AddNodeFusedFp8Gemm(std::vector<synTensor> inputs,
+  void AddNodeFusedFP8Gemm(std::vector<synTensor> inputs,
                            std::vector<synTensor> outputs,
                            synGEMMParams params,
                            std::string node_name) {
@@ -428,14 +555,14 @@ class HpuFusedOperator : public HpuOperator {
     cast_to_fp8_params.round_mode = CAST_ROUND_HALF_NE;
     if (cast_x) {
       x_tensor = cloneTensor(node_name + "_x", inputs[0], syn_type_fp8_143);
-      std::vector<synTensor> cast_ins = {inputs[0]};
+      std::vector<synTensor> cast_ins = {inputs[0], inputs[2]};
       std::vector<synTensor> cast_outs = {x_tensor};
       AddNodeConvertToFP8<T>(
           cast_ins, cast_outs, cast_to_fp8_params, node_name + "_cast_x");
     }
     if (cast_y) {
       y_tensor = cloneTensor(node_name + "_y", inputs[1], syn_type_fp8_143);
-      std::vector<synTensor> cast_ins = {inputs[1]};
+      std::vector<synTensor> cast_ins = {inputs[1], inputs[3]};
       std::vector<synTensor> cast_outs = {y_tensor};
       AddNodeConvertToFP8<T>(
           cast_ins, cast_outs, cast_to_fp8_params, node_name + "_cast_y");
@@ -444,8 +571,12 @@ class HpuFusedOperator : public HpuOperator {
     std::vector<synTensor> gemm_ins;
     gemm_ins.push_back(x_tensor);
     gemm_ins.push_back(y_tensor);
-    gemm_ins.push_back(inputs[2]);
-    gemm_ins.push_back(inputs[3]);
+    if (!cast_x) {
+      gemm_ins.push_back(inputs[2]);
+    }
+    if (!cast_y) {
+      gemm_ins.push_back(inputs[3]);
+    }
     AddNodeFP8Gemm<T>(gemm_ins, outputs, params, node_name);
   }
 };

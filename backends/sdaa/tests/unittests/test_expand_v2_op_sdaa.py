@@ -318,7 +318,7 @@ class TestExpandV2Error(unittest.TestCase):
                 x2.stop_gradient = False
                 self.assertRaises(ValueError, paddle.tensor.expand, x2, shape)
                 x2.stop_gradient = True
-                self.assertRaises(TypeError, paddle.tensor.expand, x2, 1)
+                self.assertRaises(ValueError, paddle.tensor.expand, x2, 1)
 
 
 # Test python API

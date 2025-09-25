@@ -60,4 +60,5 @@ void TakeAlongAxisKernel(const Context& dev_ctx,
 //                           double,
 //                           int64_t,
 //                           int,
+//                           phi::dtype::bfloat16,
 //                           phi::dtype::float16) {}

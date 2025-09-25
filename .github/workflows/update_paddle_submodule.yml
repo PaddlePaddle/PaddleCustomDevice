@@ -17,13 +17,33 @@ jobs:
 
       - name: Update Paddle Submodule
         run: |
+          set -x
           echo "BRANCH_NAME=update-paddle-submodule-$(date +'%Y%m%d')" >> $GITHUB_ENV
           git config --global user.name "tianshuo78520a"
           git config --global user.email "tianshuo78520a@users.noreply.github.com"
+<<<<<<< HEAD
+=======
+
+          git submodule deinit -f --all
+>>>>>>> a430536f6a9699de212212986228e8c525f5fe00
           git submodule update --remote --init
-          git status
+          cd Paddle && git checkout develop && git pull origin develop
+          cd ..
+
+          git submodule status
           git add Paddle
-          git commit -m "Commit changes in Paddle submodule"
+          if [ -z "$(git diff --cached --name-only)" ]; then
+              echo "No changes to commit in Paddle submodule"
+          else
+              git commit -m "Update Paddle submodule to latest develop"
+              echo "Paddle submodule updated successfully"
+          fi
+
+          echo "=== 最终状态 ==="
+          git status
+          echo "=== 子模块状态 ==="
+          git submodule status
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:

@@ -1,3 +1,6 @@
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved.
+
 // Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +23,7 @@ PD_CUSTOM_KERNEL_REGISTER(c_embedding_grad,
                           phi::CEmbeddingGradKernel,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>) {}

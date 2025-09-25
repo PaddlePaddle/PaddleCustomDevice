@@ -1,0 +1,15 @@
+diff --git a/paddle/phi/backends/gpu/gpu_helper.h b/paddle/phi/backends/gpu/gpu_helper.h
+index 2353b42794..7dad671ce4 100644
+--- a/paddle/phi/backends/gpu/gpu_helper.h
++++ b/paddle/phi/backends/gpu/gpu_helper.h
+@@ -20,7 +20,9 @@
+ #else
+ #include "paddle/phi/backends/gpu/cuda/cuda_helper.h"
+ #endif
+-
++#elif defined(PADDLE_WITH_MUSA)
++#include "musa_helper.h"
++#else
+ #define CUDA_KERNEL_LOOP(i, num) CUDA_KERNEL_LOOP_TYPE(i, num, int)
+ 
+ #endif

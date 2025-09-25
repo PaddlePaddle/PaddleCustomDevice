@@ -172,6 +172,7 @@ PD_REGISTER_PLUGIN_KERNEL(embedding,
                           custom_kernel::EmbeddingKernel,
                           float,
                           int,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(embedding_grad,

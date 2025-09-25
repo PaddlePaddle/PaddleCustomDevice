@@ -1,3 +1,5 @@
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved.
 //   Copyright (c) 2018 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,18 +81,30 @@ extern MatDescriptor CreateMatrixDescriptor(const DDim& tensor_dim,
 template <typename DeviceContext>
 class Blas {
  public:
-  explicit Blas(const DeviceContext& context) : context_(context) {}
+  explicit Blas(const DeviceContext& context) : dev_ctx_(context) {}
 
   template <typename T>
   void GEMM(CBLAS_TRANSPOSE transA,
             CBLAS_TRANSPOSE transB,
-            int M,
-            int N,
-            int K,
+            int64_t M,
+            int64_t N,
+            int64_t K,
             T alpha,
             const T* A,
             const T* B,
             T beta,
+            T* C) const;
+
+  template <typename T, typename U = T>
+  void GEMM(CBLAS_TRANSPOSE transA,
+            CBLAS_TRANSPOSE transB,
+            int64_t M,
+            int64_t N,
+            int64_t K,
+            U alpha,
+            const T* A,
+            const T* B,
+            U beta,
             T* C) const;
 
   template <typename T>
@@ -277,15 +291,30 @@ class Blas {
   template <typename T>
   void BatchedGEMM(CBLAS_TRANSPOSE transA,
                    CBLAS_TRANSPOSE transB,
-                   int M,
-                   int N,
-                   int K,
+                   int64_t M,
+                   int64_t N,
+                   int64_t K,
                    T alpha,
                    const T* A,
                    const T* B,
                    T beta,
                    T* C,
-                   int batchCount,
+                   int64_t batchCount,
+                   int64_t strideA,
+                   int64_t strideB) const;
+
+  template <typename T, typename U = T>
+  void BatchedGEMM(CBLAS_TRANSPOSE transA,
+                   CBLAS_TRANSPOSE transB,
+                   int64_t M,
+                   int64_t N,
+                   int64_t K,
+                   U alpha,
+                   const T* A,
+                   const T* B,
+                   U beta,
+                   T* C,
+                   int64_t batchCount,
                    int64_t strideA,
                    int64_t strideB) const;
 
@@ -406,7 +435,7 @@ class Blas {
 #endif
 
  private:
-  const DeviceContext& context_;
+  const DeviceContext& dev_ctx_;
 };
 
 template <typename DeviceContext, typename T>

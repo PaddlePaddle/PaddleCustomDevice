@@ -48,6 +48,7 @@ PD_REGISTER_PLUGIN_KERNEL(atan2,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }

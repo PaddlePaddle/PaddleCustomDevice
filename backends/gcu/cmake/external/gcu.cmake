@@ -71,3 +71,4 @@ endmacro()
 
 find_gcu_version("topsruntime")
 message(STATUS "TOPS_VERSION is ${TOPS_VERSION}")
+set(CUSTOM_OP_API ${CMAKE_CURRENT_SOURCE_DIR}/custom_op/api/custom_ops_api.py)

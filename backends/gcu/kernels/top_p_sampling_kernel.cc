@@ -34,10 +34,11 @@ void TopPSamplingKernel(const Context& dev_ctx,
 }
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(top_p_sampling,
-                          gcu,
-                          ALL_LAYOUT,
-                          custom_kernel::TopPSamplingKernel,
-                          float,
-                          int,
-                          phi::dtype::float16) {}
+// PD_REGISTER_PLUGIN_KERNEL(top_p_sampling,
+//                           gcu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::TopPSamplingKernel,
+//                           float,
+//                           int,
+//                           phi::dtype::bfloat16,
+//                           phi::dtype::float16) {}

@@ -44,7 +44,7 @@ void PrintKernel(const Context& dev_ctx,
     return;
   }
 
-  paddle::funcs::TensorFormatter formatter;
+  phi::funcs::TensorFormatter formatter;
   const std::string& name = print_tensor_name ? "var" : "";
   formatter.SetPrintTensorType(print_tensor_type);
   formatter.SetPrintTensorShape(print_tensor_shape);

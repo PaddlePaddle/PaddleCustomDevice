@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-
 #include <vector>
 
 #include "../funcs/moe_fuse_bwd_op.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
+#include "paddle/phi/core/dense_tensor.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/contiguous_kernel.h"
-#include "paddle/phi/kernels/moe_gate_dispatch_grad_kernel.h"
 #include "paddle/phi/kernels/transpose_kernel.h"
 
 namespace phi {
@@ -76,9 +74,9 @@ void moe_dispatch_bwd(const Context& dev_ctx,
                       const DenseTensor& x_grad,
                       const DenseTensor& gate_logits_grad,
                       int64_t capacity,
-                      bool use_all2all_permute,
-                      int64_t world_size,
-                      int64_t num_local_experts) {
+                      bool use_all2all_permute = false,
+                      int64_t world_size = -1,
+                      int64_t num_local_experts = -1) {
   int64_t num_rows = combine_weights.dims()[0];
   int64_t k = combine_weights.dims()[1];
 #ifdef MOE_OPS_AUTO
@@ -156,7 +154,7 @@ void MoeGateDispatchGradKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(moe_gate_dispatch_grad,
+PD_REGISTER_PLUGIN_KERNEL(moe_gate_dispatch_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MoeGateDispatchGradKernel,

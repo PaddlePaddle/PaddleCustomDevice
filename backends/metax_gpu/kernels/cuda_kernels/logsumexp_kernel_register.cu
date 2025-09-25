@@ -1,4 +1,5 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved. Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +15,7 @@
 // clang-format off
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/gpu/logsumexp_kernel.cu" // NOLINT
-#include "paddle/phi/kernels/reduce_max_kernel.h"
-#include "paddle/phi/kernels/transpose_kernel.h"
+#include "paddle/phi/kernels/logsumexp_kernel.h"
 // clang-format on
 PD_CUSTOM_KERNEL_REGISTER(logsumexp,
                           metax_gpu,

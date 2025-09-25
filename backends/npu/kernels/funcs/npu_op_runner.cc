@@ -50,6 +50,14 @@ FLAGS_DEFINE_bool(npu_scale_aclnn, false, "use aclnn scale kernel");
 FLAGS_DEFINE_bool(npu_split_aclnn, false, "use aclnn split kernel");
 FLAGS_DEFINE_bool(npu_jit_compile, true, "enable npu jit compile");
 
+namespace {
+const std::unordered_set<std::string> force_compile_set = {
+    "PriorBox",
+};
+
+bool current_jit_compile_opt = false;
+}  // namespace
+
 NpuOpRunner::NpuOpRunner() {}
 
 NpuOpRunner::NpuOpRunner(const std::string &op_type) : op_type_(op_type) {}
@@ -618,14 +626,15 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
           << GetOpDescString(input_descs_, "Input")
           << GetOpDescString(output_descs_, "Output");
 
-  static std::once_flag jit_compile_flag;
-  std::call_once(jit_compile_flag, [&]() {
-    if (FLAGS_npu_jit_compile) {
-      aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
-    } else {
-      aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
-    }
-  });
+  static std::once_flag init_current_jit_compile_flag;
+  std::call_once(init_current_jit_compile_flag, InitJitCompileOpt);
+  if (ForceJitCompile(op_type_)) {
+    PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
+    SetJitCompileOpt(true);
+  } else {
+    SetJitCompileOpt(FLAGS_npu_jit_compile);
+  }
+
   SetDeterministic();
 
   aclError ret;
@@ -658,4 +667,27 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
     PADDLE_THROW(phi::errors::PreconditionNotMet(
         "Operator %s contains Nan/Inf.", op_type_));
   }
+}
+
+void InitJitCompileOpt() {
+  if (FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+  } else {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
+  }
+  current_jit_compile_opt = FLAGS_npu_jit_compile;
+}
+
+void SetJitCompileOpt(bool new_value) {
+  if (current_jit_compile_opt == new_value) return;
+  if (new_value) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+  } else {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
+  }
+  current_jit_compile_opt = new_value;
+}
+
+bool ForceJitCompile(const std::string &op_name) {
+  return force_compile_set.count(op_name) > 0;
 }

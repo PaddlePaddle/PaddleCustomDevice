@@ -92,6 +92,7 @@ PD_REGISTER_PLUGIN_KERNEL(mean_all,
                           ALL_LAYOUT,
                           custom_kernel::MeanAllKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(mean_all_grad,

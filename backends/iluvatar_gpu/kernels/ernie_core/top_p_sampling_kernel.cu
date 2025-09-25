@@ -1232,7 +1232,7 @@ void TopPSamplingKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(top_p_sampling,
+PD_REGISTER_PLUGIN_KERNEL(top_p_sampling,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::TopPSamplingKernel,

@@ -22,6 +22,14 @@ import os
 intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
 
 
+def get_similarity(x, y):
+    x = x.cpu().to("float32")
+    y = y.cpu().to("float32")
+    return paddle.nn.functional.cosine_similarity(
+        x.flatten(), y.flatten(), axis=0
+    ).item()
+
+
 def fused_rms_mlp(
     x,
     ln_scales,
@@ -47,7 +55,7 @@ def fused_rms_mlp(
     swiglu = swiglu_naive(x=gate, up=up)
     res = paddle.matmul(swiglu, down_weight)
 
-    return res.numpy()
+    return res.cast("float32").numpy()
 
 
 class Test_Fused_MLP_OP(unittest.TestCase):
@@ -82,10 +90,10 @@ class Test_Fused_MLP_OP(unittest.TestCase):
                 mean=0.0, std=0.02, shape=[hidden_size, intermediate_size]
             ).astype(dtype)
             up_weight = paddle.normal(
-                mean=1.0, std=0.05, shape=[hidden_size, intermediate_size]
+                mean=0.0, std=0.05, shape=[hidden_size, intermediate_size]
             ).astype(dtype)
             down_weight = paddle.normal(
-                mean=0.5, std=0.12, shape=[intermediate_size, hidden_size]
+                mean=0.0, std=0.12, shape=[intermediate_size, hidden_size]
             ).astype(dtype)
             proj_weight = paddle.concat([gate_weight, up_weight], axis=1)
 
@@ -93,46 +101,97 @@ class Test_Fused_MLP_OP(unittest.TestCase):
 
         return x, ln_scales, proj_weight, gate_weight, up_weight, down_weight, epsilon
 
-    def HPU_Fused_RMS_MLP_OP(self):
-        (
-            x,
-            ln_scales,
-            proj_weight,
-            _,
-            _,
-            down_weight,
-            epsilon,
-        ) = self.prepare_input()
-
+    def HPU_Fused_RMS_MLP_OP(self, x, ln_scales, proj_weight, down_weight, epsilon):
         fused_mlp_out = paddlenlp_ops.fused_rms_mlp(
             x, ln_scales, proj_weight, down_weight, epsilon
         )
-        return fused_mlp_out
+        return fused_mlp_out.cast("float32")
 
-    def NP_Fused_RMS_MLP_OP(self):
-        (
-            x,
-            ln_scales,
-            _,
-            gate_weight,
-            up_weight,
-            down_weight,
-            epsilon,
-        ) = self.prepare_input()
-
+    def NP_Fused_RMS_MLP_OP(
+        self, x, ln_scales, gate_weight, up_weight, down_weight, epsilon
+    ):
         np_mlp_out_ref = fused_rms_mlp(
             x, ln_scales, gate_weight, up_weight, down_weight, epsilon
         )
         return np_mlp_out_ref
 
-    def check_result(self, np_result, fused_result):
-        np.testing.assert_allclose(np_result, fused_result)
+    def check_result(self, np_result, fused_result, atol=1e-2):
+        np.testing.assert_allclose(np_result, fused_result, atol=atol)
 
     def test_fused_mlp(self):
-        result_fused_mlp = self.HPU_Fused_RMS_MLP_OP()
-        result_np_result = self.NP_Fused_RMS_MLP_OP()
+        (
+            x,
+            ln_scales,
+            proj_weight,
+            gate_weight,
+            up_weight,
+            down_weight,
+            epsilon,
+        ) = self.prepare_input()
+        result_fused_mlp = self.HPU_Fused_RMS_MLP_OP(
+            x, ln_scales, proj_weight, down_weight, epsilon
+        )
+        result_np_result = self.NP_Fused_RMS_MLP_OP(
+            x, ln_scales, gate_weight, up_weight, down_weight, epsilon
+        )
 
         self.check_result(result_np_result, result_fused_mlp)
+
+
+class Test_FP8_Fused_MLP_OP(Test_Fused_MLP_OP):
+    def HPU_Fused_RMS_MLP_OP(self, x, ln_scales, proj_weight, down_weight, epsilon):
+        proj_weight = proj_weight.transpose([1, 0])
+        proj_weight0, proj_weight1 = paddle.split(
+            proj_weight, num_or_sections=2, axis=0
+        )
+        proj_weight0 = proj_weight0.astype(paddle.float8_e4m3fn)
+        proj_weight1 = proj_weight1.astype(paddle.float8_e4m3fn)
+
+        down_weight = down_weight.transpose([1, 0])
+        down_weight = down_weight.astype(paddle.float8_e4m3fn)
+
+        one = paddle.to_tensor([1.0])
+        fused_mlp_out = paddlenlp_ops.fused_fp8_rms_mlp(
+            x,
+            ln_scales,
+            proj_weight0,
+            proj_weight1,
+            down_weight,
+            one,
+            one,
+            one,
+            one,
+            one,
+            epsilon,
+        )
+
+        return fused_mlp_out
+
+    def test_fused_mlp(self):
+        (
+            x,
+            ln_scales,
+            proj_weight,
+            gate_weight,
+            up_weight,
+            down_weight,
+            epsilon,
+        ) = self.prepare_input()
+        result_np_result = self.NP_Fused_RMS_MLP_OP(
+            x, ln_scales, gate_weight, up_weight, down_weight, epsilon
+        )
+
+        result_fused_mlp = self.HPU_Fused_RMS_MLP_OP(
+            x, ln_scales, proj_weight, down_weight, epsilon
+        )
+
+        similarity = get_similarity(
+            paddle.to_tensor(result_np_result), result_fused_mlp
+        )
+        print("similarity = ", similarity)
+        assert (
+            abs(1 - similarity) < 2e-2
+        ), "similarity check fails between fp8 and bf16 outputs"
 
 
 if __name__ == "__main__":

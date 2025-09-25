@@ -91,7 +91,7 @@ void TopkV1GradKernel(const Context& dev_ctx,
 }
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(topk_grad,
+PD_REGISTER_PLUGIN_KERNEL(topk_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::TopkGradKernel,
@@ -101,7 +101,7 @@ PD_CUSTOM_KERNEL_REGISTER(topk_grad,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
 
-PD_CUSTOM_KERNEL_REGISTER(topk_v1_grad,
+PD_REGISTER_PLUGIN_KERNEL(topk_v1_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::TopkV1GradKernel,

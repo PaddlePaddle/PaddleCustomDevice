@@ -1,4 +1,5 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved. Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -85,9 +86,7 @@ PD_CUSTOM_KERNEL_REGISTER(max,
                           int,
                           int64_t,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float8_e4m3fn,
-                          phi::dtype::float8_e5m2) {}
+                          phi::dtype::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(mean_raw,
                           metax_gpu,

@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/gpu/nonzero_kernel.cu"  //NOLINT
 #include "paddle/phi/kernels/nonzero_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(nonzero,
@@ -28,4 +29,8 @@ PD_CUSTOM_KERNEL_REGISTER(nonzero,
                           float,
                           double) {
   kernel->OutputAt(0).SetDataType(phi::DataType::INT64);
+}
+
+PD_CUSTOM_KERNEL_REGISTER(
+    restrict_nonzero, metax_gpu, ALL_LAYOUT, phi::RestrictNonZeroKernel, bool) {
 }

@@ -128,6 +128,7 @@ PD_REGISTER_PLUGIN_KERNEL(masked_select,
                           ALL_LAYOUT,
                           custom_kernel::MaskedSelectKernel,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           int) {
   kernel->InputAt(1).SetDataType(phi::DataType::BOOL);

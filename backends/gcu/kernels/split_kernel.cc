@@ -151,6 +151,7 @@ PD_REGISTER_PLUGIN_KERNEL(split,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(split_with_num,
@@ -161,4 +162,5 @@ PD_REGISTER_PLUGIN_KERNEL(split_with_num,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

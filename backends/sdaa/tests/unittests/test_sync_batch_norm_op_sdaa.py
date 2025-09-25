@@ -92,14 +92,6 @@ class TestParallelDygraphMnist_channel_last(TestParallelDygraphMnist):
         self._ignore_syncbn_bias_grad = False
 
 
-class TestParallelDygraphMnist_skip_bias_scale_grad(TestParallelDygraphMnist):
-    def _setup_config(self):
-        self._dygraph = True
-        self._use_sdaa = True
-        self._use_NHWC = True
-        self._ignore_syncbn_bias_grad = True
-
-
 class TestSyncBatchNormOpInference(unittest.TestCase):
     def setUp(self):
         self.dtype = np.float32

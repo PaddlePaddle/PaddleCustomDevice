@@ -118,6 +118,9 @@ def main():
             'paddle_custom_device.npu.profile'
         ],
         include_package_data=True,
+        install_requires=[
+            "pandas>=1.4.3"
+        ],
         package_data = {
             '': ['*.so', '*.h', '*.py', '*.hpp'],
         },

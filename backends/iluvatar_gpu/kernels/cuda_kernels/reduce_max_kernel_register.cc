@@ -17,7 +17,7 @@
 #include "paddle/phi/kernels/legacy/reduce_max_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(max_raw,
-                          metax_gpu,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MaxRawKernel,
                           float,

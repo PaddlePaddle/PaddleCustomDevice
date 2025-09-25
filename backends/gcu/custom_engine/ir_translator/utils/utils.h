@@ -17,7 +17,7 @@
 #include <tops/tops_ext.h>
 
 #include "common/utils.h"
-#include "gcu/hlir_builder/hlir_builder.h"
+#include "gcu/hlir/builder/hlir_builder.h"
 #include "paddle/phi/common/data_type.h"
 
 using GcuOp = ::builder::Op;

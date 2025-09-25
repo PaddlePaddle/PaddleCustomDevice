@@ -15,7 +15,6 @@
 import unittest
 
 import numpy as np
-import torch
 import paddle
 import paddlenlp_ops
 
@@ -26,21 +25,21 @@ import os
 intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
 
 
-def index_copy_torch(input, dim, index, source, dtype):
-    dtype_map = {
-        "float16": torch.float16,
-        "float32": torch.float32,
-        "float64": torch.float64,
-        "int32": torch.int32,
-    }
-    torch_dtype = dtype_map[dtype]
-    input_tensor = torch.tensor(input).clone().detach().to(dtype=torch_dtype)
-    index_tensor = torch.tensor(index).clone().detach().to(dtype=torch.int64)
-    source_tensor = torch.tensor(source).clone().detach().to(dtype=torch_dtype)
-    output = torch.index_copy(
-        input=input_tensor, dim=dim, index=index_tensor, source=source_tensor
-    )
-    return output
+def index_copy_paddle(input, dim, index, source, dtype):
+    input_tensor = paddle.to_tensor(input, dtype="float32").clone().cpu()
+    index_tensor = paddle.to_tensor(index, dtype="int64").clone().cpu()
+    source_tensor = paddle.to_tensor(source, dtype="float32").clone().cpu()
+
+    shape = input_tensor.shape
+    new_index = []
+    for i in range(0, int(np.prod(shape[:dim]))):
+        new_index.append(index_tensor + i * shape[dim])
+    new_index = paddle.concat(new_index)
+    new_x = input_tensor.reshape_([-1] + shape[dim + 1 :])
+    new_source = source_tensor.reshape([-1] + shape[dim + 1 :])
+    y = new_x.scatter_(new_index, new_source).reshape_(shape)
+
+    return y
 
 
 @skip_check_grad_ci(reason="index_copy_forward ops not support gradient calculation.")
@@ -56,7 +55,7 @@ class TestIndexCopyOpFP32(unittest.TestCase):
     def init_dtype(self):
         self.dtype = "float32"
 
-    def check_result(self, torch_res, ops_res):
+    def check_result(self, paddle_res, ops_res):
         if self.dtype == "float32":
             rtol = 1e-5
             atol = 1e-6
@@ -73,7 +72,7 @@ class TestIndexCopyOpFP32(unittest.TestCase):
                      float16 and float32, but got "
                 + self.dtype,
             )
-        np.testing.assert_allclose(torch_res, ops_res, rtol=rtol, atol=atol)
+        np.testing.assert_allclose(paddle_res, ops_res, rtol=rtol, atol=atol)
 
     def index_copy_custom(self, input, dim, index, source):
         input_tensor = paddle.to_tensor(input, dtype=self.dtype).clone()
@@ -121,78 +120,78 @@ class TestIndexCopyOpFP32(unittest.TestCase):
     def test_index_copy_dim0_index0(self):
         input, index, source, dim = self.prepare_input(dim=0, index=0)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res)
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res)
 
     def test_index_copy_dim0_index1(self):
         input, index, source, dim = self.prepare_input(dim=0, index=1)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res)
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res)
 
     def test_index_copy_dim0_index_max(self):
         index = max(self.num_heads - 1, 0)
         input, index, source, dim = self.prepare_input(dim=0, index=index)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res)
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res)
 
     def test_index_copy_dim1_index0(self):
         input, index, source, dim = self.prepare_input(dim=1, index=0)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res)
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res)
 
     def test_index_copy_dim1_index1(self):
         input, index, source, dim = self.prepare_input(dim=1, index=1)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res.numpy())
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res.numpy())
 
     def test_index_copy_dim1_index_max(self):
         index = max(self.head_dim - 1, 0)
         input, index, source, dim = self.prepare_input(dim=1, index=index)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res.numpy())
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res.numpy())
 
     def test_index_copy_dim2_index0(self):
         input, index, source, dim = self.prepare_input(dim=2, index=0)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res.numpy())
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res.numpy())
 
     def test_index_copy_dim2_index1(self):
         input, index, source, dim = self.prepare_input(dim=2, index=1)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res.numpy())
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res.numpy())
 
     def test_index_copy_dim2_index_max(self):
         index = max(self.seq_length - 1, 0)
         input, index, source, dim = self.prepare_input(dim=2, index=index)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res.numpy())
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res.numpy())
 
     def test_index_copy_dim3_index0(self):
         input, index, source, dim = self.prepare_input(dim=3, index=0)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res.numpy())
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res.numpy())
 
     def test_index_copy_dim3_index1(self):
         input, index, source, dim = self.prepare_input(dim=3, index=1)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res.numpy())
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res.numpy())
 
     def test_index_copy_dim3_index_max(self):
         index = max(self.batch_size - 1, 0)
         input, index, source, dim = self.prepare_input(dim=3, index=index)
         custom_res = self.index_copy_custom(input, dim, index, source)
-        torch_res = index_copy_torch(input, dim, index, source, dtype=self.dtype)
-        self.check_result(torch_res.numpy(), custom_res.numpy())
+        paddle_res = index_copy_paddle(input, dim, index, source, dtype=self.dtype)
+        self.check_result(paddle_res.numpy(), custom_res.numpy())
 
 
 @skip_check_grad_ci(reason="index_copy_forward ops not support gradient calculation.")

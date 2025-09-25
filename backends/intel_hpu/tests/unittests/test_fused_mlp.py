@@ -86,8 +86,7 @@ class Test_Fused_MLP_OP(unittest.TestCase):
 
         return x, gate_weight, up_weight, down_weight, proj_weight
 
-    def HPU_Fused_MLP_OP(self):
-        x, gate_weight, up_weight, down_weight, _ = self.prepare_input()
+    def HPU_Fused_MLP_OP(self, x, gate_weight, up_weight, down_weight):
         fused_mlp_out = paddlenlp_ops.fused_mlp(
             x,
             gate_weight,
@@ -96,8 +95,7 @@ class Test_Fused_MLP_OP(unittest.TestCase):
         )
         return fused_mlp_out
 
-    def HPU_Fused_GateUp_MLP_OP(self):
-        x, _, _, down_weight, proj_weight = self.prepare_input()
+    def HPU_Fused_GateUp_MLP_OP(self, x, down_weight, proj_weight):
         fused_gateup_mlp_out = paddlenlp_ops.fused_mlp(
             x,
             proj_weight,
@@ -106,8 +104,7 @@ class Test_Fused_MLP_OP(unittest.TestCase):
         )
         return fused_gateup_mlp_out
 
-    def NP_Fused_MLP_OP(self):
-        x, gate_weight, up_weight, down_weight, _ = self.prepare_input()
+    def NP_Fused_MLP_OP(self, x, gate_weight, up_weight, down_weight):
         np_mlp_out_ref = fused_mlp(
             x,
             gate_weight,
@@ -121,9 +118,13 @@ class Test_Fused_MLP_OP(unittest.TestCase):
         np.testing.assert_allclose(np_result, fused_gate_up_result)
 
     def test_fused_mlp(self):
-        result_fused_mlp = self.HPU_Fused_MLP_OP()
-        result_fused_gate_up_mlp = self.HPU_Fused_GateUp_MLP_OP()
-        result_np_result = self.NP_Fused_MLP_OP()
+        x, gate_weight, up_weight, down_weight, proj_weight = self.prepare_input()
+
+        result_fused_mlp = self.HPU_Fused_MLP_OP(x, gate_weight, up_weight, down_weight)
+        result_fused_gate_up_mlp = self.HPU_Fused_GateUp_MLP_OP(
+            x, down_weight, proj_weight
+        )
+        result_np_result = self.NP_Fused_MLP_OP(x, gate_weight, up_weight, down_weight)
 
         self.check_result(result_np_result, result_fused_mlp, result_fused_gate_up_mlp)
 

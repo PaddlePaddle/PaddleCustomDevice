@@ -145,6 +145,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply_raw,
                           bool,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
+                          phi::dtype::float8_e4m3fn,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(multiply,
@@ -159,4 +160,5 @@ PD_REGISTER_PLUGIN_KERNEL(multiply,
                           bool,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
+                          phi::dtype::float8_e4m3fn,
                           float) {}

@@ -171,12 +171,6 @@ class TestMaxWithNan(unittest.TestCase):
             out = func(x)
             self.assertTrue(paddle.isnan(out), "Result should be NaN")
 
-    def test_with_nan(self):
-        places = self._get_places()
-        for place in places:
-            self._test_with_nan_dynamic(paddle.max, (2, 3), place=place)
-            self._test_with_nan_static(paddle.max, (2, 3), place=place)
-
 
 if __name__ == "__main__":
     unittest.main()

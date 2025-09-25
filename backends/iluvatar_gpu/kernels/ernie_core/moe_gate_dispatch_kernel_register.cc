@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/moe_gate_dispatch_kernel.h"
+#include "paddle/phi/kernels/legacy/gpu/moe_gate_dispatch_kernel.cu"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(moe_gate_dispatch,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::MoeGradDispatchKernel,
+                          phi::MoeGateDispatchKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

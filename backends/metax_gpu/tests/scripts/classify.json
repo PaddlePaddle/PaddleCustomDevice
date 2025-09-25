@@ -1,0 +1,47 @@
+{
+    "OK":{
+        "skipped":{
+            "rule":["skipped="]
+        }
+    },
+
+    "FAILED":{
+        "precision":{
+            "rule":["Mismatched elements",
+            "RuntimeError: Jacobian mismatch for output 0 in y with respect to input 0 in x on Place(metax_gpu:0),",
+            "AssertionError: np.float64("]
+        },
+        "api":{
+            "rule":["(PermissionDenied) Cannot use CUDAPinnedPlace",
+            "ValueError: The API paddle.device.cuda.get_device_properties",
+            "TypeError: paddle.index_add api",
+            "RuntimeError: (Unavailable) Paddle is not compiled with CUDA.",
+            "ValueError: invalid literal for int() with base",
+            "AttributeError: module 'paddle.base.libpaddle' has no attribute 'cudnn_version'",
+            "RuntimeError: Pinning memory is not supported for Place(metax_gpu:0)",
+            "PreconditionNotMetError: Context place error, excepted GPUPlace, but actually Place(metax_gpu:0).",
+            "AttributeError: module 'paddle.base.libpaddle.eager.ops.legacy' has no attribute 'fused_gemm_epilogue'",
+            "ValueError: The device should not be 'gpu', since PaddlePaddle is not compiled with CUDA"]
+        },
+        "missing":{
+            "rule":["missing metax_gpu kernel",
+            "missing ONEDNN kernel",
+            "UnimplementedError: There are no kernels which are registered",
+            "symbol lookup error:",
+            "RuntimeError: (NotFound) The kernel"]
+        },
+        "core_dumped":{
+            "rule":["Segmentation fault"]
+        },
+        "input_dim":{
+            "rule":["ValueError: (InvalidArgument) The Input(",
+            "Test range of input is out of bound"]
+        },
+        "array_dim":{
+            "rule":["Arrays are not equal"]
+        },
+        "file_not_found":{
+            "rule":["FileNotFoundError:"]
+        }
+    }
+}

@@ -19,7 +19,7 @@ set -ex
 # Usage:
 # bash build-image.sh ${TOPS_RIDER_VERSION} ${TOPS_RIDER_PACKAGE_LINK}
 
-TOPS_RIDER_VERSION=${1:-3.2.109} # default 3.2.109
+TOPS_RIDER_VERSION=${1:-3.5.102} # default 3.5.102
 
 # Please contact Enflame (Email: developer-enflame@enflame-tech.com) to
 # obtain software driver packages and other assistance.

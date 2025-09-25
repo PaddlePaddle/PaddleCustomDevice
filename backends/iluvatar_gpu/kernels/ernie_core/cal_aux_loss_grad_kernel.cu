@@ -17,7 +17,6 @@
 #include "../funcs/math_cuda_utils.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/cal_aux_loss_grad_kernel.h"
 
 namespace phi {
 
@@ -105,7 +104,7 @@ void CalAuxLossGradKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(cal_aux_loss_grad,
+PD_REGISTER_PLUGIN_KERNEL(cal_aux_loss_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::CalAuxLossGradKernel,

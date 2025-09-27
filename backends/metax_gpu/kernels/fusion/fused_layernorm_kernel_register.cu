@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/fused_layernorm_kernel.h"
 #include "paddle/phi/kernels/fusion/gpu/attention_layer.norm.h"
 #include "paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu"  //NOLINT
 
 #ifndef PADDLE_WITH_HIP
 #if CUDNN_VERSION_MIN(8, 1, 0)

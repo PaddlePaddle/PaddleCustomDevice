@@ -14,7 +14,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/core/utils/data_type.h"
-#include "paddle/phi/kernels/fusion/gpu/fusion_group_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/fusion/gpu/fusion_group_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fusion_group,
                           iluvatar_gpu,

@@ -15,7 +15,7 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/fusion/gpu/attention_layer.norm.h"
 #include "paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/fused_layernorm_kernel.h"
 
 #ifndef PADDLE_WITH_HIP
 #if CUDNN_VERSION_MIN(8, 1, 0)

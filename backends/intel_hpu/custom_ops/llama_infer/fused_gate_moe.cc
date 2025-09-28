@@ -41,12 +41,14 @@ struct FusedGateMoeParams {
   bool fused_gemm;
   bool measurement_mode;
   bool dynamic_scale;
+
+  bool hidden_states_static_quant;
 };
 
 enum TENSOR_IDS_IN {
   HIDDEN_STATES = 0,
   GATE_WEIGHT = 1,
-  BIAS_OR_WEIGHTS,  // 2 + bias_offset
+  BIAS_OR_WEIGHTS,  // 2 + bias_offset + hs_quant_offset
   EOS_TOKEN
 };
 
@@ -147,6 +149,7 @@ class FusedGateMoe : public HpuFusedOperator {
         createTensorNoPresist("selected_experts", syn_type_int32, topk_dims);
 
     int bias_offset = 0;
+    int hs_quant_offset = 0;
     // if layer.moe_use_gate_correction_bias:
     if (params.moe_use_gate_correction_bias) {
       // scores = weights + layer.gate_correction_bias
@@ -165,7 +168,7 @@ class FusedGateMoe : public HpuFusedOperator {
 
       // _, selected_experts = paddle.topk(scores, layer.top_k, axis=-1)
       auto drop_data =
-          createTensorNoPresist("drop_data", syn_type_int32, topk_dims);
+          createTensorNoPresist("drop_data", gate_data_type, topk_dims);
 
       std::vector<synTensor> topk_outs;
       topk_outs.push_back(drop_data);
@@ -236,76 +239,123 @@ class FusedGateMoe : public HpuFusedOperator {
     AddNodeCast(cast_in, cast_out, "cast_f32_to_bf16", guid_ + "cast");
 
     std::vector<synTensor> inputs;
-    synTensor fp8_scale = nullptr;
+    synTensor fp8_d_scale = nullptr;
 
-    /* ---------------- quant_fn for fp8 MoE  ---------------- */
-    // x, x_scale = self.quant_fn(x)
+    /* ---------------- quant_fn for fp8 hidden_states  ---------------- */
     if (dtype_ == syn_type_fp8_143) {
-      ns_ConstantKernel::Params const_params;
-      synTensor q_min =
-          createTensorNoPresist("q_min", ins[HIDDEN_STATES].type, {1});
-      const_params.constant.f = MIN_FP8_VALUES;
-      std::vector<synTensor> min_tensor = {q_min};
-      AddNodeFull<T>(min_tensor, const_params, guid_ + "full_min");
+      // w/a Tensor fp8_d_scale was already mapped
+      unsigned int seed = static_cast<unsigned int>(
+          std::chrono::system_clock::now().time_since_epoch().count());
+      if (params.hidden_states_static_quant == false) {
+        /* ----  dynamic quant for hidden_states ---- */
+        // x, x_scale = self.quant_fn(x)
+        ns_ConstantKernel::Params const_params;
+        synTensor q_min =
+            createTensorNoPresist("q_min", ins[HIDDEN_STATES].type, {1});
+        const_params.constant.f = MIN_FP8_VALUES;
+        std::vector<synTensor> min_tensor = {q_min};
+        AddNodeFull<T>(min_tensor, const_params, guid_ + "full_min");
 
-      synTensor q_max =
-          createTensorNoPresist("q_max", ins[HIDDEN_STATES].type, {1});
-      const_params.constant.f = MAX_FP8_VALUES;
-      std::vector<synTensor> max_tensor = {q_max};
-      AddNodeFull<T>(max_tensor, const_params, guid_ + "full_max");
+        synTensor q_max =
+            createTensorNoPresist("q_max", ins[HIDDEN_STATES].type, {1});
+        const_params.constant.f = MAX_FP8_VALUES;
+        std::vector<synTensor> max_tensor = {q_max};
+        AddNodeFull<T>(max_tensor, const_params, guid_ + "full_max");
 
-      synTensor zeropoint =
-          createTensorNoPresist("zeropoint", ins[HIDDEN_STATES].type, {1});
-      const_params.constant.f = 0;
-      std::vector<synTensor> zeropoint_tensor = {zeropoint};
-      AddNodeFull<T>(zeropoint_tensor, const_params, guid_ + "full_zero");
+        synTensor zeropoint =
+            createTensorNoPresist("zeropoint", ins[HIDDEN_STATES].type, {1});
+        const_params.constant.f = 0;
+        std::vector<synTensor> zeropoint_tensor = {zeropoint};
+        AddNodeFull<T>(zeropoint_tensor, const_params, guid_ + "full_zero");
 
-      std::vector<synTensor> abs_in;
-      abs_in.push_back(hidden_states);
-      auto hidden_states_abs = createTensorNoPresist("hidden_states_abs",
-                                                     ins[HIDDEN_STATES].type,
-                                                     ins[HIDDEN_STATES].dims);
-      std::vector<synTensor> abs_out;
-      abs_out.push_back(hidden_states_abs);
-      AddNodeAbs<T>(abs_in, abs_out, guid_ + "abs");
+        std::vector<synTensor> abs_in;
+        abs_in.push_back(hidden_states);
+        auto hidden_states_abs = createTensorNoPresist("hidden_states_abs",
+                                                       ins[HIDDEN_STATES].type,
+                                                       ins[HIDDEN_STATES].dims);
+        std::vector<synTensor> abs_out;
+        abs_out.push_back(hidden_states_abs);
+        AddNodeAbs<T>(abs_in, abs_out, guid_ + "abs");
 
-      auto max_out =
-          createTensorNoPresist("max_out", ins[HIDDEN_STATES].type, {1});
-      std::vector<synTensor> max_outputs;
-      max_outputs.push_back(max_out);
+        auto max_out =
+            createTensorNoPresist("max_out", ins[HIDDEN_STATES].type, {1});
+        std::vector<synTensor> max_outputs;
+        max_outputs.push_back(max_out);
 
-      ns_Reduction::ParamsV2 reduce_max_params{};
-      AddNodeMaximumMultidimensional<T>(
-          abs_out, max_outputs, reduce_max_params, guid_ + "reduceMax");
+        ns_Reduction::ParamsV2 reduce_max_params{};
+        AddNodeMaximumMultidimensional<T>(
+            abs_out, max_outputs, reduce_max_params, guid_ + "reduceMax");
 
-      std::vector<synTensor> div_inputs;
-      div_inputs.push_back(max_out);
-      div_inputs.push_back(q_max);
-      std::vector<synTensor> div_outputs;
-      // w/a Tensor fp8_scale was already mapped
-      unsigned int seed = time(NULL);
-      std::string fp8_scale_name = "fp8_scale_" + std::to_string(rand_r(&seed));
+        std::vector<synTensor> div_inputs;
+        div_inputs.push_back(max_out);
+        div_inputs.push_back(q_max);
 
-      fp8_scale =
-          createTensorNoPresist(fp8_scale_name, ins[HIDDEN_STATES].type, {1});
-      div_outputs.push_back(fp8_scale);
-      AddNodeDivide<T>(div_inputs, div_outputs, guid_ + "div");
+        std::vector<synTensor> div_outputs;
+        std::string fp8_scale_name =
+            "fp8_scale_" + std::to_string(rand_r(&seed));
+        fp8_d_scale =
+            createTensorNoPresist(fp8_scale_name, ins[HIDDEN_STATES].type, {1});
+        div_outputs.push_back(fp8_d_scale);
+        AddNodeDivide<T>(div_inputs, div_outputs, guid_ + "div");
 
-      std::vector<synTensor> quant_inputs;
-      quant_inputs.push_back(hidden_states);
-      quant_inputs.push_back(fp8_scale);
-      quant_inputs.push_back(zeropoint);
-      quant_inputs.push_back(q_min);
-      quant_inputs.push_back(q_max);
+        std::vector<synTensor> quant_inputs;
+        quant_inputs.push_back(hidden_states);
+        quant_inputs.push_back(fp8_d_scale);
+        quant_inputs.push_back(zeropoint);
+        quant_inputs.push_back(q_min);
+        quant_inputs.push_back(q_max);
 
-      std::vector<synTensor> quant_outputs;
-      synTensor scaled_hidden_states = createTensorNoPresist(
-          "scaled_hidden_states", dtype_, ins[HIDDEN_STATES].dims);
-      quant_outputs.push_back(scaled_hidden_states);
-      AddNodeQuantizePerTensor<T>(quant_inputs, quant_outputs, guid_ + "quant");
+        std::vector<synTensor> quant_outputs;
+        synTensor scaled_hidden_states = createTensorNoPresist(
+            "scaled_hidden_states", dtype_, ins[HIDDEN_STATES].dims);
+        quant_outputs.push_back(scaled_hidden_states);
+        AddNodeQuantizePerTensor<T>(
+            quant_inputs, quant_outputs, guid_ + "quant");
 
-      // fp8
-      inputs.push_back(scaled_hidden_states);
+        // fp8
+        inputs.push_back(scaled_hidden_states);
+      } else {
+        /* ----  static quant for hidden_states ---- */
+        hs_quant_offset = 1;
+        int hs_quant_base = BIAS_OR_WEIGHTS + bias_offset;
+        auto fp8_scale = createTensorFromCT(&ct, hs_quant_base);
+
+        std::vector<synTensor> quant_inputs;
+        quant_inputs.push_back(hidden_states);
+        quant_inputs.push_back(fp8_scale);
+
+        std::vector<synTensor> quant_outputs;
+        synTensor scaled_hidden_states = createTensorNoPresist(
+            "scaled_hidden_states", dtype_, ins[HIDDEN_STATES].dims);
+        quant_outputs.push_back(scaled_hidden_states);
+
+        ns_CastKernel::Params cast_to_fp8_params;
+        cast_to_fp8_params.round_mode = CAST_ROUND_HALF_NE;
+        AddNodeConvertToFP8<T>(
+            quant_inputs, quant_outputs, cast_to_fp8_params, guid_ + "quant");
+        // fp8
+        inputs.push_back(scaled_hidden_states);
+
+        synTensor one =
+            createTensorNoPresist("one", ins[HIDDEN_STATES].type, {1});
+        ns_ConstantKernel::Params const_params;
+        const_params.constant.f = 1.0f;
+        std::vector<synTensor> one_tensor = {one};
+        AddNodeFull<T>(one_tensor, const_params, guid_ + "full_one");
+
+        std::vector<synTensor> div_inputs;
+        div_inputs.push_back(one);
+        div_inputs.push_back(fp8_scale);
+
+        std::vector<synTensor> div_outputs;
+        // w/a Tensor fp8_scale was already mapped
+        std::string fp8_scale_name =
+            "fp8_scale_" + std::to_string(rand_r(&seed));
+        fp8_d_scale =
+            createTensorNoPresist(fp8_scale_name, ins[HIDDEN_STATES].type, {1});
+        div_outputs.push_back(fp8_d_scale);
+        AddNodeDivide<T>(div_inputs, div_outputs, guid_ + "reciprocal");
+      }
     } else {
       // bf16 / blockwise fp8
       inputs.push_back(hidden_states);
@@ -319,7 +369,7 @@ class FusedGateMoe : public HpuFusedOperator {
 
     // Add gate_up_weights and down_weights
     int64_t input_count = params.num_experts * weights_per_expert;
-    int weight_base = BIAS_OR_WEIGHTS + bias_offset;
+    int weight_base = BIAS_OR_WEIGHTS + bias_offset + hs_quant_offset;
     for (int64_t i = weight_base; i < weight_base + input_count; i++) {
       inputs.push_back(createTensorFromCT(&ct, i));
     }
@@ -328,7 +378,7 @@ class FusedGateMoe : public HpuFusedOperator {
     if (dtype_ == syn_type_fp8_143) {
       // fp8
       // hidden_states_scales
-      inputs.push_back(fp8_scale);
+      inputs.push_back(fp8_d_scale);
       auto scales_per_expert = params.fused_gemm ? 2 : 3;
       if (!params.dynamic_scale) scales_per_expert += 1;
       input_count = params.num_experts * scales_per_expert;
@@ -365,6 +415,7 @@ void FusedGateMoeKernel(
     const paddle::optional<phi::DenseTensor>& gate_correction_bias,
     const std::vector<phi::DenseTensor>& gate_up_weights,
     const std::vector<phi::DenseTensor>& down_weights,
+    const paddle::optional<phi::DenseTensor>& hidden_states_scales,
     const paddle::optional<std::vector<phi::DenseTensor>>& scales,
     phi::DenseTensor* final_hidden_states,
     const int top_k,
@@ -388,6 +439,7 @@ void FusedGateMoeKernel(
   params.num_experts = down_weights.size();
   params.experts_min = experts_min;
   params.experts_max = experts_max;
+  params.hidden_states_static_quant = false;
   params.dynamic_scale = dynamic_scale;
   params.block_size = block_size;
   strncpy(params.activation_mode,
@@ -400,6 +452,10 @@ void FusedGateMoeKernel(
   ct.Add(gate_weights);
   if (moe_use_gate_correction_bias) {
     ct.Add(gate_correction_bias.get());
+  }
+  if (hidden_states_scales) {
+    ct.Add(hidden_states_scales.get());
+    params.hidden_states_static_quant = true;
   }
   for (const auto& t : gate_up_weights) {
     ct.Add(t);
@@ -447,6 +503,7 @@ void CallFusedGateMoeKernel(
     const paddle::optional<phi::DenseTensor>& gate_correction_bias,
     const std::vector<phi::DenseTensor>& gate_up_weights,
     const std::vector<phi::DenseTensor>& down_weights,
+    const paddle::optional<phi::DenseTensor>& hidden_states_scales,
     const paddle::optional<std::vector<phi::DenseTensor>>& scales,
     phi::DenseTensor* final_hidden_states,
     const int top_k,
@@ -472,6 +529,7 @@ void CallFusedGateMoeKernel(
           gate_correction_bias,
           gate_up_weights,
           down_weights,
+          hidden_states_scales,
           scales,
           final_hidden_states,
           top_k,
@@ -494,6 +552,7 @@ void CallFusedGateMoeKernel(
           gate_correction_bias,
           gate_up_weights,
           down_weights,
+          hidden_states_scales,
           scales,
           final_hidden_states,
           top_k,
@@ -567,6 +626,7 @@ std::vector<paddle::Tensor> FusedGateMoeForward(
       gate_correction_tensor,
       gate_up_weights_vec,
       down_weights_vec,
+      paddle::optional<phi::DenseTensor>(), /* hidden_states_scale */
       paddle::optional<std::vector<phi::DenseTensor>>(), /* scales */
       final_hidden_states.get(),
       top_k,
@@ -576,7 +636,7 @@ std::vector<paddle::Tensor> FusedGateMoeForward(
       activation,
       experts_min,
       experts_max,
-      true,  /* moe input = bf16 */
+      true,  /* is_bf16_moe_input, moe input = bf16 */
       false, /* measurement_mode, so far not need */
       false, /* dynamic_scale */
       -1 /* block_size */,
@@ -591,6 +651,7 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
     const paddle::optional<paddle::Tensor>& gate_correction_bias,
     const std::vector<paddle::Tensor>& gate_up_weights,
     const std::vector<paddle::Tensor>& down_weights,
+    const paddle::optional<paddle::Tensor>& hidden_states_scales,
     const paddle::optional<std::vector<paddle::Tensor>>&
         intermediate_hidden_states_scales,
     const std::vector<paddle::Tensor>& gate_up_weights_scales,
@@ -631,6 +692,14 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
         *static_cast<const phi::DenseTensor*>(t.impl().get()));
   }
 
+  auto hidden_states_scales_tensor = paddle::optional<phi::DenseTensor>();
+  if (hidden_states_scales) {
+    auto hidden_states_scales_dt =
+        static_cast<phi::DenseTensor*>(hidden_states_scales->impl().get());
+    hidden_states_scales_tensor =
+        paddle::optional<phi::DenseTensor>(*hidden_states_scales_dt);
+  }
+
   bool dynamic_scale = true;
   std::vector<phi::DenseTensor> scales_vec;
   if (intermediate_hidden_states_scales) {
@@ -659,6 +728,7 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
       gate_correction_tensor,
       gate_up_weights_vec,
       down_weights_vec,
+      hidden_states_scales_tensor,
       scales_vec,
       final_hidden_states.get(),
       top_k,
@@ -668,7 +738,7 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
       activation,
       experts_min,
       experts_max,
-      false, /* moe input = fp8*/
+      false, /* is_bf16_moe_input, moe input = fp8*/
       false, /* measurement_mode, so far not supported on FP8 */
       dynamic_scale,
       -1 /* block_size */,
@@ -741,6 +811,7 @@ std::vector<paddle::Tensor> FusedGateMoeBlockWiseFP8Forward(
       gate_correction_tensor,
       gate_up_weights_vec,
       down_weights_vec,
+      paddle::optional<phi::DenseTensor>(), /* hidden_states_scale */
       scales_vec,
       final_hidden_states.get(),
       top_k,
@@ -750,7 +821,7 @@ std::vector<paddle::Tensor> FusedGateMoeBlockWiseFP8Forward(
       activation,
       experts_min,
       experts_max,
-      true,  /* moe input = bf16 */
+      true,  /* is_bf16_moe_input, moe input = bf16 */
       false, /* measurement_mode, so far not supported on FP8 */
       false, /*dynamic_scale*/
       block_size,
@@ -778,7 +849,7 @@ std::vector<paddle::DataType> FusedGateMoeInferDtype(
 
 // hidden_states        : bf16
 // gate_weights         : fp32
-// gate_correction_bias : fp32 [BT, 1] <optional>
+// gate_correction_bias : fp32 [1, num_experts] <optional>
 // final_hidden_states  : bf16
 // moe_use_gate_correction_bias -> gate_correction_bias (False->None)
 PD_BUILD_OP(fused_gate_moe)
@@ -800,9 +871,9 @@ PD_BUILD_OP(fused_gate_moe)
     .SetInferShapeFn(PD_INFER_SHAPE(FusedGateMoeInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedGateMoeInferDtype));
 
-// hidden_states        : bf16 --> quant --> fp8 --> moe
+// hidden_states        : bf16 --> quant/cast --> fp8 --> moe
 // gate_weights         : fp32
-// gate_correction_bias : fp32 [BT, 1] <optional>
+// gate_correction_bias : fp32 [1, num_experts] <optional>
 // gate_up/down_weights : fp8
 // final_hidden_states  : internel fp8 --> bf16
 // moe_use_gate_correction_bias -> gate_correction_bias (False->None)
@@ -813,6 +884,7 @@ PD_BUILD_OP(fused_gate_moe_fp8)
              paddle::Optional("gate_correction_bias"),
              paddle::Vec("gate_up_weights"),
              paddle::Vec("down_weights"),
+             paddle::Optional(paddle::Vec("hidden_states_scales")),
              paddle::Optional(paddle::Vec("intermediate_hidden_states_scales")),
              paddle::Vec("gate_up_weights_scales"),
              paddle::Vec("down_weights_scales")})
@@ -831,7 +903,7 @@ PD_BUILD_OP(fused_gate_moe_fp8)
 
 // hidden_states        : bf16 --> moe(internel fp8)
 // gate_weights         : fp32
-// gate_correction_bias : fp32 [BT, 1] <optional>
+// gate_correction_bias : fp32 [1, num_experts] <optional>
 // gate_up/down_weights : fp8
 // final_hidden_states  : internel fp8 --> bf16
 // moe_use_gate_correction_bias -> gate_correction_bias (False->None)

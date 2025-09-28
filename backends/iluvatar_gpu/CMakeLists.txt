@@ -219,6 +219,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/tril_triu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unbind_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/uniform_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unique_consecutive_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/where_kernel.cu
   # kernels/selected_rows
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/adamw_kernel.cu
@@ -932,7 +933,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_kernel.cc)
 
 set(CUDA_SRCS ${CUDA_SRCS1} ${CUDA_SRCS2})
-list(REMOVE_DUPLICATES CUDA_SRCS1)
+list(REMOVE_DUPLICATES CUDA_SRCS)
 
 list(
   REMOVE_ITEM

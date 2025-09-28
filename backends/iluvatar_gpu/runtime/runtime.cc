@@ -555,6 +555,10 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   err = cudaMalloc(ptr, size);
   if (err != cudaSuccess) {
     *ptr = NULL;
+    if (err == cudaErrorMemoryAllocation) {
+      VLOG(0) << "[RUNTIME] Failed to alloc hbm, size: " << size
+              << ", out of memory.";
+    }
     return C_ERROR;
   }
 

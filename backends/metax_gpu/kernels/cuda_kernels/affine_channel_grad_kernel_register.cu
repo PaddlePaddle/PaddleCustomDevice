@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/affine_channel_grad_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/affine_channel_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(affine_channel_grad,
                           metax_gpu,

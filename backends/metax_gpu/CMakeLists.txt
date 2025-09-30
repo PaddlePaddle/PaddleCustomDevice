@@ -72,6 +72,9 @@ include(zlib)
 include(protobuf)
 include(generate_pb)
 
+# Add fusion headers search path for phi::fusion::FusedLayerNormKernel
+include_directories("${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion")
+
 set(PROTO_FILE "${PADDLE_SOURCE_DIR}/paddle/phi/core/external_error.proto")
 get_filename_component(PROTO_WE "${PROTO_FILE}" NAME_WE)
 

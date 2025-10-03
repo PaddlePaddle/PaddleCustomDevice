@@ -136,6 +136,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/all_reduce_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/all_to_all_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/arg_min_max_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/ap_facade_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/apply_per_channel_scale_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/as_complex_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/as_real_kernel.cu

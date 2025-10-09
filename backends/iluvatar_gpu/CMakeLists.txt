@@ -949,7 +949,7 @@ list(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_bias_dropout_residual_layer_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_bias_dropout_residual_layer_norm_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/check_numerics_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/collect_fpn_proposals_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/dgc_kernel.cu

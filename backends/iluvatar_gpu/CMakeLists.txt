@@ -135,6 +135,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adamw_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/addmm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/addmm_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/ap_facade_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/argsort_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/amp_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/arange_kernel.cu

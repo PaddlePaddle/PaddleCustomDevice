@@ -31,7 +31,7 @@ limitations under the License. */
 #include "paddle/phi/kernels/funcs/complex_functors.h"
 #include "paddle/phi/kernels/scale_kernel.h"
 #if defined(PADDLE_WITH_CUDA)
-// #include "paddle/phi/kernels/funcs/cublaslt.h"
+// #include "paddle/phi/kernels/funcs/cublaslt_helper.h"
 #include "paddle/phi/kernels/gpu/cuda_gemm_kernel.h"
 #include "paddle/phi/kernels/transpose_kernel.h"
 #elif defined(PADDLE_WITH_HIP)

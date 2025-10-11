@@ -241,7 +241,7 @@ class FusedGateMoe : public HpuFusedOperator {
     std::vector<synTensor> inputs;
     synTensor fp8_d_scale = nullptr;
 
-    /* ---------------- quant_fn for fp8 hidden_states  ---------------- */
+    /* ----------------  hidden_states to fp8  ---------------- */
     if (dtype_ == syn_type_fp8_143) {
       // w/a Tensor fp8_d_scale was already mapped
       unsigned int seed = static_cast<unsigned int>(

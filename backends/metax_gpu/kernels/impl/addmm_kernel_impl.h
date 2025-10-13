@@ -98,6 +98,7 @@ void AddmmKernel(const Context& dev_ctx,
           y_dims[0]));
 
   dev_ctx.template Alloc<T>(out);
+  if (out->numel() == 0) return;
   auto blas = funcs::GetBlas<Context, T>(dev_ctx);
 
   // calc broadcast dim

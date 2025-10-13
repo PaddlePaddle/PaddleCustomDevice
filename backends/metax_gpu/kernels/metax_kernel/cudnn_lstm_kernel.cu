@@ -1,4 +1,4 @@
-// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,32 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/kernels/rnn_kernel.h"
-
 #include "glog/logging.h"
 #include "kernels/metax_kernel/metax_context.h"  //NOLINT
-#include "paddle/phi/backends/gpu/gpu_context.h"
-#include "paddle/phi/core/generator.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/core/tensor_utils.h"
-#include "paddle/phi/kernels/empty_kernel.h"
-#include "paddle/phi/kernels/gpu/rnn_functor.h"
+#include "paddle/phi/kernels/cudnn_lstm_kernel.h"
+#include "paddle/phi/kernels/gpu/cudnn_lstm_utils.h"
+
 namespace phi {
 
 template <typename T>
-void RNNInferece(bool has_seq_length,
-                 const gpuDnnHandle_t &handle,
-                 int seq_length,
-                 RNNDescriptors *rnn,
-                 const T *x_data,
-                 const T *init_h_data,
-                 const T *init_c_data,
-                 const T *w_data,
-                 T *out_data,
-                 T *last_h_data,
-                 T *last_c_data,
-                 DenseTensor *workspace_data,
-                 size_t workspace_size) {
+#ifdef PADDLE_WITH_HIP
+void LSTMInference(const bool &has_seq_length,
+                   const miopenHandle_t &handle,
+#else
+void LSTMInference(const bool &has_seq_length,
+                   const cudnnHandle_t &handle,
+#endif
+                   const int &seq_length,
+                   ScopedRNNBase *rnn,
+                   const T *x_data,
+                   const T *init_h_data,
+                   const T *init_c_data,
+                   const T *w_data,
+                   T *out_data,
+                   T *last_h_data,
+                   T *last_c_data,
+                   phi::DenseTensor *workspace_data,
+                   const size_t &workspace_size) {
 #if CUDNN_VERSION >= 90000
   PADDLE_ENFORCE_GPU_SUCCESS(
       phi::dynload::cudnnRNNForward(handle,
@@ -110,7 +111,7 @@ void RNNInferece(bool has_seq_length,
                                                workspace_size));
 #endif
   } else {
-#if defined(PADDLE_WITH_CUDA) && CUDNN_VERSION >= 7201
+#if !defined(PADDLE_WITH_HIP) && CUDNN_VERSION >= 7201
     // for inference
     // This interface is used when the input/output is padded.
     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnRNNForwardInferenceEx(
@@ -153,86 +154,47 @@ void RNNInferece(bool has_seq_length,
 }
 
 template <typename T, typename Context>
-void RnnKernel(const Context &dev_ctx,
-               const DenseTensor &x,
-               const std::vector<const DenseTensor *> &pre_state,
-               const std::vector<const DenseTensor *> &weight_list,
-               const paddle::optional<DenseTensor> &sequence_length,
-               float dropout_prob,
-               bool is_bidirec,
-               int input_size UNUSED,
-               int hidden_size,
-               int num_layers,
-               const std::string &mode,
-               int seed,
-               bool is_test,
-               DenseTensor *out,
-               DenseTensor *dropout_state,
-               std::vector<DenseTensor *> state,
-               DenseTensor *reserve) {
-#ifdef PADDLE_WITH_HIP
-  gpuRNNMode_t rnn_mode = miopenLSTM;
-  if (mode == "LSTM")
-    rnn_mode = miopenLSTM;
-  else if (mode == "GRU")
-    rnn_mode = miopenGRU;
-  else if (mode == "RNN_RELU")
-    rnn_mode = miopenRNNRELU;
-  else if (mode == "RNN_TANH")
-    rnn_mode = miopenRNNTANH;
-#else
-  VLOG(0) << "Leave lstmKernel.11";
-  gpuRNNMode_t rnn_mode = CUDNN_LSTM;
-  if (mode == "LSTM")
-    rnn_mode = CUDNN_LSTM;
-  else if (mode == "GRU")
-    rnn_mode = CUDNN_GRU;
-  else if (mode == "RNN_RELU")
-    rnn_mode = CUDNN_RNN_RELU;
-  else if (mode == "RNN_TANH")
-    rnn_mode = CUDNN_RNN_TANH;
-#endif
-  else
-    PADDLE_THROW(common::errors::InvalidArgument(
-        "rnn_mode should be LSTM, GRU, RNN_RELU or RNN_TANH, but received: "
-        "%s.",
-        mode));
+void CudnnLSTMKernel(
+    const Context &dev_ctx,
+    const DenseTensor &x,
+    const DenseTensor &init_h,
+    const DenseTensor &init_c,
+    const paddle::optional<DenseTensor> &w,
+    const paddle::optional<std::vector<const DenseTensor *>> &weight_list,
+    const paddle::optional<DenseTensor> &sequence_length,
+    float dropout_prob,
+    bool is_bidirec,
+    int hidden_size,
+    int num_layers,
+    bool is_test,
+    int seed,
+    DenseTensor *out,
+    DenseTensor *last_h,
+    DenseTensor *last_c,
+    DenseTensor *reserve,
+    DenseTensor *state_out) {
+  const T *x_data = x.data<T>();
+  const T *init_h_data = init_h.data<T>();
+  const T *init_c_data = init_c.data<T>();
+
+  T *out_data = dev_ctx.template Alloc<T>(out);
+  T *last_h_data = dev_ctx.template Alloc<T>(last_h);
+  T *last_c_data = dev_ctx.template Alloc<T>(last_c);
 
   if (!is_test) {
     if (seed == 0) {
       // If not specify seed, use global Generator to generate seed.
-      auto gen_cuda = dev_ctx.GetGenerator();
+      int device_id = dev_ctx.GetPlace().GetDeviceId();
+      auto gen_cuda = phi::DefaultCUDAGenerator(device_id);
       seed = static_cast<int>(gen_cuda->Random64());
     }
-    // else use `ctx.Attr<int>("seed")` specified seed
   }
 
-  const T *x_data = x.data<T>();
-  const T *init_h_data = pre_state[0]->data<T>();
-  const T *init_c_data = nullptr;
-  T *out_data = dev_ctx.template Alloc<T>(out);
-  T *last_h_data = dev_ctx.template Alloc<T>(state[0]);
-  T *last_c_data = nullptr;
-#ifdef PADDLE_WITH_HIP
-  if (rnn_mode == miopenLSTM) {
-#else
-  if (rnn_mode == CUDNN_LSTM) {
-#endif
-    init_c_data = pre_state[1]->data<T>();
-    last_c_data = dev_ctx.template Alloc<T>(state[1]);
-  }
-
-  bool has_seq_length = sequence_length.is_initialized();
-#ifdef PADDLE_WITH_HIP
-  PADDLE_ENFORCE_EQ(has_seq_length,
-                    false,
-                    common::errors::InvalidArgument(
-                        "ROCm do not support SequenceLength yet."));
-#endif
-  VLOG(0) << "Leave lstmKernel.12";
+  auto *running_sequence_length = sequence_length.get_ptr();
+  bool has_seq_length = running_sequence_length != nullptr;
   std::vector<int> SequenceLength;
   if (has_seq_length) {
-    SequenceLength = phi::GetVectorFromTensor<int>(sequence_length.get_ptr());
+    SequenceLength = phi::GetVectorFromTensor<int>(running_sequence_length);
   }
 
   // auto handle = dev_ctx.cudnn_handle();
@@ -240,99 +202,95 @@ void RnnKernel(const Context &dev_ctx,
 
   int seq_length = x.dims()[0];
   int batch_size = x.dims()[1];
-  int input_size_local = x.dims()[2];
+  int input_size = x.dims()[2];
+  bool state_initialized = state_out->initialized() ? true : false;
 
   size_t workspace_size;
   size_t reserve_size;
-  DenseTensor weight_whole;
+  phi::DenseTensor weight_whole;
   T *w_data = nullptr;
+  int weight_numel;
+  bool w_initialized = false;
   auto place = dev_ctx.GetPlace();
   auto stream = dev_ctx.stream();
-  auto weight_numel = std::accumulate(
-      weight_list.begin(),
-      weight_list.end(),
-      0,
-      [](int64_t num, const DenseTensor *t) { return num + t->numel(); });
-  bool continuous =
-      IsContinuous<T, std::vector<const DenseTensor *>>(weight_list);
-#ifdef PADDLE_WITH_HIP
-  // Need to permute weight, set continuous to false
-  continuous = false;
-#endif
-  if (!continuous) {
-    LOG_FIRST_N(WARNING, 2)
-        << "If the memory space of the Input WeightList is not continuous, "
-           "less efficient calculation will be called. Please call "
-           "flatten_parameters() to make the input memory continuous.";
-    weight_whole.Resize({weight_numel});
-    dev_ctx.template Alloc<T>(&weight_whole);
-#ifdef PADDLE_WITH_HIP
-    // MIOPEN need to permute weight for miopenLSTM or miopenGRU
-    std::vector<const DenseTensor *> weight_list_tmp = weight_list;
-    WeightToPermutedTensor<T>(
-        place, stream, &weight_list_tmp, &weight_whole, rnn_mode, is_bidirec);
-#else
-    WeightToTensor<T>(place, stream, weight_list, &weight_whole);
-#endif
-    w_data = weight_whole.data<T>();
-#ifndef PADDLE_WITH_HIP
-    // MIOPEN need to permute weight, do not share with weight_grad
-    if (is_test) {  // maybe also reset small weights' ptr for training
-      int offset = 0;
-      for (auto weight_item : weight_list) {
-        size_t len = weight_item->numel();
-        auto dim = weight_item->dims();
-        const_cast<DenseTensor *>(weight_item)  // NOLINT
-            ->ShareDataWith(
-                weight_whole.Slice(static_cast<int64_t>(offset),
-                                   static_cast<int64_t>(offset + len)))
-            .Resize(dim);
-        offset += len;
+  auto *running_w = w.get_ptr();
+  if (is_test && running_w != nullptr) {
+    w_initialized = running_w->initialized() ? true : false;
+    weight_numel = running_w->numel();
+  }
+  if (!w_initialized) {
+    auto running_weight_list = *weight_list.get_ptr();
+    bool continuous = is_continuous<T, std::vector<const phi::DenseTensor *>>(
+        running_weight_list);
+    weight_numel = size_sum(running_weight_list);
+
+    if (!continuous) {
+      LOG_FIRST_N(WARNING, 2)
+          << "If the memory space of the Input WeightList is not continuous, "
+             "less efficient calculation will be called. Please call "
+             "flatten_parameters() to make the input memory continuous.";
+      weight_whole.Resize({weight_numel});
+      dev_ctx.template Alloc<T>(&weight_whole);
+      weight_to_tensor<T>(place, stream, running_weight_list, &weight_whole);
+      w_data = weight_whole.data<T>();
+      if (is_test) {  // maybe also reset small weights' ptr for training
+        int offset = 0;
+        for (size_t i = 0; i < running_weight_list.size(); ++i) {
+          size_t len = running_weight_list[i]->numel();
+          auto dim = running_weight_list[i]->dims();
+          const_cast<phi::DenseTensor *>(running_weight_list[i])
+              ->ShareDataWith(
+                  weight_whole.Slice(static_cast<int64_t>(offset),
+                                     static_cast<int64_t>(offset + len)))
+              .Resize(dim);
+          offset += len;
+        }
       }
+    } else {
+      w_data = const_cast<T *>(running_weight_list[0]->data<T>());
     }
-#endif
   } else {
-    w_data = const_cast<T *>(weight_list[0]->data<T>());  // NOLINT
+    w_data = const_cast<T *>(running_w->data<T>());
   }
 
-  RNNDescriptors rnn(seq_length,
-                     batch_size,
-                     input_size_local,
-                     hidden_size,
-                     num_layers,
-                     dropout_prob,
-                     seed,
-                     weight_numel,
-                     rnn_mode,
-                     is_bidirec,
-                     is_test);
+  ScopedRNNBase rnn(seq_length,
+                    batch_size,
+                    input_size,
+                    hidden_size,
+                    num_layers,
+                    dropout_prob,
+                    seed,
+                    weight_numel,
+                    state_initialized,
+                    is_bidirec);
   rnn.Create<T>(handle,
-                dev_ctx,
+                dev_ctx.GetPlace(),
                 SequenceLength,
                 &workspace_size,
                 &reserve_size,
-                dropout_state);
+                state_out);
 
-  DenseTensor workspace_data_ =
-      Empty<uint8_t>(dev_ctx, {static_cast<int64_t>(workspace_size)});
+  phi::DenseTensor workspace_data_;
+  workspace_data_.Resize({static_cast<int64_t>(workspace_size)});
+  dev_ctx.template Alloc<uint8_t>(&workspace_data_);
 
   reserve->Resize({static_cast<int64_t>(reserve_size)});
   auto *reserve_data = dev_ctx.template Alloc<uint8_t>(reserve);
 
   if (is_test) {
-    RNNInferece(has_seq_length,
-                handle,
-                seq_length,
-                &rnn,
-                x_data,
-                init_h_data,
-                init_c_data,
-                w_data,
-                out_data,
-                last_h_data,
-                last_c_data,
-                &workspace_data_,
-                workspace_size);
+    LSTMInference<T>(has_seq_length,
+                     handle,
+                     seq_length,
+                     &rnn,
+                     x_data,
+                     init_h_data,
+                     init_c_data,
+                     w_data,
+                     out_data,
+                     last_h_data,
+                     last_c_data,
+                     &workspace_data_,
+                     workspace_size);
   } else {
 #if CUDNN_VERSION >= 90000
     PADDLE_ENFORCE_GPU_SUCCESS(
@@ -409,7 +367,7 @@ void RnnKernel(const Context &dev_ctx,
                                                 reserve_size));
 #endif
     } else {
-#if defined(PADDLE_WITH_CUDA) && CUDNN_VERSION >= 7201
+#if !defined(PADDLE_WITH_HIP) && CUDNN_VERSION >= 7201
       // for train
       // This interface is used when the input/output is padded.
       PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnRNNForwardTrainingEx(
@@ -455,13 +413,16 @@ void RnnKernel(const Context &dev_ctx,
 }  // namespace phi
 
 #ifdef PADDLE_WITH_HIP
-// MIOPEN do not support double
-PD_REGISTER_KERNEL(rnn, GPU, ALL_LAYOUT, phi::RnnKernel, float) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
+PD_REGISTER_KERNEL(cudnn_lstm, GPU, ALL_LAYOUT, phi::CudnnLSTMKernel, float) {
+  kernel->InputAt(5).SetDataType(phi::DataType::INT32);
+  kernel->OutputAt(3).SetDataType(phi::DataType::UINT8);
+  kernel->OutputAt(4).SetDataType(phi::DataType::UINT8);
 }
 #else
 PD_REGISTER_PLUGIN_KERNEL(
-    rnn, metax_gpu, ALL_LAYOUT, phi::RnnKernel, float, double) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
+    cudnn_lstm, metax_gpu, ALL_LAYOUT, phi::CudnnLSTMKernel, float, double) {
+  kernel->InputAt(5).SetDataType(phi::DataType::INT32);
+  kernel->OutputAt(3).SetDataType(phi::DataType::UINT8);
+  kernel->OutputAt(4).SetDataType(phi::DataType::UINT8);
 }
 #endif

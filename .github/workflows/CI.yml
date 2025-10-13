@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [develop, release/**, fleety_*]
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.event.pull_request.number }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  PR_ID: ${{ github.event.pull_request.number }}
+  COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+
+jobs:
+  clone:
+    name: Clone-linux
+    uses: ./.github/workflows/_Clone-linux.yml
+    with:
+      workflow-name: 'CI'
+
+  Codestyle-Check:
+    name: Codestyle-Check
+    uses: ./.github/workflows/_Codestyle-Check.yml
+    needs: [clone]
+
+  GCU:
+    name: PR-CI-GCU
+    uses: ./.github/workflows/_GCU.yml
+    needs: [clone, Codestyle-Check]

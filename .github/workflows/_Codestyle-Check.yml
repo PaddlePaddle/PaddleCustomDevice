@@ -1,0 +1,82 @@
+name: Codestyle-Check
+
+on:
+  pull_request:
+    branches: ["develop"]
+
+jobs:
+  pre-commit:
+    name: Pre Commit
+    if: ${{ github.repository_owner == 'PaddlePaddle' }}
+    runs-on:
+      group: APPROVAL
+    env:
+      PR_ID: ${{ github.event.pull_request.number }}
+      BRANCH: develop
+
+    steps:
+      - name: Cleanup
+        run: |
+          rm -rf * .[^.]*
+
+      - name: Check docker image and run container
+        env:
+          python: "python3.10"
+          GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
+          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          docker_image: iregistry.baidu-int.com/tiangexiao/paddle-npu:cann800-910B-ubuntu18-x86_64
+        run: |
+          container_name=${TASK}-${core_index}-$(date +%Y%m%d-%H%M%S)
+          echo "container_name=${container_name}" >> ${{ github.env }}
+          docker container ls -a --filter "name=paddle-CI-*-api-benchmark-${core_index}*" --format "{{.ID}}" | xargs -r docker rm -f
+          docker container ls -a --filter "name=api_benchmark_ci_baseline_" --format "{{.ID}} {{.CreatedAt}}" | awk '$2 <= "'$(date -d '1 day ago' +'%Y-%m-%d')'" {print $1}' | xargs -r docker rm -f
+          docker run -d -t --name  ${container_name} --shm-size=128g \
+            -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
+            -v ${{ github.workspace }}:/paddle \
+            -e python \
+            -e core_index \
+            -e BRANCH \
+            -e PR_ID \
+            -e COMMIT_ID \
+            -e RUN_ID \
+            -e wheel_link \
+            -e work_dir \
+            -e PADDLE_ROOT \
+            -e ci_scripts \
+            -e GIT_PR_ID \
+            -e PADDLE_VERSION \
+            -e no_proxy \
+            -e CI_name \
+            -e GITHUB_API_TOKEN \
+            -w /paddle --network host ${docker_image}
+
+      - name: Download PaddleCustomDevice.tar.gz
+        run: |
+          wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
+          echo "Extracting PaddleTest.tar.gz"
+          # git config --global --add safe.directory ${work_dir}
+          tar -xf PaddleCustomDevice.tar.gz --strip-components=1 
+          git fetch origin pull/${PR_ID}/merge
+          git checkout -b test FETCH_HEAD
+
+      - name: Setup python3.12
+        if: steps.check-bypass.outputs.can-skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        if: steps.check-bypass.outputs.can-skip != 'true'
+        run: |
+          pip install pre-commit==2.17.0 cpplint==1.6.0  clang-format==13.0.0
+
+      - name: Check pre-commit
+        if: steps.check-bypass.outputs.can-skip != 'true'
+        env:
+          SKIP_CLANG_TIDY_CHECK: "ON"
+        run: |
+          set +e
+          bash -x tools/codestyle/pre_commit.sh;EXCODE=$?
+          exit $EXCODE

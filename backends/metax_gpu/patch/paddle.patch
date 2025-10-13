@@ -918,8 +918,7 @@ diff --git a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu b/paddle/phi
 index b2d15a59f8..f64582e85a 100644
 --- a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
-@@ -14,7 +14,7 @@
- 
+@@ -15,7 +15,7 @@
  #include "paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.h"
  #include "paddle/phi/core/kernel_registry.h"
  #include "paddle/phi/kernels/funcs/aligned_vector.h"

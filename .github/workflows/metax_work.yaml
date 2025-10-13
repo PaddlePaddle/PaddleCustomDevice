@@ -1,4 +1,4 @@
-name: padlle metax gpu test
+name: paddle metax gpu test
 
 on:
   workflow_dispatch:
@@ -7,6 +7,7 @@ on:
     branches: [develop, release/**]
     paths:
       - "**"
+      - "Paddle/**"
       - "!backends/**"
       - "backends/metax_gpu/**"
 

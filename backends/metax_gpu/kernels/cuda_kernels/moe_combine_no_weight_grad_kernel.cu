@@ -13,21 +13,13 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/index_elementwise_get_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/legacy/gpu/moe_combine_no_weight_grad_kernel.cu"  // NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(index_elementwise_get,
+PD_CUSTOM_KERNEL_REGISTER(moe_combine_no_weight_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::IndexElementwiseGetKernel,
-                          bool,
+                          phi::MoeCombineNoWeightGradKernel,
                           float,
                           double,
-                          int,
-                          int8_t,
-                          int64_t,
-                          int16_t,
-                          uint8_t,
-                          phi::float16,
                           phi::bfloat16,
-                          phi::complex64,
-                          phi::complex128) {}
+                          phi::float16) {}

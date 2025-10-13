@@ -115,6 +115,7 @@ PD_REGISTER_PLUGIN_KERNEL(layer_norm_grad,
                           ALL_LAYOUT,
                           phi::LayerNormGradKernel,
                           float,
+                          double,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {

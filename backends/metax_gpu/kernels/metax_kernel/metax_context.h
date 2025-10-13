@@ -18,6 +18,7 @@
 #include <mutex>
 
 #include "kernels/funcs/blas/cublasLt.h"
+#include "paddle/phi/backends/context_pool.h"
 #include "paddle/phi/backends/custom/custom_context.h"
 #include "paddle/phi/backends/gpu/forwards.h"
 #include "paddle/phi/backends/gpu/gpu_decls.h"
@@ -30,8 +31,6 @@
 cublasLtHandle_t GetBlasLtHandle();
 
 namespace phi {
-bool AllowTF32Cublas();
-bool AllowTF32Cudnn();
 class DnnWorkspaceHandle {
  public:
   inline DnnWorkspaceHandle(Allocator* allocator, gpuStream_t stream)

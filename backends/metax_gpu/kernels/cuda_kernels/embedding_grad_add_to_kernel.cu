@@ -13,21 +13,15 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/index_elementwise_get_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/embedding_grad_kernel.h"
+#include "paddle/phi/kernels/funcs/embedding_grad.h"
+#include "paddle/phi/kernels/gpu/embedding_grad_add_to_kernel.cu"  // NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(index_elementwise_get,
+PD_CUSTOM_KERNEL_REGISTER(embedding_grad_add_to,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::IndexElementwiseGetKernel,
-                          bool,
+                          phi::EmbeddingGradAddToAddToKernel,
                           float,
                           double,
-                          int,
-                          int8_t,
-                          int64_t,
-                          int16_t,
-                          uint8_t,
                           phi::float16,
-                          phi::bfloat16,
-                          phi::complex64,
-                          phi::complex128) {}
+                          phi::bfloat16) {}

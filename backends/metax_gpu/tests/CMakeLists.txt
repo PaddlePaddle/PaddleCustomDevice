@@ -9,6 +9,8 @@ set(PADDLE_LEGACY_TEST_PATH
     ${CMAKE_CURRENT_LIST_DIR}/../../../Paddle/test/legacy_test)
 set(METAX_UNIT_TEST_PATH ${CMAKE_CURRENT_LIST_DIR}/unit_test)
 
+set(NEED_REMOVE_KEYWORDS "attention")
+
 file(GLOB_RECURSE PYTHON_TEST_SCRIPTS "${METAX_UNIT_TEST_PATH}/*.py")
 
 if(NOT TEST_LIST_FILE)
@@ -33,6 +35,20 @@ else()
 endif()
 
 foreach(test_name ${TEST_PROGRAMS})
+  set(IS_REMOVE FALSE)
+
+  foreach(keyword ${NEED_REMOVE_KEYWORDS})
+    string(FIND "${test_name}" "${keyword}" RES)
+    if(NOT RES EQUAL -1)
+      set(IS_REMOVE TRUE)
+      break()
+    endif()
+  endforeach()
+
+  if(IS_REMOVE)
+    continue()
+  endif()
+
   set(CURRENT_TEST_PROGRAM ${PADDLE_LEGACY_TEST_PATH}/${test_name}.py)
   if(NOT EXISTS ${CURRENT_TEST_PROGRAM})
     message(WARNING "${CURRENT_TEST_PROGRAM} is not exist, skip it.")
@@ -44,39 +60,19 @@ endforeach()
 list(REMOVE_DUPLICATES PYTHON_TEST_SCRIPTS)
 
 if(NOT TEST_LIST_FILE)
-  list(
-    REMOVE_ITEM
-    PYTHON_TEST_SCRIPTS
-    # Metax unit test
-    ${METAX_UNIT_TEST_PATH}/test_matmul_op_metax.py
-    # 精度问题
-    ${PADDLE_LEGACY_TEST_PATH}/test_sum_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_max_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_cumsum_op.py
-    # core.cudnnversion
-    ${PADDLE_LEGACY_TEST_PATH}/test_softmax_with_cross_entropy_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_softmax_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_elementwise_add_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_gather_op.py
-    # op_test.py 里 self._get_places()接口的适配问题
-    ${PADDLE_LEGACY_TEST_PATH}/test_elementwise_pow_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_layer_norm_op.py
-    # device == "gpu" 适配问题
-    ${PADDLE_LEGACY_TEST_PATH}/test_index_add_op.py
-    # paddle-gpu 报错一致
-    ${PADDLE_LEGACY_TEST_PATH}/test_elementwise_div_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_stack_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_logical_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_mean_op.py
-    # paddle.device.cuda.get_device_properties
-    ${PADDLE_LEGACY_TEST_PATH}/test_transpose_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_randint_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_uniform_random_op.py
-    # needs check_grad with fp64 precision
-    ${PADDLE_LEGACY_TEST_PATH}/test_c_embedding_op.py
-    # CUDAPinnedPlace 问题
-    ${PADDLE_LEGACY_TEST_PATH}/test_slice_op.py
-    ${PADDLE_LEGACY_TEST_PATH}/test_compare_op.py)
+  set(NEED_IGNORE_FILE ${CMAKE_CURRENT_LIST_DIR}/ignore.txt)
+  if(EXISTS ${NEED_IGNORE_FILE})
+    file(STRINGS ${NEED_IGNORE_FILE} NEED_IGNORE_TEST_PROGRAMS)
+    foreach(test_name ${NEED_IGNORE_TEST_PROGRAMS})
+      if(EXISTS ${PADDLE_LEGACY_TEST_PATH}/${test_name}.py)
+        list(REMOVE_ITEM PYTHON_TEST_SCRIPTS
+             ${PADDLE_LEGACY_TEST_PATH}/${test_name}.py)
+      else()
+        list(REMOVE_ITEM PYTHON_TEST_SCRIPTS
+             ${METAX_UNIT_TEST_PATH}/${test_name}.py)
+      endif()
+    endforeach()
+  endif()
 endif()
 
 if(LOG_OUTPUT_DIR AND NOT EXISTS ${LOG_OUTPUT_DIR})

@@ -13,21 +13,17 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/index_elementwise_get_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/lars_momentum_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(index_elementwise_get,
+PD_CUSTOM_KERNEL_REGISTER(lars_momentum,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::IndexElementwiseGetKernel,
-                          bool,
+                          phi::LarsMomentumKernel,
                           float,
                           double,
-                          int,
-                          int8_t,
-                          int64_t,
-                          int16_t,
-                          uint8_t,
-                          phi::float16,
-                          phi::bfloat16,
-                          phi::complex64,
-                          phi::complex128) {}
+                          phi::float16) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+  }
+}

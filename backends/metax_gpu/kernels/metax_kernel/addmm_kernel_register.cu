@@ -22,5 +22,6 @@ PD_REGISTER_PLUGIN_KERNEL(addmm,
                           ALL_LAYOUT,
                           phi::AddmmKernel,
                           float,
+                          double,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

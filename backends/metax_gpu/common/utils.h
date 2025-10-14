@@ -1,4 +1,4 @@
-// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/roi_align_kernel.h"
+#pragma once
 
-PD_CUSTOM_KERNEL_REGISTER(
-    roi_align, iluvatar_gpu, ALL_LAYOUT, phi::RoiAlignKernel, float) {}
+#include <algorithm>
+#include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "paddle/phi/core/dense_tensor.h"
+#include "paddle/phi/core/device_context.h"
+
+namespace phi {
+std::ostream& operator<<(std::ostream& os, const phi::DenseTensor& t);
+}

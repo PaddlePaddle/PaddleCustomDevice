@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/index_elementwise_get_kernel.h"
+#include "paddle/phi/kernels/gpu/index_elementwise_get_kernel.cu"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(index_elementwise_get,
                           metax_gpu,
@@ -27,7 +27,7 @@ PD_CUSTOM_KERNEL_REGISTER(index_elementwise_get,
                           int64_t,
                           int16_t,
                           uint8_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}

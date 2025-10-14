@@ -437,26 +437,22 @@ void ConvCudnnGradKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<T>(filter_grad);
   }
 
-  //   bool has_use_addto = dev_ctx.HasDnnAttr("use_addto");
-  bool has_use_addto = "true";
+  bool has_use_addto = dev_ctx.HasDnnAttr("use_addto");
   VLOG(4) << "GPUContext contains `use_addto`: " << has_use_addto;
-  //   bool use_addto = has_use_addto
-  //                        ? PADDLE_GET_CONST(bool, "true")
-  //                        : false;
-  bool use_addto = "true";
+  bool use_addto = has_use_addto
+                       ? PADDLE_GET_CONST(bool, dev_ctx.GetDnnAttr("use_addto"))
+                       : false;
   std::vector<int> dilations = dilations_t;
   std::vector<int> strides = strides_t;
   std::vector<int> paddings = paddings_t;
 
-  //   bool has_exhaustive_search = dev_ctx.HasDnnAttr("exhaustive_search");
-  bool has_exhaustive_search = "true";
+  bool has_exhaustive_search = dev_ctx.HasDnnAttr("exhaustive_search");
   VLOG(4) << "GPUContext contains `exhaustive_search`: "
           << has_exhaustive_search;
-  //   bool exhaustive_search_attr =
-  //       has_exhaustive_search
-  //           ? PADDLE_GET_CONST(bool, "true")
-  //           : false;
-  bool exhaustive_search_attr = "true";
+  bool exhaustive_search_attr =
+      has_exhaustive_search
+          ? PADDLE_GET_CONST(bool, dev_ctx.GetDnnAttr("exhaustive_search"))
+          : false;
   bool exhaustive_search =
       FLAGS_cudnn_exhaustive_search || exhaustive_search_attr;
   bool deterministic = FLAGS_cudnn_deterministic;
@@ -835,14 +831,13 @@ void ConvCudnnGradGradKernel(
   T* transformed_dx = nullptr;
   std::vector<int> dilations = dilations_t;
 
-  //   bool has_exhaustive_search = dev_ctx.HasDnnAttr("exhaustive_search");
-  //   VLOG(4) << "GPUContext contains `exhaustive_search`: "
-  //           << has_exhaustive_search;
-  //   bool exhaustive_search_attr =
-  //       has_exhaustive_search
-  //           ? PADDLE_GET_CONST(bool, dev_ctx.GetDnnAttr("exhaustive_search"))
-  //           : false;
-  bool exhaustive_search_attr = "true";
+  bool has_exhaustive_search = dev_ctx.HasDnnAttr("exhaustive_search");
+  VLOG(4) << "GPUContext contains `exhaustive_search`: "
+          << has_exhaustive_search;
+  bool exhaustive_search_attr =
+      has_exhaustive_search
+          ? PADDLE_GET_CONST(bool, dev_ctx.GetDnnAttr("exhaustive_search"))
+          : false;
   bool exhaustive_search =
       FLAGS_cudnn_exhaustive_search || exhaustive_search_attr;
   bool deterministic = FLAGS_cudnn_deterministic;

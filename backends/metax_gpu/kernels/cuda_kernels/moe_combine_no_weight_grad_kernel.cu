@@ -1,4 +1,4 @@
-// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,13 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/roi_align_kernel.h"
+#include "paddle/phi/kernels/legacy/gpu/moe_combine_no_weight_grad_kernel.cu"  // NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(
-    roi_align, iluvatar_gpu, ALL_LAYOUT, phi::RoiAlignKernel, float) {}
+PD_CUSTOM_KERNEL_REGISTER(moe_combine_no_weight_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::MoeCombineNoWeightGradKernel,
+                          float,
+                          double,
+                          phi::bfloat16,
+                          phi::float16) {}

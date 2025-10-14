@@ -1,4 +1,4 @@
-// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,17 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/roi_align_kernel.h"
+#include "paddle/phi/kernels/lars_momentum_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    roi_align, iluvatar_gpu, ALL_LAYOUT, phi::RoiAlignKernel, float) {}
+PD_CUSTOM_KERNEL_REGISTER(lars_momentum,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::LarsMomentumKernel,
+                          float,
+                          double,
+                          phi::float16) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+  }
+}

@@ -38,7 +38,8 @@ jobs:
           GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ github.run_id }}
-          docker_image: iregistry.baidu-int.com/tiangexiao/paddle-npu:cann800-910B-ubuntu18-x86_64
+          #docker_image: iregistry.baidu-int.com/tiangexiao/paddle-npu:cann800-910B-ubuntu18-x86_64
+          docker_image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/ci/paddle:19d3669ca5ff0b19144a785bb3126d7e
         run: |
           container_name=${TASK}-${core_index}-$(date +%Y%m%d-%H%M%S)
           echo "container_name=${container_name}" >> ${{ github.env }}

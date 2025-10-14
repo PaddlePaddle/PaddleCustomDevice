@@ -1,8 +1,19 @@
 name: Codestyle-Check
 
 on:
-  pull_request:
-    branches: ["develop"]
+  workflow_call:
+    inputs:
+      workflow-name:
+        type: string
+        required: false
+      clone_dir:
+        type: string
+        required: false
+        default: 'PaddlecustomDevice'
+      is_pr:
+        type: string
+        required: false
+        default: 'true'
 
 jobs:
   pre-commit:
@@ -13,6 +24,7 @@ jobs:
     env:
       PR_ID: ${{ github.event.pull_request.number }}
       BRANCH: develop
+      TASK: paddle-CI-${{ github.event.pull_request.number }}-cpu
 
     steps:
       - name: Cleanup

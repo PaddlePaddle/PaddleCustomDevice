@@ -83,6 +83,7 @@ jobs:
           cd ..
           pwd
           ls
+          rm -rf PaddlecustomDevice.tar.gz
           tar -I 'zstd -T0' -cf PaddlecustomDevice.tar.gz PaddlecustomDevice
           echo "::group::Install bce-python-sdk"
           python -m pip install bce-python-sdk==0.8.74

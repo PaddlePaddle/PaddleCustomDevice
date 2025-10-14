@@ -45,11 +45,11 @@ jobs:
           echo "container_name=${container_name}" >> ${{ github.env }}
           docker run --shm-size=128G \
             -d -t --name ${container_name} \
-            --privileged --network=host \ 
+            --privileged --network=host \
             -v ${cache_dir}:/root/.cache \
             -v ${ccache_dir}:/root/.ccache \
             -v ${PWD}:/paddle -w /paddle \
-            ${PADDLE_DEV_NAME} /bin/bash 
+            ${PADDLE_DEV_NAME} /bin/bash
 
       - name: Check GCU Files
         run: |
@@ -68,7 +68,7 @@ jobs:
           change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
           change_gcu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/gcu"| wc -l)
           git diff --name-only remotes/origin/${BRANCH}
-          
+ 
           if [ $change_numbers -ne $change_backend ]; then
             echo "Common file changed, continue to run GCU FULL CI test ..."
           elif [ $change_gcu_only -eq 0 ] ; then

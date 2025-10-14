@@ -22,9 +22,6 @@ jobs:
     # runs-on: debug-paddle-runner-set
     steps:
       - name: Checkout repository
-        env:
-          PR_ID: ${{ github.event.pull_request.number }}
-          COMMIT_ID: ${{ github.event.pull_request.head.sha }}
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
@@ -57,6 +54,9 @@ jobs:
           bash run_test.sh -j 16
 
       - name: push whl
+        env:
+          PR_ID: ${{ github.event.pull_request.number }}
+          COMMIT_ID: ${{ github.event.pull_request.head.sha }}
         run: |
           pip install bce-python-sdk==0.8.74
           export AK=paddle

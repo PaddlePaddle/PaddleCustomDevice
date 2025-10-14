@@ -83,13 +83,12 @@ jobs:
           cd ..
           pwd
           ls
-          rm -rf PaddlecustomDevice.tar.gz
-          tar -I 'zstd -T0' -cf PaddlecustomDevice.tar.gz PaddlecustomDevice
+          tar -I 'zstd -T0' -cf PaddleCustomDevice.tar.gz PaddleCustomDevice
           echo "::group::Install bce-python-sdk"
           python -m pip install bce-python-sdk==0.8.74
           echo "::endgroup::"
-          python ${bos_file} PaddlecustomDevice.tar.gz paddle-github-action/PaddleCustomDevice/PR/${{ inputs.clone_dir }}/${PR_ID}/${COMMIT_ID}
-          rm PaddlecustomDevice.tar.gz
+          python ${bos_file} PaddleCustomDevice.tar.gz paddle-github-action/PaddleCustomDevice/PR/${{ inputs.clone_dir }}/${PR_ID}/${COMMIT_ID}
+          rm PaddleCustomDevice.tar.gz
           cd -
           git switch ${BRANCH}
           set +e

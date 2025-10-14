@@ -26,3 +26,8 @@ jobs:
     name: Codestyle-Check
     uses: ./.github/workflows/_Codestyle-Check.yml
     needs: [clone]
+
+  gcu:
+    name: gcu
+    uses: ./.github/workflows/_GCU.yml
+    needs: [Codestyle-Check]

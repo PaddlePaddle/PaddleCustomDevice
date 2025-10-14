@@ -62,7 +62,7 @@ jobs:
             -e no_proxy \
             -e CI_name \
             -e GITHUB_API_TOKEN \
-            -w /paddle --network host ${docker_image}
+            -w /paddle --network host ${docker_image} /bin/bash
 
       - name: Download PaddleCustomDevice.tar.gz
         run: |

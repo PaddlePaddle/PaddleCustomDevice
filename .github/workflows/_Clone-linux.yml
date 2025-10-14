@@ -60,7 +60,7 @@ jobs:
           git fetch origin pull/${{ github.event.pull_request.number }}/head
           git checkout -b test FETCH_HEAD
           echo 123
-          git merge --no-edit {{ env.BRANCH }}
+          git merge --no-edit ${BRANCH}
           echo 456
           git submodule update --init
           echo 789

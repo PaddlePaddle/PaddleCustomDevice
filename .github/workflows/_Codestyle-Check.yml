@@ -66,30 +66,15 @@ jobs:
 
       - name: Download PaddleCustomDevice.tar.gz
         run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
-          echo "Extracting PaddleTest.tar.gz"
+          echo "Extracting PaddleCustomDevice.tar.gz"
           # git config --global --add safe.directory ${work_dir}
           tar -xf PaddleCustomDevice.tar.gz --strip-components=1
-          git fetch origin pull/${PR_ID}/merge
-          git checkout -b test FETCH_HEAD
+          git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
+          git merge ${BRANCH} --no-edit
+          git log --pretty=oneline -20
 
-      - name: Setup python3.12
-        if: steps.check-bypass.outputs.can-skip != 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        if: steps.check-bypass.outputs.can-skip != 'true'
-        run: |
-          pip install pre-commit==2.17.0 cpplint==1.6.0  clang-format==13.0.0
-
-      - name: Check pre-commit
-        if: steps.check-bypass.outputs.can-skip != 'true'
-        env:
-          SKIP_CLANG_TIDY_CHECK: "ON"
-        run: |
-          set +e
-          bash -x tools/codestyle/pre_commit.sh;EXCODE=$?
-          exit $EXCODE
+          pip install cpplint==1.6.0
+          pre-commit install
+          bash tools/codestyle/pre_commit.sh '

@@ -60,7 +60,7 @@ jobs:
           git fetch origin pull/${{ github.event.pull_request.number }}/head
           git checkout -b test FETCH_HEAD
           git merge --no-edit ${BRANCH}
-          git submodule update --init
+          git submodule sync && git submodule update --init
 
       - name: Download bos client
         env:
@@ -79,7 +79,10 @@ jobs:
           SK: paddle
           bos_file: "/home/paddle/actions-runner/bos/BosClient.py"
         run: |
+          set -x
           cd ..
+          pwd
+          ls
           tar -I 'zstd -T0' -cf PaddlecustomDevice.tar.gz PaddlecustomDevice
           echo "::group::Install bce-python-sdk"
           python -m pip install bce-python-sdk==0.8.74

@@ -66,6 +66,8 @@ jobs:
 
       - name: Download PaddleCustomDevice.tar.gz
         run: |
+          set -x
+          docker ps -a
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
           echo "Extracting PaddleCustomDevice.tar.gz"

@@ -62,13 +62,6 @@ jobs:
           git merge --no-edit ${BRANCH}
           git submodule update --init
 
-      - name: Check bypass
-        id: check-bypass
-        uses: ./.github/actions/check-bypass
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          workflow-name: ${{ inputs.workflow-name }}
-
       - name: Download bos client
         env:
           home_path: "/home/paddle/actions-runner/"

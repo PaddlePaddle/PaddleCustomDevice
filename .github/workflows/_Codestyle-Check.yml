@@ -78,3 +78,12 @@ jobs:
           pip install cpplint==1.6.0
           pre-commit install
           bash tools/codestyle/pre_commit.sh '
+
+      - name: Terminate and delete the container
+        if: always()
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          rm -rf * .[^.]*
+          '
+          docker stop ${container_name}
+          docker rm ${container_name}

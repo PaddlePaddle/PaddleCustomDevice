@@ -87,7 +87,7 @@ jobs:
           echo "::group::Install bce-python-sdk"
           python -m pip install bce-python-sdk==0.8.74
           echo "::endgroup::"
-          python ${bos_file} PaddleCustomDevice.tar.gz paddle-github-action/PaddleCustomDevice/PR/${{ inputs.clone_dir }}/${PR_ID}/${COMMIT_ID}
+          python ${bos_file} PaddleCustomDevice.tar.gz paddle-github-action/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}
           rm PaddleCustomDevice.tar.gz
           cd -
           git switch ${BRANCH}

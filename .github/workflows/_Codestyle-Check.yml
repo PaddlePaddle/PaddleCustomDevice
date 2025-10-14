@@ -68,7 +68,7 @@ jobs:
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
           echo "Extracting PaddleTest.tar.gz"
           # git config --global --add safe.directory ${work_dir}
-          tar -xf PaddleCustomDevice.tar.gz --strip-components=1 
+          tar -xf PaddleCustomDevice.tar.gz --strip-components=1
           git fetch origin pull/${PR_ID}/merge
           git checkout -b test FETCH_HEAD
 

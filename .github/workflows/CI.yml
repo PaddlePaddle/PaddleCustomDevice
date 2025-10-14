@@ -26,8 +26,3 @@ jobs:
     name: Codestyle-Check
     uses: ./.github/workflows/_Codestyle-Check.yml
     needs: [clone]
-
-  GCU:
-    name: PR-CI-GCU
-    uses: ./.github/workflows/_GCU.yml
-    needs: [clone, Codestyle-Check]

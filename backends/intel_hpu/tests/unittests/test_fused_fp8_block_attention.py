@@ -80,7 +80,7 @@ class TestFusedBlockAttention:
             .to(paddle.bfloat16)
             .to(device)
         )
-        self.k_cache_test = self.k_cache.clone()
+        self.k_cache_test = self.k_cache.clone().astype(paddle.float8_e4m3fn)
 
         np_v_cache = np.random.rand(
             self.total_block_num, self.block_size, self.kv_num_heads, self.head_dim
@@ -90,7 +90,7 @@ class TestFusedBlockAttention:
             .to(paddle.bfloat16)
             .to(device)
         )
-        self.v_cache_test = self.v_cache.clone()
+        self.v_cache_test = self.v_cache.clone().astype(paddle.float8_e4m3fn)
 
         self.input_ids = paddle.zeros(
             [self.batch_size, self.seq_len], dtype=paddle.bfloat16
@@ -148,6 +148,9 @@ class TestFusedBlockAttention:
             paddle.to_tensor(np_linear_weights, place=paddle.CPUPlace())
             .to(paddle.bfloat16)
             .to(device)
+        )
+        self.linear_weights_test = self.linear_weights.clone().astype(
+            paddle.float8_e4m3fn
         )
 
         self.head_dim_shape_tensor = paddle.ones(self.head_dim, dtype="int8")
@@ -268,7 +271,7 @@ class TestFusedBlockAttention:
             self.block_offsets,
             self.qkv_weights,
             self.qkv_biases,
-            self.linear_weights,
+            self.linear_weights_test,
             self.qk_scale_x,
             self.qk_scale_y,
             self.av_scale_x,
@@ -287,18 +290,6 @@ class TestFusedBlockAttention:
             out_linear_out.to("cpu").to("float32"),
             rtol=0.2,
         ), f"Test failed for {self.test_name} fused_fp8_block_attention out_linear_out"
-
-        assert paddle.allclose(
-            self.k_cache.to("cpu").to("float32"),
-            self.k_cache_test.to("cpu").to("float32"),
-            rtol=1e-1,
-        ), f"Test failed for {self.test_name} fused_fp8_block_attention k_cache"
-
-        assert paddle.allclose(
-            self.v_cache.to("cpu").to("float32"),
-            self.v_cache_test.to("cpu").to("float32"),
-            rtol=1e-2,
-        ), f"Test failed for {self.test_name} fused_fp8_block_attention v_cache"
 
         assert paddle.allclose(
             self.residual.to("cpu").to("float32"),

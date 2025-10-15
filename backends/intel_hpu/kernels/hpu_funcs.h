@@ -574,43 +574,31 @@ class HpuFusedOperator : public HpuOperator {
     if (!cast_x) {
       gemm_ins.push_back(inputs[2]);
     } else {
-      synTensor one_tensor =
-          cloneTensor(node_name + "_one_x", inputs[2], syn_type_float);
-      ns_ConstantKernel::Params const_params;
-      const_params.constant.f = 1.0;
-      std::vector<synTensor> one;
-      one.push_back(one_tensor);
-      AddNodeFull<float>(one, const_params, node_name + "_full_x_one");
-
-      std::vector<synTensor> div_in;
-      div_in.push_back(one_tensor);
-      div_in.push_back(inputs[2]);
       synTensor d_scale_x_tensor =
           cloneTensor(node_name + "_d_scale_x", inputs[2], syn_type_float);
-      std::vector<synTensor> div_out;
-      div_out.push_back(d_scale_x_tensor);
-      AddNodeDivide<float>(div_in, div_out, node_name + "_div_scale_x");
+      std::vector<synTensor> reciprocal_in;
+      reciprocal_in.push_back(inputs[2]);
+      std::vector<synTensor> reciprocal_out;
+      reciprocal_out.push_back(d_scale_x_tensor);
+      AddNode_IO(reciprocal_in,
+                 reciprocal_out,
+                 "reciprocal_fwd_f32",
+                 node_name + "reciprocal_scale_x_");
       gemm_ins.push_back(d_scale_x_tensor);
     }
     if (!cast_y) {
       gemm_ins.push_back(inputs[3]);
     } else {
-      synTensor one_tensor =
-          cloneTensor(node_name + "_one_y", inputs[3], syn_type_float);
-      ns_ConstantKernel::Params const_params;
-      const_params.constant.f = 1.0;
-      std::vector<synTensor> one;
-      one.push_back(one_tensor);
-      AddNodeFull<float>(one, const_params, node_name + "_full_y_one");
-
-      std::vector<synTensor> div_in;
-      div_in.push_back(one_tensor);
-      div_in.push_back(inputs[3]);
       synTensor d_scale_y_tensor =
           cloneTensor(node_name + "_d_scale_y", inputs[3], syn_type_float);
-      std::vector<synTensor> div_out;
-      div_out.push_back(d_scale_y_tensor);
-      AddNodeDivide<float>(div_in, div_out, node_name + "_div_scale_y");
+      std::vector<synTensor> reciprocal_in;
+      reciprocal_in.push_back(inputs[3]);
+      std::vector<synTensor> reciprocal_out;
+      reciprocal_out.push_back(d_scale_y_tensor);
+      AddNode_IO(reciprocal_in,
+                 reciprocal_out,
+                 "reciprocal_fwd_f32",
+                 node_name + "reciprocal_scale_y_");
       gemm_ins.push_back(d_scale_y_tensor);
     }
     AddNodeFP8Gemm<T>(gemm_ins, outputs, params, node_name);

@@ -73,8 +73,6 @@ jobs:
           tar -xf PaddleCustomDevice.tar.gz --strip-components=1
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
-          git log --pretty=oneline -20
-
           pip install cpplint==1.6.0
           pre-commit install
           bash tools/codestyle/pre_commit.sh '

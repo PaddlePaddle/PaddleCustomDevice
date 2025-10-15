@@ -114,6 +114,9 @@ NpuOpRunner &NpuOpRunner::AddAttr(const std::string &name,
   } else if (attr.type() == typeid(float)) {
     PADDLE_ENFORCE_NPU_SUCCESS(
         aclopSetAttrFloat(attr_, name.c_str(), BOOST_GET_CONST(float, attr)));
+  } else if (attr.type() == typeid(double)) {
+    double attr_f = static_cast<float>(BOOST_GET_CONST(double, attr));
+    PADDLE_ENFORCE_NPU_SUCCESS(aclopSetAttrFloat(attr_, name.c_str(), attr_f));
   } else if (attr.type() == typeid(std::vector<bool>)) {
     auto a = BOOST_GET_CONST(std::vector<bool>, attr);
     std::vector<uint8_t> cast_a;

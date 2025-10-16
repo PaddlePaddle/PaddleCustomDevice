@@ -48,7 +48,7 @@ jobs:
             -v ${cache_dir}:/root/.cache \
             -v ${ccache_dir}:/root/.ccache \
             -v ${PWD}:/PaddleCustomDevice -w /PaddleCustomDevice \
-            ${PADDLE_DEV_NAME} /bin/bash
+            ${docker_image} /bin/bash
 
       - name: Check HPU Files
         run: |

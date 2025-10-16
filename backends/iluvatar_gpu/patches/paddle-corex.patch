@@ -1,6 +1,6 @@
-From 6e899c8d24bb08bbd3eafdd2941f8eec34b50194 Mon Sep 17 00:00:00 2001
+From 5b021ecfbc2d95e5553bb40580042235a8d2e117 Mon Sep 17 00:00:00 2001
 From: tianyuzhou668 <2431054748@qq.com>
-Date: Thu, 16 Oct 2025 11:38:09 +0800
+Date: Thu, 16 Oct 2025 13:54:16 +0800
 Subject: [PATCH] [ILUVATAR_GPU] Fix
 
 ---
@@ -8,40 +8,41 @@ Subject: [PATCH] [ILUVATAR_GPU] Fix
  .../operators/collective/recv_v2_op.cu.cc     |  2 +-
  .../operators/collective/send_v2_op.cu.cc     |  2 +-
  .../fluid/platform/device/gpu/nccl_helper.h   |  2 +-
- paddle/phi/backends/dynload/cudnn.cc          |  4 +++
- paddle/phi/backends/dynload/cudnn.h           |  9 +++++++
- paddle/phi/backends/dynload/cusolver.h        |  6 -----
- .../backends/gpu/cuda/cuda_device_function.h  |  4 +--
- paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 +--
+ paddle/phi/backends/dynload/cudnn.cc          |  4 +
+ paddle/phi/backends/dynload/cudnn.h           |  9 +++
+ paddle/phi/backends/dynload/cusolver.h        |  6 --
+ .../backends/gpu/cuda/cuda_device_function.h  |  4 +-
+ paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 +-
  paddle/phi/backends/gpu/cuda/cuda_graph.h     |  2 +-
  paddle/phi/backends/gpu/cuda/cuda_helper.h    |  2 +-
- paddle/phi/backends/gpu/cuda/cudnn_desc.h     | 16 +++++++++++-
+ paddle/phi/backends/gpu/cuda/cudnn_desc.h     | 16 +++-
  paddle/phi/backends/gpu/cuda/cudnn_helper.h   |  2 +-
- paddle/phi/backends/gpu/gpu_launch_config.h   | 16 +++++++++---
- paddle/phi/backends/gpu/gpu_primitives.h      | 25 +++++++++++++++++++
- paddle/phi/backends/gpu/gpu_types.h           |  5 ++++
+ paddle/phi/backends/gpu/gpu_launch_config.h   | 16 +++-
+ paddle/phi/backends/gpu/gpu_primitives.h      | 25 ++++++
+ paddle/phi/backends/gpu/gpu_types.h           |  5 ++
  paddle/phi/core/distributed/nccl_tools.cc     |  2 +-
- paddle/phi/core/enforce.h                     |  6 ++++-
+ paddle/phi/core/enforce.h                     |  6 +-
  paddle/phi/core/utils/data_type.h             |  2 +-
- paddle/phi/kernels/funcs/activation_functor.h |  2 ++
- paddle/phi/kernels/funcs/affine_grid_utils.h  |  2 ++
- paddle/phi/kernels/funcs/blas/blas_impl.cu.h  | 18 ++++++++++---
- paddle/phi/kernels/funcs/layer_norm_impl.cu.h |  4 ---
- paddle/phi/kernels/funcs/segmented_array.h    |  8 ++++++
+ paddle/phi/kernels/funcs/activation_functor.h |  2 +
+ paddle/phi/kernels/funcs/affine_grid_utils.h  |  2 +
+ paddle/phi/kernels/funcs/blas/blas_impl.cu.h  | 18 ++++-
+ paddle/phi/kernels/funcs/cufft_util.h         | 80 +++++++++++++++++++
+ paddle/phi/kernels/funcs/layer_norm_impl.cu.h |  4 -
+ paddle/phi/kernels/funcs/segmented_array.h    |  8 ++
  paddle/phi/kernels/funcs/softmax_impl.h       |  1 +
- .../fusion/gpu/fused_layernorm_kernel.cu      |  4 ---
- .../fused_layernorm_residual_dropout_bias.h   | 17 -------------
- paddle/phi/kernels/gpu/elementwise_grad.h     |  4 +++
+ .../fusion/gpu/fused_layernorm_kernel.cu      |  4 -
+ .../fused_layernorm_residual_dropout_bias.h   | 17 ----
+ paddle/phi/kernels/gpu/elementwise_grad.h     |  4 +
  .../phi/kernels/gpu/layer_norm_grad_kernel.cu |  2 +-
  paddle/phi/kernels/gpu/layer_norm_kernel.cu   |  2 +-
  .../phi/kernels/gpu/rms_norm_grad_kernel.cu   |  2 +-
- .../kernels/primitive/compute_primitives.h    | 24 +++++++++---------
- paddle/phi/kernels/reduce_sum_kernel.cc       |  2 ++
- paddle/phi/kernels/shape_kernel.cc            |  2 ++
- paddle/phi/kernels/squeeze_kernel.cc          |  2 ++
- paddle/phi/kernels/strided_slice_kernel.cc    |  2 ++
- paddle/phi/kernels/unsqueeze_kernel.cc        |  2 ++
- 37 files changed, 145 insertions(+), 68 deletions(-)
+ .../kernels/primitive/compute_primitives.h    | 24 +++---
+ paddle/phi/kernels/reduce_sum_kernel.cc       |  2 +
+ paddle/phi/kernels/shape_kernel.cc            |  2 +
+ paddle/phi/kernels/squeeze_kernel.cc          |  2 +
+ paddle/phi/kernels/strided_slice_kernel.cc    |  2 +
+ paddle/phi/kernels/unsqueeze_kernel.cc        |  2 +
+ 38 files changed, 225 insertions(+), 68 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index bbe89de522..0e40e41923 100755
@@ -587,6 +588,146 @@ index 6251681583..c25dbfad0d 100644
  
    float f_alpha = static_cast<float>(alpha);
    float f_beta = static_cast<float>(beta);
+diff --git a/paddle/phi/kernels/funcs/cufft_util.h b/paddle/phi/kernels/funcs/cufft_util.h
+index df4f214e66..e31b8eb1f6 100644
+--- a/paddle/phi/kernels/funcs/cufft_util.h
++++ b/paddle/phi/kernels/funcs/cufft_util.h
+@@ -41,7 +41,11 @@ class CuFFTHandle {
+   ::cufftHandle& get() { return handle_; }
+   const ::cufftHandle& get() const { return handle_; }
+ 
++#ifdef PADDLE_WITH_COREX
++  ~CuFFTHandle() {}
++#else
+   ~CuFFTHandle() { phi::dynload::cufftDestroy(handle_); }
++#endif
+ 
+  private:
+   ::cufftHandle handle_;
+@@ -75,7 +79,11 @@ inline bool has_complex_output(FFTTransformType type) {
+ 
+ class FFTConfig {
+  public:
++#ifdef PADDLE_WITH_COREX
++  using plan_size_type = int;
++#else
+   using plan_size_type = long long int;  // NOLINT (be consistent with cufft)
++#endif
+   explicit FFTConfig(const FFTConfigKey& key)
+       : FFTConfig(
+             std::vector<int64_t>(key.sizes_, key.sizes_ + key.signal_ndim_ + 1),
+@@ -90,6 +98,22 @@ class FFTConfig {
+     std::vector<plan_size_type> signal_sizes(sizes.cbegin() + 1, sizes.cend());
+     const int signal_ndim = sizes.size() - 1;
+ 
++#ifdef PADDLE_WITH_COREX
++    cufftType exec_type = [&] {
++      if (precision == DataType::FLOAT32) {
++        switch (fft_type) {
++          case FFTTransformType::C2C:
++            return CUFFT_C2C;
++          case FFTTransformType::R2C:
++            return CUFFT_R2C;
++          case FFTTransformType::C2R:
++            return CUFFT_C2R;
++        }
++      }
++      PADDLE_THROW(phi::errors::InvalidArgument(
++          "ixFFT only support transforms of type float32"));
++    }();
++#else
+     cudaDataType itype, otype, exec_type;
+     const bool complex_input = has_complex_input(fft_type);
+     const bool complex_output = has_complex_output(fft_type);
+@@ -105,11 +129,27 @@ class FFTConfig {
+       PADDLE_THROW(common::errors::InvalidArgument(
+           "Only transforms of type float32 and float64 are supported."));
+     }
++#endif
+ 
+     // disable auto allocation of workspace to use allocator from the framework
+     PADDLE_ENFORCE_GPU_SUCCESS(
+         phi::dynload::cufftSetAutoAllocation(plan(), /* autoAllocate */ 0));
+ 
++#ifdef PADDLE_WITH_COREX
++    PADDLE_ENFORCE_GPU_SUCCESS(
++        phi::dynload::cufftMakePlanMany(plan(),
++                                        signal_ndim,
++                                        signal_sizes.data(),
++                                        /* inembed */ nullptr,
++                                        /* base_istride */ 1,
++                                        /* idist */ 1,
++                                        /* onembed */ nullptr,
++                                        /* base_ostride */ 1,
++                                        /* odist */ 1,
++                                        exec_type,
++                                        batch_size,
++                                        &ws_size_));
++#else
+     PADDLE_ENFORCE_GPU_SUCCESS(
+         phi::dynload::cufftXtMakePlanMany(plan(),
+                                           signal_ndim,
+@@ -125,6 +165,7 @@ class FFTConfig {
+                                           batch_size,
+                                           &ws_size_,
+                                           exec_type));
++#endif
+   }
+ 
+   FFTConfig(const FFTConfig& other) = delete;
+@@ -145,6 +186,44 @@ class FFTConfig {
+   DataType precision_;
+ };
+ 
++#ifdef PADDLE_WITH_COREX
++static void exec_plan(const FFTConfig& config,
++                      void* in_data,
++                      void* out_data,
++                      bool forward) {
++  auto& plan = config.plan();
++
++  auto value_type = config.data_type();
++  if (value_type == DataType::FLOAT32) {
++    switch (config.transform_type()) {
++      case FFTTransformType::C2C: {
++        PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cufftExecC2C(
++            plan,
++            static_cast<cufftComplex*>(in_data),
++            static_cast<cufftComplex*>(out_data),
++            forward ? CUFFT_FORWARD : CUFFT_INVERSE));
++        return;
++      }
++      case FFTTransformType::R2C: {
++        PADDLE_ENFORCE_GPU_SUCCESS(
++            phi::dynload::cufftExecR2C(plan,
++                                       static_cast<cufftReal*>(in_data),
++                                       static_cast<cufftComplex*>(out_data)));
++        return;
++      }
++      case FFTTransformType::C2R: {
++        PADDLE_ENFORCE_GPU_SUCCESS(
++            phi::dynload::cufftExecC2R(plan,
++                                       static_cast<cufftComplex*>(in_data),
++                                       static_cast<cufftReal*>(out_data)));
++        return;
++      }
++    }
++  }
++  PADDLE_THROW(phi::errors::InvalidArgument(
++      "ixFFT only support transforms of type float32"));
++}
++#else
+ // NOTE: R2C is forward-only, C2R is backward only
+ static void exec_plan(const FFTConfig& config,
+                       void* in_data,
+@@ -154,6 +233,7 @@ static void exec_plan(const FFTConfig& config,
+   PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cufftXtExec(
+       plan, in_data, out_data, forward ? CUFFT_FORWARD : CUFFT_INVERSE));
+ }
++#endif
+ 
+ }  // namespace detail
+ }  // namespace funcs
 diff --git a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 index 4eae698648..9247535e0d 100644
 --- a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h

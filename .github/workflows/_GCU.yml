@@ -75,7 +75,6 @@ jobs:
             echo "NO GCU backend changes found, skip GCU FULL CI ...."
             exit 0
           fi
-          docker exec -t ${{ env.container_name }} /bin/bash -c '
           bash backends/gcu/ci_test.sh '
 
       - name: Terminate and delete the container

@@ -45,6 +45,9 @@ jobs:
           docker run --shm-size=128G \
             -d -t --name ${container_name} \
             --privileged --network=host \
+            -e PR_ID \
+            -e COMMIT_ID \
+            -e BRANCH \
             -v ${cache_dir}:/root/.cache \
             -v ${ccache_dir}:/root/.ccache \
             -v ${PWD}:/PaddleCustomDevice -w /PaddleCustomDevice \

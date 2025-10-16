@@ -745,7 +745,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/save_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/dropout_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/dropout_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bce_loss_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bce_loss_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/meshgrid_kernel.cu.cc

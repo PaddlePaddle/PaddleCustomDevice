@@ -16,8 +16,8 @@ on:
         default: 'true'
 
 jobs:
-  pre-commit:
-    name: Pre Commit
+  PR-CI-HPU:
+    name: PR-CI-HPU
     if: ${{ github.repository_owner == 'PaddlePaddle' }}
     runs-on:
       group: HPU

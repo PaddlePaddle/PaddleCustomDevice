@@ -16,8 +16,8 @@ on:
         default: 'true'
 
 jobs:
-  pre-commit:
-    name: Pre Commit
+  PR-CI-GCU:
+    name: PR-CI-GCU
     if: ${{ github.repository_owner == 'PaddlePaddle' }}
     runs-on:
       group: GCU

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/kernels/gpu/index_add_grad_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/index_add_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(index_add_grad,
                           iluvatar_gpu,

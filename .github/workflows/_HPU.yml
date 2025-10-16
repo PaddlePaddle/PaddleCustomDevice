@@ -58,7 +58,7 @@ jobs:
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
           echo "Extracting PaddleCustomDevice.tar.gz"
-          # git config --global --add safe.directory ${work_dir}
+          git config --global --add safe.directory /PaddleCustomDevice
           tar -xf PaddleCustomDevice.tar.gz --strip-components=1
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit

@@ -53,7 +53,7 @@ jobs:
             -v ${cache_dir}:/root/.cache \
             -v ${ccache_dir}:/root/.ccache \
             -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
-            -v ${{ github.workspace }}:/PaddleCustomDevice -w /PaddleCustomDevice \
+            -v ${{ github.workspace }}:/workspace -w /workspace \
             ${docker_image} /bin/bash
 
       - name: RUN HPU
@@ -62,8 +62,9 @@ jobs:
           source ${{ github.workspace }}/../../../proxy
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
           echo "Extracting PaddleCustomDevice.tar.gz"
+          tar -xf PaddleCustomDevice.tar.gz
+          cd PaddleCustomDevice
           git config --global --add safe.directory /PaddleCustomDevice
-          tar -xf PaddleCustomDevice.tar.gz --strip-components=1
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
           git log --pretty=oneline -20
@@ -79,9 +80,10 @@ jobs:
             echo "NO HPU backend changes found, skip HPU FULL CI ...."
             exit 0
           fi
-          mkdir -p /PaddleCustomDevice/backends/intel_hpu/build/
-          export GC_KERNEL_PATH=/PaddleCustomDevice/backends/intel_hpu/build/libcustom_tpc_perf_lib.so:/usr/lib/habanalabs/libtpc_kernels.so
-          bash /PaddleCustomDevice/backends/intel_hpu/tools/pr_hpu_ci.sh '
+          mkdir -p /workspace/PaddleCustomDevice/backends/intel_hpu/build/
+          export GC_KERNEL_PATH=/workspace/PaddleCustomDevice/backends/intel_hpu/build/libcustom_tpc_perf_lib.so:/usr/lib/habanalabs/libtpc_kernels.so
+          cd /workspace
+          bash /workspace/PaddleCustomDevice/backends/intel_hpu/tools/pr_hpu_ci.sh '
 
       - name: Terminate and delete the container
         if: always()

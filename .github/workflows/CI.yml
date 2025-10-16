@@ -31,3 +31,8 @@ jobs:
     name: gcu
     uses: ./.github/workflows/_GCU.yml
     needs: [Codestyle-Check]
+
+  hpu:
+    name: hpu
+    uses: ./.github/workflows/_HPU.yml
+    needs: [Codestyle-Check]

@@ -1,4 +1,4 @@
-name: PR-CI-GCU 
+name: PR-CI-GCU
 
 on:
   workflow_call:

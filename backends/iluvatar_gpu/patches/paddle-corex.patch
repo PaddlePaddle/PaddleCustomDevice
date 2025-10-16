@@ -1,7 +1,7 @@
-From 136d1a7b85775bfe8fd3d589d610c4100e955e08 Mon Sep 17 00:00:00 2001
+From 6e899c8d24bb08bbd3eafdd2941f8eec34b50194 Mon Sep 17 00:00:00 2001
 From: tianyuzhou668 <2431054748@qq.com>
-Date: Mon, 22 Sep 2025 16:00:24 +0800
-Subject: [PATCH] [ILUVATAR_GPU] Fix bug
+Date: Thu, 16 Oct 2025 11:38:09 +0800
+Subject: [PATCH] [ILUVATAR_GPU] Fix
 
 ---
  CMakeLists.txt                                |  2 +-
@@ -44,10 +44,10 @@ Subject: [PATCH] [ILUVATAR_GPU] Fix bug
  37 files changed, 145 insertions(+), 68 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 3d5f0b4132..c633f1a117 100755
+index bbe89de522..0e40e41923 100755
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -63,7 +63,7 @@ option(WITH_IPU "Compile PaddlePaddle with Graphcore IPU" OFF)
+@@ -64,7 +64,7 @@ option(WITH_IPU "Compile PaddlePaddle with Graphcore IPU" OFF)
  option(WITH_ONNXRUNTIME "Compile PaddlePaddle with ONNXRUNTIME" OFF)
  option(WITH_CUSPARSELT "Compile PaddlePaddle with CUSPARSELT" OFF)
  option(WITH_SETUP_INSTALL "Compile PaddlePaddle with setup.py" OFF)
@@ -193,10 +193,10 @@ index 4ff2e528a9..956bac0c64 100644
    unsigned mask = 0u;
    CREATE_SHFL_MASK(mask, tid < len);
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.cc b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
-index 6b62e328d6..3c12905e09 100644
+index 9fd1b1d1d9..7db9b409b7 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_graph.cc
 +++ b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
-@@ -206,7 +206,7 @@ inline void sync_streams(gpuStream_t to_record, gpuStream_t to_wait) {
+@@ -214,7 +214,7 @@ inline void sync_streams(gpuStream_t to_record, gpuStream_t to_wait) {
    PADDLE_ENFORCE_GPU_SUCCESS(
        cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventRecord(event, to_record));
@@ -205,7 +205,7 @@ index 6b62e328d6..3c12905e09 100644
    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventDestroy(event));
  }
  
-@@ -323,7 +323,7 @@ void CUDAGraph::PrintToDotFiles(const std::string &dirname,
+@@ -331,7 +331,7 @@ void CUDAGraph::PrintToDotFiles(const std::string &dirname,
  #endif
  }
  
@@ -253,6 +253,33 @@ index 189e97534e..8f805afe8c 100644
      case phi::DataType::BFLOAT16:
        type = CUDNN_DATA_BFLOAT16;
        break;
+@@ -167,12 +167,26 @@ class TensorDescriptor {
+     } else {
+       transformed_dims = dims;
+     }
++#ifdef PADDLE_WITH_COREX
++    std::vector<int> strides(dims.size());
++    strides[dims.size() - 1] = 1;
++    for (int i = dims.size() - 2; i >= 0; i--) {
++      strides[i] = dims[i + 1] * strides[i + 1];
++    }
++    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSetTensorNdDescriptor(
++        desc_.get(),
++        dtype,
++        transformed_dims.size(),
++        transformed_dims.data(),
++        strides.data()));
++#else
+     PADDLE_ENFORCE_GPU_SUCCESS(
+         phi::dynload::cudnnSetTensorNdDescriptorEx(desc_.get(),
+                                                    format,
+                                                    dtype,
+                                                    transformed_dims.size(),
+                                                    transformed_dims.data()));
++#endif
+   }
+ 
+   void set(const phi::DenseTensor& tensor, const cudnnTensorFormat_t format) {
 diff --git a/paddle/phi/backends/gpu/cuda/cudnn_helper.h b/paddle/phi/backends/gpu/cuda/cudnn_helper.h
 index 28c3d14d37..5dc5f79178 100644
 --- a/paddle/phi/backends/gpu/cuda/cudnn_helper.h
@@ -309,7 +336,7 @@ index af1c7ba8b9..132e488061 100644
    const int capability = dev_ctx.GetComputeCapability();
    GpuLaunchConfig config;
 diff --git a/paddle/phi/backends/gpu/gpu_primitives.h b/paddle/phi/backends/gpu/gpu_primitives.h
-index 8f43d1019f..bc9b0fde02 100644
+index ab505091ab..8b7dd5ff86 100644
 --- a/paddle/phi/backends/gpu/gpu_primitives.h
 +++ b/paddle/phi/backends/gpu/gpu_primitives.h
 @@ -134,13 +134,38 @@ CUDA_ATOMIC_WRAPPER(Add, int16_t) {
@@ -430,10 +457,10 @@ index 1d20fa3173..fab2b90ed2 100644
      return ncclBfloat16;
  #endif
 diff --git a/paddle/phi/kernels/funcs/activation_functor.h b/paddle/phi/kernels/funcs/activation_functor.h
-index 4ded414c63..874ac52e30 100644
+index ead3de08fc..43b498b890 100644
 --- a/paddle/phi/kernels/funcs/activation_functor.h
 +++ b/paddle/phi/kernels/funcs/activation_functor.h
-@@ -3683,12 +3683,14 @@ struct CudaReciprocalFunctor<ComplexType<T>>
+@@ -3708,12 +3708,14 @@ struct CudaReciprocalFunctor<ComplexType<T>>
        return ::isnan(real) || ::isnan(imag);
      };
      if (either_nan(x.real, x.imag) || both_inf(x.real, x.imag)) {
@@ -615,10 +642,10 @@ index 361936305c..f4c680fe56 100644
  namespace phi {
  namespace funcs {
 diff --git a/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu b/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
-index ab5e182eb7..2ee30e70ce 100644
+index 3612a5fc89..634a61ebe1 100644
 --- a/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
-@@ -59,11 +59,7 @@ namespace fusion {
+@@ -60,11 +60,7 @@ namespace fusion {
  
  namespace {
  

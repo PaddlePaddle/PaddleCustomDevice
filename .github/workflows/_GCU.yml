@@ -49,7 +49,7 @@ jobs:
             -v ${cache_dir}:/root/.cache \
             -v ${ccache_dir}:/root/.ccache \
             -v ${PWD}:/paddle -w /paddle \
-            ${PADDLE_DEV_NAME} /bin/bash
+            ${docker_image} /bin/bash
 
       - name: Check GCU Files
         run: |

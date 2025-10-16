@@ -50,7 +50,7 @@ jobs:
             -v ${PWD}:/PaddleCustomDevice -w /PaddleCustomDevice \
             ${docker_image} /bin/bash
 
-      - name: Check HPU Files
+      - name: RUN HPU
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
@@ -72,12 +72,7 @@ jobs:
             echo "NO HPU backend changes found, skip HPU FULL CI ...."
             exit 0
           fi
-          '
-      - name: Run HPU
-        run: |
-          docker exec -t ${{ env.container_name }} /bin/bash -c '
           mkdir -p /PaddleCustomDevice/backends/intel_hpu/build/
-          cp /usr/lib/habanalabs/libcustom_tpc_perf_lib.so /PaddleCustomDevice/backends/intel_hpu/build/
           export GC_KERNEL_PATH=/PaddleCustomDevice/backends/intel_hpu/build/libcustom_tpc_perf_lib.so:/usr/lib/habanalabs/libtpc_kernels.so
           bash /PaddleCustomDevice/backends/intel_hpu/tools/pr_hpu_ci.sh '
 

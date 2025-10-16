@@ -127,6 +127,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cudnn.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublas.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublasLt.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cufft.cc
   # kernels/gpu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_kernel.cu
@@ -943,7 +944,6 @@ list(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/weight_only_gemv.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/context_project.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/fft.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/lstm_compute.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/fake_quantize_functor.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu

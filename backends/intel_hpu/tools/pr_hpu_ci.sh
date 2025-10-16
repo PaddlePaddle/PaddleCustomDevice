@@ -32,7 +32,6 @@ echo "custom_ops install"
 cd ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu/custom_ops
 python setup.py install
 
-
 echo "Start build"
 cd ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu
 mkdir -p build && cd build

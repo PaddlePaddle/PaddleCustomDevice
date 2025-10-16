@@ -39,7 +39,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           cache_dir: /root/.cache
           ccache_dir: /root/.ccache
-          docker_image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/ci/paddle:19d3669ca5ff0b19144a785bb3126d7e
+          docker_image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-gcu:topsrider3.5.102-ubuntu20-x86_64-gcc84 
         run: |
           container_name=${TASK}-$(date +%Y%m%d-%H%M%S)
           echo "container_name=${container_name}" >> ${{ github.env }}
@@ -51,7 +51,7 @@ jobs:
             -v ${PWD}:/paddle -w /paddle \
             ${docker_image} /bin/bash
 
-      - name: Check GCU Files
+      - name: RUN GCU
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
@@ -75,10 +75,6 @@ jobs:
             echo "NO GCU backend changes found, skip GCU FULL CI ...."
             exit 0
           fi
-          '
-
-      - name: Run GCU
-        run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           bash backends/gcu/ci_test.sh '
 

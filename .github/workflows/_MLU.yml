@@ -69,7 +69,7 @@ jobs:
           git config --global --add safe.directory "*"
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
-          git log --pretty=oneline -20
+          git --no-pager log --pretty=oneline -5
 
           # !!!!! SKIP IF NO MLU CHANGE !!!!
           echo "=========== Checking PR Changes If MLU FULL CI Needed ==========="

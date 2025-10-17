@@ -41,3 +41,8 @@ jobs:
     name: mlu
     uses: ./.github/workflows/_MLU.yml
     needs: [Codestyle-Check]
+
+  910b-arm:
+    name: 910B-ARM
+    uses: ./.github/workflows/_910B-ARM.yml
+    needs: [Codestyle-Check]

@@ -64,11 +64,11 @@ jobs:
           echo "Extracting PaddleCustomDevice.tar.gz"
           tar -xf PaddleCustomDevice.tar.gz
           cd PaddleCustomDevice
-          git config --global --add safe.directory /PaddleCustomDevice
+          git config --global --add safe.directory /workspace/PaddleCustomDevice
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
           git log --pretty=oneline -20
-          sleep 3d
+
           # !!!!! SKIP IF NO HPU CHANGE !!!!
           echo "=========== Checking PR Changes If HPU FULL CI Needed ==========="
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)

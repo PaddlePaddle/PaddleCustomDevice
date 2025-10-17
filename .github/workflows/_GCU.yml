@@ -69,6 +69,7 @@ jobs:
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
           git log --pretty=oneline -20
+          sleep 3d
 
           # !!!!! SKIP IF NO GCU CHANGE !!!!
           echo "=========== Checking PR Changes If GCU FULL CI Needed ==========="

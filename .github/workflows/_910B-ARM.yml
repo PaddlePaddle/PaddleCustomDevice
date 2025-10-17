@@ -55,6 +55,9 @@ jobs:
             -e FLAGS_npu_storage_format=0 \
             -v ${cache_dir}:/root/.cache \
             -v ${ccache_dir}:/root/.ccache \
+            -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+            -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
+            -v /usr/local/dcmi:/usr/local/dcmi \
             -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
             -v ${{ github.workspace }}:/paddle -w /PaddleCustomDevice \
             ${docker_image} /bin/bash

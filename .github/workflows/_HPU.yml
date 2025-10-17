@@ -64,7 +64,7 @@ jobs:
           echo "Extracting PaddleCustomDevice.tar.gz"
           tar -xf PaddleCustomDevice.tar.gz
           cd PaddleCustomDevice
-          git config --global --add safe.directory /workspace/PaddleCustomDevice
+          git config --global --add safe.directory "*"
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
           git log --pretty=oneline -20

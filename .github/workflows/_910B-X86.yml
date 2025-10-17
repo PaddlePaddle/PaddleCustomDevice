@@ -1,4 +1,4 @@
-name: PR-CI-910B-ARM
+name: PR-CI-910B-X86
 
 on:
   workflow_call:
@@ -16,11 +16,11 @@ on:
         default: 'true'
 
 jobs:
-  PR-CI-910B-ARM:
-    name: PR-CI-910B-ARM
+  PR-CI-910B-X86:
+    name: PR-CI-910B-X86
     if: ${{ github.repository_owner == 'PaddlePaddle' }}
     runs-on:
-      group: 910B-ARM
+      group: NPU
     env:
       PR_ID: ${{ github.event.pull_request.number }}
       COMMIT_ID: ${{ github.event.pull_request.head.sha }}
@@ -74,9 +74,9 @@ jobs:
 
           # !!!!! SKIP IF NO NPU CHANGE !!!!
           echo "=========== Checking PR Changes If NPU FULL CI Needed ==========="
-          change_numbers=$(git diff --name-only remotes/origin/develop | wc -l)
-          change_backend=$(git diff --name-only remotes/origin/develop | grep "backends/"| wc -l)
-          change_npu_only=$(git diff --name-only remotes/origin/develop | grep "backends/npu"| wc -l)
+          change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
+          change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
+          change_npu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/npu"| wc -l)
           if [ $change_numbers -ne $change_backend ]; then
             echo "Common file changed, continue to run NPU FULL CI test ..."
           elif [ $change_npu_only -eq 0 ] ; then

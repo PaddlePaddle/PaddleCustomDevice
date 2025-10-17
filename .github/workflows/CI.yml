@@ -36,3 +36,8 @@ jobs:
     name: hpu
     uses: ./.github/workflows/_HPU.yml
     needs: [Codestyle-Check]
+
+  mlu:
+    name: mlu
+    uses: ./.github/workflows/_MLU.yml
+    needs: [Codestyle-Check]

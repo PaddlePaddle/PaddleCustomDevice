@@ -73,10 +73,10 @@ jobs:
 
           # !!!!! SKIP IF NO MLU CHANGE !!!!
           echo "=========== Checking PR Changes If MLU FULL CI Needed ==========="
-          change_numbers=$(git diff --name-only remotes/origin/${PADDLE_BRANCH} | wc -l)
-          change_backend=$(git diff --name-only remotes/origin/${PADDLE_BRANCH} | grep "backends/"| wc -l)
-          change_mlu_only=$(git diff --name-only remotes/origin/${PADDLE_BRANCH} | grep "backends/mlu"| wc -l)
-          git diff --name-only remotes/origin/${PADDLE_BRANCH}
+          change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
+          change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
+          change_mlu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/mlu"| wc -l)
+          git diff --name-only remotes/origin/${BRANCH}
 
           if [ $change_numbers -ne $change_backend ]; then
             echo "Common file changed, continue to run MLU FULL CI test ..."

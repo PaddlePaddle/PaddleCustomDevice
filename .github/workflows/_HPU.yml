@@ -50,6 +50,7 @@ jobs:
             -e COMMIT_ID \
             -e BRANCH \
             -e no_proxy \
+            -e FLAGS_selected_intel_hpus=6 \
             -v ${cache_dir}:/root/.cache \
             -v ${ccache_dir}:/root/.ccache \
             -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \

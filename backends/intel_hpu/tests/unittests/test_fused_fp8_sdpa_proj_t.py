@@ -27,6 +27,7 @@ intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 1)
 paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
 
 paddle.seed(105)
+scale_dtype = paddle.float32
 
 
 def get_scale_values(t, is_t_amax=False):
@@ -68,6 +69,27 @@ def get_max_weight(
     return paddle.max(paddle.abs(weight)).to(paddle.float32)
 
 
+def is_gqa(q, k):
+    gqa = False
+    dims = q.dim()
+    if dims == 4:
+        q_heads = q.shape[2]
+        kv_heads = k.shape[2]
+        gqa = (q_heads != kv_heads) and kv_heads != 1
+    return gqa
+
+
+def gqa_input_reshape_fwd(q, k, v):
+    q_heads = q.shape[2]
+    kv_heads = k.shape[2]
+    q_heads_per_group = q_heads // kv_heads
+
+    k = k.repeat_interleave(q_heads_per_group, axis=2)
+    v = v.repeat_interleave(q_heads_per_group, axis=2)
+
+    return k, v
+
+
 def ref_result(
     query_states,
     key_states,
@@ -77,6 +99,12 @@ def ref_result(
     scaling_factor,
 ):
     bsz, q_len, num_heads, head_dim = query_states.shape
+
+    if is_gqa(query_states, key_states):
+        key_states, value_states = gqa_input_reshape_fwd(
+            query_states, key_states, value_states
+        )
+
     attn_output = paddle.incubate.nn.functional.fused_dot_product_attention(
         query_states,
         key_states,
@@ -94,13 +122,25 @@ def ref_result(
     return out_linear_out
 
 
-HEAD_DIM = [32]
-NUM_HEAD = [8]
-BATCH_SIZE = [4, 8, 16]
-SEQ_LEN = [16]
-KV_SEQ_LEN = [16]
+BATCH_SIZE = [1]
+SEQ_LEN = [128]
+NUM_HEAD = [64]
+KV_SEQ_LEN = [128]
+KV_NUM_HEAD = [8]
+HEAD_DIM = [128]
 MAX_SEQ_LENGTH = [2048]
-SCALE_O = [None, paddle.to_tensor([1.0], dtype=paddle.float32)]
+SCALE_O = [None, paddle.to_tensor([1.0], dtype=paddle.float32).to(scale_dtype)]
+
+"""
+HEAD_DIM = [128]
+NUM_HEAD = [8]
+KV_NUM_HEAD = [2, 8]
+BATCH_SIZE = [4, 8, 16]
+SEQ_LEN = [128]
+KV_SEQ_LEN = [128]
+MAX_SEQ_LENGTH = [2048]
+SCALE_O = [None, paddle.to_tensor([1.0], dtype=paddle.float32).to(scale_dtype)]
+"""
 
 
 class FP8_SDPA_Proj_T_Test(unittest.TestCase):
@@ -109,6 +149,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             (
                 head_dim,
                 num_head,
+                kv_num_head,
                 batch_size,
                 seq_len,
                 kv_seq_len,
@@ -117,6 +158,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             )
             for head_dim in HEAD_DIM
             for num_head in NUM_HEAD
+            for kv_num_head in KV_NUM_HEAD
             for batch_size in BATCH_SIZE
             for seq_len in SEQ_LEN
             for kv_seq_len in KV_SEQ_LEN
@@ -128,13 +170,13 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
         self,
         head_dim,
         num_head,
+        kv_num_head,
         batch_size,
         seq_len,
         kv_seq_len,
         max_seq_length,
         scale_o,
     ):
-        kv_num_head = num_head
         hidden_size = num_head * head_dim
         scaling_factor = head_dim**-0.5
 
@@ -166,17 +208,17 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             [scaleK * key_states, scaleV * value_states], axis=0
         ).astype(paddle.float8_e4m3fn)
 
-        scale_one = paddle.to_tensor([1.0], dtype=paddle.float32)
+        scale_one = paddle.to_tensor([1.0], dtype=paddle.float32).to(scale_dtype)
         linear_weights_fp8 = linear_weights.transpose([1, 0]).astype(
             paddle.float8_e4m3fn
         )
 
-        d_scale_q = paddle.to_tensor([scaleQInv])
-        d_scale_k = paddle.to_tensor([scaleKInv])
-        d_scale_v = paddle.to_tensor([scaleVInv])
-        q_scale_s = paddle.to_tensor([scaleS])
+        d_scale_q = paddle.to_tensor([scaleQInv]).to(scale_dtype)
+        d_scale_k = paddle.to_tensor([scaleKInv]).to(scale_dtype)
+        d_scale_v = paddle.to_tensor([scaleVInv]).to(scale_dtype)
+        q_scale_s = paddle.to_tensor([scaleS]).to(scale_dtype)
         q_scale_o = scale_o
-        d_scale_s = paddle.to_tensor([scaleSInv])
+        d_scale_s = paddle.to_tensor([scaleSInv]).to(scale_dtype)
 
         out_linear_out_ref = ref_result(
             query_states,

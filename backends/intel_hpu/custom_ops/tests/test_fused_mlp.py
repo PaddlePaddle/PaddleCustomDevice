@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-
-os.environ["PT_HPU_LAZY_MODE"] = "1"
-os.environ["HABANA_PROFILE"] = "1"
 import argparse
 import numpy as np
 
@@ -59,8 +55,8 @@ def tensorwise_quant_to_fp8(tensor):
 def init_data(
     batch_size=8,
     seqence_len=1,
-    hidden_size=2560,  # 256
-    intermediate_size=3072,  # 1024
+    hidden_size=2560,
+    intermediate_size=3072,
     dtype="bfloat16",
     is_3D_hidden_states=False,
     fused_ffn1=True,
@@ -169,8 +165,8 @@ def ref_mlp(
         else None
     )
     swiglu = swiglu_naive(hidden_states=gate, up=up)
-    _, d_scales_swiglu = tensorwise_quant_to_fp8(swiglu)
-    print(f"Reference intermediate_hidden_states_scales: {d_scales_swiglu.item()}")
+    # _, d_scales_swiglu = tensorwise_quant_to_fp8(swiglu)
+    # print(f"Reference intermediate_hidden_states_scales: {d_scales_swiglu.item()}")
     res = paddle.matmul(swiglu, down_weight, transpose_y=permuted_weights)
 
     return res
@@ -184,8 +180,8 @@ class refMlpOP(paddle.nn.Layer):
         up_weight=None,
         down_weight=None,
         up_gate_scale=None,
-        up_scale=None,
-        down_scale=None,
+        d_up_scale=None,
+        d_down_scale=None,
         permuted_weights=False,
     ):
         super().__init__()
@@ -194,11 +190,11 @@ class refMlpOP(paddle.nn.Layer):
         if up_gate_weight.dtype != paddle.bfloat16:
             self.up_gate_weight = up_gate_weight.cast("bfloat16") * up_gate_scale
             self.up_weight = (
-                (up_weight.cast("bfloat16") * up_scale)
+                (up_weight.cast("bfloat16") * d_up_scale)
                 if up_weight is not None
                 else None
             )
-            self.down_weight = down_weight.cast("bfloat16") * down_scale
+            self.down_weight = down_weight.cast("bfloat16") * d_down_scale
         else:
             self.up_gate_weight = up_gate_weight
             self.up_weight = up_weight
@@ -259,12 +255,12 @@ class fusedFp8MlpOP(paddle.nn.Layer):
         up_weight=None,
         down_weight=None,
         hidden_states_scale=None,
-        de_hidden_states_scale=None,
-        proj_scale=None,
-        up_scale=None,
+        d_hidden_states_scale=None,
+        d_proj_scale=None,
+        d_up_scale=None,
         intermediate_hidden_states_scales=None,
-        de_intermediate_hidden_states_scales=None,
-        down_scale=None,
+        d_intermediaete_hidden_states_scales=None,
+        d_down_scale=None,
         permuted_weights=False,
     ):
         super().__init__()
@@ -273,13 +269,13 @@ class fusedFp8MlpOP(paddle.nn.Layer):
         self.up_weight = up_weight
         self.down_weight = down_weight
         self.hidden_states_scale = hidden_states_scale
-        self.proj_scale = proj_scale
-        self.up_scale = up_scale
+        self.d_proj_scale = d_proj_scale
+        self.d_up_scale = d_up_scale
         self.intermediate_hidden_states_scales = intermediate_hidden_states_scales
-        self.down_scale = down_scale
+        self.d_down_scale = d_down_scale
         self.permuted_weights = permuted_weights
-        self.de_hidden_states_scale = de_hidden_states_scale
-        self.de_intermediate_hidden_states_scales = de_intermediate_hidden_states_scales
+        self.d_hidden_states_scale = d_hidden_states_scale
+        self.d_intermediaete_hidden_states_scales = d_intermediaete_hidden_states_scales
 
     def forward(self):
         """
@@ -288,11 +284,11 @@ class fusedFp8MlpOP(paddle.nn.Layer):
             self.proj_weight,
             self.up_weight,
             self.down_weight,
-            self.hidden_states_scale,
-            self.proj_scale,
-            self.up_scale,
-            self.intermediate_hidden_states_scales,
-            self.down_scale,
+            self.hidden_states_scale, # 240/max
+            self.d_proj_scale,
+            self.d_up_scale,
+            self.intermediate_hidden_states_scales, # 240/max
+            self.d_down_scale,
             self.permuted_weights,
         )
         """
@@ -301,11 +297,11 @@ class fusedFp8MlpOP(paddle.nn.Layer):
             self.proj_weight,
             self.up_weight,
             self.down_weight,
-            self.de_hidden_states_scale,
-            self.proj_scale,
-            self.up_scale,
-            self.de_intermediate_hidden_states_scales,
-            self.down_scale,
+            self.d_hidden_states_scale,  # max/240
+            self.d_proj_scale,
+            self.d_up_scale,
+            self.d_intermediaete_hidden_states_scales,  # max/240
+            self.d_down_scale,
             self.permuted_weights,
         )
         return fused_fp8_mlp_out
@@ -317,10 +313,10 @@ class fusedFp8MlpOP(paddle.nn.Layer):
             self.up_weight,
             self.down_weight,
             self.hidden_states_scale,
-            self.proj_scale,
-            self.up_scale,
+            self.d_proj_scale,
+            self.d_up_scale,
             self.intermediate_hidden_states_scales,
-            self.down_scale,
+            self.d_down_scale,
             self.permuted_weights,
         )
         for _ in range(9):
@@ -330,10 +326,10 @@ class fusedFp8MlpOP(paddle.nn.Layer):
                 self.up_weight,
                 self.down_weight,
                 self.hidden_states_scale,
-                self.proj_scale,
-                self.up_scale,
+                self.d_proj_scale,
+                self.d_up_scale,
                 self.intermediate_hidden_states_scales,
-                self.down_scale,
+                self.d_down_scale,
                 self.permuted_weights,
             )
         return fused_fp8_mlp_out
@@ -344,11 +340,11 @@ class fusedFp8MlpOP(paddle.nn.Layer):
             self.proj_weight,
             self.up_weight,
             self.down_weight,
-            self.de_hidden_states_scale,
-            self.proj_scale,
-            self.up_scale,
-            self.de_intermediate_hidden_states_scales,
-            self.down_scale,
+            self.d_hidden_states_scale,
+            self.d_proj_scale,
+            self.d_up_scale,
+            self.d_intermediaete_hidden_states_scales,
+            self.d_down_scale,
             self.permuted_weights,
         )
         for _ in range(9):
@@ -357,11 +353,11 @@ class fusedFp8MlpOP(paddle.nn.Layer):
                 self.proj_weight,
                 self.up_weight,
                 self.down_weight,
-                self.de_hidden_states_scale,
-                self.proj_scale,
-                self.up_scale,
-                self.de_intermediate_hidden_states_scales,
-                self.down_scale,
+                self.d_hidden_states_scale,
+                self.d_proj_scale,
+                self.d_up_scale,
+                self.d_intermediaete_hidden_states_scales,
+                self.d_down_scale,
                 self.permuted_weights,
             )
         return fused_fp8_mlp_out
@@ -389,9 +385,9 @@ def run_accuracy_check(
     gate_weight,
     up_weight,
     down_weight,
-    proj_scale=None,
-    up_scale=None,
-    down_scale=None,
+    d_proj_scale=None,
+    d_up_scale=None,
+    d_down_scale=None,
     fused_res=None,
     permuted_weights=False,
 ):
@@ -400,9 +396,9 @@ def run_accuracy_check(
         gate_weight,
         up_weight,
         down_weight,
-        proj_scale,
-        up_scale,
-        down_scale,
+        d_proj_scale,
+        d_up_scale,
+        d_down_scale,
         permuted_weights,
     )
     golden_res = ref_mlp()
@@ -421,19 +417,6 @@ def run_accuracy_check(
         )
         print("fused_res: ", fused_res)
         print("golden_res: ", golden_res)
-    """
-    if "fp8" in testcase:
-    else:
-        if (fused_res == golden_res).all():
-            print(f"------- {testcase} accuracy check passed. -------\n")
-        else:
-            print(f"******* {testcase} accuracy check failed! *******\n")
-            abs_diff = paddle.abs(fused_res - golden_res).flatten()
-            print("abs_diff != 0 values:", fused_res.flatten()[abs_diff != 0])
-            print("abs_diff != 0 values:", golden_res.flatten()[abs_diff != 0])
-            # print("fused_res: ", fused_res)
-            # print("golden_res: ", golden_res)
-    """
 
 
 def main():
@@ -543,11 +526,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         ) = init_data(
             is_3D_hidden_states=is_3D_hidden_states, fused_ffn1=fused_ffn1, dtype=dtype
         )
@@ -558,11 +541,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         )
         if args.accuracy:
             fused_res = fused_mlp()
@@ -572,9 +555,9 @@ def main():
                 proj_weight,
                 up_weight,
                 down_weight,
-                proj_scale,
-                up_scale,
-                down_scale,
+                d_proj_scale,
+                d_up_scale,
+                d_down_scale,
                 fused_res,
             )
 
@@ -590,11 +573,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         ) = init_data(
             is_3D_hidden_states=is_3D_hidden_states, fused_ffn1=fused_ffn1, dtype=dtype
         )
@@ -605,11 +588,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         )
         if args.accuracy:
             fused_res = fused_mlp()
@@ -619,9 +602,9 @@ def main():
                 proj_weight,
                 up_weight,
                 down_weight,
-                proj_scale,
-                up_scale,
-                down_scale,
+                d_proj_scale,
+                d_up_scale,
+                d_down_scale,
                 fused_res,
             )
 
@@ -637,11 +620,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         ) = init_data(
             is_3D_hidden_states=is_3D_hidden_states, fused_ffn1=fused_ffn1, dtype=dtype
         )
@@ -652,11 +635,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         )
         if args.accuracy:
             fused_res = fused_mlp()
@@ -666,9 +649,9 @@ def main():
                 proj_weight,
                 up_weight,
                 down_weight,
-                proj_scale,
-                up_scale,
-                down_scale,
+                d_proj_scale,
+                d_up_scale,
+                d_down_scale,
                 fused_res,
             )
 
@@ -684,11 +667,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         ) = init_data(
             is_3D_hidden_states=is_3D_hidden_states, fused_ffn1=fused_ffn1, dtype=dtype
         )
@@ -699,11 +682,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         )
         if args.accuracy:
             fused_res = fused_mlp()
@@ -713,9 +696,9 @@ def main():
                 proj_weight,
                 up_weight,
                 down_weight,
-                proj_scale,
-                up_scale,
-                down_scale,
+                d_proj_scale,
+                d_up_scale,
+                d_down_scale,
                 fused_res,
             )
 
@@ -732,11 +715,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         ) = init_data(
             is_3D_hidden_states=is_3D_hidden_states,
             fused_ffn1=fused_ffn1,
@@ -750,11 +733,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
             permuted_weights,
         )
         if args.accuracy:
@@ -765,9 +748,9 @@ def main():
                 proj_weight,
                 up_weight,
                 down_weight,
-                proj_scale,
-                up_scale,
-                down_scale,
+                d_proj_scale,
+                d_up_scale,
+                d_down_scale,
                 fused_res,
                 permuted_weights,
             )
@@ -785,11 +768,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         ) = init_data(
             is_3D_hidden_states=is_3D_hidden_states,
             fused_ffn1=fused_ffn1,
@@ -803,11 +786,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
             permuted_weights,
         )
         if args.accuracy:
@@ -818,9 +801,9 @@ def main():
                 proj_weight,
                 up_weight,
                 down_weight,
-                proj_scale,
-                up_scale,
-                down_scale,
+                d_proj_scale,
+                d_up_scale,
+                d_down_scale,
                 fused_res,
                 permuted_weights,
             )
@@ -838,11 +821,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         ) = init_data(
             is_3D_hidden_states=is_3D_hidden_states,
             fused_ffn1=fused_ffn1,
@@ -856,11 +839,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
             permuted_weights,
         )
         if args.accuracy:
@@ -871,9 +854,9 @@ def main():
                 proj_weight,
                 up_weight,
                 down_weight,
-                proj_scale,
-                up_scale,
-                down_scale,
+                d_proj_scale,
+                d_up_scale,
+                d_down_scale,
                 fused_res,
                 permuted_weights,
             )
@@ -891,11 +874,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
         ) = init_data(
             is_3D_hidden_states=is_3D_hidden_states,
             fused_ffn1=fused_ffn1,
@@ -909,11 +892,11 @@ def main():
             down_weight,
             hidden_states_scale,
             d_hidden_states_scales,
-            proj_scale,
-            up_scale,
+            d_proj_scale,
+            d_up_scale,
             intermediate_hidden_states_scales,
             d_intermediate_hidden_states_scales,
-            down_scale,
+            d_down_scale,
             permuted_weights,
         )
         if args.accuracy:
@@ -924,9 +907,9 @@ def main():
                 proj_weight,
                 up_weight,
                 down_weight,
-                proj_scale,
-                up_scale,
-                down_scale,
+                d_proj_scale,
+                d_up_scale,
+                d_down_scale,
                 fused_res,
                 permuted_weights,
             )

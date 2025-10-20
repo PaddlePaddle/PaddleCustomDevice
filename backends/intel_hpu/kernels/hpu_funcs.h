@@ -44,6 +44,8 @@ class HpuFusedOperator : public HpuOperator {
       return "i8";
     } else if (std::is_same<T, int8_t>::value) {
       return "i8";
+    } else if (std::is_same<T, uint8_t>::value) {
+      return "u8";
     } else if (std::is_same<T, int64_t>::value) {
       return "i64";
     } else {

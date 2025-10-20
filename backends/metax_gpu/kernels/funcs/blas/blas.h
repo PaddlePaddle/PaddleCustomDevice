@@ -283,6 +283,9 @@ class Blas {
   T DOT(int n, const T* x, const T* y) const;
 
   template <typename T>
+  void CUDOT(
+      int n, const T* x, int incx, const T* y, int incy, T* result) const;
+  template <typename T>
   void SCAL(int n, const T a, T* x) const;
 
   template <typename T>
@@ -541,7 +544,10 @@ class BlasT : private Blas<DeviceContext> {
   T DOT(ARGS... args) const {
     return Base()->template DOT<T>(args...);
   }
-
+  template <typename... ARGS>
+  void CUDOT(ARGS... args) const {
+    Base()->template CUDOT<T>(args...);
+  }
   template <typename... ARGS>
   void SCAL(ARGS... args) const {
     Base()->template SCAL<T>(args...);

@@ -80,6 +80,17 @@ PHI_DEFINE_EXPORTED_bool(
     "faster but it may loss precision in most case. If true, the compute "
     "type will be set to fp16. Default is false.");
 
+PHI_DEFINE_EXPORTED_string(
+    selected_gpus,
+    "",
+    "A list of device ids separated by comma, like: 0,1,2,3. "
+    "This option is useful when doing multi process training and "
+    "each process have only one device (GPU). If you want to use "
+    "all visible devices, set this to empty string. NOTE: the "
+    "reason of doing this is that we want to use P2P communication"
+    "between GPU devices, use CUDA_VISIBLE_DEVICES can only use"
+    "share-memory only.");
+
 PHI_DEFINE_EXPORTED_bool(use_fast_math,
                          false,
                          "Whether to use fast math GPU functions.");

@@ -145,6 +145,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/angle_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/angle_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adamax_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/ap_facade_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/box_clip_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_embedding_kernel.cu
@@ -327,7 +328,9 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/im2sequence_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/im2sequence_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/increment_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_elementwise_get_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_grad_add_to_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cross_entropy_bwd_w_downcast.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_elementwise_get_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_elementwise_get_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_elementwise_put_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_elementwise_put_grad_kernel.cu
@@ -536,6 +539,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/clip_by_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/uniform_random_batch_size_like_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/get_tensor_from_selected_rows_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/adam_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/sparse/batch_norm_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/sparse/batch_norm_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/sparse/empty_kernel.cc
@@ -644,6 +648,9 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gumbel_softmax_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lars_momentum_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/partial_sum_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/gpu_info.cc
   # ############################################################################
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/adamw_kernel.cu
   # kernels/kps
@@ -683,6 +690,7 @@ file(
   RELATIVE ${CMAKE_SOURCE_DIR}
   runtime/runtime.cc
   passes/*.cc
+  common/*.cc
   kernels/*.cc
   kernels/*.cu
   kernels/fusion/*.cc
@@ -697,9 +705,9 @@ file(
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS} ${ERNIE_CORE_SRCS})
 
 set_source_files_properties(${CUSTOM_DEVICE_SRCS} PROPERTIES LANGUAGE CUDA)
-
+set(MACA_PATH $ENV{MACA_PATH})
 set(CMAKE_CUCC_COMPILER "cucc")
-set(CMAKE_CUCC_FLAGS "-I /opt/maca/tools/cu-bridge/include/")
+set(CMAKE_CUCC_FLAGS "-I ${MACA_PATH}/tools/cu-bridge/include/")
 
 add_library(${TARGET_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
 
@@ -727,6 +735,11 @@ target_link_libraries(
   ${WARPCTC_LIBRARIES}
   ${WARPRNNT_LIBRARIES}
   ${PADDLE_CORE_LIB})
+
+target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmccl.so)
+target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmcFlashAttn.so)
+target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmcpti.so)
+
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 
 target_compile_definitions(

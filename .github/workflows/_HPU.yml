@@ -86,6 +86,7 @@ jobs:
           mkdir -p /workspace/PaddleCustomDevice/backends/intel_hpu/build/
           export GC_KERNEL_PATH=/workspace/PaddleCustomDevice/backends/intel_hpu/build/libcustom_tpc_perf_lib.so:/usr/lib/habanalabs/libtpc_kernels.so
           cd /workspace
+          sleep 3d
           bash /workspace/PaddleCustomDevice/backends/intel_hpu/tools/pr_hpu_ci.sh '
 
       - name: Terminate and delete the container

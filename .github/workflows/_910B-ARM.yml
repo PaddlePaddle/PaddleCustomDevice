@@ -77,9 +77,11 @@ jobs:
 
           # !!!!! SKIP IF NO NPU CHANGE !!!!
           echo "=========== Checking PR Changes If NPU FULL CI Needed ==========="
-          change_numbers=$(git diff --name-only remotes/origin/develop | wc -l)
-          change_backend=$(git diff --name-only remotes/origin/develop | grep "backends/"| wc -l)
-          change_npu_only=$(git diff --name-only remotes/origin/develop | grep "backends/npu"| wc -l)
+          change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
+          change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
+          change_npu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/npu"| wc -l)
+          git diff --name-only remotes/origin/${BRANCH}
+
           if [ $change_numbers -ne $change_backend ]; then
             echo "Common file changed, continue to run NPU FULL CI test ..."
           elif [ $change_npu_only -eq 0 ] ; then

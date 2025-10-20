@@ -672,8 +672,8 @@ void SoftsignGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void SoftplusKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
-                    float beta,
-                    float threshold,
+                    double beta,
+                    double threshold,
                     phi::DenseTensor* out) {
   VLOG(4) << "Call SDAA SoftplusKernel";
 
@@ -687,10 +687,11 @@ void SoftplusKernel(const Context& dev_ctx,
   tecodnnTensorDescriptor_t desc =
       sdaa_ops::GetTecodnnTensorDesc(dims, x.dtype(), TensorFormat::NHWC);
 
-  const float coef = beta;
+  const float coef = static_cast<float>(beta);
+  const float threshold_ = static_cast<float>(threshold);
   const float alpha = 1.0f, beta_ = 0.0f;
   TECODNN_CHECK(tecodnnSoftplusForward(handle,
-                                       &threshold,
+                                       &threshold_,
                                        &coef,
                                        &alpha,
                                        desc,
@@ -706,8 +707,8 @@ template <typename T, typename Context>
 void SoftplusGradKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& dout,
-                        float beta,
-                        float threshold,
+                        double beta,
+                        double threshold,
                         phi::DenseTensor* dx) {
   VLOG(4) << "Call SDAA SoftplusGradKernel";
 
@@ -721,10 +722,11 @@ void SoftplusGradKernel(const Context& dev_ctx,
   tecodnnTensorDescriptor_t desc =
       sdaa_ops::GetTecodnnTensorDesc(dims, x.dtype(), TensorFormat::NHWC);
 
-  const float coef = beta;
+  const float coef = static_cast<float>(beta);
+  const float threshold_ = static_cast<float>(threshold);
   const float alpha = 1.0f, beta_ = 0.0f;
   TECODNN_CHECK(tecodnnSoftplusBackward(handle,
-                                        &threshold,
+                                        &threshold_,
                                         &coef,
                                         &alpha,
                                         desc,

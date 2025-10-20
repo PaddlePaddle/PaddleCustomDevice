@@ -36,8 +36,6 @@ else
     WITH_FLAGCX="OFF"
 fi
 
-bash clean_paddle.sh
-
 if ! git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null 2>&1; then
   if ! git -C "$PADDLE_SOURCE_DIR" apply "$PATCH_FILE"; then
     echo "Error: Failed to apply patch!"
@@ -68,7 +66,6 @@ cmake -G Ninja -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DI
 -DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
 -DCMAKE_C_FLAGS="-pthread" \
 -DWITH_ARM=OFF -DWITH_DGC=OFF .. 2>&1 | tee compile.log
-# make VERBOSE=1 -j$(nproc) 2>&1 | tee -a compile.log
 ninja -k 0 -j$(nproc) 2>&1 | tee -a compile.log
 FAILED_LOG="failed_files.log"
 grep -E "FAILED: " compile.log | tee ${FAILED_LOG}

@@ -55,7 +55,9 @@ namespace phi {
 namespace internal {
 
 inline ncclDataType_t PDDataTypeToNcclDataType(C_DataType type) {
-  if (type == C_DataType::FLOAT32) {
+  if (type == C_DataType::BOOL) {
+    return ncclUint8;
+  } else if (type == C_DataType::FLOAT32) {
     return ncclFloat32;
   } else if (type == C_DataType::BFLOAT16) {
     return ncclBfloat16;
@@ -555,6 +557,10 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   err = cudaMalloc(ptr, size);
   if (err != cudaSuccess) {
     *ptr = NULL;
+    if (err == cudaErrorMemoryAllocation) {
+      VLOG(0) << "[RUNTIME] Failed to alloc hbm, size: " << size
+              << ", out of memory.";
+    }
     return C_ERROR;
   }
 

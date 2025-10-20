@@ -42,6 +42,21 @@ jobs:
           ccache_dir: /root/.ccache
           docker_image: registry.baidubce.com/device/paddle-npu:cann80RC1-ubuntu20-aarch64-gcc84-py39
         run: |
+          if [[ "${{ runner.name }}" == "IXUCA-2" ]];then
+              echo "IXUCA-2"
+              export ASCEND_RT_VISIBLE_DEVICES=4,5,6,7
+          elif [[ "${{ runner.name }}" == "IXUCA-3" ]];then
+              echo "IXUCA-3"
+              export ASCEND_RT_VISIBLE_DEVICES=8,9,10,11
+          elif [[ "${{ runner.name }}" == "IXUCA-4" ]];then
+              echo "IXUCA-4"
+              export ASCEND_RT_VISIBLE_DEVICES=12,13,14,15
+          else
+              echo echo "IXUCA-1"
+              export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3
+          fi
+          echo ${ASCEND_RT_VISIBLE_DEVICES}
+
           container_name=${TASK}-$(date +%Y%m%d-%H%M%S)
           echo "container_name=${container_name}" >> ${{ github.env }}
           docker run --shm-size=128G \
@@ -53,6 +68,7 @@ jobs:
             -e no_proxy \
             -e USE_910B=1 \
             -e FLAGS_npu_storage_format=0 \
+            -e ASCEND_RT_VISIBLE_DEVICES=${ASCEND_RT_VISIBLE_DEVICES} \
             -v ${cache_dir}:/root/.cache \
             -v ${ccache_dir}:/root/.ccache \
             -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \

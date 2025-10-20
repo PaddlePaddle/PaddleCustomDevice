@@ -32,7 +32,6 @@ jobs:
       - name: Cleanup
         run: |
           rm -rf * .[^.]*
-
       - name: Check docker image and run container
         env:
           GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}

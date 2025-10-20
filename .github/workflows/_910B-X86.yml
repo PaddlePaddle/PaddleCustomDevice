@@ -25,14 +25,13 @@ jobs:
       PR_ID: ${{ github.event.pull_request.number }}
       COMMIT_ID: ${{ github.event.pull_request.head.sha }}
       BRANCH: develop
-      TASK: paddle-CI-${{ github.event.pull_request.number }}-gcu
+      TASK: paddle-CI-${{ github.event.pull_request.number }}-npu
       no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
 
     steps:
       - name: Cleanup
         run: |
           rm -rf * .[^.]*
-
       - name: Check docker image and run container
         env:
           GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
@@ -40,8 +39,23 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           cache_dir: /root/.cache
           ccache_dir: /root/.ccache
-          docker_image: registry.baidubce.com/device/paddle-npu:cann80RC1-ubuntu20-aarch64-gcc84-py39
+          docker_image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-npu:cann80RC2-ubuntu20-npu-base-x86_64-gcc84
         run: |
+          if [[ "${{ runner.name }}" == "npu-2" ]];then
+              echo "IXUCA-2"
+              export ASCEND_RT_VISIBLE_DEVICES=4,5,6,7
+          elif [[ "${{ runner.name }}" == "npu-3" ]];then
+              echo "IXUCA-3"
+              export ASCEND_RT_VISIBLE_DEVICES=8,9,10,11
+          elif [[ "${{ runner.name }}" == "npu-4" ]];then
+              echo "IXUCA-4"
+              export ASCEND_RT_VISIBLE_DEVICES=12,13,14,15
+          else
+              echo echo "npu-1"
+              export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3
+          fi
+          echo ${ASCEND_RT_VISIBLE_DEVICES}
+
           container_name=${TASK}-$(date +%Y%m%d-%H%M%S)
           echo "container_name=${container_name}" >> ${{ github.env }}
           docker run --shm-size=128G \
@@ -53,13 +67,17 @@ jobs:
             -e no_proxy \
             -e USE_910B=1 \
             -e FLAGS_npu_storage_format=0 \
+            -e ASCEND_RT_VISIBLE_DEVICES=${ASCEND_RT_VISIBLE_DEVICES} \
             -v ${cache_dir}:/root/.cache \
             -v ${ccache_dir}:/root/.ccache \
+            -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+            -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
+            -v /usr/local/dcmi:/usr/local/dcmi \
             -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
             -v ${{ github.workspace }}:/paddle -w /PaddleCustomDevice \
             ${docker_image} /bin/bash
 
-      - name: RUN GCU
+      - name: RUN 910B-X86
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           source ${{ github.workspace }}/../../../proxy
@@ -77,6 +95,8 @@ jobs:
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
           change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
           change_npu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/npu"| wc -l)
+          git diff --name-only remotes/origin/${BRANCH}
+
           if [ $change_numbers -ne $change_backend ]; then
             echo "Common file changed, continue to run NPU FULL CI test ..."
           elif [ $change_npu_only -eq 0 ] ; then
@@ -97,7 +117,6 @@ jobs:
           python -c "import paddle; print(paddle.version.commit)"
           # Install python packages required for incremental coverage
           python -m pip install PyGithub
-          export LD_PRELOAD=/lib/aarch64-linux-gnu/libgomp.so.1:$LD_PRELOAD
 
           bash backends/npu/tools/pr_ci_npu.sh'
 

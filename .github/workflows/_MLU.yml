@@ -60,7 +60,7 @@ jobs:
 
       - name: Download Code
         run: |
-          docker exec -t ${{ env.container_name }} /bin/bash -c'
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
           source ${{ github.workspace }}/../../../proxy
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
           echo "Extracting PaddleCustomDevice.tar.gz"

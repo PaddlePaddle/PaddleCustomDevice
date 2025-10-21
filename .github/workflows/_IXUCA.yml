@@ -32,7 +32,16 @@ jobs:
       - name: Cleanup
         run: |
           rm -rf * .[^.]*
+
+      - name: Check bypass
+        id: check-bypass
+        uses: ./.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: codestyle
+
       - name: Check docker image and run container
+        if: steps.check-bypass.outputs.can-skip != 'true'
         env:
           GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,6 +68,7 @@ jobs:
             ${docker_image} /bin/bash
 
       - name: RUN IXUCA
+        if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           source ${{ github.workspace }}/../../../proxy
@@ -92,7 +102,6 @@ jobs:
           tar xf /workspace/PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz
           python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
           python3 -m pip install parameterized
-          sleep 3d
           # build
           cd backends/iluvatar_gpu
           bash build_paddle.sh

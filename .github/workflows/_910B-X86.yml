@@ -32,7 +32,16 @@ jobs:
       - name: Cleanup
         run: |
           rm -rf * .[^.]*
+
+      - name: Check bypass
+        id: check-bypass
+        uses: ./.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: codestyle
+
       - name: Check docker image and run container
+        if: steps.check-bypass.outputs.can-skip != 'true'
         env:
           GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -78,6 +87,7 @@ jobs:
             ${docker_image} /bin/bash
 
       - name: RUN 910B-X86
+        if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           source ${{ github.workspace }}/../../../proxy
@@ -110,6 +120,8 @@ jobs:
           PATH=/usr/local/bin:${PATH}
           ln -sf $(which python3.9) /usr/local/bin/python
           ln -sf $(which pip3.9) /usr/local/bin/pip
+          ln -sf $(which python3.9) /usr/bin/python
+          ln -sf $(which pip3.9) /usr/bin/pip
 
           pip install -U numpy==1.26.4 safetensors
           python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/

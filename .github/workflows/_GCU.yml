@@ -33,7 +33,15 @@ jobs:
         run: |
           rm -rf * .[^.]*
 
+      - name: Check bypass
+        id: check-bypass
+        uses: ./.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: codestyle
+
       - name: Check docker image and run container
+        if: steps.check-bypass.outputs.can-skip != 'true'
         env:
           GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -58,6 +66,7 @@ jobs:
             ${docker_image} /bin/bash
 
       - name: RUN GCU
+        if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           source ${{ github.workspace }}/../../../proxy

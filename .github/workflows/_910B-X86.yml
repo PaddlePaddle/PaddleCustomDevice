@@ -75,7 +75,7 @@ jobs:
             -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
             -v /usr/local/dcmi:/usr/local/dcmi \
             -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
-            -v ${{ github.workspace }}:/paddle -w /PaddleCustomDevice \
+            -v ${{ github.workspace }}:/PaddleCustomDevice -w /PaddleCustomDevice \
             ${docker_image} /bin/bash
 
       - name: Download Code
@@ -101,7 +101,7 @@ jobs:
       - name: RUN 910B-X86
         if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
-          docker exec -t ${{ env.container_name }} /bin/bash -c'
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
           # !!!!! SKIP IF NO NPU CHANGE !!!!
           echo "=========== Checking PR Changes If NPU FULL CI Needed ==========="
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)

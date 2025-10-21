@@ -75,7 +75,7 @@ jobs:
 
       - name: Check bypass
         id: check-bypass
-        uses: ./.github/actions/check-bypass
+        uses: ./PaddleCustomDevice/.github/actions/check-bypass
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           workflow-name: ixuca
@@ -83,7 +83,7 @@ jobs:
       - name: RUN IXUCA
         if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
-          docker exec -t ${{ env.container_name }} /bin/bash -c'
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
           # !!!!! SKIP IF NO IXUCA CHANGE !!!!
           echo "=========== Checking PR Changes If IXUCA FULL CI Needed ==========="
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)

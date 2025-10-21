@@ -54,7 +54,7 @@ jobs:
             -v ${cache_dir}:/root/.cache \
             -v ${ccache_dir}:/root/.ccache \
             -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
-            -v ${{ github.workspace }}:/paddle -w /PaddleCustomDevice \
+            -v ${{ github.workspace }}:/PaddleCustomDevice -w /PaddleCustomDevice \
             ${docker_image} /bin/bash
 
       - name: Download Code
@@ -80,7 +80,7 @@ jobs:
       - name: RUN GCU
         if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
-          docker exec -t ${{ env.container_name }} /bin/bash -c'
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
           # !!!!! SKIP IF NO GCU CHANGE !!!!
           echo "=========== Checking PR Changes If GCU FULL CI Needed ==========="
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)

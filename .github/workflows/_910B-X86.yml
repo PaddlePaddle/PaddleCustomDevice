@@ -98,7 +98,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           workflow-name: 910b-x86
 
-      -name: RUN 910B-X86
+      - name: RUN 910B-X86
         if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c'

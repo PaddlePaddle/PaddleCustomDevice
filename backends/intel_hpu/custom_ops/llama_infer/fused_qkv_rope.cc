@@ -208,12 +208,43 @@ class FusedQkvRope : public HpuFusedOperator {
     AddNodeRope<T>(inputs_k, outputs_k, ropeParams, guid_ + "rope_k");
 
     std::vector<synTensor> inputs_concat;
-    std::vector<synTensor> outputs_concat;
-    inputs_concat.push_back(k_rope);
-    inputs_concat.push_back(v_split);
+    if (params.use_fp8) {
+      ns_CastKernel::Params cast_to_fp8_params;
+      cast_to_fp8_params.round_mode = CAST_ROUND_HALF_NE;
+      auto scale_q = createTensorFromCT(&ct, scale_input_index + 2);
+      auto scale_k = createTensorFromCT(&ct, scale_input_index + 3);
+      auto scale_v = createTensorFromCT(&ct, scale_input_index + 4);
+
+      auto q_state_fp8 = createTensorFromCT(&ct, 0, false);
+      std::vector<synTensor> cast_q_ins = {q_states, scale_q};
+      std::vector<synTensor> cast_q_outs = {q_state_fp8};
+      AddNodeConvertToFP8<T>(
+          cast_q_ins, cast_q_outs, cast_to_fp8_params, guid_ + "cast_q");
+
+      auto k_state_fp8 = createTensorNoPresist(
+          "k_state_fp8", ins[qkv_weights_index].type, kv_dims);
+      std::vector<synTensor> cast_k_ins = {k_rope, scale_k};
+      std::vector<synTensor> cast_k_outs = {k_state_fp8};
+      AddNodeConvertToFP8<T>(
+          cast_k_ins, cast_k_outs, cast_to_fp8_params, guid_ + "cast_k");
+
+      auto v_state_fp8 = createTensorNoPresist(
+          "v_state_fp8", ins[qkv_weights_index].type, kv_dims);
+      std::vector<synTensor> cast_v_ins = {v_split, scale_v};
+      std::vector<synTensor> cast_v_outs = {v_state_fp8};
+      AddNodeConvertToFP8<T>(
+          cast_v_ins, cast_v_outs, cast_to_fp8_params, guid_ + "cast_v");
+      inputs_concat.push_back(k_state_fp8);
+      inputs_concat.push_back(v_state_fp8);
+    } else {
+      inputs_concat.push_back(k_rope);
+      inputs_concat.push_back(v_split);
+    }
 
     kv_dims[0] *= 2;
-    auto kv_concat = createTensorNoPresist("kv_concat", dtype_, kv_dims);
+    auto kv_concat = createTensorNoPresist(
+        "kv_concat", ins[qkv_weights_index].type, kv_dims);
+    std::vector<synTensor> outputs_concat;
     outputs_concat.push_back(kv_concat);
 
     synConcatenateParams concatParams;
@@ -223,31 +254,9 @@ class FusedQkvRope : public HpuFusedOperator {
 
     std::vector<synTensor> outputs_stack;
 
-    if (params.use_fp8) {
-      auto kv_state = createTensorNoPresist("kv_state", dtype_, outs[1].dims);
-      outputs_stack.push_back(kv_state);
-      AddNodeReshape(outputs_concat, outputs_stack, guid_ + "reshaped_kv");
-
-      ns_CastKernel::Params cast_to_fp8_params;
-      cast_to_fp8_params.round_mode = CAST_ROUND_HALF_NE;
-      auto scale_output = createTensorFromCT(&ct, scale_input_index + 2);
-
-      auto kv_state_fp8 = createTensorFromCT(&ct, 1, false);
-      std::vector<synTensor> cast_kv_ins = {kv_state, scale_output};
-      std::vector<synTensor> cast_kv_outs = {kv_state_fp8};
-      AddNodeConvertToFP8<T>(
-          cast_kv_ins, cast_kv_outs, cast_to_fp8_params, guid_ + "cast_kv");
-
-      auto q_state_fp8 = createTensorFromCT(&ct, 0, false);
-      std::vector<synTensor> cast_q_ins = {q_states, scale_output};
-      std::vector<synTensor> cast_q_outs = {q_state_fp8};
-      AddNodeConvertToFP8<T>(
-          cast_q_ins, cast_q_outs, cast_to_fp8_params, guid_ + "cast_q");
-    } else {
-      auto kv_state = createTensorFromCT(&ct, 1, false);
-      outputs_stack.push_back(kv_state);
-      AddNodeReshape(outputs_concat, outputs_stack, guid_ + "reshaped_kv");
-    }
+    auto kv_state = createTensorFromCT(&ct, 1, false);
+    outputs_stack.push_back(kv_state);
+    AddNodeReshape(outputs_concat, outputs_stack, guid_ + "reshaped_kv");
   }
 
  protected:
@@ -262,7 +271,9 @@ void FusedQkvRopeKernel(const Context& dev_ctx,
                         const phi::DenseTensor& rotary_embs,
                         const paddle::optional<phi::DenseTensor>& scale_input,
                         const paddle::optional<phi::DenseTensor>& scale_weight,
-                        const paddle::optional<phi::DenseTensor>& scale_output,
+                        const paddle::optional<phi::DenseTensor>& scale_q,
+                        const paddle::optional<phi::DenseTensor>& scale_k,
+                        const paddle::optional<phi::DenseTensor>& scale_v,
                         phi::DenseTensor* query_states,
                         phi::DenseTensor* key_value_states,
                         const phi::Scalar& head_dim,
@@ -304,15 +315,17 @@ void FusedQkvRopeKernel(const Context& dev_ctx,
     guid_prefix = "fused_qkv_bias_rope_fwd_";
   }
 
-  if (scale_input && scale_weight && scale_output) {
+  if (scale_input && scale_weight && scale_q && scale_k && scale_v) {
     ct.Add(scale_input.get());
     ct.Add(scale_weight.get());
-    ct.Add(scale_output.get());
+    ct.Add(scale_q.get());
+    ct.Add(scale_k.get());
+    ct.Add(scale_v.get());
     guid_prefix = "fused_fp8_qkv_rope_fwd_";
     if (qkv_biases) {
       guid_prefix = "fused_fp8_qkv_bias_rope_fwd_";
     }
-  } else if (scale_input || scale_weight || scale_output) {
+  } else if (scale_input || scale_weight || scale_q || scale_k || scale_v) {
     throw std::runtime_error(
         "Need all scales for input, weight and output for "
         "FusedFp8QkvRopeKernel");
@@ -363,7 +376,9 @@ void CallFusedQkvRopeKernel(
     const phi::DenseTensor& rotary_embs,
     const paddle::optional<phi::DenseTensor>& scale_input,
     const paddle::optional<phi::DenseTensor>& scale_weight,
-    const paddle::optional<phi::DenseTensor>& scale_output,
+    const paddle::optional<phi::DenseTensor>& scale_q,
+    const paddle::optional<phi::DenseTensor>& scale_k,
+    const paddle::optional<phi::DenseTensor>& scale_v,
     phi::DenseTensor* query_states,
     phi::DenseTensor* key_value_states,
     const phi::Scalar& head_dim,
@@ -379,7 +394,9 @@ void CallFusedQkvRopeKernel(
                                                            rotary_embs,
                                                            scale_input,
                                                            scale_weight,
-                                                           scale_output,
+                                                           scale_q,
+                                                           scale_k,
+                                                           scale_v,
                                                            query_states,
                                                            key_value_states,
                                                            head_dim,
@@ -395,7 +412,9 @@ void CallFusedQkvRopeKernel(
                                                             rotary_embs,
                                                             scale_input,
                                                             scale_weight,
-                                                            scale_output,
+                                                            scale_q,
+                                                            scale_k,
+                                                            scale_v,
                                                             query_states,
                                                             key_value_states,
                                                             head_dim,
@@ -460,6 +479,8 @@ std::vector<paddle::Tensor> FusedQkvRopeImpl(
                          paddle::optional<phi::DenseTensor>(),
                          paddle::optional<phi::DenseTensor>(),
                          paddle::optional<phi::DenseTensor>(),
+                         paddle::optional<phi::DenseTensor>(),
+                         paddle::optional<phi::DenseTensor>(),
                          query_states.get(),
                          key_value_states.get(),
                          phi::Scalar(head_dim),
@@ -517,7 +538,9 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
     const paddle::Tensor& rotary_embs,
     const paddle::Tensor& scale_input,
     const paddle::Tensor& scale_weight,
-    const paddle::Tensor& scale_output,
+    const paddle::Tensor& scale_q,
+    const paddle::Tensor& scale_k,
+    const paddle::Tensor& scale_v,
     int head_dim,
     int num_head,
     int total_batch,
@@ -544,10 +567,12 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
   auto _scale_weight =
       static_cast<const phi::DenseTensor*>(scale_weight.impl().get());
   auto scale_weight_tensor = paddle::optional<phi::DenseTensor>(*_scale_weight);
-  auto _scale_output =
-      static_cast<const phi::DenseTensor*>(scale_output.impl().get());
-  auto scale_output_tensor = paddle::optional<phi::DenseTensor>(*_scale_output);
-
+  auto _scale_q = static_cast<const phi::DenseTensor*>(scale_q.impl().get());
+  auto scale_q_tensor = paddle::optional<phi::DenseTensor>(*_scale_q);
+  auto _scale_k = static_cast<const phi::DenseTensor*>(scale_k.impl().get());
+  auto scale_k_tensor = paddle::optional<phi::DenseTensor>(*_scale_k);
+  auto _scale_v = static_cast<const phi::DenseTensor*>(scale_v.impl().get());
+  auto scale_v_tensor = paddle::optional<phi::DenseTensor>(*_scale_v);
   // allocate memory on device.
   int64_t bsz = src.dims()[0];
   int64_t seq_len = bsz / total_batch;
@@ -574,7 +599,9 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
                          *rotary_embs_tensor,
                          scale_input_tensor,
                          scale_weight_tensor,
-                         scale_output_tensor,
+                         scale_q_tensor,
+                         scale_k_tensor,
+                         scale_v_tensor,
                          query_states.get(),
                          key_value_states.get(),
                          phi::Scalar(head_dim),
@@ -623,7 +650,9 @@ PD_BUILD_OP(fused_fp8_qkv_rope)
              "rotary_embs",
              "scale_input",
              "scale_weight",
-             "scale_output"})
+             "scale_q",
+             "scale_k",
+             "scale_v"})
     .Outputs({"query_states", "key_value_states"})
     .Attrs({"head_dim: int",
             "num_head: int",

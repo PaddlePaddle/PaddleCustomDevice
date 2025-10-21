@@ -115,8 +115,14 @@ class TestFusedFp8QkvRope(unittest.TestCase):
             self.qkv_weights
         )
         qkv_weights_scale = 1.0 / d_qkv_weights_scale
+        ref_key_states = ref_key_value_states[0]
+        ref_value_states = ref_key_value_states[1]
         _, d_out_q_scale = paddlenlp_ops.fused_quant(ref_query_states)
+        _, d_out_k_scale = paddlenlp_ops.fused_quant(ref_key_states)
+        _, d_out_v_scale = paddlenlp_ops.fused_quant(ref_value_states)
         out_q_scale = 1.0 / d_out_q_scale
+        out_k_scale = 1.0 / d_out_k_scale
+        out_v_scale = 1.0 / d_out_v_scale
         query_states_fp8, key_value_states_fp8 = paddlenlp_ops.fused_fp8_qkv_rope(
             self.src,
             qkv_weights_fp8,
@@ -125,16 +131,20 @@ class TestFusedFp8QkvRope(unittest.TestCase):
             src_scale,
             d_qkv_weights_scale,
             out_q_scale,
+            out_k_scale,
+            out_v_scale,
             self.head_dim,
             self.num_head,
             self.batch_size,
             True,
             False,
         )
+        key_states_fp8 = key_value_states_fp8[0]
+        value_states_fp8 = key_value_states_fp8[1]
         query_states = query_states_fp8.to(paddle.bfloat16) * d_out_q_scale.item()
-        key_value_states = (
-            key_value_states_fp8.to(paddle.bfloat16) * d_out_q_scale.item()
-        )
+        key_states = key_states_fp8.to(paddle.bfloat16) * d_out_k_scale.item()
+        value_states = value_states_fp8.to(paddle.bfloat16) * d_out_v_scale.item()
+        key_value_states = paddle.stack([key_states, value_states], axis=0)
 
         similarity_query = self.get_similarity(ref_query_states, query_states)
         similarity_key_value = self.get_similarity(

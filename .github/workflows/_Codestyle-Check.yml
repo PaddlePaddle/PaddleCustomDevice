@@ -64,15 +64,7 @@ jobs:
             -e GITHUB_API_TOKEN \
             -w /paddle --network host ${docker_image} /bin/bash
 
-      - name: Check bypass
-        id: check-bypass
-        uses: ./.github/actions/check-bypass
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          workflow-name: codestyle
-
       - name: Download PaddleCustomDevice.tar.gz
-        if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
           set -x
           docker exec -t ${{ env.container_name }} /bin/bash -c '
@@ -82,8 +74,18 @@ jobs:
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
           pip install cpplint==1.6.0
-          pre-commit install
-          bash tools/codestyle/pre_commit.sh '
+          pre-commit install'
+
+      - name: Check bypass
+        id: check-bypass
+        uses: ./.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: codestyle
+
+      - name: RUN Codestyle Check
+        if: steps.check-bypass.outputs.can-skip != 'true'
+        run: bash tools/codestyle/pre_commit.sh
 
       - name: Terminate and delete the container
         if: always()

@@ -93,7 +93,9 @@ jobs:
 
       - name: Check bypass
         id: check-bypass
-        uses: ./.github/actions/check-bypass
+        uses: ./.github/workflows/check-bypass
+        env:
+        LD_LIBRARY_PATH: "/home/opt/compiler/gcc-8.2/gcc-8.2/lib:$LD_LIBRARY_PATH"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           workflow-name: 910b-arm

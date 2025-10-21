@@ -74,6 +74,8 @@ jobs:
       - name: Check bypass
         id: check-bypass
         uses: ./PaddleCustomDevice/.github/actions/check-bypass
+        env:
+          LD_LIBRARY_PATH: "/home/opt/compiler/gcc-12/lib:$LD_LIBRARY_PATH"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           workflow-name: hpu

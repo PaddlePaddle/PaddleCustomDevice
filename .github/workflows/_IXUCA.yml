@@ -84,6 +84,7 @@ jobs:
         if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
+          cd /workspace/PaddleCustomDevice
           # !!!!! SKIP IF NO IXUCA CHANGE !!!!
           echo "=========== Checking PR Changes If IXUCA FULL CI Needed ==========="
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)

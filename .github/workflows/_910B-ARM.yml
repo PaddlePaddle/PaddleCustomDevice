@@ -75,7 +75,7 @@ jobs:
             -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
             -v /usr/local/dcmi:/usr/local/dcmi \
             -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
-            -v ${{ github.workspace }}:/_910B-ARM.yml -w /PaddleCustomDevice \
+            -v ${{ github.workspace }}:/PaddleCustomDevice -w /PaddleCustomDevice \
             ${docker_image} /bin/bash
 
       - name: Download Code

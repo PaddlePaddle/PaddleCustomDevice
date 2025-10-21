@@ -33,15 +33,7 @@ jobs:
         run: |
           rm -rf * .[^.]*
 
-      - name: Check bypass
-        id: check-bypass
-        uses: ./.github/actions/check-bypass
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          workflow-name: codestyle
-
       - name: Check docker image and run container
-        if: steps.check-bypass.outputs.can-skip != 'true'
         env:
           GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,6 +58,13 @@ jobs:
             -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
             -v ${{ github.workspace }}:/workspace -w /workspace \
             ${docker_image} /bin/bash
+
+      - name: Check bypass
+        id: check-bypass
+        uses: ./.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: ixuca
 
       - name: RUN IXUCA
         if: steps.check-bypass.outputs.can-skip != 'true'

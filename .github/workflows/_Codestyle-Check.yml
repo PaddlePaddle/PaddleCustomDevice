@@ -32,15 +32,7 @@ jobs:
         run: |
           rm -rf * .[^.]*
 
-      - name: Check bypass
-        id: check-bypass
-        uses: ./.github/actions/check-bypass
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          workflow-name: codestyle
-
       - name: Check docker image and run container
-        if: steps.check-bypass.outputs.can-skip != 'true'
         env:
           python: "python3.10"
           GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
@@ -71,6 +63,13 @@ jobs:
             -e CI_name \
             -e GITHUB_API_TOKEN \
             -w /paddle --network host ${docker_image} /bin/bash
+
+      - name: Check bypass
+        id: check-bypass
+        uses: ./.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: codestyle
 
       - name: Download PaddleCustomDevice.tar.gz
         if: steps.check-bypass.outputs.can-skip != 'true'

@@ -33,15 +33,7 @@ jobs:
         run: |
           rm -rf * .[^.]*
 
-      - name: Check bypass
-        id: check-bypass
-        uses: ./.github/actions/check-bypass
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          workflow-name: codestyle
-
       - name: Check docker image and run container
-        if: steps.check-bypass.outputs.can-skip != 'true'
         env:
           GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,6 +77,13 @@ jobs:
             -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
             -v ${{ github.workspace }}:/paddle -w /PaddleCustomDevice \
             ${docker_image} /bin/bash
+
+      - name: Check bypass
+        id: check-bypass
+        uses: ./.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: 910b-x86
 
       - name: RUN 910B-X86
         if: steps.check-bypass.outputs.can-skip != 'true'

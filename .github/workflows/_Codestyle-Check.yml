@@ -64,7 +64,7 @@ jobs:
             -e GITHUB_API_TOKEN \
             -w /paddle --network host ${docker_image} /bin/bash
 
-      - name: Download PaddleCustomDevice.tar.gz
+      - name: Download Code
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate

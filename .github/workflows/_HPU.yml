@@ -57,6 +57,20 @@ jobs:
             -v ${{ github.workspace }}:/workspace -w /workspace \
             ${docker_image} /bin/bash
 
+      - name: Download Code
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c'
+          source ${{ github.workspace }}/../../../proxy
+          set -x
+          wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
+          echo "Extracting PaddleCustomDevice.tar.gz"
+          tar -xf PaddleCustomDevice.tar.gz
+          cd PaddleCustomDevice
+          git config --global --add safe.directory "*"
+          git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
+          git merge ${BRANCH} --no-edit
+          git --no-pager log --pretty=oneline -5'
+
       - name: Check bypass
         id: check-bypass
         uses: ./.github/actions/check-bypass
@@ -68,17 +82,6 @@ jobs:
         if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
-          source ${{ github.workspace }}/../../../proxy
-          set -x
-          wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
-          echo "Extracting PaddleCustomDevice.tar.gz"
-          tar -xf PaddleCustomDevice.tar.gz
-          cd PaddleCustomDevice
-          git config --global --add safe.directory "*"
-          git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
-          git merge ${BRANCH} --no-edit
-          git --no-pager log --pretty=oneline -5
-
           # !!!!! SKIP IF NO HPU CHANGE !!!!
           echo "=========== Checking PR Changes If HPU FULL CI Needed ==========="
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
@@ -94,7 +97,7 @@ jobs:
           mkdir -p /workspace/PaddleCustomDevice/backends/intel_hpu/build/
           export GC_KERNEL_PATH=/workspace/PaddleCustomDevice/backends/intel_hpu/build/libcustom_tpc_perf_lib.so:/usr/lib/habanalabs/libtpc_kernels.so
           cd /workspace
-          bash /workspace/PaddleCustomDevice/backends/intel_hpu/tools/pr_hpu_ci.sh '
+          bash /workspace/PaddleCustomDevice/backends/intel_hpu/tools/pr_hpu_ci.sh'
 
       - name: Terminate and delete the container
         if: always()

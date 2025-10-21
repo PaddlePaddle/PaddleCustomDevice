@@ -51,3 +51,8 @@ jobs:
     name: npu-910B-ARM
     uses: ./.github/workflows/_910B-ARM.yml
     needs: [Codestyle-Check]
+
+  npu-910b-x86:
+    name: npu-910B-X86
+    uses: ./.github/workflows/_910B-X86.yml
+    needs: [Codestyle-Check]

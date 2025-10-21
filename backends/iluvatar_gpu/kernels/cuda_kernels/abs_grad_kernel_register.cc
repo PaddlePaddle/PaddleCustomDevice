@@ -32,14 +32,14 @@ PD_CUSTOM_KERNEL_REGISTER(abs_grad,
 }
 
 PD_CUSTOM_KERNEL_REGISTER(abs_double_grad,
-                   iluvatar_gpu,
-                   ALL_LAYOUT,
-                   phi::AbsDoubleGradKernel,
-                   float,
-                   int,
-                   int64_t,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16,
-                   complex<float>) {
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::AbsDoubleGradKernel,
+                          float,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          complex<float>) {
   kernel->InputAt(1).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
 }

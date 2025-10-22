@@ -16,9 +16,19 @@ on:
         default: 'true'
 
 jobs:
+  check-bypass:
+    name: Check bypass
+    if: ${{ inputs.can-skip != 'true' }}
+    uses: ./.github/workflows/check-bypass.yml
+    with:
+      workflow-name: '910b-x86'
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+
   PR-CI-910B-X86:
     name: PR-CI-910B-X86
-    if: ${{ github.repository_owner == 'PaddlePaddle' }}
+    needs: check-bypass
+    if: ${{ needs.check-bypass.outputs.can-skip != 'true' }}
     runs-on:
       group: NPU
     env:
@@ -91,15 +101,7 @@ jobs:
           git merge ${BRANCH} --no-edit
           git --no-pager log --pretty=oneline -5'
 
-      - name: Check bypass
-        id: check-bypass
-        uses: ./.github/workflows/check-bypass.yml
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          workflow-name: 910b-x86
-
       - name: RUN 910B-X86
-        if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           # !!!!! SKIP IF NO NPU CHANGE !!!!

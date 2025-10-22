@@ -27,6 +27,7 @@ jobs:
 
   PR-CI-HPU:
     name: PR-CI-HPU
+    needs: check-bypass
     if: ${{ needs.check-bypass.outputs.can-skip != 'true' }}
     runs-on:
       group: HPU

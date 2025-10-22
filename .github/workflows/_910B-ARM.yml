@@ -27,6 +27,7 @@ jobs:
 
   PR-CI-910B-ARM:
     name: PR-CI-910B-ARM
+    needs: check-bypass
     if: ${{ needs.check-bypass.outputs.can-skip != 'true' }}
     runs-on:
       group: 910B-ARM

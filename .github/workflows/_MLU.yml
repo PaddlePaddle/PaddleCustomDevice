@@ -27,6 +27,7 @@ jobs:
 
   PR-CI-MLU:
     name: PR-CI-MLU
+    needs: check-bypass
     if: ${{ needs.check-bypass.outputs.can-skip != 'true' }}
     runs-on:
       group: MLU

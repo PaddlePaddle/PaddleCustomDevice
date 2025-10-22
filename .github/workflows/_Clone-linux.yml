@@ -61,7 +61,7 @@ jobs:
           git checkout -b test FETCH_HEAD
           git merge --no-edit ${BRANCH}
           git submodule sync
-          git submodule update --init --remote --recursive
+          git submodule update --init --recursive --force
 
       - name: Download bos client
         env:

@@ -36,6 +36,7 @@
 #include <unordered_map>
 
 #include "glog/logging.h"
+#include "paddle/phi/backends/device_base.h"
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/backends/dynload/cublasLt.h"
 #include "paddle/phi/common/place.h"
@@ -237,61 +238,6 @@ C_Status GetComputeCapability(const C_Device device,
   return C_SUCCESS;
 }
 
-C_Status GetDeviceProperties(const C_Device device, void *device_properties) {
-  int id = device->id;
-  if (id == -1) {
-    cudaGetDevice(&id);
-  }
-
-  std::call_once(g_device_props_size_init_flag, [&] {
-    size_t count = 0;
-    C_Status status = GetDevicesCount(&count);
-    if (status != C_SUCCESS) {
-      return status;
-    }
-    int gpu_num = count;
-
-    g_device_props_init_flags.resize(gpu_num);
-    g_device_props.resize(gpu_num);
-    g_device_props_init_errors.resize(gpu_num, cudaSuccess);
-
-    for (int i = 0; i < gpu_num; ++i) {
-      g_device_props_init_flags[i] = std::make_unique<std::once_flag>();
-    }
-  });
-
-  if (id < 0 || id >= static_cast<int>(g_device_props.size())) {
-    VLOG(10) << "device id: " << id << " out of range";
-    return C_ERROR;
-  }
-
-  std::call_once(*(g_device_props_init_flags[id]), [&] {
-    cudaError_t ret = cudaGetDeviceProperties(&g_device_props[id], id);
-    g_device_props_init_errors[id] = ret;
-  });
-
-  if (g_device_props_init_errors[id] != cudaSuccess) {
-    return C_ERROR;
-  }
-
-  phi::DeviceProp *prop = static_cast<phi::DeviceProp *>(device_properties);
-  const cudaDeviceProp &src = g_device_props[id];
-
-  using DeviceProp = phi::DeviceProp;
-  prop->~DeviceProp();
-  new (prop) DeviceProp();
-
-  prop->name = src.name;
-  prop->deviceMajor = src.major;
-  prop->deviceMinor = src.minor;
-  prop->totalGlobalMem = src.totalGlobalMem;
-  prop->multiProcessorCount = src.multiProcessorCount;
-  prop->isMultiGpuBoard = src.isMultiGpuBoard;
-  prop->integrated = (src.integrated != 0);
-
-  return C_SUCCESS;
-}
-
 C_Status GetRuntimeVersion(const C_Device device, size_t *version) {
   int runtime_version = 0;
   cudaError_t status = cudaRuntimeGetVersion(&runtime_version);
@@ -406,6 +352,66 @@ C_Status GetDevicesCount(size_t *count) {
     return C_ERROR;
   }
   *count = static_cast<size_t>(device_count);
+  return C_SUCCESS;
+}
+
+static std::once_flag g_device_props_size_init_flag;
+static std::vector<std::unique_ptr<std::once_flag>> g_device_props_init_flags;
+static std::vector<cudaDeviceProp> g_device_props;
+static std::vector<cudaError_t> g_device_props_init_errors;
+
+C_Status GetDeviceProperties(const C_Device device, void *device_properties) {
+  int id = device->id;
+  if (id == -1) {
+    cudaGetDevice(&id);
+  }
+
+  std::call_once(g_device_props_size_init_flag, [&] {
+    size_t count = 0;
+    C_Status status = GetDevicesCount(&count);
+    if (status != C_SUCCESS) {
+      return status;
+    }
+    int gpu_num = count;
+
+    g_device_props_init_flags.resize(gpu_num);
+    g_device_props.resize(gpu_num);
+    g_device_props_init_errors.resize(gpu_num, cudaSuccess);
+
+    for (int i = 0; i < gpu_num; ++i) {
+      g_device_props_init_flags[i] = std::make_unique<std::once_flag>();
+    }
+  });
+
+  if (id < 0 || id >= static_cast<int>(g_device_props.size())) {
+    VLOG(10) << "device id: " << id << " out of range";
+    return C_ERROR;
+  }
+
+  std::call_once(*(g_device_props_init_flags[id]), [&] {
+    cudaError_t ret = cudaGetDeviceProperties(&g_device_props[id], id);
+    g_device_props_init_errors[id] = ret;
+  });
+
+  if (g_device_props_init_errors[id] != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  phi::DeviceProp *prop = static_cast<phi::DeviceProp *>(device_properties);
+  const cudaDeviceProp &src = g_device_props[id];
+
+  using DeviceProp = phi::DeviceProp;
+  prop->~DeviceProp();
+  new (prop) DeviceProp();
+
+  prop->name = src.name;
+  prop->deviceMajor = src.major;
+  prop->deviceMinor = src.minor;
+  prop->totalGlobalMem = src.totalGlobalMem;
+  prop->multiProcessorCount = src.multiProcessorCount;
+  prop->isMultiGpuBoard = src.isMultiGpuBoard;
+  prop->integrated = (src.integrated != 0);
+
   return C_SUCCESS;
 }
 

@@ -16,9 +16,18 @@ on:
         default: 'true'
 
 jobs:
+  check-bypass:
+    name: Check bypass
+    if: ${{ inputs.can-skip != 'true' }}
+    uses: ./.github/workflows/check-bypass.yml
+    with:
+      workflow-name: '910b-arm'
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+
   PR-CI-910B-ARM:
     name: PR-CI-910B-ARM
-    if: ${{ github.repository_owner == 'PaddlePaddle' }}
+    if: ${{ needs.check-bypass.outputs.can-skip != 'true' }}
     runs-on:
       group: 910B-ARM
     env:
@@ -91,17 +100,7 @@ jobs:
           git merge ${BRANCH} --no-edit
           git --no-pager log --pretty=oneline -5'
 
-      - name: Check bypass
-        id: check-bypass
-        uses: ./.github/actions/check-bypass
-        env:
-          LD_LIBRARY_PATH: "/opt/compiler/gcc-8.2/lib:$LD_LIBRARY_PATH"
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          workflow-name: 910b-arm
-
       - name: RUN 910B-ARM
-        if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           # !!!!! SKIP IF NO NPU CHANGE !!!!

@@ -121,10 +121,8 @@ jobs:
           source ~/.bashrc
           echo "============ Install PaddlePaddle CPU ============="
           PATH=/usr/local/bin:${PATH}
-          ln -sf $(which python3.9) /usr/local/bin/python
-          ln -sf $(which pip3.9) /usr/local/bin/pip
-          ln -sf $(which python3.9) /usr/bin/python
-          ln -sf $(which pip3.9) /usr/bin/pip
+          ln -sf $(which python3.10) /usr/local/bin/python
+          ln -sf $(which pip3.10) /usr/local/bin/pip
 
           pip install -U numpy==1.26.4 safetensors
           python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/

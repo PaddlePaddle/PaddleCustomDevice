@@ -16,9 +16,18 @@ on:
         default: 'true'
 
 jobs:
+  check-bypass:
+    name: Check bypass
+    if: ${{ inputs.can-skip != 'true' }}
+    uses: ./.github/workflows/check-bypass.yml
+    with:
+      workflow-name: 'hpu'
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+
   PR-CI-HPU:
     name: PR-CI-HPU
-    if: ${{ github.repository_owner == 'PaddlePaddle' }}
+    if: ${{ needs.check-bypass.outputs.can-skip != 'true' }}
     runs-on:
       group: HPU
     env:
@@ -71,15 +80,7 @@ jobs:
           git merge ${BRANCH} --no-edit
           git --no-pager log --pretty=oneline -5'
 
-      - name: Check bypass
-        id: check-bypass
-        uses: ./PaddleCustomDevice/.github/workflows/check-bypass.yml
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          workflow-name: hpu
-
       - name: RUN HPU
-        if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           # !!!!! SKIP IF NO HPU CHANGE !!!!

@@ -16,9 +16,18 @@ on:
         default: 'true'
 
 jobs:
+  check-bypass:
+    name: Check bypass
+    if: ${{ inputs.can-skip != 'true' }}
+    uses: ./.github/workflows/check-bypass.yml
+    with:
+      workflow-name: 'mlu'
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+
   PR-CI-MLU:
     name: PR-CI-MLU
-    if: ${{ github.repository_owner == 'PaddlePaddle' }}
+    if: ${{ needs.check-bypass.outputs.can-skip != 'true' }}
     runs-on:
       group: MLU
     env:
@@ -69,13 +78,6 @@ jobs:
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
           git --no-pager log --pretty=oneline -5'
-
-      - name: Check bypass
-        id: check-bypass
-        uses: ./.github/workflows/check-bypass.yml
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          workflow-name: mlu
 
       - name: RUN MLU
         if: steps.check-bypass.outputs.can-skip != 'true'

@@ -73,7 +73,7 @@ jobs:
 
       - name: Check bypass
         id: check-bypass
-        uses: ./PaddleCustomDevice/.github/workflows/check-bypass
+        uses: ./PaddleCustomDevice/.github/workflows/check-bypass.yml
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           workflow-name: hpu

@@ -543,14 +543,58 @@ class HpuFusedOperator : public HpuOperator {
                            std::string node_name) {
     synTensorDeviceFullLayout x_layout;
     synTensorDeviceFullLayout y_layout;
+    synTensorDeviceFullLayout x_scale_layout;
+    synTensorDeviceFullLayout y_scale_layout;
     synTensorGetDeviceFullLayout(inputs[0], &x_layout);
     synTensorGetDeviceFullLayout(inputs[1], &y_layout);
+    synTensorGetDeviceFullLayout(inputs[2], &x_scale_layout);
+    synTensorGetDeviceFullLayout(inputs[3], &y_scale_layout);
 
     bool cast_x = (x_layout.deviceDataType != syn_type_fp8_143);
     bool cast_y = (y_layout.deviceDataType != syn_type_fp8_143);
     ns_CastKernel::Params cast_to_fp8_params;
     synTensor x_tensor = inputs[0];
     synTensor y_tensor = inputs[1];
+    synTensor x_scale_tensor = inputs[2];
+    synTensor y_scale_tensor = inputs[3];
+
+    synDataType scale_type = syn_type_na;
+
+    PD_CHECK(x_scale_layout.deviceDataType == syn_type_float ||
+                 x_scale_layout.deviceDataType == syn_type_bf16,
+             "[RUNTIME] scale x synDataType not supported = %d.",
+             x_scale_layout.deviceDataType);
+    PD_CHECK(y_scale_layout.deviceDataType == syn_type_float ||
+                 y_scale_layout.deviceDataType == syn_type_bf16,
+             "[RUNTIME] scale y synDataType not supported = %d.",
+             y_scale_layout.deviceDataType);
+
+    if (x_scale_layout.deviceDataType != y_scale_layout.deviceDataType) {
+      if (x_scale_layout.deviceDataType != syn_type_float) {
+        x_scale_tensor =
+            cloneTensor(node_name + "_x_scale", inputs[2], syn_type_float);
+        std::vector<synTensor> cast_scale_ins = {inputs[2]};
+        std::vector<synTensor> cast_scale_outs = {x_scale_tensor};
+        AddNodeCast(cast_scale_ins,
+                    cast_scale_outs,
+                    "cast_bf16_to_f32",
+                    node_name + "_cast_x_scale");
+      }
+
+      if (y_scale_layout.deviceDataType != syn_type_float) {
+        y_scale_tensor =
+            cloneTensor(node_name + "_y_scale", inputs[3], syn_type_float);
+        std::vector<synTensor> cast_scale_ins = {inputs[3]};
+        std::vector<synTensor> cast_scale_outs = {y_scale_tensor};
+        AddNodeCast(cast_scale_ins,
+                    cast_scale_outs,
+                    "cast_bf16_to_f32",
+                    node_name + "_cast_y_scale");
+      }
+      scale_type = syn_type_float;
+    } else {
+      scale_type = x_scale_layout.deviceDataType;
+    }
 
     cast_to_fp8_params.round_mode = CAST_ROUND_HALF_NE;
     if (cast_x) {
@@ -575,14 +619,15 @@ class HpuFusedOperator : public HpuOperator {
       gemm_ins.push_back(inputs[2]);
     } else {
       synTensor d_scale_x_tensor =
-          cloneTensor(node_name + "_d_scale_x", inputs[2], syn_type_float);
+          cloneTensor(node_name + "_d_scale_x", inputs[2], scale_type);
       std::vector<synTensor> reciprocal_in;
       reciprocal_in.push_back(inputs[2]);
       std::vector<synTensor> reciprocal_out;
       reciprocal_out.push_back(d_scale_x_tensor);
       AddNode_IO(reciprocal_in,
                  reciprocal_out,
-                 "reciprocal_fwd_f32",
+                 std::string("reciprocal_fwd_") +
+                     (scale_type == syn_type_float ? "f32" : "bf16"),
                  node_name + "reciprocal_scale_x_");
       gemm_ins.push_back(d_scale_x_tensor);
     }
@@ -590,14 +635,15 @@ class HpuFusedOperator : public HpuOperator {
       gemm_ins.push_back(inputs[3]);
     } else {
       synTensor d_scale_y_tensor =
-          cloneTensor(node_name + "_d_scale_y", inputs[3], syn_type_float);
+          cloneTensor(node_name + "_d_scale_y", inputs[3], scale_type);
       std::vector<synTensor> reciprocal_in;
       reciprocal_in.push_back(inputs[3]);
       std::vector<synTensor> reciprocal_out;
       reciprocal_out.push_back(d_scale_y_tensor);
       AddNode_IO(reciprocal_in,
                  reciprocal_out,
-                 "reciprocal_fwd_f32",
+                 std::string("reciprocal_fwd_") +
+                     (scale_type == syn_type_float ? "f32" : "bf16"),
                  node_name + "reciprocal_scale_y_");
       gemm_ins.push_back(d_scale_y_tensor);
     }

@@ -209,6 +209,8 @@ class TestFusedBlockAttention:
             .to(device)
         )
 
+        self.src_scale = paddle.to_tensor([1.0]).to(device)
+        self.qkv_weights_scale = paddle.to_tensor([1.0]).to(device)
         self.qk_scale_x = paddle.to_tensor([0.002]).to(device)
         self.qk_scale_y = paddle.to_tensor([0.002]).to(device)
         self.av_scale_x = paddle.to_tensor([0.1]).to(device)
@@ -272,6 +274,8 @@ class TestFusedBlockAttention:
             self.qkv_weights,
             self.qkv_biases,
             self.linear_weights_test,
+            self.src_scale,
+            self.qkv_weights_scale,
             self.qk_scale_x,
             self.qk_scale_y,
             self.av_scale_x,

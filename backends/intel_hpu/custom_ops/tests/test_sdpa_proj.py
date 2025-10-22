@@ -192,7 +192,7 @@ def main():
         scaling_factor,
     )
 
-    out_linear_out_op = paddlenlp_ops.fused_sdpa_proj(
+    out_linear_out_op = paddlenlp_ops.fused_sdpa_proj_legacy(
         query_states.transpose([0, 2, 1, 3]),
         key_states_t.transpose([0, 2, 1, 3]),
         value_states_t.transpose([0, 2, 1, 3]),

@@ -209,6 +209,46 @@ class TestFusedFp8QkvRope(unittest.TestCase):
                 f"TestFusedFp8QkvRope bf16 out passed! Similarities are {similarity_query} and {similarity_key_value}."
             )
 
+        (
+            query_states_full_bf16,
+            key_value_states_full_bf16,
+        ) = paddlenlp_ops.fused_fp8_qkv_rope(
+            self.src,
+            self.qkv_weights,
+            self.qkv_biases,
+            self.new_rope.transpose([0, 1, 3, 2, 4]),
+            None,
+            None,
+            None,
+            None,
+            None,
+            self.head_dim,
+            self.num_head,
+            self.batch_size,
+            True,
+            False,
+        )
+        similarity_query = self.get_similarity(ref_query_states, query_states_full_bf16)
+        similarity_key_value = self.get_similarity(
+            ref_key_value_states, key_value_states_full_bf16
+        )
+        required_similarity = 0.99
+        if (
+            similarity_query < required_similarity
+            or similarity_key_value < required_similarity
+        ):
+            print(
+                f"TestFusedFp8QkvRope _full_bf16 failed! Similarities are {similarity_query} and {similarity_key_value}."
+            )
+            # print("ref_query_states:", ref_query_states)
+            # print("query_states_bf16:", query_states_bf16)
+            # print("ref_key_value_states:", ref_key_value_states)
+            # print("key_value_states_bf16:", key_value_states_bf16)
+        else:
+            print(
+                f"TestFusedFp8QkvRope _full_bf16 passed! Similarities are {similarity_query} and {similarity_key_value}."
+            )
+
 
 if __name__ == "__main__":
     test = TestFusedFp8QkvRope()

@@ -672,7 +672,7 @@ PD_BUILD_OP(fused_sdpa_proj_t)
     .SetInferShapeFn(PD_INFER_SHAPE(FusedSdpaProjBTMHShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedSdpaProjBTMHDtype));
 
-PD_BUILD_OP(fused_fp8_sdpa_proj_t)
+PD_BUILD_OP(fused_sdpa_proj)
     .Inputs({"query_states",
              "key_value_states",
              paddle::Optional("attn_mask"),

@@ -545,8 +545,8 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
     const paddle::Tensor& qkv_weights,
     const paddle::optional<paddle::Tensor>& qkv_biases,
     const paddle::Tensor& rotary_embs,
-    const paddle::Tensor& scale_input,
-    const paddle::Tensor& scale_weight,
+    const paddle::optional<paddle::Tensor>& scale_input,
+    const paddle::optional<paddle::Tensor>& scale_weight,
     const paddle::optional<paddle::Tensor>& scale_q,
     const paddle::optional<paddle::Tensor>& scale_k,
     const paddle::optional<paddle::Tensor>& scale_v,
@@ -570,12 +570,18 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
     qkv_biases_tensor = paddle::optional<phi::DenseTensor>(*qkv_biases_dt);
   }
 
-  auto _scale_input =
-      static_cast<const phi::DenseTensor*>(scale_input.impl().get());
-  auto scale_input_tensor = paddle::optional<phi::DenseTensor>(*_scale_input);
-  auto _scale_weight =
-      static_cast<const phi::DenseTensor*>(scale_weight.impl().get());
-  auto scale_weight_tensor = paddle::optional<phi::DenseTensor>(*_scale_weight);
+  auto scale_input_tensor = paddle::optional<phi::DenseTensor>();
+  auto scale_weight_tensor = paddle::optional<phi::DenseTensor>();
+  if (scale_input) {
+    auto scale_input_dt =
+        static_cast<phi::DenseTensor*>(scale_input->impl().get());
+    scale_input_tensor = paddle::optional<phi::DenseTensor>(*scale_input_dt);
+  }
+  if (scale_weight) {
+    auto scale_weight_dt =
+        static_cast<phi::DenseTensor*>(scale_weight->impl().get());
+    scale_weight_tensor = paddle::optional<phi::DenseTensor>(*scale_weight_dt);
+  }
 
   auto scale_q_tensor = paddle::optional<phi::DenseTensor>();
   auto scale_k_tensor = paddle::optional<phi::DenseTensor>();

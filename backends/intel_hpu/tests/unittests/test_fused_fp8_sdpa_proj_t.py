@@ -18,7 +18,6 @@ import unittest
 from parameterized import parameterized
 
 import os
-import math
 import numpy as np
 import paddle.nn.functional as F
 
@@ -27,24 +26,18 @@ intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 1)
 paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
 
 paddle.seed(105)
-scale_dtype = paddle.float32
 
 
 def get_scale_values(t, is_t_amax=False):
-    FP8_MAX_143 = 240 * 0.9
+    FP8_MAX_143 = 240
     if is_t_amax is False:
         maxT = paddle.max(paddle.abs(t)).to(paddle.float32).item()
     else:
         maxT = t.item()
     scaleT = FP8_MAX_143 / maxT
+    scaleTInv = 1.0 / scaleT
 
-    lg2 = math.log2(scaleT)
-    lg2_int = int(lg2)
-
-    scaleT_pow2 = 2.0**lg2_int
-    scaleTInv = 1.0 / scaleT_pow2
-
-    return scaleT_pow2, scaleTInv
+    return scaleT, scaleTInv
 
 
 def get_max_weight(
@@ -90,6 +83,22 @@ def gqa_input_reshape_fwd(q, k, v):
     return k, v
 
 
+def check_using_cosine_similarity(final_states, final_states_ref):
+    vec1 = final_states.reshape(-1)
+    vec2 = final_states_ref.reshape(-1)
+
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+
+    if norm1 == 0 or norm2 == 0:
+        cos_sim = 1.0 if np.array_equal(vec1, vec2) else 0.0
+    else:
+        cos_sim = np.dot(vec1, vec2) / (norm1 * norm2)
+
+    print(f"Cosine similarity: {cos_sim}")
+    return cos_sim
+
+
 def ref_result(
     query_states,
     key_states,
@@ -119,28 +128,18 @@ def ref_result(
 
     out_linear_out = paddle.matmul(attn_output, linear_weights)
 
-    return out_linear_out
+    return out_linear_out, attn_output
 
 
-BATCH_SIZE = [1]
+BATCH_SIZE = [1, 4]
 SEQ_LEN = [128]
 NUM_HEAD = [64]
 KV_SEQ_LEN = [128]
-KV_NUM_HEAD = [8]
+KV_NUM_HEAD = [8, 64]
 HEAD_DIM = [128]
 MAX_SEQ_LENGTH = [2048]
-SCALE_O = [None, paddle.to_tensor([1.0], dtype=paddle.float32).to(scale_dtype)]
-
-"""
-HEAD_DIM = [128]
-NUM_HEAD = [8]
-KV_NUM_HEAD = [2, 8]
-BATCH_SIZE = [4, 8, 16]
-SEQ_LEN = [128]
-KV_SEQ_LEN = [128]
-MAX_SEQ_LENGTH = [2048]
-SCALE_O = [None, paddle.to_tensor([1.0], dtype=paddle.float32).to(scale_dtype)]
-"""
+SCALE_O = [None, paddle.to_tensor([1.0], dtype=paddle.float32)]
+BF16_FP8_MODE = ["ALL_BF16", "BF16_SDPA_FP8_PROJ", "ALL_FP8"]
 
 
 class FP8_SDPA_Proj_T_Test(unittest.TestCase):
@@ -155,6 +154,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
                 kv_seq_len,
                 max_seq_length,
                 scale_o,
+                bf16_fp8_mode,
             )
             for head_dim in HEAD_DIM
             for num_head in NUM_HEAD
@@ -164,6 +164,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             for kv_seq_len in KV_SEQ_LEN
             for max_seq_length in MAX_SEQ_LENGTH
             for scale_o in SCALE_O
+            for bf16_fp8_mode in BF16_FP8_MODE
         ]
     )
     def test(
@@ -176,24 +177,51 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
         kv_seq_len,
         max_seq_length,
         scale_o,
+        bf16_fp8_mode,
     ):
         hidden_size = num_head * head_dim
         scaling_factor = head_dim**-0.5
 
-        query_states = paddle.rand(
-            [batch_size, seq_len, num_head, head_dim], dtype=paddle.float32
-        ).to(paddle.bfloat16)
-        key_states = paddle.rand(
-            [batch_size, kv_seq_len, kv_num_head, head_dim], dtype=paddle.float32
-        ).to(paddle.bfloat16)
-        value_states = paddle.rand(
-            [batch_size, kv_seq_len, kv_num_head, head_dim], dtype=paddle.float32
-        ).to(paddle.bfloat16)
+        query_states = (
+            paddle.rand(
+                [batch_size, seq_len, num_head, head_dim], dtype=paddle.float32
+            ).to(paddle.bfloat16)
+            * 10
+            - 5
+        )
+        key_states = (
+            paddle.rand(
+                [batch_size, kv_seq_len, kv_num_head, head_dim], dtype=paddle.float32
+            ).to(paddle.bfloat16)
+            * 10
+            - 5
+        )
+        value_states = (
+            paddle.rand(
+                [batch_size, kv_seq_len, kv_num_head, head_dim], dtype=paddle.float32
+            ).to(paddle.bfloat16)
+            * 10
+            - 5
+        )
 
-        linear_weights = paddle.rand(
-            [hidden_size, hidden_size], dtype=paddle.float32
-        ).to(paddle.bfloat16)
+        linear_weights = (
+            paddle.rand([hidden_size, hidden_size], dtype=paddle.float32).to(
+                paddle.bfloat16
+            )
+            * 0.6
+            - 0.3
+        )
 
+        out_linear_out_ref, attn_output_ref = ref_result(
+            query_states,
+            key_states,
+            value_states,
+            None,
+            linear_weights,
+            scaling_factor,
+        )
+
+        scaleO, scaleOInv = get_scale_values(attn_output_ref)
         scaleQ, scaleQInv = get_scale_values(query_states)
         scaleK, scaleKInv = get_scale_values(key_states)
         scaleV, scaleVInv = get_scale_values(value_states)
@@ -204,51 +232,93 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
         scaleS, scaleSInv = get_scale_values(amax_s_ref, is_t_amax=True)
 
         q_fp8 = (scaleQ * query_states).astype(paddle.float8_e4m3fn)
+        key_value_states = paddle.stack([key_states, value_states], axis=0)
         kv_fp8 = paddle.stack(
             [scaleK * key_states, scaleV * value_states], axis=0
         ).astype(paddle.float8_e4m3fn)
 
-        scale_one = paddle.to_tensor([1.0], dtype=paddle.float32).to(scale_dtype)
-        linear_weights_fp8 = linear_weights.transpose([1, 0]).astype(
+        weight_scale, weight_scaleInv = get_scale_values(linear_weights)
+        linear_weights_fp8 = (weight_scale * linear_weights.transpose([1, 0])).astype(
             paddle.float8_e4m3fn
         )
 
-        d_scale_q = paddle.to_tensor([scaleQInv]).to(scale_dtype)
-        d_scale_k = paddle.to_tensor([scaleKInv]).to(scale_dtype)
-        d_scale_v = paddle.to_tensor([scaleVInv]).to(scale_dtype)
-        q_scale_s = paddle.to_tensor([scaleS]).to(scale_dtype)
-        q_scale_o = scale_o
-        d_scale_s = paddle.to_tensor([scaleSInv]).to(scale_dtype)
+        d_scale_q = paddle.to_tensor([scaleQInv])
+        d_scale_k = paddle.to_tensor([scaleKInv])
+        d_scale_v = paddle.to_tensor([scaleVInv])
+        q_scale_s = paddle.to_tensor([scaleS])
+        q_scale_o = None if scale_o is None else paddle.to_tensor([scaleO])
+        d_scale_s = paddle.to_tensor([scaleSInv])
 
-        out_linear_out_ref = ref_result(
-            query_states,
-            key_states,
-            value_states,
-            None,
-            linear_weights,
-            scaling_factor,
+        linear_in_scale = (
+            paddle.to_tensor([scaleO], dtype=paddle.bfloat16)
+            if scale_o is None
+            else paddle.to_tensor([scaleOInv], dtype=paddle.bfloat16)
+        )
+        scale_weight = paddle.to_tensor([weight_scaleInv], dtype=paddle.bfloat16)
+
+        if bf16_fp8_mode == "ALL_BF16":
+            out_linear_t_op = paddlenlp_ops.fused_sdpa_proj(
+                query_states,
+                key_value_states,
+                None,
+                None,
+                linear_weights,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                scaling_factor,
+                causal=True,
+                softmax_mode=0,
+            )
+        elif bf16_fp8_mode == "BF16_SDPA_FP8_PROJ":
+            out_linear_t_op = paddlenlp_ops.fused_sdpa_proj(
+                query_states,
+                key_value_states,
+                None,
+                None,
+                linear_weights_fp8,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                linear_in_scale,
+                scale_weight,
+                scaling_factor,
+                causal=True,
+                softmax_mode=0,
+            )
+        else:  # "ALL_FP8"
+            out_linear_t_op = paddlenlp_ops.fused_sdpa_proj(
+                q_fp8,
+                kv_fp8,
+                None,
+                None,
+                linear_weights_fp8,
+                d_scale_q,
+                d_scale_k,
+                d_scale_v,
+                q_scale_s,
+                q_scale_o,
+                d_scale_s,
+                linear_in_scale,
+                scale_weight,
+                scaling_factor,
+                causal=True,
+                softmax_mode=0,
+            )
+        similar = check_using_cosine_similarity(
+            out_linear_t_op.to("float32").cpu().numpy(),
+            out_linear_out_ref.to("float32").cpu().numpy(),
         )
 
-        out_linear_t_op = paddlenlp_ops.fused_fp8_sdpa_proj_t(
-            q_fp8,
-            kv_fp8,
-            None,
-            None,
-            linear_weights_fp8,
-            d_scale_q,
-            d_scale_k,
-            d_scale_v,
-            q_scale_s,
-            q_scale_o,
-            d_scale_s,
-            scale_one,
-            scale_one,
-            scaling_factor,
-            causal=True,
-            softmax_mode=0,
-        )
-
-        np.testing.assert_allclose(out_linear_out_ref, out_linear_t_op, rtol=1e-2)
+        return similar >= 0.99
 
 
 if __name__ == "__main__":

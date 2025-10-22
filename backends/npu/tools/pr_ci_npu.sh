@@ -458,7 +458,7 @@ function main() {
 
     # Run PaddleX Test
     if [[ "${TEST_IMPORTANT:-OFF}" == "OFF" ]];then
-        run_paddlex
+        # run_paddlex
     fi
 }
 

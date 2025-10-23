@@ -1,7 +1,7 @@
-From 5b021ecfbc2d95e5553bb40580042235a8d2e117 Mon Sep 17 00:00:00 2001
+From 7d13b1862e5d53ec0522658739cc9436d8705a03 Mon Sep 17 00:00:00 2001
 From: tianyuzhou668 <2431054748@qq.com>
-Date: Thu, 16 Oct 2025 13:54:16 +0800
-Subject: [PATCH] [ILUVATAR_GPU] Fix
+Date: Fri, 17 Oct 2025 14:46:27 +0800
+Subject: [PATCH] [ILUVATAR_GPU] Fix bug
 
 ---
  CMakeLists.txt                                |  2 +-
@@ -28,6 +28,7 @@ Subject: [PATCH] [ILUVATAR_GPU] Fix
  paddle/phi/kernels/funcs/blas/blas_impl.cu.h  | 18 ++++-
  paddle/phi/kernels/funcs/cufft_util.h         | 80 +++++++++++++++++++
  paddle/phi/kernels/funcs/layer_norm_impl.cu.h |  4 -
+ paddle/phi/kernels/funcs/reduce_function.h    |  2 +-
  paddle/phi/kernels/funcs/segmented_array.h    |  8 ++
  paddle/phi/kernels/funcs/softmax_impl.h       |  1 +
  .../fusion/gpu/fused_layernorm_kernel.cu      |  4 -
@@ -42,10 +43,10 @@ Subject: [PATCH] [ILUVATAR_GPU] Fix
  paddle/phi/kernels/squeeze_kernel.cc          |  2 +
  paddle/phi/kernels/strided_slice_kernel.cc    |  2 +
  paddle/phi/kernels/unsqueeze_kernel.cc        |  2 +
- 38 files changed, 225 insertions(+), 68 deletions(-)
+ 39 files changed, 226 insertions(+), 69 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index bbe89de522..0e40e41923 100755
+index 1a4460a3be..b6c6b4a797 100755
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -64,7 +64,7 @@ option(WITH_IPU "Compile PaddlePaddle with Graphcore IPU" OFF)
@@ -458,7 +459,7 @@ index 1d20fa3173..fab2b90ed2 100644
      return ncclBfloat16;
  #endif
 diff --git a/paddle/phi/kernels/funcs/activation_functor.h b/paddle/phi/kernels/funcs/activation_functor.h
-index ead3de08fc..43b498b890 100644
+index 4d494e5839..55d54e7d3a 100644
 --- a/paddle/phi/kernels/funcs/activation_functor.h
 +++ b/paddle/phi/kernels/funcs/activation_functor.h
 @@ -3708,12 +3708,14 @@ struct CudaReciprocalFunctor<ComplexType<T>>
@@ -491,10 +492,10 @@ index b973d75a9b..daeb4778c6 100644
  #include "paddle/phi/kernels/funcs/math_function.h"
  
 diff --git a/paddle/phi/kernels/funcs/blas/blas_impl.cu.h b/paddle/phi/kernels/funcs/blas/blas_impl.cu.h
-index 6251681583..c25dbfad0d 100644
+index ae7b67de6d..ff60fd20ba 100644
 --- a/paddle/phi/kernels/funcs/blas/blas_impl.cu.h
 +++ b/paddle/phi/kernels/funcs/blas/blas_impl.cu.h
-@@ -1690,7 +1690,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -1754,7 +1754,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                          const phi::bfloat16 *B,
                                          phi::bfloat16 beta,
                                          phi::bfloat16 *C) const {
@@ -503,7 +504,7 @@ index 6251681583..c25dbfad0d 100644
    // Note that cublas follows fortran order, so the order is different from
    // the cblas convention.
    int64_t lda = (transA == CblasNoTrans) ? K : M;
-@@ -1700,6 +1700,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -1764,6 +1764,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
    cublasOperation_t cuTransB =
        (transB == CblasNoTrans) ? CUBLAS_OP_N : CUBLAS_OP_T;
  
@@ -511,7 +512,7 @@ index 6251681583..c25dbfad0d 100644
    PADDLE_ENFORCE_GE(
        dev_ctx_.GetComputeCapability(),
        80,
-@@ -1707,6 +1708,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -1771,6 +1772,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
            "cublas bf16 gemm requires GPU compute capability >= 80,"
            "but received %d",
            dev_ctx_.GetComputeCapability()));
@@ -519,7 +520,7 @@ index 6251681583..c25dbfad0d 100644
  
    float h_alpha = static_cast<float>(alpha);
    float h_beta = static_cast<float>(beta);
-@@ -2228,12 +2230,13 @@ inline void Blas<phi::GPUContext>::GEMM(bool transA,
+@@ -2292,12 +2294,13 @@ inline void Blas<phi::GPUContext>::GEMM(bool transA,
                                          phi::bfloat16 beta,
                                          phi::bfloat16 *C,
                                          int ldc) const {
@@ -534,7 +535,7 @@ index 6251681583..c25dbfad0d 100644
    PADDLE_ENFORCE_GE(
        dev_ctx_.GetComputeCapability(),
        80,
-@@ -2241,6 +2244,7 @@ inline void Blas<phi::GPUContext>::GEMM(bool transA,
+@@ -2305,6 +2308,7 @@ inline void Blas<phi::GPUContext>::GEMM(bool transA,
            "cublas bf16 gemm requires GPU compute capability >= 80,"
            "but received %d",
            dev_ctx_.GetComputeCapability()));
@@ -542,7 +543,7 @@ index 6251681583..c25dbfad0d 100644
  
    float h_alpha = static_cast<float>(alpha);
    float h_beta = static_cast<float>(beta);
-@@ -2676,7 +2680,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
+@@ -2772,7 +2776,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
                                                 int64_t batchCount,
                                                 int64_t strideA,
                                                 int64_t strideB) const {
@@ -551,7 +552,7 @@ index 6251681583..c25dbfad0d 100644
    // Note that cublas follows fortran order, so the order is different from
    // the cblas convention.
    int64_t lda = (transA == CblasNoTrans) ? K : M;
-@@ -2755,7 +2759,11 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
+@@ -2851,7 +2855,11 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
                                                     static_cast<int>(ldc),
                                                     strideC,
                                                     static_cast<int>(batchCount),
@@ -563,7 +564,7 @@ index 6251681583..c25dbfad0d 100644
                                                     algo));
      });
    }
-@@ -3049,7 +3057,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
+@@ -3145,7 +3153,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
                                                 phi::bfloat16 beta,
                                                 phi::bfloat16 **C,
                                                 int batchCount) const {
@@ -572,7 +573,7 @@ index 6251681583..c25dbfad0d 100644
    // Note that cublas follows fortran order, so the order is different from
    // the cblas convention.
    int lda = (transA == CblasNoTrans) ? K : M;
-@@ -3060,6 +3068,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
+@@ -3156,6 +3164,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
    cublasOperation_t cuTransB =
        (transB == CblasNoTrans) ? CUBLAS_OP_N : CUBLAS_OP_T;
  
@@ -580,7 +581,7 @@ index 6251681583..c25dbfad0d 100644
    PADDLE_ENFORCE_GE(
        dev_ctx_.GetComputeCapability(),
        80,
-@@ -3067,6 +3076,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
+@@ -3163,6 +3172,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
            "cublas bf16 gemm requires GPU compute capability >= 80,"
            "but received %d",
            dev_ctx_.GetComputeCapability()));
@@ -744,6 +745,19 @@ index 4eae698648..9247535e0d 100644
    return block_dim >= kMaxBlockDim ? kMaxBlockDim : lwarpSize;
  }
  
+diff --git a/paddle/phi/kernels/funcs/reduce_function.h b/paddle/phi/kernels/funcs/reduce_function.h
+index 24c30ae7e2..ce5cf15176 100644
+--- a/paddle/phi/kernels/funcs/reduce_function.h
++++ b/paddle/phi/kernels/funcs/reduce_function.h
+@@ -1139,7 +1139,7 @@ void ReduceKernel(const KPDevice& dev_ctx,
+       config.reduce_num == numel && !kIsTxFP16 && !kIsTxBF16 &&
+       config.reduce_num <= std::numeric_limits<int32_t>::max();
+ 
+-#ifndef PADDLE_WITH_XPU_KP
++#if !defined(PADDLE_WITH_XPU_KP) && !defined(PADDLE_WITH_COREX)
+   if (use_cub_reduce) {
+     CubTensorReduce<Tx, Ty, ReduceOp, TransformOp, IsMean>::apply(
+         x_data, y_data, transform, config.reduce_num, dev_ctx, stream);
 diff --git a/paddle/phi/kernels/funcs/segmented_array.h b/paddle/phi/kernels/funcs/segmented_array.h
 index dad852093e..71adfaf3ed 100644
 --- a/paddle/phi/kernels/funcs/segmented_array.h

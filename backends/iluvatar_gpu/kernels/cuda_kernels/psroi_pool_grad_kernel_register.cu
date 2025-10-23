@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/psroi_pool_grad_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/psroi_pool_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(psroi_pool_grad,
                           iluvatar_gpu,

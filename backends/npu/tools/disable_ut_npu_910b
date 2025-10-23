@@ -7,3 +7,5 @@ test_zero_dim_tensor_npu
 test_group_norm_op_npu
 test_rms_norm_npu
 test_einsum_op_npu
+test_tril_triu_op_npu
+test_expand_v2_op_npu

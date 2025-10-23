@@ -270,11 +270,11 @@ void ErfKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void LeakyReluKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
-                     float alpha,
+                     double alpha,
                      phi::DenseTensor* out) {
   VLOG(4) << "Call SDAA LeakyReluKernel";
   dev_ctx.template Alloc<T>(out);
-  double alp = alpha;
+  float alp = static_cast<float>(alpha);
   sdaa_ops::doActivationForward(dev_ctx,
                                 x,
                                 alp,
@@ -287,11 +287,11 @@ template <typename T, typename Context>
 void LeakyReluGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& dout,
-                         float alpha,
+                         double alpha,
                          phi::DenseTensor* dx) {
   VLOG(4) << "Call SDAA LeakyReluGradKernel";
   dev_ctx.template Alloc<T>(dx);
-  double alp = alpha;
+  float alp = static_cast<float>(alpha);
   sdaa_ops::doActivationBackward(dev_ctx,
                                  x,
                                  dout,

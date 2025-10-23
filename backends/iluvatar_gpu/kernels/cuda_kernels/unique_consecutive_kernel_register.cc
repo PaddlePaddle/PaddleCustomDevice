@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/ap_facade_kernel.h"
+#pragma once
 
-PD_CUSTOM_KERNEL_REGISTER(ap_facade,
-                          metax_gpu,
+#include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/unique_consecutive_kernel.h"
+
+PD_CUSTOM_KERNEL_REGISTER(unique_consecutive,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::ApFacadeKernel,
+                          phi::UniqueConsecutiveKernel,
                           float,
-                          double,
-                          int,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16,
-                          int64_t,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          int32_t,
+                          int64_t) {
+  kernel->OutputAt(1).SetDataType(kernel_key.dtype());
+  kernel->OutputAt(2).SetDataType(kernel_key.dtype());
+}

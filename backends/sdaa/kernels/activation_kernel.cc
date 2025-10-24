@@ -270,11 +270,11 @@ void ErfKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void LeakyReluKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
-                     float alpha,
+                     double alpha,
                      phi::DenseTensor* out) {
   VLOG(4) << "Call SDAA LeakyReluKernel";
   dev_ctx.template Alloc<T>(out);
-  double alp = alpha;
+  float alp = static_cast<float>(alpha);
   sdaa_ops::doActivationForward(dev_ctx,
                                 x,
                                 alp,
@@ -287,11 +287,11 @@ template <typename T, typename Context>
 void LeakyReluGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& dout,
-                         float alpha,
+                         double alpha,
                          phi::DenseTensor* dx) {
   VLOG(4) << "Call SDAA LeakyReluGradKernel";
   dev_ctx.template Alloc<T>(dx);
-  double alp = alpha;
+  float alp = static_cast<float>(alpha);
   sdaa_ops::doActivationBackward(dev_ctx,
                                  x,
                                  dout,
@@ -672,8 +672,8 @@ void SoftsignGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void SoftplusKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
-                    float beta,
-                    float threshold,
+                    double beta,
+                    double threshold,
                     phi::DenseTensor* out) {
   VLOG(4) << "Call SDAA SoftplusKernel";
 
@@ -687,10 +687,11 @@ void SoftplusKernel(const Context& dev_ctx,
   tecodnnTensorDescriptor_t desc =
       sdaa_ops::GetTecodnnTensorDesc(dims, x.dtype(), TensorFormat::NHWC);
 
-  const float coef = beta;
+  const float coef = static_cast<float>(beta);
+  const float threshold_ = static_cast<float>(threshold);
   const float alpha = 1.0f, beta_ = 0.0f;
   TECODNN_CHECK(tecodnnSoftplusForward(handle,
-                                       &threshold,
+                                       &threshold_,
                                        &coef,
                                        &alpha,
                                        desc,
@@ -706,8 +707,8 @@ template <typename T, typename Context>
 void SoftplusGradKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& dout,
-                        float beta,
-                        float threshold,
+                        double beta,
+                        double threshold,
                         phi::DenseTensor* dx) {
   VLOG(4) << "Call SDAA SoftplusGradKernel";
 
@@ -721,10 +722,11 @@ void SoftplusGradKernel(const Context& dev_ctx,
   tecodnnTensorDescriptor_t desc =
       sdaa_ops::GetTecodnnTensorDesc(dims, x.dtype(), TensorFormat::NHWC);
 
-  const float coef = beta;
+  const float coef = static_cast<float>(beta);
+  const float threshold_ = static_cast<float>(threshold);
   const float alpha = 1.0f, beta_ = 0.0f;
   TECODNN_CHECK(tecodnnSoftplusBackward(handle,
-                                        &threshold,
+                                        &threshold_,
                                         &coef,
                                         &alpha,
                                         desc,

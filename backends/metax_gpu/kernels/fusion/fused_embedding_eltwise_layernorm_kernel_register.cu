@@ -15,7 +15,7 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/core/tensor_utils.h"
 #include "paddle/phi/kernels/funcs/emb_eltwise_layer_norm_functor.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_embedding_eltwise_layernorm_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/fusion/gpu/fused_embedding_eltwise_layernorm_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fused_embedding_eltwise_layernorm,
                           metax_gpu,

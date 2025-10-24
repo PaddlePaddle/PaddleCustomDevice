@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/impl/gammaincc_kernel_impl.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/gammaincc_kernel.h"
-#include "paddle/phi/kernels/impl/gammaincc_kernel_impl.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
+PD_REGISTER_PLUGIN_KERNEL(
     gammaincc, iluvatar_gpu, ALL_LAYOUT, phi::GammainccKernel, float, double) {}

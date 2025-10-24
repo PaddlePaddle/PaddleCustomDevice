@@ -366,17 +366,18 @@ void Relu6GradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void LeakyReluKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
-                     float alpha,
+                     double alpha,
                      phi::DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("leaky_relu");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    phi::Scalar negative_slope(alpha);
+    float alp = static_cast<float>(alpha);
+    phi::Scalar negative_slope(alp);
     LAUNCH_TOPSATENOP(topsatenLeakyRelu, dev_ctx, *out, x, negative_slope);
 
   } else {  // kernel impl base on JIT
     GcuAttributeMap attrs;
-    attrs["alpha"] = alpha;
+    attrs["alpha"] = static_cast<float>(alpha);
 
     ActivationBaseKernel<T, Context>(dev_ctx, x, attrs, out, "leaky_relu");
   }
@@ -386,14 +387,14 @@ template <typename T, typename Context>
 void LeakyReluGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& dout,
-                         float alpha,
+                         double alpha,
                          phi::DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("leaky_relu_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
   } else {  // kernel impl base on JIT
     GcuAttributeMap attrs;
-    attrs["alpha"] = alpha;
+    attrs["alpha"] = static_cast<float>(alpha);
 
     ActivationGradBaseKernel<T, Context>(
         dev_ctx, "X", x, dout, attrs, dx, "leaky_relu_grad");

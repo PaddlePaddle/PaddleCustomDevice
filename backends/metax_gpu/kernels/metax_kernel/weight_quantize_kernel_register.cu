@@ -115,11 +115,12 @@ void WeightQuantizeKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<T>(scale);
     weight_quant_gpu<T, Context>(dev_ctx,
                                  x.data<T>(),
-                                 quanted_x.data<int8_t>(),
+                                 out->data<int8_t>(),
                                  scale->data<T>(),
                                  weight_shape,
                                  arch,
                                  algo);
+    out->Resize({m, n});
 #ifdef PADDLE_WITH_HIP
     DenseTensor x_int_tmp(out->type());
     x_int_tmp.Resize({m, n / 2});
@@ -133,12 +134,12 @@ void WeightQuantizeKernel(const Context& dev_ctx,
     funcs::Transpose<Context, int8_t, 2> trans;
     trans(dev_ctx, x_int_tmp, out, axis);
 #else
-    weight_permute_gpu<Context>(dev_ctx,
-                                quanted_x.data<int8_t>(),
-                                out->data<int8_t>(),
-                                weight_shape,
-                                arch,
-                                algo);
+    // weight_permute_gpu<Context>(dev_ctx,
+    //                             quanted_x.data<int8_t>(),
+    //                             out->data<int8_t>(),
+    //                             weight_shape,
+    //                             arch,
+    //                             algo);
 #endif
   } else if (algo == "w4a8") {
     weight_permute_gpu_w4a8<Context>(dev_ctx,

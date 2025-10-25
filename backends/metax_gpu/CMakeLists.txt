@@ -282,6 +282,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/collect_fpn_proposals_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/clip_by_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/check_numerics_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/comm_init_all_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_split_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/broadcast_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/decayed_adagrad_kernel.cu

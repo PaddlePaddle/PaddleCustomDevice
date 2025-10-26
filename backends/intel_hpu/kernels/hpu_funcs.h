@@ -669,7 +669,6 @@ class HpuFusedOperator : public HpuOperator {
     }
     AddNodeFP8Gemm<T>(gemm_ins, outputs, params, node_name);
   }
-};
 
   /*
    * Function:

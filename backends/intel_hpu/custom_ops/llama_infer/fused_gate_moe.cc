@@ -419,7 +419,6 @@ void FusedGateMoeKernel(
     const paddle::optional<std::vector<phi::DenseTensor>>& scales,
     phi::DenseTensor* final_hidden_states,
     const int top_k,
-    const bool moe_use_gate_correction_bias,
     const bool norm_topk_prob,
     const bool permuted_weights,
     const std::string& activation,
@@ -432,7 +431,6 @@ void FusedGateMoeKernel(
   FusedGateMoeParams params;
   memset(reinterpret_cast<void*>(&params), 0x00, sizeof(FusedGateMoeParams));
   params.topk = top_k;
-  params.moe_use_gate_correction_bias = moe_use_gate_correction_bias;
   params.norm_topk_prob = norm_topk_prob;
   params.permuted_weights = permuted_weights;
   params.fused_gemm = (gate_up_weights.size() == down_weights.size());
@@ -450,8 +448,9 @@ void FusedGateMoeKernel(
   ConvertTensors ct;
   ct.Add(hidden_states);
   ct.Add(gate_weights);
-  if (moe_use_gate_correction_bias) {
+  if (gate_correction_bias) {
     ct.Add(gate_correction_bias.get());
+    params.moe_use_gate_correction_bias = true;
   }
   if (hidden_states_scales) {
     ct.Add(hidden_states_scales.get());
@@ -507,7 +506,6 @@ void CallFusedGateMoeKernel(
     const paddle::optional<std::vector<phi::DenseTensor>>& scales,
     phi::DenseTensor* final_hidden_states,
     const int top_k,
-    const bool moe_use_gate_correction_bias,
     const bool norm_topk_prob,
     const bool permuted_weights,
     const std::string& activation,
@@ -533,7 +531,6 @@ void CallFusedGateMoeKernel(
           scales,
           final_hidden_states,
           top_k,
-          moe_use_gate_correction_bias,
           norm_topk_prob,
           permuted_weights,
           activation,
@@ -556,7 +553,6 @@ void CallFusedGateMoeKernel(
           scales,
           final_hidden_states,
           top_k,
-          moe_use_gate_correction_bias,
           norm_topk_prob,
           permuted_weights,
           activation,
@@ -579,7 +575,6 @@ std::vector<paddle::Tensor> FusedGateMoeForward(
     const std::vector<paddle::Tensor>& gate_up_weights,
     const std::vector<paddle::Tensor>& down_weights,
     const int top_k,
-    const bool moe_use_gate_correction_bias,
     const bool norm_topk_prob,
     const bool permuted_weights,
     const std::string& activation,
@@ -630,7 +625,6 @@ std::vector<paddle::Tensor> FusedGateMoeForward(
       paddle::optional<std::vector<phi::DenseTensor>>(), /* scales */
       final_hidden_states.get(),
       top_k,
-      moe_use_gate_correction_bias,
       norm_topk_prob,
       permuted_weights,
       activation,
@@ -657,7 +651,6 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
     const std::vector<paddle::Tensor>& gate_up_weights_scales,
     const std::vector<paddle::Tensor>& down_weights_scales,
     const int top_k,
-    const bool moe_use_gate_correction_bias,
     const bool norm_topk_prob,
     const bool permuted_weights,
     const std::string& activation,
@@ -732,7 +725,6 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
       scales_vec,
       final_hidden_states.get(),
       top_k,
-      moe_use_gate_correction_bias,
       norm_topk_prob,
       permuted_weights,
       activation,
@@ -755,7 +747,6 @@ std::vector<paddle::Tensor> FusedGateMoeBlockWiseFP8Forward(
     const std::vector<paddle::Tensor>& gate_up_weights_scales,
     const std::vector<paddle::Tensor>& down_weights_scales,
     const int top_k,
-    const bool moe_use_gate_correction_bias,
     const bool norm_topk_prob,
     const bool permuted_weights,
     const std::string& activation,
@@ -815,7 +806,6 @@ std::vector<paddle::Tensor> FusedGateMoeBlockWiseFP8Forward(
       scales_vec,
       final_hidden_states.get(),
       top_k,
-      moe_use_gate_correction_bias,
       norm_topk_prob,
       permuted_weights,
       activation,
@@ -851,7 +841,6 @@ std::vector<paddle::DataType> FusedGateMoeInferDtype(
 // gate_weights         : fp32
 // gate_correction_bias : fp32 [1, num_experts] <optional>
 // final_hidden_states  : bf16
-// moe_use_gate_correction_bias -> gate_correction_bias (False->None)
 PD_BUILD_OP(fused_gate_moe)
     .Inputs({"hidden_states",
              "gate_weights",
@@ -860,7 +849,6 @@ PD_BUILD_OP(fused_gate_moe)
              paddle::Vec("down_weights")})
     .Outputs({"final_hidden_states"})
     .Attrs({"top_k: int",
-            "moe_use_gate_correction_bias: bool",
             "norm_topk_prob: bool",
             "permuted_weights: bool",
             "activation: std::string",
@@ -876,7 +864,6 @@ PD_BUILD_OP(fused_gate_moe)
 // gate_correction_bias : fp32 [1, num_experts] <optional>
 // gate_up/down_weights : fp8
 // final_hidden_states  : internel fp8 --> bf16
-// moe_use_gate_correction_bias -> gate_correction_bias (False->None)
 // dynamic_scale <-> intermediate_hidden_states_scales (Ture->None)
 PD_BUILD_OP(fused_gate_moe_fp8)
     .Inputs({"hidden_states",
@@ -890,7 +877,6 @@ PD_BUILD_OP(fused_gate_moe_fp8)
              paddle::Vec("down_weights_scales")})
     .Outputs({"final_hidden_states"})
     .Attrs({"top_k: int",
-            "moe_use_gate_correction_bias: bool",
             "norm_topk_prob: bool",
             "permuted_weights: bool",
             "activation: std::string",
@@ -906,7 +892,6 @@ PD_BUILD_OP(fused_gate_moe_fp8)
 // gate_correction_bias : fp32 [1, num_experts] <optional>
 // gate_up/down_weights : fp8
 // final_hidden_states  : internel fp8 --> bf16
-// moe_use_gate_correction_bias -> gate_correction_bias (False->None)
 PD_BUILD_OP(fused_gate_moe_blockwise_fp8)
     .Inputs({"hidden_states",
              "gate_weights",
@@ -917,7 +902,6 @@ PD_BUILD_OP(fused_gate_moe_blockwise_fp8)
              paddle::Vec("down_weights_scales")})
     .Outputs({"final_hidden_states"})
     .Attrs({"top_k: int",
-            "moe_use_gate_correction_bias: bool",
             "norm_topk_prob: bool",
             "permuted_weights: bool",
             "activation: std::string",

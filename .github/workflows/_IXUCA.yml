@@ -1,0 +1,124 @@
+name: PR-CI-IXUCA
+
+on:
+  workflow_call:
+    inputs:
+      workflow-name:
+        type: string
+        required: false
+      clone_dir:
+        type: string
+        required: false
+        default: 'PaddlecustomDevice'
+      is_pr:
+        type: string
+        required: false
+        default: 'true'
+
+jobs:
+  PR-CI-HPU:
+    name: PR-CI-IXUCA
+    if: ${{ github.repository_owner == 'PaddlePaddle' }}
+    runs-on:
+      group: test2
+    env:
+      PR_ID: ${{ github.event.pull_request.number }}
+      COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+      BRANCH: develop
+      TASK: paddle-CI-${{ github.event.pull_request.number }}-ixuca
+      no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
+
+    steps:
+      - name: Cleanup
+        run: |
+          rm -rf * .[^.]*
+
+      - name: Check docker image and run container
+        env:
+          GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
+          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          cache_dir: /root/.cache
+          ccache_dir: /root/.ccache
+          docker_image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:latest
+        run: |
+          container_name=${TASK}-$(date +%Y%m%d-%H%M%S)
+          echo "container_name=${container_name}" >> ${{ github.env }}
+          docker run --shm-size=128G \
+            -d -t --name ${container_name} \
+            --privileged --network=host \
+            -e PR_ID \
+            -e COMMIT_ID \
+            -e BRANCH \
+            -e no_proxy \
+            -e LD_LIBRARY_PATH=/usr/local/corex-4.3.0/lib \
+            -e LIBRARY_PATH=/usr/local/corex-4.3.0/lib \
+            -v ${cache_dir}:/root/.cache \
+            -v ${ccache_dir}:/root/.ccache \
+            -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
+            -v ${{ github.workspace }}:/workspace -w /workspace \
+            ${docker_image} /bin/bash
+
+      - name: Download Code
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          source ${{ github.workspace }}/../../../proxy
+          set -x
+          wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
+          echo "Extracting PaddleCustomDevice.tar.gz"
+          tar -xf PaddleCustomDevice.tar.gz
+          cd PaddleCustomDevice
+          git config --global --add safe.directory "*"
+          git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
+          git merge ${BRANCH} --no-edit
+          git --no-pager log --pretty=oneline -5'
+
+      - name: Check bypass
+        id: check-bypass
+        uses: ./PaddleCustomDevice/.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: ixuca
+
+      - name: RUN IXUCA
+        if: steps.check-bypass.outputs.can-skip != 'true'
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          cd /workspace/PaddleCustomDevice
+          # !!!!! SKIP IF NO IXUCA CHANGE !!!!
+          echo "=========== Checking PR Changes If IXUCA FULL CI Needed ==========="
+          change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
+          change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
+          change_ixuca_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/iluvatar_gpu"| wc -l)
+          git diff --name-only remotes/origin/${BRANCH}
+
+          if [ $change_numbers -ne $change_backend ]; then
+            echo "Common file changed, continue to run IXUCA FULL CI test ..."
+          elif [ $change_ixuca_only -eq 0 ] ; then
+            echo "NO IXUCA backend changes found, skip IXUCA FULL CI ...."
+            exit 0
+          fi
+
+          export PATH=/usr/local/corex-4.3.0/bin:$PATH
+          mkdir -p /workspace/PaddleCustomDevice/Paddle/third_party/mklml/Linux
+          curl -o /workspace/PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz  http://paddlepaddledeps.bj.bcebos.com/csrmm_mklml_lnx_2019.0.5.tgz
+          tar xf /workspace/PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz
+          python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
+          python3 -m pip install parameterized
+          # build
+          cd backends/iluvatar_gpu
+          bash build_paddle.sh
+          # Install
+          bash install_paddle.sh
+          # Run tests
+          cd tests
+          bash run_test.sh'
+
+      - name: Terminate and delete the container
+        if: always()
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          rm -rf * .[^.]*
+          '
+          docker stop ${container_name}
+          docker rm ${container_name}

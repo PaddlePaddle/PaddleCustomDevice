@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/ap_facade_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/ap_facade_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(ap_facade,
                           iluvatar_gpu,

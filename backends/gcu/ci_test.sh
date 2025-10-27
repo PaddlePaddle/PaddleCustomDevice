@@ -32,5 +32,4 @@ cmake .. -DWITH_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPY_VERSION=3.10
 make -j $(nproc)
 
 python -m pip install --force-reinstall -U dist/paddle_custom_gcu*.whl
-
 ctest -j4 --output-on-failure

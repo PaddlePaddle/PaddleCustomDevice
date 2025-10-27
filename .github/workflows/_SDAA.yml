@@ -1,0 +1,73 @@
+name: PR-CI-SDAA
+
+on:
+  workflow_call:
+    inputs:
+      workflow-name:
+        type: string
+        required: false
+      clone_dir:
+        type: string
+        required: false
+        default: 'PaddlecustomDevice'
+      is_pr:
+        type: string
+        required: false
+        default: 'true'
+
+jobs:
+  PR-CI-SDAA:
+    name: PR-CI-SDAA
+    if: ${{ github.repository_owner == 'PaddlePaddle' }}
+    runs-on:
+      group: SDAA
+    env:
+      PR_ID: ${{ github.event.pull_request.number }}
+      COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+      BRANCH: develop
+      TASK: paddle-CI-${{ github.event.pull_request.number }}-sdaa
+      no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
+
+    steps:
+      - name: Download Code
+        env:
+          GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
+          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          cache_dir: /root/.cache
+          ccache_dir: /root/.ccache
+        run: |
+          rm -rf * .[^.]*
+          set -x
+          wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
+          echo "Extracting PaddleCustomDevice.tar.gz"
+          tar -xf PaddleCustomDevice.tar.gz --strip-components=1
+          git config --global --add safe.directory "*"
+          git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
+          git merge ${BRANCH} --no-edit
+          git --no-pager log --pretty=oneline -5
+
+      - name: Check bypass
+        id: check-bypass
+        uses: ./.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: sdaa
+
+      - name: RUN SDAA
+        if: steps.check-bypass.outputs.can-skip != 'true'
+        run: |
+          # !!!!! SKIP IF NO SDAA CHANGE !!!!
+          echo "=========== Checking PR Changes If SDAA FULL CI Needed ==========="
+          change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
+          change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
+          change_sdaa_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/sdaa"| wc -l)
+          git diff --name-only remotes/origin/${BRANCH}
+
+          if [ $change_numbers -ne $change_backend ]; then
+            echo "Common file changed, continue to run SDAA FULL CI test ..."
+          elif [ $change_sdaa_only -eq 0 ] ; then
+            echo "NO SDAA backend changes found, skip SDAA FULL CI ...."
+            exit 0
+          fi
+          cd backends/sdaa/ && bash pr_ci_sdaa.sh

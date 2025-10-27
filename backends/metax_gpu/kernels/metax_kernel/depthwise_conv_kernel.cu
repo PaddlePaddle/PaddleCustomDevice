@@ -48,14 +48,12 @@ void DepthwiseConvKernel(const Context& dev_ctx,
 
   const bool channel_last = (data_format == "NHWC" || data_format == "NDHWC");
 
-  // bool has_fuse_relu = dev_ctx.HasDnnAttr("fuse_relu_before_depthwise_conv");
-  // bool fuse_relu =
-  //     has_fuse_relu
-  //         ? PADDLE_GET_CONST(
-  //               bool, dev_ctx.GetDnnAttr("fuse_relu_before_depthwise_conv"))
-  //         : false;
-  bool has_fuse_relu = false;
-  bool fuse_relu = false;
+  bool has_fuse_relu = dev_ctx.HasDnnAttr("fuse_relu_before_depthwise_conv");
+  bool fuse_relu =
+      has_fuse_relu
+          ? PADDLE_GET_CONST(
+                bool, dev_ctx.GetDnnAttr("fuse_relu_before_depthwise_conv"))
+          : false;
 
   if (channel_last) {
     PADDLE_ENFORCE_EQ(

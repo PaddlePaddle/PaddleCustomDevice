@@ -23,10 +23,10 @@ PD_CUSTOM_KERNEL_REGISTER(einsum,
                           phi::EinsumKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}
 
 PD_CUSTOM_KERNEL_REGISTER(einsum_infer,
                           metax_gpu,
@@ -34,7 +34,7 @@ PD_CUSTOM_KERNEL_REGISTER(einsum_infer,
                           phi::EinsumInferKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}

@@ -79,3 +79,18 @@ jobs:
         run: |
           cd backends/metax_gpu/tests
           bash run_test.sh -j 16
+
+      - name: push whl
+        env:
+          PR_ID: ${{ github.event.pull_request.number }}
+          COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+        run: |
+          pip install bce-python-sdk==0.8.74
+          export AK=paddle
+          export SK=paddle
+          if [ ! -f "BosClient.py}" ]; then
+            wget -q --no-proxy https://xly-devops.bj.bcebos.com/home/bos_retry.tar.gz --no-check-certificate
+            tar xf bos_retry.tar.gz
+          fi
+          cp backends/metax_gpu/build/dist/paddle_metax_gpu*.whl .
+          python BosClient.py paddle_metax_gpu*.whl paddle-github-action/PaddleCustomDevice/metax_gpu/${PR_ID}/${COMMIT_ID}

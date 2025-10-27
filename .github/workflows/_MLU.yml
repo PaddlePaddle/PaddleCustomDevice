@@ -1,0 +1,120 @@
+name: PR-CI-MLU
+
+on:
+  workflow_call:
+    inputs:
+      workflow-name:
+        type: string
+        required: false
+      clone_dir:
+        type: string
+        required: false
+        default: 'PaddlecustomDevice'
+      is_pr:
+        type: string
+        required: false
+        default: 'true'
+
+jobs:
+  check-bypass:
+    name: Check bypass
+    if: ${{ inputs.can-skip != 'true' }}
+    uses: ./.github/workflows/check-bypass.yml
+    with:
+      workflow-name: 'mlu'
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  PR-CI-MLU:
+    name: PR-CI-MLU
+    needs: check-bypass
+    if: ${{ needs.check-bypass.outputs.can-skip != 'true' }}
+    runs-on:
+      group: MLU
+    env:
+      PR_ID: ${{ github.event.pull_request.number }}
+      COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+      BRANCH: develop
+      TASK: paddle-CI-${{ github.event.pull_request.number }}-mlu
+      no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
+
+    steps:
+      - name: Check docker image and run container
+        env:
+          GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
+          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          cache_dir: /root/.cache
+          ccache_dir: /root/.ccache
+          docker_image: registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-gcc84-py310
+        run: |
+          container_name=${TASK}-$(date +%Y%m%d-%H%M%S)
+          echo "container_name=${container_name}" >> ${{ github.env }}
+          docker run --shm-size=128G \
+            -d -t --name ${container_name} \
+            --privileged --network=host \
+            -e PR_ID \
+            -e COMMIT_ID \
+            -e BRANCH \
+            -e no_proxy \
+            -e PADDLE_PDX_DISABLE_DEV_MODEL_WL=True \
+            -v ${cache_dir}:/root/.cache \
+            -v ${ccache_dir}:/root/.ccache \
+            -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
+            -v ${{ github.workspace }}:/PaddleCustomDevice -w /PaddleCustomDevice \
+            ${docker_image} /bin/bash
+
+      - name: Download Code
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          source ${{ github.workspace }}/../../../proxy
+          rm -rf * .[^.]*
+          wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
+          echo "Extracting PaddleCustomDevice.tar.gz"
+          tar -xf PaddleCustomDevice.tar.gz --strip-components=1
+          git config --global --add safe.directory "*"
+          git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
+          git merge ${BRANCH} --no-edit
+          git --no-pager log --pretty=oneline -5'
+
+      - name: RUN MLU
+        if: steps.check-bypass.outputs.can-skip != 'true'
+        run: |
+          docker exec -t ${{ env.container_name }}  /bin/bash -c '
+          # !!!!! SKIP IF NO MLU CHANGE !!!!
+          echo "=========== Checking PR Changes If MLU FULL CI Needed ==========="
+          change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
+          change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
+          change_mlu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/mlu"| wc -l)
+          git diff --name-only remotes/origin/${BRANCH}
+
+          if [ $change_numbers -ne $change_backend ]; then
+            echo "Common file changed, continue to run MLU FULL CI test ..."
+          elif [ $change_mlu_only -eq 0 ] ; then
+            echo "NO MLU backend changes found, skip MLU FULL CI ...."
+            exit 0
+          fi
+
+          echo "============ NeuWare Version Check ============="
+          dpkg -l | grep cntoolkit
+          dpkg -l | grep cnnl
+          dpkg -l | grep cncl
+          dpkg -l | grep mluops
+
+          echo "============ Install PaddlePaddle CPU ============="
+          pip install safetensors==0.6.2
+          python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
+
+          python -c "import paddle; print(paddle.__version__)"
+          python -c "import paddle; print(paddle.version.commit)"
+
+          bash backends/mlu/tools/pr_ci_mlu.sh'
+
+      - name: Terminate and delete the container
+        if: always()
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          rm -rf * .[^.]*
+          '
+          docker stop ${container_name}
+          docker rm ${container_name}

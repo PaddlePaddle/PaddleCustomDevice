@@ -21,6 +21,7 @@ PD_CUSTOM_KERNEL_REGISTER(multinomial,
                           phi::MultinomialKernel,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
-                          float) {
+                          float,
+                          double) {
   kernel->OutputAt(0).SetDataType(phi::DataType::INT64);
 }

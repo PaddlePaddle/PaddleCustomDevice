@@ -1257,6 +1257,11 @@ C_Status IsBFloat16Supported(const C_Device device, bool *supported) {
   return C_SUCCESS;
 }
 
+C_Status IsDNNSupported(const C_Device device, bool *supported) {
+  *supported = true;
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = const_cast<char *>(DeviceType);
@@ -1316,6 +1321,8 @@ void InitPlugin(CustomRuntimeParams *params) {
 
   params->interface->init_eigen_device = InitEigenDevice;
   params->interface->destroy_eigen_device = DestroyEigenDevice;
+
+  params->interface->is_dnn_supported = IsDNNSupported;
 
   params->interface->is_float16_supported = IsFloat16Supported;
 

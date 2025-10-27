@@ -31,6 +31,7 @@
 using NPUAttribute = paddle::variant<paddle::blank,
                                      int,
                                      float,
+                                     double,
                                      std::string,
                                      std::vector<int>,
                                      std::vector<float>,

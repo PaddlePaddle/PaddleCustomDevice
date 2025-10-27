@@ -260,14 +260,13 @@ void ConvTransposeRawGPUDNNKernel(const Context& dev_ctx,
     return;
   }
 
-  // bool has_exhaustive_search = dev_ctx.HasDnnAttr("exhaustive_search");
-  // bool exhaustive_search_attr =
-  //     has_exhaustive_search
-  //         ? PADDLE_GET_CONST(bool, dev_ctx.GetDnnAttr("exhaustive_search"))
-  //         : false;
-  // bool exhaustive_search =
-  //     FLAGS_cudnn_exhaustive_search || exhaustive_search_attr;
-  bool exhaustive_search = FLAGS_cudnn_exhaustive_search;
+  bool has_exhaustive_search = dev_ctx.HasDnnAttr("exhaustive_search");
+  bool exhaustive_search_attr =
+      has_exhaustive_search
+          ? PADDLE_GET_CONST(bool, dev_ctx.GetDnnAttr("exhaustive_search"))
+          : false;
+  bool exhaustive_search =
+      FLAGS_cudnn_exhaustive_search || exhaustive_search_attr;
 
   bool deterministic = FLAGS_cudnn_deterministic;
   PADDLE_ENFORCE_EQ(exhaustive_search && deterministic,

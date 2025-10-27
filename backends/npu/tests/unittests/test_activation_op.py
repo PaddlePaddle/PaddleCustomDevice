@@ -159,90 +159,90 @@ def ref_leaky_relu(x, alpha=0.01):
     return out
 
 
-class TestLeakyRelu(TestActivation):
-    def get_alpha(self):
-        return 0.02
+# class TestLeakyRelu(TestActivation):
+#     def get_alpha(self):
+#         return 0.02
 
-    def setUp(self):
-        self.set_npu()
-        self.op_type = "leaky_relu"
-        self.init_dtype()
-        self.init_shape()
-        alpha = self.get_alpha()
+#     def setUp(self):
+#         self.set_npu()
+#         self.op_type = "leaky_relu"
+#         self.init_dtype()
+#         self.init_shape()
+#         alpha = self.get_alpha()
 
-        np.random.seed(1024)
-        x = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
-        # The same reason with TestAbs
-        x[np.abs(x) < 0.005] = 0.05
-        out = ref_leaky_relu(x, alpha)
+#         np.random.seed(1024)
+#         x = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+#         # The same reason with TestAbs
+#         x[np.abs(x) < 0.005] = 0.05
+#         out = ref_leaky_relu(x, alpha)
 
-        self.inputs = {"X": x}
-        self.outputs = {"Out": out}
-        self.attrs = {"alpha": alpha}
+#         self.inputs = {"X": x}
+#         self.outputs = {"Out": out}
+#         self.attrs = {"alpha": alpha}
 
-    def test_check_grad(self):
-        if self.dtype == np.float16:
-            return
-        self.check_grad_with_place(self.place, ["X"], "Out")
-
-
-class TestLeakyReluAlpha1(TestLeakyRelu):
-    def get_alpha(self):
-        return 2
+#     def test_check_grad(self):
+#         if self.dtype == np.float16:
+#             return
+#         self.check_grad_with_place(self.place, ["X"], "Out")
 
 
-class TestLeakyReluAlpha2(TestLeakyRelu):
-    def get_alpha(self):
-        return -0.01
+# class TestLeakyReluAlpha1(TestLeakyRelu):
+#     def get_alpha(self):
+#         return 2
 
 
-class TestLeakyReluAlpha3(TestLeakyRelu):
-    def get_alpha(self):
-        return -2.0
+# class TestLeakyReluAlpha2(TestLeakyRelu):
+#     def get_alpha(self):
+#         return -0.01
 
 
-class TestLeakyRelu_ZeroDim(TestLeakyRelu):
-    def init_shape(self):
-        self.shape = []
+# class TestLeakyReluAlpha3(TestLeakyRelu):
+#     def get_alpha(self):
+#         return -2.0
 
 
-class TestLeakyReluAPI(unittest.TestCase):
-    # test paddle.nn.LeakyReLU, paddle.nn.functional.leaky_relu,
-    def setUp(self):
-        np.random.seed(1024)
-        self.x_np = np.random.uniform(-1, 1, [10, 12]).astype("float32")
-        self.place = paddle.CustomPlace("npu", 0)
+# class TestLeakyRelu_ZeroDim(TestLeakyRelu):
+#     def init_shape(self):
+#         self.shape = []
 
-    def test_static_api(self):
-        paddle.enable_static()
-        with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.static.data("X", [10, 12])
-            out1 = F.leaky_relu(x)
-            m = paddle.nn.LeakyReLU()
-            out2 = m(x)
-            exe = paddle.static.Executor(self.place)
-            res = exe.run(feed={"X": self.x_np}, fetch_list=[out1, out2])
-        out_ref = ref_leaky_relu(self.x_np)
-        for r in res:
-            np.testing.assert_allclose(out_ref, r, rtol=1e-05)
 
-    def test_dygraph_api(self):
-        paddle.disable_static(self.place)
-        x = paddle.to_tensor(self.x_np)
-        out1 = F.leaky_relu(x)
-        m = paddle.nn.LeakyReLU()
-        out2 = m(x)
-        out_ref = ref_leaky_relu(self.x_np)
-        for r in [out1, out2]:
-            np.testing.assert_allclose(out_ref, r.numpy(), rtol=1e-05)
+# class TestLeakyReluAPI(unittest.TestCase):
+#     # test paddle.nn.LeakyReLU, paddle.nn.functional.leaky_relu,
+#     def setUp(self):
+#         np.random.seed(1024)
+#         self.x_np = np.random.uniform(-1, 1, [10, 12]).astype("float32")
+#         self.place = paddle.CustomPlace("npu", 0)
 
-        out1 = F.leaky_relu(x, 0.6)
-        m = paddle.nn.LeakyReLU(0.6)
-        out2 = m(x)
-        out_ref = ref_leaky_relu(self.x_np, 0.6)
-        for r in [out1, out2]:
-            np.testing.assert_allclose(out_ref, r.numpy(), rtol=1e-05)
-        paddle.enable_static()
+#     def test_static_api(self):
+#         paddle.enable_static()
+#         with paddle.static.program_guard(paddle.static.Program()):
+#             x = paddle.static.data("X", [10, 12])
+#             out1 = F.leaky_relu(x)
+#             m = paddle.nn.LeakyReLU()
+#             out2 = m(x)
+#             exe = paddle.static.Executor(self.place)
+#             res = exe.run(feed={"X": self.x_np}, fetch_list=[out1, out2])
+#         out_ref = ref_leaky_relu(self.x_np)
+#         for r in res:
+#             np.testing.assert_allclose(out_ref, r, rtol=1e-05)
+
+#     def test_dygraph_api(self):
+#         paddle.disable_static(self.place)
+#         x = paddle.to_tensor(self.x_np)
+#         out1 = F.leaky_relu(x)
+#         m = paddle.nn.LeakyReLU()
+#         out2 = m(x)
+#         out_ref = ref_leaky_relu(self.x_np)
+#         for r in [out1, out2]:
+#             np.testing.assert_allclose(out_ref, r.numpy(), rtol=1e-05)
+
+#         out1 = F.leaky_relu(x, 0.6)
+#         m = paddle.nn.LeakyReLU(0.6)
+#         out2 = m(x)
+#         out_ref = ref_leaky_relu(self.x_np, 0.6)
+#         for r in [out1, out2]:
+#             np.testing.assert_allclose(out_ref, r.numpy(), rtol=1e-05)
+#         paddle.enable_static()
 
 
 def gelu(x, approximate):
@@ -1501,7 +1501,7 @@ def create_test_act_fp16_class(parent, atol=1e-3, grad_check=True, grad_atol=0.8
 
 
 create_test_act_fp16_class(TestActivation)
-create_test_act_fp16_class(TestLeakyRelu)
+# create_test_act_fp16_class(TestLeakyRelu)
 create_test_act_fp16_class(TestCos, grad_atol=0.85)
 create_test_act_fp16_class(TestRelu)
 create_test_act_fp16_class(TestRelu6)

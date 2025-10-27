@@ -438,6 +438,21 @@ index d69eb67d6f..1d8b6e9375 100644
  #include "paddle/phi/kernels/funcs/eigen/common.h"
  #include "paddle/phi/kernels/funcs/math_function.h"
  
+diff --git a/paddle/phi/kernels/funcs/embedding_grad.h b/paddle/phi/kernels/funcs/embedding_grad.h
+index 461e6e2474..48a64ae9ce 100644
+--- a/paddle/phi/kernels/funcs/embedding_grad.h
++++ b/paddle/phi/kernels/funcs/embedding_grad.h
+@@ -143,8 +143,8 @@ void LaunchEmbeddingGradDeterministicKernel(const GPUContext& dev_ctx,
+   constexpr int kWarpSize = 64;
+   constexpr int kBlockDimY = 16;
+ #else
+-  constexpr int kWarpSize = 32;
+-  constexpr int kBlockDimY = 32;
++  constexpr int kWarpSize = 64;
++  constexpr int kBlockDimY = 16;
+ #endif
+   dim3 threads(kWarpSize, kBlockDimY);
+   dim3 grids(static_cast<int>((D + kWarpSize - 1) / kWarpSize));
 diff --git a/paddle/phi/kernels/funcs/fc_functor.cu b/paddle/phi/kernels/funcs/fc_functor.cu
 index cb35feee32..64f5bd24ac 100644
 --- a/paddle/phi/kernels/funcs/fc_functor.cu
@@ -501,6 +516,49 @@ index 15e1a4a3c3..e4780538d7 100644
  #include "paddle/phi/kernels/funcs/im2col.h"
  
  namespace phi {
+diff --git a/paddle/phi/kernels/funcs/math_cuda_utils.h b/paddle/phi/kernels/funcs/math_cuda_utils.h
+index e5361b836e..5ad238df08 100644
+--- a/paddle/phi/kernels/funcs/math_cuda_utils.h
++++ b/paddle/phi/kernels/funcs/math_cuda_utils.h
+@@ -175,12 +175,12 @@ struct KeyValuePair<half> {
+ #define WARP_SIZE_WIDTH_MASK 0x3f
+ typedef u_int64_t warp_mask_t;
+ #else
+-#define FINAL_MASK 0xffffffff
+-#define HALF_WARP 16
+-#define WARP_SIZE 32
+-#define WARP_SIZE_WIDTH 5
+-#define WARP_SIZE_WIDTH_MASK 0x1f
+-typedef unsigned warp_mask_t;
++#define FINAL_MASK 0xffffffffffffffffUL
++#define HALF_WARP 32
++#define WARP_SIZE 64
++#define WARP_SIZE_WIDTH 6
++#define WARP_SIZE_WIDTH_MASK 0x3f
++typedef u_int64_t warp_mask_t;
+ #endif
+ 
+ template <typename T>
+@@ -200,19 +200,13 @@ __inline__ __device__ T BlockReduceSum(T val, warp_mask_t mask) {
+   static __shared__ T shared[WARP_SIZE];
+   int lane = threadIdx.x & WARP_SIZE_WIDTH_MASK;
+   int wid = threadIdx.x >> WARP_SIZE_WIDTH;
+-
+   val = WarpReduceSum<T>(val, mask);
+-
+-  __syncthreads();
+   if (lane == 0) shared[wid] = val;
+-
+   __syncthreads();
+-
+   // align block_span to warpSize
+   int block_span = (blockDim.x + warpSize - 1) >> WARP_SIZE_WIDTH;
+   val = (lane < block_span) ? shared[lane] : static_cast<T>(0.0f);
+   val = WarpReduceSum<T>(val, mask);
+-
+   return val;
+ }
+ 
 diff --git a/paddle/phi/kernels/funcs/matrix_inverse.cu b/paddle/phi/kernels/funcs/matrix_inverse.cu
 index e101224970..a52eb6096f 100644
 --- a/paddle/phi/kernels/funcs/matrix_inverse.cu
@@ -534,7 +592,7 @@ index 558d363b39..05da04b517 100644
  #include "paddle/phi/kernels/funcs/scatter.cu.h"
  
 diff --git a/paddle/phi/kernels/funcs/multihead_matmul_functor.cu b/paddle/phi/kernels/funcs/multihead_matmul_functor.cu
-index 8b0baf5f5f..260482f124 100644
+index 047f52bd91..a05b34d3ba 100644
 --- a/paddle/phi/kernels/funcs/multihead_matmul_functor.cu
 +++ b/paddle/phi/kernels/funcs/multihead_matmul_functor.cu
 @@ -27,7 +27,7 @@ namespace cub = hipcub;
@@ -844,11 +902,11 @@ index 9d4bb18d55..ea42cc10a9 100644
          }
        }
 diff --git a/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu b/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
-index b8cfdbf3ce..fa14b94a77 100644
+index acb3b83bc9..264d2a2b3e 100644
 --- a/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
-@@ -14,7 +14,7 @@
- 
+@@ -15,7 +15,7 @@
+ #include "paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.h"
  #include "paddle/phi/core/kernel_registry.h"
  #include "paddle/phi/kernels/funcs/aligned_vector.h"
 -#include "paddle/phi/kernels/fusion/gpu/mmha_util.cu.h"
@@ -857,11 +915,11 @@ index b8cfdbf3ce..fa14b94a77 100644
  namespace phi {
  namespace fusion {
 diff --git a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
-index e838778952..83e805e75a 100644
+index b2d15a59f8..f64582e85a 100644
 --- a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
-@@ -14,7 +14,7 @@
- 
+@@ -15,7 +15,7 @@
+ #include "paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.h"
  #include "paddle/phi/core/kernel_registry.h"
  #include "paddle/phi/kernels/funcs/aligned_vector.h"
 -#include "paddle/phi/kernels/fusion/gpu/mmha_util.cu.h"
@@ -869,19 +927,6 @@ index e838778952..83e805e75a 100644
  
  namespace phi {
  namespace fusion {
-diff --git a/paddle/phi/kernels/gpu/correlation_kernel.cu b/paddle/phi/kernels/gpu/correlation_kernel.cu
-index 4c93778bde..c7bdf8a2cc 100644
---- a/paddle/phi/kernels/gpu/correlation_kernel.cu
-+++ b/paddle/phi/kernels/gpu/correlation_kernel.cu
-@@ -103,7 +103,7 @@ void CorrelationCUDAKernel(const Context &dev_ctx,
-                            int stride2,
-                            int corr_type_multiply,
-                            DenseTensor *out) {
--  bool is_gpu_place = dev_ctx.GetPlace().GetType() == phi::AllocationType::GPU;
-+  bool is_gpu_place = dev_ctx.GetPlace().GetType() == phi::AllocationType::GPU || dev_ctx.GetPlace().GetType() == phi::AllocationType::CUSTOM;
-   PADDLE_ENFORCE_EQ(
-       is_gpu_place,
-       true,
 diff --git a/paddle/phi/kernels/gpu/depthwise_conv.h b/paddle/phi/kernels/gpu/depthwise_conv.h
 index f0cca0f701..02ea957240 100644
 --- a/paddle/phi/kernels/gpu/depthwise_conv.h
@@ -897,19 +942,19 @@ index f0cca0f701..02ea957240 100644
  
  namespace phi {
  // To determine use cudnn or not.
-diff --git a/paddle/phi/kernels/gpu/dgc_kernel.cu b/paddle/phi/kernels/gpu/dgc_kernel.cu
-index c2ddfa1347..c6adf5a6de 100644
---- a/paddle/phi/kernels/gpu/dgc_kernel.cu
-+++ b/paddle/phi/kernels/gpu/dgc_kernel.cu
-@@ -188,7 +188,7 @@ void DGCKernel(const Context& dev_ctx,
-   int buf_size = paddle::communication::dgc::get_buffer_size(k);
-   phi::Allocator::AllocationPtr tmp_ious_data;
- #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
--  if (dev_ctx.GetPlace().GetType() == phi::AllocationType::GPU) {
-+  if (dev_ctx.GetPlace().GetType() == phi::AllocationType::GPU || dev_ctx.GetPlace().GetType() == phi::AllocationType::CUSTOM) {
-     tmp_ious_data = phi::memory_utils::Alloc(
-         dev_ctx.GetPlace(),
-         buf_size,
+diff --git a/paddle/phi/kernels/gpu/dot_kernel.cu b/paddle/phi/kernels/gpu/dot_kernel.cu
+index af27ac89ab..ee0edc6b8e 100644
+--- a/paddle/phi/kernels/gpu/dot_kernel.cu
++++ b/paddle/phi/kernels/gpu/dot_kernel.cu
+@@ -15,7 +15,7 @@
+ #include "paddle/phi/kernels/dot_kernel.h"
+ #include "paddle/phi/backends/gpu/gpu_context.h"
+ #include "paddle/phi/core/kernel_registry.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
+ #include "paddle/phi/kernels/funcs/eigen/common.h"
+ 
+ #include "paddle/phi/kernels/full_kernel.h"
 diff --git a/paddle/phi/kernels/gpu/gelu_funcs.h b/paddle/phi/kernels/gpu/gelu_funcs.h
 index 29fa252e96..4ae72b0935 100644
 --- a/paddle/phi/kernels/gpu/gelu_funcs.h
@@ -974,19 +1019,6 @@ index 1bdbe1564c..f753b54bc6 100644
  #include "paddle/phi/kernels/impl/qr_kernel_impl.h"
  #include "paddle/phi/kernels/impl/tril_triu_kernel_impl.h"
  #include "paddle/phi/kernels/lstsq_kernel.h"
-diff --git a/paddle/phi/kernels/gpu/shuffle_batch_kernel.cu b/paddle/phi/kernels/gpu/shuffle_batch_kernel.cu
-index 05a977828f..5136608c41 100644
---- a/paddle/phi/kernels/gpu/shuffle_batch_kernel.cu
-+++ b/paddle/phi/kernels/gpu/shuffle_batch_kernel.cu
-@@ -58,7 +58,7 @@ void ShuffleBatchKernel(const Context& dev_ctx,
-   int64_t seed_int = 0;
-   if (seed.initialized()) {
-     const auto& seed_place = seed.place().GetType();
--    bool is_gpu_place = seed_place == phi::AllocationType::GPU;
-+    bool is_gpu_place = seed_place == phi::AllocationType::GPU || seed_place == phi::AllocationType::CUSTOM;
-     if (is_gpu_place) {
-       // NOTE: We have overwritten GetKernelTypeForVar, so seed_place would
-       // not be CUDAPlace in practice. This case would only happen in Python
 diff --git a/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h b/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h
 index 9bc5326c90..79b57a8203 100644
 --- a/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h
@@ -1144,32 +1176,6 @@ index 6f03f76eeb..5fe2c3e7dc 100644
  #include "paddle/phi/kernels/funcs/for_range.h"
  #include "paddle/phi/kernels/funcs/matrix_inverse.h"
  
-diff --git a/paddle/phi/kernels/impl/merged_momentum_impl.h b/paddle/phi/kernels/impl/merged_momentum_impl.h
-index 7b85903776..3f4b298807 100644
---- a/paddle/phi/kernels/impl/merged_momentum_impl.h
-+++ b/paddle/phi/kernels/impl/merged_momentum_impl.h
-@@ -297,7 +297,7 @@ void MergedMomentumInnerCompute(
-                 params_out[idx],
-                 velocities_out[idx]);
-         VLOG(10) << "Launch MergedMomentum cpu kernel.";
--      } else if (dev_ctx.GetPlace().GetType() == phi::AllocationType::GPU) {
-+      } else if (dev_ctx.GetPlace().GetType() == phi::AllocationType::GPU || dev_ctx.GetPlace().GetType() == phi::AllocationType::CUSTOM) {
-         phi::funcs::ForRange<Context> for_range(
-             static_cast<const Context &>(dev_ctx), params[idx]->numel());
-         const auto grad_type = grads[idx]->dtype();
-diff --git a/paddle/phi/kernels/impl/momentum_kernel_impl.h b/paddle/phi/kernels/impl/momentum_kernel_impl.h
-index de5bcfc30b..eb2a9714f5 100644
---- a/paddle/phi/kernels/impl/momentum_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/momentum_kernel_impl.h
-@@ -457,7 +457,7 @@ void MomentumDenseImpl(const Context& dev_ctx,
-             regularization_coeff,
-             param_out,
-             velocity_out);
--  } else if (dev_ctx.GetPlace().GetType() == phi::AllocationType::GPU) {
-+  } else if (dev_ctx.GetPlace().GetType() == phi::AllocationType::GPU || dev_ctx.GetPlace().GetType() == phi::AllocationType::CUSTOM) {
-     funcs::ForRange<Context> for_range(dev_ctx, param.numel());
-     const auto grad_type = grad.dtype();
- #define PADDLE_LAUNCH_DENSE_MOMENTUM_KERNEL(__nesterov, __reg_type)     \
 diff --git a/paddle/phi/kernels/impl/spectral_norm_kernel_impl.h b/paddle/phi/kernels/impl/spectral_norm_kernel_impl.h
 index 4099d8b506..baef2cd643 100644
 --- a/paddle/phi/kernels/impl/spectral_norm_kernel_impl.h

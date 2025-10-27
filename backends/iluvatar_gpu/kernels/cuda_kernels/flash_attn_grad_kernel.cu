@@ -298,6 +298,34 @@ void FlashAttnUnpaddedGradBaseKernel(
   int64_t offset = static_cast<int64_t>(seed_offset_data[1]);
   PhiloxCudaState philox_state = PhiloxCudaState(seed, offset);
 
+  bool accuracy_first = false;
+  if (attn_mask) {
+    causal = false;
+    phi::DenseTensor min_tensor;
+    min_tensor.Resize({1});
+    dev_ctx.template Alloc<T>(&min_tensor);
+
+    std::vector<int> reduce_dims;
+    for (int64_t i = 0; i < attn_mask->dims().size(); ++i) {
+      reduce_dims.push_back(i);
+    }
+    funcs::ReduceKernel<T, T, kps::MinFunctor, kps::IdentityFunctor<T>>(
+        dev_ctx,
+        *attn_mask,
+        &min_tensor,
+        kps::IdentityFunctor<T>(),
+        reduce_dims);
+
+    std::vector<T> host_min;
+    TensorToVector(min_tensor, dev_ctx, &host_min);
+
+    float min_val = static_cast<float>(host_min[0]);
+    constexpr float threshold = -3.3895313892515355e+37f;
+    accuracy_first = (min_val < threshold);
+    VLOG(2) << "flash_attn attn_mask accuracy_first: " << accuracy_first
+            << ", causal: " << causal;
+  }
+
   if (FLAGS_enable_ixattnbkd) {
     // ixattnbkd unpad bwd
     ixAttnBkdConfigInfo ixAttnbkdInfo;
@@ -317,7 +345,7 @@ void FlashAttnUnpaddedGradBaseKernel(
     ixAttnbkdInfo.batch = batch_size;
     ixAttnbkdInfo.max_seq_len_src = max_seqlen_q;
     ixAttnbkdInfo.max_seq_len_trg = max_seqlen_k;
-    ixAttnbkdInfo.accuracy_first = false;
+    ixAttnbkdInfo.accuracy_first = accuracy_first;
 
     ixAttnBkdDataType_t dataType;
     if (q.dtype() == phi::DataType::FLOAT16) {
@@ -338,7 +366,7 @@ void FlashAttnUnpaddedGradBaseKernel(
     SetIxAttnBkdTensor(&k_desc, k, dataType);
     SetIxAttnBkdTensor(&v_desc, v, dataType);
     SetIxAttnBkdTensor(&o_desc, out, dataType);
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       PADDLE_ENFORCE_NE(causal,
                         true,
                         phi::errors::InvalidArgument(
@@ -420,7 +448,7 @@ void FlashAttnUnpaddedGradBaseKernel(
     flashAttnInfo.batch = batch_size;
     flashAttnInfo.max_seq_len_src = max_seqlen_q;
     flashAttnInfo.max_seq_len_trg = max_seqlen_k;
-    flashAttnInfo.accuracy_first = false;
+    flashAttnInfo.accuracy_first = accuracy_first;
 
     int32_t nb_dims = 3;
     std::vector<int32_t> qShape, kShape, vShape, oShape, lseShape, dqShape,
@@ -506,7 +534,7 @@ void FlashAttnUnpaddedGradBaseKernel(
     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSetTensorNdDescriptor(
         do_desc, dataType, nb_dims, doShape.data(), doStride.data()));
 
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       PADDLE_ENFORCE_NE(causal,
                         true,
                         phi::errors::InvalidArgument(
@@ -590,7 +618,7 @@ void FlashAttnUnpaddedGradBaseKernel(
     destroy_tensor_desc(v_desc);
     destroy_tensor_desc(o_desc);
     destroy_tensor_desc(lse_desc);
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       destroy_tensor_desc(m_desc);
     }
     destroy_tensor_desc(dq_desc);
@@ -604,7 +632,7 @@ void FlashAttnUnpaddedGradBaseKernel(
     v_desc = nullptr;
     o_desc = nullptr;
     lse_desc = nullptr;
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       m_desc = nullptr;
     }
     dq_desc = nullptr;
@@ -883,6 +911,34 @@ void FlashAttnGradBaseKernel(
   int64_t offset = static_cast<int64_t>(seed_offset_data[1]);
   PhiloxCudaState philox_state = PhiloxCudaState(seed, offset);
 
+  bool accuracy_first = false;
+  if (attn_mask) {
+    causal = false;
+    phi::DenseTensor min_tensor;
+    min_tensor.Resize({1});
+    dev_ctx.template Alloc<T>(&min_tensor);
+
+    std::vector<int> reduce_dims;
+    for (int64_t i = 0; i < attn_mask->dims().size(); ++i) {
+      reduce_dims.push_back(i);
+    }
+    funcs::ReduceKernel<T, T, kps::MinFunctor, kps::IdentityFunctor<T>>(
+        dev_ctx,
+        *attn_mask,
+        &min_tensor,
+        kps::IdentityFunctor<T>(),
+        reduce_dims);
+
+    std::vector<T> host_min;
+    TensorToVector(min_tensor, dev_ctx, &host_min);
+
+    float min_val = static_cast<float>(host_min[0]);
+    constexpr float threshold = -3.3895313892515355e+37f;
+    accuracy_first = (min_val < threshold);
+    VLOG(2) << "flash_attn attn_mask accuracy_first: " << accuracy_first
+            << ", causal: " << causal;
+  }
+
   if (FLAGS_enable_ixattnbkd) {
     // ixattnbkd bwd
     ixAttnBkdConfigInfo ixAttnbkdInfo;
@@ -902,7 +958,7 @@ void FlashAttnGradBaseKernel(
     ixAttnbkdInfo.batch = batch_size;
     ixAttnbkdInfo.max_seq_len_src = seqlen_q;
     ixAttnbkdInfo.max_seq_len_trg = seqlen_k;
-    ixAttnbkdInfo.accuracy_first = false;
+    ixAttnbkdInfo.accuracy_first = accuracy_first;
 
     ixAttnBkdDataType_t dataType;
     if (q.dtype() == phi::DataType::FLOAT16) {
@@ -923,7 +979,7 @@ void FlashAttnGradBaseKernel(
     SetIxAttnBkdTensor(&k_desc, k, dataType);
     SetIxAttnBkdTensor(&v_desc, v, dataType);
     SetIxAttnBkdTensor(&o_desc, out, dataType);
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       PADDLE_ENFORCE_NE(causal,
                         true,
                         phi::errors::InvalidArgument(
@@ -1005,7 +1061,7 @@ void FlashAttnGradBaseKernel(
     flashAttnInfo.batch = batch_size;
     flashAttnInfo.max_seq_len_src = seqlen_q;
     flashAttnInfo.max_seq_len_trg = seqlen_k;
-    flashAttnInfo.accuracy_first = false;
+    flashAttnInfo.accuracy_first = accuracy_first;
 
     int32_t nb_dims = 4;
     std::vector<int32_t> qShape, kShape, vShape, oShape, lseShape, dqShape,
@@ -1090,7 +1146,7 @@ void FlashAttnGradBaseKernel(
     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSetTensorNdDescriptor(
         do_desc, dataType, nb_dims, doShape.data(), doStride.data()));
 
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       PADDLE_ENFORCE_NE(causal,
                         true,
                         phi::errors::InvalidArgument(
@@ -1173,7 +1229,7 @@ void FlashAttnGradBaseKernel(
     destroy_tensor_desc(v_desc);
     destroy_tensor_desc(o_desc);
     destroy_tensor_desc(lse_desc);
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       destroy_tensor_desc(m_desc);
     }
     destroy_tensor_desc(dq_desc);
@@ -1187,7 +1243,7 @@ void FlashAttnGradBaseKernel(
     v_desc = nullptr;
     o_desc = nullptr;
     lse_desc = nullptr;
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       m_desc = nullptr;
     }
     dq_desc = nullptr;

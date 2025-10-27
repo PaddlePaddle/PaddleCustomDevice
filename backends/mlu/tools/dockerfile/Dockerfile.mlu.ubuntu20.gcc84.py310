@@ -35,7 +35,8 @@ RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | ap
     libibverbs-dev \
     libibverbs1 \
     librdmacm-dev \
-    librdmacm1 
+    librdmacm1 \
+    zstd
 
 # install cntoolkit
 RUN cd /tmp && \

@@ -171,7 +171,13 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
       attn_inputs.push_back(q_r);
       attn_inputs.push_back(k_r);
       attn_inputs.push_back(v_r);
-
+      if (!params.sdpa_params.is_causal) {
+        attn_inputs.push_back(createTensor(inputs[3].dims.size(),
+                                           inputs[3].type,
+                                           inputs[3].dims,
+                                           true,
+                                           inputs[3].name));
+      }
       if (params.fp8_sdpa) {
         attn_inputs.push_back(nullptr);  // Mask
         attn_inputs.push_back(nullptr);  // Seed
@@ -310,6 +316,7 @@ void FusedSdpaProjBTMHKernel(
     const Context& dev_ctx,
     const phi::DenseTensor& query_states,
     const phi::DenseTensor& key_value_states,
+    const phi::DenseTensor& attn_mask,
     const phi::DenseTensor& linear_weights,
     phi::DenseTensor* out_linear,
     const phi::Scalar& scaling_factor,
@@ -329,6 +336,9 @@ void FusedSdpaProjBTMHKernel(
   std::vector<DIMS> in_out_dims = ct.GetDims();
 
   ct.Add(linear_weights);
+  if (causal.to<bool>() == false) {
+    ct.Add(attn_mask);
+  }
 
   unsigned int flags = 0;
   SDPA_SET_INPUT_AND_FLAGS(d_scale_q.get_ptr(), D_SCALE_Q)
@@ -422,6 +432,12 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
       static_cast<const phi::DenseTensor*>(query_states.impl().get());
   auto key_value_states_tensor =
       static_cast<const phi::DenseTensor*>(key_value_states.impl().get());
+  phi::DenseTensor* attn_mask_tensor = nullptr;
+  if (attn_mask) {
+    auto attn_mask_ptr = *(attn_mask.get_ptr());
+    attn_mask_tensor =
+        static_cast<phi::DenseTensor*>(attn_mask_ptr.impl().get());
+  }
   auto linear_weights_tensor =
       static_cast<const phi::DenseTensor*>(linear_weights.impl().get());
 
@@ -503,12 +519,13 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
     dev_ctx->Alloc(out_linear.get(), query_states_tensor->dtype());
   }
 
-  if (!attn_mask && !valid_seq_len) {
+  if (!valid_seq_len) {
     if (query_states.dtype() == phi::DataType::FLOAT16) {
       custom_kernel::FusedSdpaProjBTMHKernel<phi::dtype::float16>(
           *dev_ctx,
           *query_states_tensor,
           *key_value_states_tensor,
+          attn_mask_tensor ? *attn_mask_tensor : phi::DenseTensor(),
           *linear_weights_tensor,
           out_linear.get(),
           phi::Scalar(scaling_factor),
@@ -528,6 +545,7 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
           *dev_ctx,
           *query_states_tensor,
           *key_value_states_tensor,
+          attn_mask_tensor ? *attn_mask_tensor : phi::DenseTensor(),
           *linear_weights_tensor,
           out_linear.get(),
           phi::Scalar(scaling_factor),

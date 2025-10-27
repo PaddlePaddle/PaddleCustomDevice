@@ -1,0 +1,98 @@
+name: Codestyle-Check
+
+on:
+  workflow_call:
+    inputs:
+      workflow-name:
+        type: string
+        required: false
+      clone_dir:
+        type: string
+        required: false
+        default: 'PaddlecustomDevice'
+      is_pr:
+        type: string
+        required: false
+        default: 'true'
+
+jobs:
+  pre-commit:
+    name: Pre Commit
+    if: ${{ github.repository_owner == 'PaddlePaddle' }}
+    runs-on:
+      group: APPROVAL
+    env:
+      PR_ID: ${{ github.event.pull_request.number }}
+      COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+      BRANCH: develop
+      TASK: paddle-CI-${{ github.event.pull_request.number }}-cpu
+
+    steps:
+      - name: Cleanup
+        run: |
+          rm -rf * .[^.]*
+
+      - name: Check docker image and run container
+        env:
+          python: "python3.10"
+          GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
+          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          docker_image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/ci/paddle:19d3669ca5ff0b19144a785bb3126d7e
+        run: |
+          container_name=${TASK}-${core_index}-$(date +%Y%m%d-%H%M%S)
+          echo "container_name=${container_name}" >> ${{ github.env }}
+          docker container ls -a --filter "name=paddle-CI-*-api-benchmark-${core_index}*" --format "{{.ID}}" | xargs -r docker rm -f
+          docker container ls -a --filter "name=api_benchmark_ci_baseline_" --format "{{.ID}} {{.CreatedAt}}" | awk '$2 <= "'$(date -d '1 day ago' +'%Y-%m-%d')'" {print $1}' | xargs -r docker rm -f
+          docker run -d -t --name  ${container_name} --shm-size=128g \
+            -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
+            -v ${{ github.workspace }}:/paddle \
+            -e python \
+            -e core_index \
+            -e BRANCH \
+            -e PR_ID \
+            -e COMMIT_ID \
+            -e RUN_ID \
+            -e wheel_link \
+            -e work_dir \
+            -e PADDLE_ROOT \
+            -e ci_scripts \
+            -e GIT_PR_ID \
+            -e PADDLE_VERSION \
+            -e no_proxy \
+            -e CI_name \
+            -e GITHUB_API_TOKEN \
+            -w /paddle --network host ${docker_image} /bin/bash
+
+      - name: Download Code
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
+          echo "Extracting PaddleCustomDevice.tar.gz"
+          tar -xf PaddleCustomDevice.tar.gz --strip-components=1
+          git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
+          git merge ${BRANCH} --no-edit
+          pip install cpplint==1.6.0
+          pre-commit install'
+
+      - name: Check bypass
+        id: check-bypass
+        uses: ./.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: codestyle
+
+      - name: RUN Codestyle Check
+        if: steps.check-bypass.outputs.can-skip != 'true'
+        run: |
+            docker exec -t ${{ env.container_name }} /bin/bash -c '
+            bash tools/codestyle/pre_commit.sh'
+
+      - name: Terminate and delete the container
+        if: always()
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          rm -rf * .[^.]*
+          '
+          docker stop ${container_name}
+          docker rm ${container_name}

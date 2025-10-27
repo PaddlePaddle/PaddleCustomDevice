@@ -181,6 +181,7 @@ void RnnKernel(const Context &dev_ctx,
   else if (mode == "RNN_TANH")
     rnn_mode = miopenRNNTANH;
 #else
+  VLOG(0) << "Leave lstmKernel.11";
   gpuRNNMode_t rnn_mode = CUDNN_LSTM;
   if (mode == "LSTM")
     rnn_mode = CUDNN_LSTM;
@@ -228,6 +229,7 @@ void RnnKernel(const Context &dev_ctx,
                     common::errors::InvalidArgument(
                         "ROCm do not support SequenceLength yet."));
 #endif
+  VLOG(0) << "Leave lstmKernel.12";
   std::vector<int> SequenceLength;
   if (has_seq_length) {
     SequenceLength = phi::GetVectorFromTensor<int>(sequence_length.get_ptr());

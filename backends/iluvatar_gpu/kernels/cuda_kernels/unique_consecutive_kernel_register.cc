@@ -1,4 +1,4 @@
-// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/backends/gpu/gpu_context.h"
-#include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gammaincc_kernel.h"
-#include "paddle/phi/kernels/impl/gammaincc_kernel_impl.h"
+#pragma once
 
-PD_CUSTOM_KERNEL_REGISTER(
-    gammaincc, iluvatar_gpu, ALL_LAYOUT, phi::GammainccKernel, float, double) {}
+#include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/unique_consecutive_kernel.h"
+
+PD_CUSTOM_KERNEL_REGISTER(unique_consecutive,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::UniqueConsecutiveKernel,
+                          float,
+                          int32_t,
+                          int64_t) {
+  kernel->OutputAt(1).SetDataType(kernel_key.dtype());
+  kernel->OutputAt(2).SetDataType(kernel_key.dtype());
+}

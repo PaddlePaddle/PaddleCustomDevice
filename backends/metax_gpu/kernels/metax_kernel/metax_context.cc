@@ -15,24 +15,6 @@
 #include "kernels/metax_kernel/metax_context.h"
 
 namespace phi {
-const bool allow_tf32_cublas = []() -> bool {
-  const char* v = std::getenv("ALLOW_TF32_CUBLAS");
-  if (v) {
-    return std::atoi(v);
-  }
-  return true;
-}();
-
-const bool allow_tf32_cudnn = []() -> bool {
-  const char* v = std::getenv("ALLOW_TF32_CUDNN");
-  if (v) {
-    return std::atoi(v);
-  }
-  return false;
-}();
-
-bool AllowTF32Cublas() { return allow_tf32_cublas; }
-bool AllowTF32Cudnn() { return allow_tf32_cudnn; }
 void DnnWorkspaceHandle::RunFuncSync(
     const std::function<void(void*)>& cudnn_func,
     size_t required_workspace_bytes,
@@ -42,19 +24,11 @@ void DnnWorkspaceHandle::RunFuncSync(
     void* workspace_ptr = nullptr;
     size_t size = ((required_workspace_bytes + 255) >> 8) << 8;
     std::lock_guard<std::mutex> guard(*mtx_);
-#ifdef PADDLE_WITH_HIP
-    auto status = hipMalloc(&workspace_ptr, size);
-#else
     auto status = cudaMalloc(&workspace_ptr, size);
-#endif
     if (status == gpuSuccess) {
       cudnn_func(workspace_ptr);
       phi::backends::gpu::GpuStreamSync(stream_);
-#ifdef PADDLE_WITH_HIP
-      PADDLE_ENFORCE_GPU_SUCCESS(hipFree(workspace_ptr));
-#else
       PADDLE_ENFORCE_GPU_SUCCESS(cudaFree(workspace_ptr));
-#endif
       return;
     }
   }

@@ -192,20 +192,21 @@ void TanhGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void LeakyReluKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
-                     float alpha,
+                     double alpha,
                      phi::DenseTensor* out) {
-  ActivationKernel<T, Context>(
-      dev_ctx, x, alpha, CNNL_ACTIVATION_LEAKYRELU, out);
+  float alp = static_cast<float>(alpha);
+  ActivationKernel<T, Context>(dev_ctx, x, alp, CNNL_ACTIVATION_LEAKYRELU, out);
 }
 
 template <typename T, typename Context>
 void LeakyReluGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& dout,
-                         float alpha,
+                         double alpha,
                          phi::DenseTensor* dx) {
+  float alp = static_cast<float>(alpha);
   ActivationGradKernelV1<T, Context>(
-      dev_ctx, x, dout, alpha, CNNL_ACTIVATION_LEAKYRELU, dx);
+      dev_ctx, x, dout, alp, CNNL_ACTIVATION_LEAKYRELU, dx);
 }
 
 template <typename T, typename Context>

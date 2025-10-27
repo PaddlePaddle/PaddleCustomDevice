@@ -30,6 +30,9 @@ limitations under the License. */
 
 #define MATRIX_SOFTMAX_ALIGN_BYTES 16
 #define MATRIX_SOFTMAX_THRESHOLD 100000
+#ifdef PADDLE_WITH_COREX
+#define MAX_YZ_DIM_SIZE 65535
+#endif
 
 namespace phi {
 
@@ -845,6 +848,10 @@ static void GetGridDim(
   grid_x = std::min(grid_x, max_num_blocks);
   int grid_y = (max_num_blocks + grid_x - 1) / grid_x;
   grid_y = std::min(grid_y, high_dim);
+#ifdef PADDLE_WITH_COREX
+  grid_y = std::min(grid_y,
+                    std::max(MAX_YZ_DIM_SIZE / static_cast<int>(block.y), 1));
+#endif
   grid->x = grid_x;
   grid->y = grid_y;
 }
@@ -1211,7 +1218,7 @@ void SoftmaxForwardCUDAKernelDriverImpl(const GPUContext& dev_ctx,
   IndexType dim = tensor_dims[1];
   int D = tensor_dims[2];
 
-  if (D == 1) {
+  if (D == 1 && x.dtype() != phi::DataType::BFLOAT16) {
     if (!UseCudnnSoftmax<T>(dev_ctx, dim, true)) {
       int dim_log2 = static_cast<int>(Log2Ceil(dim));
       IndexType dim_ceil = 1 << dim_log2;
@@ -1278,7 +1285,7 @@ void SoftmaxBackwardCUDAKernelDriver(const GPUContext& dev_ctx,
   int dim = tensor_dims[1];
   int D = tensor_dims[2];
 
-  if (D == 1) {
+  if (D == 1 && out.dtype() != phi::DataType::BFLOAT16) {
     if (!UseCudnnSoftmax<T>(dev_ctx, dim, true)) {
       int dim_log2 = Log2Ceil(dim);
       int dim_ceil = 1 << dim_log2;

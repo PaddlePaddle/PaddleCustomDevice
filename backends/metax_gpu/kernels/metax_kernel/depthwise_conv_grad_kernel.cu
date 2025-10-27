@@ -54,14 +54,12 @@ void DepthwiseConvGradKernel(const Context& dev_ctx,
     return;
   }
 
-  // bool has_fuse_relu = dev_ctx.HasDnnAttr("fuse_relu_before_depthwise_conv");
-  // bool fuse_relu =
-  //     has_fuse_relu
-  //         ? PADDLE_GET_CONST(
-  //               bool, dev_ctx.GetDnnAttr("fuse_relu_before_depthwise_conv"))
-  //         : false;
-  bool has_fuse_relu = false;
-  bool fuse_relu = false;
+  bool has_fuse_relu = dev_ctx.HasDnnAttr("fuse_relu_before_depthwise_conv");
+  bool fuse_relu =
+      has_fuse_relu
+          ? PADDLE_GET_CONST(
+                bool, dev_ctx.GetDnnAttr("fuse_relu_before_depthwise_conv"))
+          : false;
 
   std::vector<int> strides = strides_t;
   std::vector<int> paddings = paddings_t;

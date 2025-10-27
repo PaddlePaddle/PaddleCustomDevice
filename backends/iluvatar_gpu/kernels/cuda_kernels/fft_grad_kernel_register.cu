@@ -21,21 +21,15 @@ PD_CUSTOM_KERNEL_REGISTER(fft_c2c_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FFTC2CGradKernel,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
-PD_CUSTOM_KERNEL_REGISTER(fft_c2r_grad,
-                          iluvatar_gpu,
-                          ALL_LAYOUT,
-                          phi::FFTC2RGradKernel,
-                          float,
-                          double) {
+                          phi::dtype::complex<float>) {}
+PD_CUSTOM_KERNEL_REGISTER(
+    fft_c2r_grad, iluvatar_gpu, ALL_LAYOUT, phi::FFTC2RGradKernel, float) {
   kernel->OutputAt(0).SetDataType(phi::dtype::ToComplex(kernel_key.dtype()));
 }
 PD_CUSTOM_KERNEL_REGISTER(fft_r2c_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FFTR2CGradKernel,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {
+                          phi::dtype::complex<float>) {
   kernel->OutputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
 }

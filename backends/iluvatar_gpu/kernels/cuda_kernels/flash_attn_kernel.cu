@@ -177,6 +177,34 @@ void FlashAttnUnpaddedBaseKernel(
   softmax_lse->Resize({num_heads, total_q});
   dev_ctx.template Alloc<float>(softmax_lse);
 
+  bool accuracy_first = false;
+  if (attn_mask) {
+    causal = false;
+    phi::DenseTensor min_tensor;
+    min_tensor.Resize({1});
+    dev_ctx.template Alloc<T>(&min_tensor);
+
+    std::vector<int> reduce_dims;
+    for (int64_t i = 0; i < attn_mask->dims().size(); ++i) {
+      reduce_dims.push_back(i);
+    }
+    funcs::ReduceKernel<T, T, kps::MinFunctor, kps::IdentityFunctor<T>>(
+        dev_ctx,
+        *attn_mask,
+        &min_tensor,
+        kps::IdentityFunctor<T>(),
+        reduce_dims);
+
+    std::vector<T> host_min;
+    TensorToVector(min_tensor, dev_ctx, &host_min);
+
+    float min_val = static_cast<float>(host_min[0]);
+    constexpr float threshold = -3.3895313892515355e+37f;
+    accuracy_first = (min_val < threshold);
+    VLOG(2) << "flash_attn attn_mask accuracy_first: " << accuracy_first
+            << ", causal: " << causal;
+  }
+
   if (FLAGS_enable_ixattnbkd) {
     // ixattnbkd unpad
     ixAttnBkdConfigInfo ixAttnbkdInfo;
@@ -194,7 +222,7 @@ void FlashAttnUnpaddedBaseKernel(
     ixAttnbkdInfo.max_seq_len_trg = max_seqlen_k;
     ixAttnbkdInfo.imp_mode =
         FLAGS_imp_mode ? IXATTNBKD_FATTN_MEM_MODE : IXATTNBKD_FATTN_PERF_MODE;
-    ixAttnbkdInfo.accuracy_first = false;
+    ixAttnbkdInfo.accuracy_first = accuracy_first;
 
     ixAttnBkdDataType_t dataType;
     if (q.dtype() == phi::DataType::FLOAT16) {
@@ -209,7 +237,7 @@ void FlashAttnUnpaddedBaseKernel(
     SetIxAttnBkdTensor(&k_desc, k, dataType);
     SetIxAttnBkdTensor(&v_desc, v, dataType);
     SetIxAttnBkdTensor(&o_desc, out, dataType);
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       PADDLE_ENFORCE_NE(causal,
                         true,
                         phi::errors::InvalidArgument(
@@ -276,7 +304,7 @@ void FlashAttnUnpaddedBaseKernel(
     flashAttnInfo.max_seq_len_trg = max_seqlen_k;
     flashAttnInfo.imp_mode =
         FLAGS_imp_mode ? CUDNN_FATTN_LEAST_MEM_MODE : CUDNN_FATTN_BALANCE_MODE;
-    flashAttnInfo.accuracy_first = false;
+    flashAttnInfo.accuracy_first = accuracy_first;
 
     int32_t nb_dims = 3;
     std::vector<int32_t> qShape, kShape, vShape, oShape, lseShape;
@@ -337,7 +365,7 @@ void FlashAttnUnpaddedBaseKernel(
             lseShape.data(),
             lseStride.data()));
 
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       PADDLE_ENFORCE_NE(causal,
                         true,
                         phi::errors::InvalidArgument(
@@ -411,7 +439,7 @@ void FlashAttnUnpaddedBaseKernel(
         phi::dynload::cudnnDestroyTensorDescriptor(o_desc));
     PADDLE_ENFORCE_GPU_SUCCESS(
         phi::dynload::cudnnDestroyTensorDescriptor(lse_desc));
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       PADDLE_ENFORCE_GPU_SUCCESS(
           phi::dynload::cudnnDestroyTensorDescriptor(m_desc));
     }
@@ -421,7 +449,7 @@ void FlashAttnUnpaddedBaseKernel(
     v_desc = nullptr;
     o_desc = nullptr;
     lse_desc = nullptr;
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       m_desc = nullptr;
     }
   }
@@ -672,6 +700,34 @@ void FlashAttnBaseKernel(
   softmax_lse->Resize({batch_size, num_heads, seqlen_q});
   dev_ctx.template Alloc<float>(softmax_lse);
 
+  bool accuracy_first = false;
+  if (attn_mask) {
+    causal = false;
+    phi::DenseTensor min_tensor;
+    min_tensor.Resize({1});
+    dev_ctx.template Alloc<T>(&min_tensor);
+
+    std::vector<int> reduce_dims;
+    for (int64_t i = 0; i < attn_mask->dims().size(); ++i) {
+      reduce_dims.push_back(i);
+    }
+    funcs::ReduceKernel<T, T, kps::MinFunctor, kps::IdentityFunctor<T>>(
+        dev_ctx,
+        *attn_mask,
+        &min_tensor,
+        kps::IdentityFunctor<T>(),
+        reduce_dims);
+
+    std::vector<T> host_min;
+    TensorToVector(min_tensor, dev_ctx, &host_min);
+
+    float min_val = static_cast<float>(host_min[0]);
+    constexpr float threshold = -3.3895313892515355e+37f;
+    accuracy_first = (min_val < threshold);
+    VLOG(2) << "flash_attn attn_mask accuracy_first: " << accuracy_first
+            << ", causal: " << causal;
+  }
+
   if (FLAGS_enable_ixattnbkd) {
     // ixattnbkd
     ixAttnBkdConfigInfo ixAttnbkdInfo;
@@ -689,7 +745,7 @@ void FlashAttnBaseKernel(
     ixAttnbkdInfo.max_seq_len_trg = seqlen_k;
     ixAttnbkdInfo.imp_mode =
         FLAGS_imp_mode ? IXATTNBKD_FATTN_MEM_MODE : IXATTNBKD_FATTN_PERF_MODE;
-    ixAttnbkdInfo.accuracy_first = false;
+    ixAttnbkdInfo.accuracy_first = accuracy_first;
 
     ixAttnBkdDataType_t dataType;
     if (q.dtype() == phi::DataType::FLOAT16) {
@@ -708,7 +764,7 @@ void FlashAttnBaseKernel(
     SetIxAttnBkdTensor(&k_desc, k, dataType);
     SetIxAttnBkdTensor(&v_desc, v, dataType);
     SetIxAttnBkdTensor(&o_desc, out, dataType);
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       PADDLE_ENFORCE_NE(causal,
                         true,
                         phi::errors::InvalidArgument(
@@ -776,7 +832,7 @@ void FlashAttnBaseKernel(
     flashAttnInfo.max_seq_len_trg = seqlen_k;
     flashAttnInfo.imp_mode =
         FLAGS_imp_mode ? CUDNN_FATTN_LEAST_MEM_MODE : CUDNN_FATTN_BALANCE_MODE;
-    flashAttnInfo.accuracy_first = false;
+    flashAttnInfo.accuracy_first = accuracy_first;
 
     int32_t nb_dims = 4;
     std::vector<int32_t> qShape, kShape, vShape, oShape, lseShape;
@@ -836,7 +892,7 @@ void FlashAttnBaseKernel(
                                                  lseShape.data(),
                                                  lseStride.data()));
 
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       PADDLE_ENFORCE_NE(causal,
                         true,
                         phi::errors::InvalidArgument(
@@ -911,7 +967,7 @@ void FlashAttnBaseKernel(
         phi::dynload::cudnnDestroyTensorDescriptor(o_desc));
     PADDLE_ENFORCE_GPU_SUCCESS(
         phi::dynload::cudnnDestroyTensorDescriptor(lse_desc));
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       PADDLE_ENFORCE_GPU_SUCCESS(
           phi::dynload::cudnnDestroyTensorDescriptor(m_desc));
     }
@@ -921,7 +977,7 @@ void FlashAttnBaseKernel(
     v_desc = nullptr;
     o_desc = nullptr;
     lse_desc = nullptr;
-    if (attn_mask.get_ptr()) {
+    if (attn_mask) {
       m_desc = nullptr;
     }
   }

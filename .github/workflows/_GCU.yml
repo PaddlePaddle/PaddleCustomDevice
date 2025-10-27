@@ -1,0 +1,103 @@
+name: PR-CI-GCU
+
+on:
+  workflow_call:
+    inputs:
+      workflow-name:
+        type: string
+        required: false
+      clone_dir:
+        type: string
+        required: false
+        default: 'PaddlecustomDevice'
+      is_pr:
+        type: string
+        required: false
+        default: 'true'
+
+jobs:
+  PR-CI-GCU:
+    name: PR-CI-GCU
+    if: ${{ github.repository_owner == 'PaddlePaddle' }}
+    runs-on:
+      group: GCU
+    env:
+      PR_ID: ${{ github.event.pull_request.number }}
+      COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+      BRANCH: develop
+      TASK: paddle-CI-${{ github.event.pull_request.number }}-gcu
+      no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
+
+    steps:
+      - name: Check docker image and run container
+        env:
+          GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
+          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          cache_dir: /root/.cache
+          ccache_dir: /root/.ccache
+          docker_image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-gcu:topsrider3.5.102-ubuntu20-x86_64-gcc84-ci
+        run: |
+          container_name=${TASK}-$(date +%Y%m%d-%H%M%S)
+          echo "container_name=${container_name}" >> ${{ github.env }}
+          docker run --shm-size=128G \
+            -d -t --name ${container_name} \
+            --privileged --network=host \
+            -e PR_ID \
+            -e COMMIT_ID \
+            -e BRANCH \
+            -e no_proxy \
+            -v ${cache_dir}:/root/.cache \
+            -v ${ccache_dir}:/root/.ccache \
+            -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
+            -v ${{ github.workspace }}:/PaddleCustomDevice -w /PaddleCustomDevice \
+            ${docker_image} /bin/bash
+
+      - name: Download Code
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          source ${{ github.workspace }}/../../../proxy
+          rm -rf * .[^.]*
+          set -x
+          wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
+          echo "Extracting PaddleCustomDevice.tar.gz"
+          tar -xf PaddleCustomDevice.tar.gz --strip-components=1
+          git config --global --add safe.directory "*"
+          git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
+          git merge ${BRANCH} --no-edit
+          git --no-pager log --pretty=oneline -5'
+
+      - name: Check bypass
+        id: check-bypass
+        uses: ./.github/actions/check-bypass
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: gcu
+
+      - name: RUN GCU
+        if: steps.check-bypass.outputs.can-skip != 'true'
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          # !!!!! SKIP IF NO GCU CHANGE !!!!
+          echo "=========== Checking PR Changes If GCU FULL CI Needed ==========="
+          change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
+          change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
+          change_gcu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/gcu"| wc -l)
+          git diff --name-only remotes/origin/${BRANCH}
+
+          if [ $change_numbers -ne $change_backend ]; then
+            echo "Common file changed, continue to run GCU FULL CI test ..."
+          elif [ $change_gcu_only -eq 0 ] ; then
+            echo "NO GCU backend changes found, skip GCU FULL CI ...."
+            exit 0
+          fi
+          bash backends/gcu/ci_test.sh'
+
+      - name: Terminate and delete the container
+        if: always()
+        run: |
+          docker exec -t ${{ env.container_name }} /bin/bash -c '
+          rm -rf * .[^.]*
+          '
+          docker stop ${container_name}
+          docker rm ${container_name}

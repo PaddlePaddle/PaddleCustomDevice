@@ -483,13 +483,16 @@ void Relu6GradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void LeakyReluKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
-                     float alpha,
+                     double alpha,
                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto stream = dev_ctx.stream();
   const auto& runner =
-      NpuOpRunner("LeakyRelu", {x}, {*out}, {{"negative_slope", alpha}});
+      NpuOpRunner("LeakyRelu",
+                  {x},
+                  {*out},
+                  {{"negative_slope", static_cast<float>(alpha)}});
   runner.Run(stream);
 }
 
@@ -497,13 +500,16 @@ template <typename T, typename Context>
 void LeakyReluGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& dout,
-                         float alpha,
+                         double alpha,
                          phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner(
-      "LeakyReluGrad", {dout, x}, {*dx}, {{"negative_slope", alpha}});
+  const auto& runner =
+      NpuOpRunner("LeakyReluGrad",
+                  {dout, x},
+                  {*dx},
+                  {{"negative_slope", static_cast<float>(alpha)}});
   runner.Run(stream);
 }
 
@@ -1486,8 +1492,8 @@ void HardSwishGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void SoftplusKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
-                    const float beta,
-                    const float threshold,
+                    const double beta,
+                    const double threshold,
                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
@@ -1500,8 +1506,8 @@ template <typename T, typename Context>
 void SoftplusGradKernel(const Context& dev_ctx,
                         const phi::DenseTensor& a,
                         const phi::DenseTensor& dout,
-                        const float beta,
-                        const float threshold,
+                        const double beta,
+                        const double threshold,
                         phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();

@@ -10,7 +10,7 @@ ARG TOPS_RIDER_PACKAGE_LINK
 # install base packages
 RUN apt-get update -y && apt-get install -y zlib1g zlib1g-dev libsqlite3-dev openssl libssl-dev libffi-dev libbz2-dev \
     libxslt1-dev unzip pciutils net-tools libblas-dev gfortran libblas3 liblapack-dev liblapack3 libopenblas-dev \
-    python3.10-dev python3.10-distutils
+    python3.10-dev python3.10-distutils zstd
 
 RUN pip install --upgrade pip setuptools wheel && pip install ddt colorlog
 

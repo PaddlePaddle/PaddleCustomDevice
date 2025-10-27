@@ -62,8 +62,8 @@ if(EXISTS ${DGC_DOWNLOAD_DIR}/${DGC_CACHE_FILENAME})
 else()
   download_dgc()
 endif()
-
-set(CU_BRIDGE_PATH "/opt/maca/tools/cu-bridge")
+set(MACA_PATH $ENV{MACA_PATH})
+set(CU_BRIDGE_PATH "${MACA_PATH}/tools/cu-bridge")
 
 add_custom_command(
   OUTPUT "${CU_BRIDGE_PATH}/bin/nvcc"

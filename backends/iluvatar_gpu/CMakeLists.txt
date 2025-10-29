@@ -910,7 +910,6 @@ foreach(src ${CUDA_SRCS2})
   endif()
 endforeach()
 
-
 set(CUDA_SRCS ${CUDA_SRCS1} ${CUDA_SRCS2})
 list(REMOVE_DUPLICATES CUDA_SRCS)
 

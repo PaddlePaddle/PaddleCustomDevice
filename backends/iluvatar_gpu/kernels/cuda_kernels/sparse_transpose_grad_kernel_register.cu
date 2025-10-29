@@ -15,29 +15,28 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/sparse/unary_grad_kernel.h"
 
-
 PD_CUSTOM_KERNEL_REGISTER(transpose_coo_grad,
-                   iluvatar_gpu,
-                   ALL_LAYOUT,
-                   phi::sparse::TransposeCooGradKernel,
-                   phi::float16,
-                   float,
-                   int8_t,
-                   uint8_t,
-                   int16_t,
-                   int,
-                   int64_t,
-                   bool) {}
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::sparse::TransposeCooGradKernel,
+                          phi::float16,
+                          float,
+                          int8_t,
+                          uint8_t,
+                          int16_t,
+                          int,
+                          int64_t,
+                          bool) {}
 
 PD_CUSTOM_KERNEL_REGISTER(transpose_csr_grad,
-                   iluvatar_gpu,
-                   ALL_LAYOUT,
-                   phi::sparse::TransposeCsrGradKernel,
-                   phi::float16,
-                   float,
-                   int8_t,
-                   uint8_t,
-                   int16_t,
-                   int,
-                   int64_t,
-                   bool) {}
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::sparse::TransposeCsrGradKernel,
+                          phi::float16,
+                          float,
+                          int8_t,
+                          uint8_t,
+                          int16_t,
+                          int,
+                          int64_t,
+                          bool) {}

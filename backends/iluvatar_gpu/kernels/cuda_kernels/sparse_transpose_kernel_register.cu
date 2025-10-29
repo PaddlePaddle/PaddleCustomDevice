@@ -13,31 +13,30 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/sparse/unary_kernel.h" //NOLINT
-
+#include "paddle/phi/kernels/sparse/unary_kernel.h"  //NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(transpose_coo,
-                   iluvatar_gpu,
-                   ALL_LAYOUT,
-                   phi::sparse::TransposeCooKernel,
-                   phi::float16,
-                   float,
-                   int8_t,
-                   uint8_t,
-                   int16_t,
-                   int,
-                   int64_t,
-                   bool) {}
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::sparse::TransposeCooKernel,
+                          phi::float16,
+                          float,
+                          int8_t,
+                          uint8_t,
+                          int16_t,
+                          int,
+                          int64_t,
+                          bool) {}
 
 PD_CUSTOM_KERNEL_REGISTER(transpose_csr,
-                   iluvatar_gpu,
-                   ALL_LAYOUT,
-                   phi::sparse::TransposeCsrKernel,
-                   phi::float16,
-                   float,
-                   int8_t,
-                   uint8_t,
-                   int16_t,
-                   int,
-                   int64_t,
-                   bool) {}
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::sparse::TransposeCsrKernel,
+                          phi::float16,
+                          float,
+                          int8_t,
+                          uint8_t,
+                          int16_t,
+                          int,
+                          int64_t,
+                          bool) {}

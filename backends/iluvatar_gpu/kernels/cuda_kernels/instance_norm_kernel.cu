@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/kernels/instance_norm_kernel.h"
-#include "runtime/iluvatar_context.h"
-
 #include "glog/logging.h"
-
 #include "paddle/common/layout.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
@@ -24,6 +20,8 @@
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/funcs/norm_utils.h"
 #include "paddle/phi/kernels/gpu/instance_norm_utils.h"
+#include "paddle/phi/kernels/instance_norm_kernel.h"
+#include "runtime/iluvatar_context.h"
 
 namespace phi {
 
@@ -243,11 +241,11 @@ void InstanceNormKernel(const Context &dev_ctx,
 #ifdef PADDLE_WITH_HIP
 // MIOPEN do not support double
 PD_REGISTER_PLUGIN_KERNEL(instance_norm,
-                   iluvatar_gpu,
-                   ALL_LAYOUT,
-                   phi::InstanceNormKernel,
-                   float,
-                   phi::float16) {
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::InstanceNormKernel,
+                          float,
+                          phi::float16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);
     kernel->InputAt(2).SetDataType(phi::DataType::FLOAT32);
@@ -255,12 +253,12 @@ PD_REGISTER_PLUGIN_KERNEL(instance_norm,
 }
 #elif CUDNN_VERSION_MIN(8, 1, 0)
 PD_REGISTER_PLUGIN_KERNEL(instance_norm,
-                   iluvatar_gpu,
-                   ALL_LAYOUT,
-                   phi::InstanceNormKernel,
-                   float,
-                   phi::float16,
-                   phi::bfloat16) {
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::InstanceNormKernel,
+                          float,
+                          phi::float16,
+                          phi::bfloat16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16 ||
       kernel_key.dtype() == phi::DataType::BFLOAT16) {
     kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);
@@ -269,11 +267,11 @@ PD_REGISTER_PLUGIN_KERNEL(instance_norm,
 }
 #else
 PD_REGISTER_PLUGIN_KERNEL(instance_norm,
-                   iluvatar_gpu,
-                   ALL_LAYOUT,
-                   phi::InstanceNormKernel,
-                   float,
-                   phi::float16) {
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::InstanceNormKernel,
+                          float,
+                          phi::float16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16 ||
       kernel_key.dtype() == phi::DataType::BFLOAT16) {
     kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);

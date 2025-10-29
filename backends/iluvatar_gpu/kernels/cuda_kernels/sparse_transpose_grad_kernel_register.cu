@@ -12,34 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/abs_grad_kernel.h"
+#include "paddle/phi/kernels/sparse/unary_grad_kernel.h"
 
-using phi::dtype::complex;
-
-PD_CUSTOM_KERNEL_REGISTER(abs_grad,
+PD_CUSTOM_KERNEL_REGISTER(transpose_coo_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::AbsGradKernel,
+                          phi::sparse::TransposeCooGradKernel,
+                          phi::float16,
                           float,
+                          int8_t,
+                          uint8_t,
+                          int16_t,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          complex<float>) {
-  kernel->InputAt(1).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
-}
+                          bool) {}
 
-PD_CUSTOM_KERNEL_REGISTER(abs_double_grad,
+PD_CUSTOM_KERNEL_REGISTER(transpose_csr_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::AbsDoubleGradKernel,
+                          phi::sparse::TransposeCsrGradKernel,
+                          phi::float16,
                           float,
+                          int8_t,
+                          uint8_t,
+                          int16_t,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          complex<float>) {
-  kernel->InputAt(1).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
-}
+                          bool) {}

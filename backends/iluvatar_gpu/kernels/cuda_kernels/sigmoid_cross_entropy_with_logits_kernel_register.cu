@@ -21,4 +21,5 @@ PD_CUSTOM_KERNEL_REGISTER(sigmoid_cross_entropy_with_logits,
                           ALL_LAYOUT,
                           phi::SigmoidCrossEntropyWithLogitsKernel,
                           float,
+                          phi::dtype::float16,
                           double) {}

@@ -264,6 +264,12 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/fill_diagonal_tensor_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gelu_grad_kernel.cu)
 
+foreach(src ${CUDA_SRCS1})
+  if(NOT EXISTS ${src})
+    message(FATAL_ERROR "Missing CUDA source file: ${src}")
+  endif()
+endforeach()
+
 file(
   GLOB
   CUDA_SRCS2
@@ -730,7 +736,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/kthvalue_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/kthvalue_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/dgc_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gammaincc_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gammaincc_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/llm_int8_linear_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/baddbmm_kernel.cu
@@ -883,7 +888,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/eigvalsh_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/exponential_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/flip_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gammaincc_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gather_tree_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/graph_reindex_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/graph_sample_neighbors_kernel.cu
@@ -899,6 +903,12 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/reduce_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/kps/reduce_max_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_kernel.cc)
+
+foreach(src ${CUDA_SRCS2})
+  if(NOT EXISTS ${src})
+    message(FATAL_ERROR "Missing CUDA source file: ${src}")
+  endif()
+endforeach()
 
 set(CUDA_SRCS ${CUDA_SRCS1} ${CUDA_SRCS2})
 list(REMOVE_DUPLICATES CUDA_SRCS)

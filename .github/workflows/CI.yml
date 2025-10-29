@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [develop, release/**, update-paddle-submodule-*]
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.event.pull_request.number }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  PR_ID: ${{ github.event.pull_request.number }}
+  COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+
+jobs:
+  clone:
+    name: Clone-linux
+    uses: ./.github/workflows/_Clone-linux.yml
+    with:
+      workflow-name: 'CI'
+
+  Codestyle-Check:
+    name: Codestyle-Check
+    uses: ./.github/workflows/_Codestyle-Check.yml
+    needs: [clone]
+
+  gcu:
+    name: gcu
+    uses: ./.github/workflows/_GCU.yml
+    needs: [Codestyle-Check]
+
+  hpu:
+    name: hpu
+    uses: ./.github/workflows/_HPU.yml
+    needs: [Codestyle-Check]
+
+  mlu:
+    name: mlu
+    uses: ./.github/workflows/_MLU.yml
+    needs: [Codestyle-Check]
+
+  ixuca:
+    name: ixuca
+    uses: ./.github/workflows/_IXUCA.yml
+    needs: [Codestyle-Check]
+
+  sdaa:
+    name: sdaa
+    uses: ./.github/workflows/_SDAA.yml
+    needs: [Codestyle-Check]
+
+  npu-910b-arm:
+    name: npu-910B-ARM
+    uses: ./.github/workflows/_910B-ARM.yml
+    needs: [Codestyle-Check]
+
+  npu-910b-x86:
+    name: npu-910B-X86
+    uses: ./.github/workflows/_910B-X86.yml
+    needs: [Codestyle-Check]

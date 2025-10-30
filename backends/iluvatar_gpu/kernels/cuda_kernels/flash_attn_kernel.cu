@@ -220,8 +220,12 @@ void FlashAttnUnpaddedBaseKernel(
     ixAttnbkdInfo.batch = batch_size;
     ixAttnbkdInfo.max_seq_len_src = max_seqlen_q;
     ixAttnbkdInfo.max_seq_len_trg = max_seqlen_k;
-    ixAttnbkdInfo.imp_mode =
-        FLAGS_imp_mode ? IXATTNBKD_FATTN_MEM_MODE : IXATTNBKD_FATTN_PERF_MODE;
+    // NOTE: The reason for bellow comment is that when using pip to
+    // install the pre-compiled whl file to run FD, the value assigned
+    // here is IXATTNBKD_FATTN_PERF_MODE instead of IXATTNBKD_FATTN_PERF_MODE.
+    // ixAttnbkdInfo.imp_mode =
+    //     FLAGS_imp_mode ? IXATTNBKD_FATTN_MEM_MODE : IXATTNBKD_FATTN_PERF_MODE;
+    ixAttnbkdInfo.imp_mode = IXATTNBKD_FATTN_MEM_MODE;
     ixAttnbkdInfo.accuracy_first = accuracy_first;
 
     ixAttnBkdDataType_t dataType;
@@ -743,8 +747,12 @@ void FlashAttnBaseKernel(
     ixAttnbkdInfo.batch = batch_size;
     ixAttnbkdInfo.max_seq_len_src = seqlen_q;
     ixAttnbkdInfo.max_seq_len_trg = seqlen_k;
-    ixAttnbkdInfo.imp_mode =
-        FLAGS_imp_mode ? IXATTNBKD_FATTN_MEM_MODE : IXATTNBKD_FATTN_PERF_MODE;
+    // NOTE: The reason for bellow comment is that when using pip to
+    // install the pre-compiled whl file to run FD, the value assigned
+    // here is IXATTNBKD_FATTN_PERF_MODE instead of IXATTNBKD_FATTN_PERF_MODE.
+    // ixAttnbkdInfo.imp_mode =
+    //     FLAGS_imp_mode ? IXATTNBKD_FATTN_MEM_MODE : IXATTNBKD_FATTN_PERF_MODE;
+    ixAttnbkdInfo.imp_mode = IXATTNBKD_FATTN_MEM_MODE;
     ixAttnbkdInfo.accuracy_first = accuracy_first;
 
     ixAttnBkdDataType_t dataType;

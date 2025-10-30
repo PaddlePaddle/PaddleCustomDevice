@@ -339,8 +339,13 @@ void FlashAttnUnpaddedGradBaseKernel(
     ixAttnbkdInfo.return_softmax_lse = false;
     ixAttnbkdInfo.philox_args =
         *(reinterpret_cast<ixAttnBkdPhiloxState*>(&philox_state));
-    ixAttnbkdInfo.imp_mode =
-        FLAGS_imp_mode ? IXATTNBKD_FATTN_MEM_MODE : IXATTNBKD_FATTN_PERF_MODE;
+    
+    // NOTE: The reason for bellow comment is that when using pip to
+    // install the pre-compiled whl file to run FD, the value assigned
+    // here is IXATTNBKD_FATTN_PERF_MODE instead of IXATTNBKD_FATTN_PERF_MODE.
+    // ixAttnbkdInfo.imp_mode =
+    //     FLAGS_imp_mode ? IXATTNBKD_FATTN_MEM_MODE : IXATTNBKD_FATTN_PERF_MODE;
+    ixAttnbkdInfo.imp_mode = IXATTNBKD_FATTN_MEM_MODE;
     ixAttnbkdInfo.is_unpad = true;
     ixAttnbkdInfo.batch = batch_size;
     ixAttnbkdInfo.max_seq_len_src = max_seqlen_q;
@@ -952,8 +957,12 @@ void FlashAttnGradBaseKernel(
     ixAttnbkdInfo.return_softmax_lse = false;
     ixAttnbkdInfo.philox_args =
         *(reinterpret_cast<ixAttnBkdPhiloxState*>(&philox_state));
-    ixAttnbkdInfo.imp_mode =
-        FLAGS_imp_mode ? IXATTNBKD_FATTN_MEM_MODE : IXATTNBKD_FATTN_PERF_MODE;
+    // NOTE: The reason for bellow comment is that when using pip to
+    // install the pre-compiled whl file to run FD, the value assigned
+    // here is IXATTNBKD_FATTN_PERF_MODE instead of IXATTNBKD_FATTN_PERF_MODE.
+    // ixAttnbkdInfo.imp_mode =
+    //     FLAGS_imp_mode ? IXATTNBKD_FATTN_MEM_MODE : IXATTNBKD_FATTN_PERF_MODE;
+    ixAttnbkdInfo.imp_mode = IXATTNBKD_FATTN_MEM_MODE;
     ixAttnbkdInfo.is_unpad = false;
     ixAttnbkdInfo.batch = batch_size;
     ixAttnbkdInfo.max_seq_len_src = seqlen_q;

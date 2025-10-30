@@ -226,6 +226,8 @@ class TestFusedBlockAttention:
             self.qkv_biases,
             self.new_rope.transpose([0, 1, 3, 2, 4]),
             self.residual,
+            None,
+            None,
             self.epsilon,
             self.head_dim,
             self.num_head,
@@ -274,6 +276,8 @@ class TestFusedBlockAttention:
             self.qkv_weights,
             self.qkv_biases,
             self.linear_weights_test,
+            None,
+            None,
             self.src_scale,
             self.qkv_weights_scale,
             self.qk_scale_x,
@@ -287,6 +291,7 @@ class TestFusedBlockAttention:
             scaling_factor=self.head_dim**-0.5,
             transpose=True,
             use_neox_style=True,
+            epsilon=self.epsilon,
         ).reshape([b, -1, h])
 
         assert paddle.allclose(

@@ -264,6 +264,12 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/fill_diagonal_tensor_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gelu_grad_kernel.cu)
 
+foreach(src ${CUDA_SRCS1})
+  if(NOT EXISTS ${src})
+    message(FATAL_ERROR "Missing CUDA source file: ${src}")
+  endif()
+endforeach()
+
 file(
   GLOB
   CUDA_SRCS2
@@ -897,6 +903,12 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/reduce_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/kps/reduce_max_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_kernel.cc)
+
+foreach(src ${CUDA_SRCS2})
+  if(NOT EXISTS ${src})
+    message(FATAL_ERROR "Missing CUDA source file: ${src}")
+  endif()
+endforeach()
 
 set(CUDA_SRCS ${CUDA_SRCS1} ${CUDA_SRCS2})
 list(REMOVE_DUPLICATES CUDA_SRCS)

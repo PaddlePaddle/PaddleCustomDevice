@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/c_embedding_grad_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/c_embedding_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(c_embedding_grad,
                           metax_gpu,

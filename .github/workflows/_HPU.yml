@@ -81,6 +81,7 @@ jobs:
       - name: RUN HPU
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
+          cd PaddleCustomDevice
           # !!!!! SKIP IF NO HPU CHANGE !!!!
           echo "=========== Checking PR Changes If HPU FULL CI Needed ==========="
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)

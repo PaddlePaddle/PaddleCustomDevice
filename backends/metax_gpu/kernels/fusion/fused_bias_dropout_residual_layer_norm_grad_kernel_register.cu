@@ -13,7 +13,7 @@
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/layer_norm_impl.cu.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_bias_dropout_residual_layer_norm_grad_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/fusion/gpu/fused_bias_dropout_residual_layer_norm_grad_kernel.h"
 #include "paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fused_bias_dropout_residual_layer_norm_grad,

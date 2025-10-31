@@ -1,4 +1,4 @@
-// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,15 +13,14 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/pad_grad_kernel.h"
+#include "paddle/phi/kernels/funcs/fused_gemm_epilogue.h"
+#include "paddle/phi/kernels/fusion/gpu/fused_gemm_epilogue_kernel.cu"  //NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(pad_grad,
+PD_CUSTOM_KERNEL_REGISTER(fused_gemm_epilogue,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::PadGradKernel,
+                          phi::fusion::FusedGemmEpilogueKernel,
                           float,
                           double,
                           phi::float16,
-                          phi::bfloat16,
-                          phi::complex64,
-                          phi::complex128) {}
+                          phi::bfloat16) {}

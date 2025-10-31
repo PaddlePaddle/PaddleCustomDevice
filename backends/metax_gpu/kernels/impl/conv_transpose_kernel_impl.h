@@ -14,12 +14,12 @@
 
 #pragma once
 
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/common/ddim.h"
 #include "paddle/common/layout.h"
 #include "paddle/phi/kernels/conv_transpose_kernel.h"
 #include "paddle/phi/kernels/cpu/conv_util.h"
 #include "paddle/phi/kernels/full_kernel.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/concat_and_split_functor.h"
 #include "paddle/phi/kernels/funcs/im2col.h"
 #include "paddle/phi/kernels/funcs/slice.h"

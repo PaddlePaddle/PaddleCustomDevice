@@ -14,8 +14,8 @@ limitations under the License. */
 
 #pragma once
 
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/cholesky_grad_kernel.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/for_range.h"
 
 namespace phi {

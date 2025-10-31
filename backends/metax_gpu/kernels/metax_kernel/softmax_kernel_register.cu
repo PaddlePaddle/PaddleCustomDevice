@@ -11,7 +11,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
-
+#if 0
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/bfloat16.h"
 #include "paddle/phi/common/float16.h"
@@ -27,3 +27,5 @@ PD_REGISTER_PLUGIN_KERNEL(softmax,
                           double,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
+
+#endif

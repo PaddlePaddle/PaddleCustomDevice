@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "kernels/funcs/blas/blas.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 
 namespace phi {
 

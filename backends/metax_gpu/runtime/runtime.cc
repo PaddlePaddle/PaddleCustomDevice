@@ -36,12 +36,12 @@
 #include <unordered_map>
 
 #include "glog/logging.h"
-#include "kernels/funcs/blas/cublasLt.h"
 #include "paddle/fluid/platform/profiler/cuda_tracer.h"
 #include "paddle/fluid/platform/profiler/cupti_data_process.h"
 #include "paddle/phi/api/profiler/trace_event_collector.h"
 #include "paddle/phi/backends/device_base.h"
 #include "paddle/phi/backends/device_ext.h"
+#include "paddle/phi/backends/dynload/cublasLt.h"
 #include "paddle/phi/backends/dynload/cupti.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/allocator.h"

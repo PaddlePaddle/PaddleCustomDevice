@@ -16,10 +16,10 @@
 
 #include <memory>
 
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/phi/backends/all_context.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/activation_functor.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/eigen/common.h"
 #include "paddle/utils/optional.h"
 namespace phi {

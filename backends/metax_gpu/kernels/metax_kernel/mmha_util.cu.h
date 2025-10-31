@@ -49,10 +49,10 @@
 
 #pragma once
 
-#if defined(__CUDACC__) && CUDA_VERSION >= 11000
+// #if defined(__CUDACC__) && CUDA_VERSION >= 11000
 #define ENABLE_BF16
 #include <cuda_bf16.h>
-#endif
+// #endif
 
 #ifdef PADDLE_WITH_HIP
 #include <float.h>
@@ -72,8 +72,8 @@ namespace cub = hipcub;
 #endif
 
 #include "paddle/phi/common/datatype_traits.h"
+#include "paddle/phi/kernels/funcs/aligned_vector.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
-
 #ifdef PADDLE_WITH_HIP
 /// integral_constant
 template <typename _Tp, _Tp __v>
@@ -130,7 +130,7 @@ struct Float4_ {
   float2 y;
 };
 
-#if defined(ENABLE_BF16) || defined(PADDLE_WITH_HIP)
+// #if defined(ENABLE_BF16) || defined(PADDLE_WITH_HIP)
 struct bf16_4_t {
   __nv_bfloat162 x;
   __nv_bfloat162 y;
@@ -142,7 +142,7 @@ struct bf16_8_t {
   __nv_bfloat162 z;
   __nv_bfloat162 w;
 };
-#endif
+// #endif
 
 //-----------------------------------
 template <typename T, CacheType CACHE_TYPE>

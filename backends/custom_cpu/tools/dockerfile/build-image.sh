@@ -16,7 +16,7 @@
 
 # BOTH for x86_64 and aarch64
 
-# ubuntu24.gcc84-py39
+# ubuntu24.gcc133-py39
 docker build --network=host -f Dockerfile.ubuntu24.$(uname -m).gcc133 \
   --build-arg PY_VERSION=3.9 \
   --build-arg http_proxy=${proxy} \
@@ -26,7 +26,7 @@ docker build --network=host -f Dockerfile.ubuntu24.$(uname -m).gcc133 \
   -t registry.baidubce.com/device/paddle-cpu:ubuntu24-$(uname -m)-gcc133-py39 .
 docker push registry.baidubce.com/device/paddle-cpu:ubuntu24-$(uname -m)-gcc133-py39
 
-# ubuntu24.gcc84-py310
+# ubuntu24.gcc133-py310
 docker build --network=host -f Dockerfile.ubuntu24.$(uname -m).gcc133 \
   --build-arg PY_VERSION=3.10 \
   --build-arg http_proxy=${proxy} \

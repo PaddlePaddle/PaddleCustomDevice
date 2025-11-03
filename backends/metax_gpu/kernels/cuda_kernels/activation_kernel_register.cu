@@ -14,8 +14,6 @@ limitations under the License. */
 
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
-#include "paddle/phi/common/bfloat16.h"
-#include "paddle/phi/common/float16.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/activation_kernel.h"
 #include "paddle/phi/kernels/full_kernel.h"
@@ -75,6 +73,19 @@ void ActivationGPUImpl(const Context& dev_ctx,
         dev_ctx, x, out, functor);                                      \
   }
 
+#define DEFINE_GPU_ACT_KERNEL_WITH_ONE_DOUBLE_ATTRS(name, functor_class, attr) \
+  template <typename T, typename Context>                                      \
+  void name##Kernel(const Context& dev_ctx,                                    \
+                    const DenseTensor& x,                                      \
+                    double attr,                                               \
+                    DenseTensor* out) {                                        \
+    funcs::functor_class<T> functor;                                           \
+    auto attrs = functor.GetAttrs();                                           \
+    *(attrs[0].second) = attr;                                                 \
+    ActivationGPUImpl<T, Context, funcs::functor_class<T>>(                    \
+        dev_ctx, x, out, functor);                                             \
+  }
+
 #define DEFINE_GPU_ACT_KERNEL_WITH_TWO_ATTRS(               \
     name, functor_class, attr1, attr2)                      \
   template <typename T, typename Context>                   \
@@ -90,6 +101,7 @@ void ActivationGPUImpl(const Context& dev_ctx,
     ActivationGPUImpl<T, Context, funcs::functor_class<T>>( \
         dev_ctx, x, out, functor);                          \
   }
+
 #define DEFINE_GPU_ACT_KERNEL_WITH_TWO_DOUBLE_ATTRS(        \
     name, functor_class, attr1, attr2)                      \
   template <typename T, typename Context>                   \
@@ -105,6 +117,7 @@ void ActivationGPUImpl(const Context& dev_ctx,
     ActivationGPUImpl<T, Context, funcs::functor_class<T>>( \
         dev_ctx, x, out, functor);                          \
   }
+
 DEFINE_GPU_ACTIVATION_KERNEL(Cos, CudaCosFunctor)
 DEFINE_GPU_ACTIVATION_KERNEL(Tan, CudaTanFunctor)
 DEFINE_GPU_ACTIVATION_KERNEL(Acos, CudaAcosFunctor)
@@ -138,8 +151,10 @@ DEFINE_GPU_ACTIVATION_KERNEL_WITH_INT_IN_FLOAT_OUT(Log1p, CudaLog1pFunctor)
 DEFINE_GPU_ACTIVATION_KERNEL_WITH_INT_IN_FLOAT_OUT(Exp, CudaExpFunctor)
 DEFINE_GPU_ACTIVATION_KERNEL_WITH_INT_IN_FLOAT_OUT(Expm1, CudaExpm1Functor)
 
-DEFINE_GPU_ACT_KERNEL_WITH_ONE_ATTRS(LeakyRelu, CudaLeakyReluFunctor, alpha)
-DEFINE_GPU_ACT_KERNEL_WITH_ONE_ATTRS(LogitCUDA, CudaLogitFunctor, eps)
+DEFINE_GPU_ACT_KERNEL_WITH_ONE_DOUBLE_ATTRS(LeakyRelu,
+                                            CudaLeakyReluFunctor,
+                                            alpha)
+DEFINE_GPU_ACT_KERNEL_WITH_ONE_DOUBLE_ATTRS(LogitCUDA, CudaLogitFunctor, eps)
 DEFINE_GPU_ACT_KERNEL_WITH_ONE_ATTRS(HardShrink,
                                      CudaHardShrinkFunctor,
                                      threshold)
@@ -286,13 +301,9 @@ void PowKernel(const Context& dev_ctx,
 }  // namespace phi
 
 #ifdef PADDLE_WITH_HIP
-PD_CUSTOM_KERNEL_REGISTER(relu,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::ReluKernel,
-                          float,
-                          double,
-                          phi::dtype::float16) {}
+PD_CUSTOM_KERNEL_REGISTER(
+    relu, metax_gpu, ALL_LAYOUT, phi::ReluKernel, float, double, phi::float16) {
+}
 #else
 PD_CUSTOM_KERNEL_REGISTER(relu,
                           metax_gpu,
@@ -300,8 +311,8 @@ PD_CUSTOM_KERNEL_REGISTER(relu,
                           phi::ReluKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 #endif
 
 #define PD_REGISTER_ACTIVATION_KERNEL(name, func) \
@@ -311,8 +322,8 @@ PD_CUSTOM_KERNEL_REGISTER(relu,
                             phi::func,            \
                             float,                \
                             double,               \
-                            phi::dtype::float16,  \
-                            phi::dtype::bfloat16) {}
+                            phi::float16,         \
+                            phi::bfloat16) {}
 
 #define PD_REGISTER_ACTIVATION_KERNEL_WITH_COMPLEX(name, func) \
   PD_CUSTOM_KERNEL_REGISTER(name,                              \
@@ -321,10 +332,10 @@ PD_CUSTOM_KERNEL_REGISTER(relu,
                             phi::func,                         \
                             float,                             \
                             double,                            \
-                            phi::dtype::float16,               \
-                            phi::dtype::bfloat16,              \
-                            phi::dtype::complex<float>,        \
-                            phi::dtype::complex<double>) {}
+                            phi::float16,                      \
+                            phi::bfloat16,                     \
+                            phi::complex64,                    \
+                            phi::complex128) {}
 
 PD_REGISTER_ACTIVATION_KERNEL_WITH_COMPLEX(sin, SinKernel)
 PD_REGISTER_ACTIVATION_KERNEL_WITH_COMPLEX(cos, CosKernel)
@@ -357,10 +368,10 @@ PD_CUSTOM_KERNEL_REGISTER(exp,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}
 PD_CUSTOM_KERNEL_REGISTER(expm1,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -369,10 +380,10 @@ PD_CUSTOM_KERNEL_REGISTER(expm1,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}
 PD_CUSTOM_KERNEL_REGISTER(square,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -381,10 +392,10 @@ PD_CUSTOM_KERNEL_REGISTER(square,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}
 
 PD_REGISTER_ACTIVATION_KERNEL(hard_shrink, HardShrinkKernel)
 PD_REGISTER_ACTIVATION_KERNEL(softshrink, SoftShrinkKernel)
@@ -409,8 +420,8 @@ PD_CUSTOM_KERNEL_REGISTER(rint,
                           int64_t,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(round,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -419,10 +430,10 @@ PD_CUSTOM_KERNEL_REGISTER(round,
                           int64_t,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}
 PD_CUSTOM_KERNEL_REGISTER(log,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -431,10 +442,10 @@ PD_CUSTOM_KERNEL_REGISTER(log,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}
 PD_CUSTOM_KERNEL_REGISTER(log2,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -443,10 +454,10 @@ PD_CUSTOM_KERNEL_REGISTER(log2,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}
 PD_CUSTOM_KERNEL_REGISTER(log10,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -455,10 +466,10 @@ PD_CUSTOM_KERNEL_REGISTER(log10,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}
 PD_CUSTOM_KERNEL_REGISTER(log1p,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -467,10 +478,10 @@ PD_CUSTOM_KERNEL_REGISTER(log1p,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}
 PD_CUSTOM_KERNEL_REGISTER(pow,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -479,10 +490,10 @@ PD_CUSTOM_KERNEL_REGISTER(pow,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}
 PD_CUSTOM_KERNEL_REGISTER(ceil,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -494,8 +505,8 @@ PD_CUSTOM_KERNEL_REGISTER(ceil,
                           int16_t,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(floor,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -507,5 +518,5 @@ PD_CUSTOM_KERNEL_REGISTER(floor,
                           int16_t,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

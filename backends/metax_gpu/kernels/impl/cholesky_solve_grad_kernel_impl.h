@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/cholesky_solve_grad_kernel.h"
 #include "paddle/phi/kernels/cholesky_solve_kernel.h"
 #include "paddle/phi/kernels/complex_kernel.h"
@@ -22,6 +21,7 @@
 #include "paddle/phi/kernels/empty_kernel.h"
 #include "paddle/phi/kernels/expand_kernel.h"
 #include "paddle/phi/kernels/full_kernel.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/common_shape.h"
 #include "paddle/phi/kernels/funcs/complex_functors.h"
 #include "paddle/phi/kernels/funcs/for_range.h"

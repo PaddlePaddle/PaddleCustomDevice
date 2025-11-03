@@ -15,9 +15,9 @@
 #pragma once
 
 #include "paddle/phi/infermeta/binary.h"
-// #include "paddle/phi/kernels/funcs/blas/blas.h"
+// #include "paddle/phi/paddle/phi/kernels/funcs/blas/blas.h"
 
-#include "kernels/funcs/blas/blas.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/funcs/matrix_solve.h"
 #include "paddle/phi/kernels/impl/lu_kernel_impl.h"

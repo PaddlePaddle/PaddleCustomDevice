@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "kernels/funcs/blas/blas.h"
-#include "kernels/impl/matmul_grad_kernel_impl.h"
 #include "paddle/phi/kernels/bmm_grad_kernel.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
+#include "paddle/phi/kernels/impl/matmul_grad_kernel_impl.h"
 
 namespace phi {
 

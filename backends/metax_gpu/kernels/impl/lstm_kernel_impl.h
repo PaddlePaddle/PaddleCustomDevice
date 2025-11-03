@@ -15,8 +15,8 @@
 #pragma once
 #include <string>
 
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/detail/activation_functions.h"
 #include "paddle/phi/kernels/funcs/lstm_compute.h"
 #include "paddle/phi/kernels/funcs/lstm_utils.h"

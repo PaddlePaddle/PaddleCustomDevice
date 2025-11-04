@@ -14,7 +14,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/core/mixed_vector.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_seqpool_cvm_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/fused_seqpool_cvm_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fused_seqpool_cvm,
                           metax_gpu,

@@ -25,6 +25,15 @@ bash build_paddle.sh
 bash install_paddle.sh
 ```
 
+## 增量编译（代码修改后更快地重新编译）
+```bash
+# 增量编译（代码修改后更快地重新编译，会一并安装whl包）
+bash build_inc.sh
+
+# 清理构建环境（删除构建目录、还原补丁并重置状态）
+bash build_inc.sh --clean
+```
+
 ## 验证
 
 ```bash

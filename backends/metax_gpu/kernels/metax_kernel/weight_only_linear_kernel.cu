@@ -166,7 +166,7 @@ void WeightOnlyLinearKernel(const Context& dev_ctx,
           mctlassGemmScaleOp_w4a16_nobias::epilogueParams(
               reinterpret_cast<const maca_bfloat16*>(bias_data)),
           mctlassGemmScaleOp_w4a16_nobias::quantscaleParams(
-              1,
+              2,
               group_size,
               reinterpret_cast<const maca_bfloat16*>(weight_scale_data)),
           reinterpret_cast<const maca_bfloat16*>(x_data),
@@ -191,7 +191,7 @@ void WeightOnlyLinearKernel(const Context& dev_ctx,
           mctlassGemmScaleOp_w4a16_bias::epilogueParams(
               reinterpret_cast<const maca_bfloat16*>(bias_data)),
           mctlassGemmScaleOp_w4a16_bias::quantscaleParams(
-              1,
+              2,
               group_size,
               reinterpret_cast<const maca_bfloat16*>(weight_scale_data)),
           reinterpret_cast<const maca_bfloat16*>(x_data),

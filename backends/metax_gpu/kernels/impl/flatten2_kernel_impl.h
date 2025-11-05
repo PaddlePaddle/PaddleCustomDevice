@@ -15,10 +15,10 @@
 #pragma once
 #include <vector>
 
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/empty_kernel.h"
 #include "paddle/phi/kernels/flatten_grad_kernel.h"
 #include "paddle/phi/kernels/flatten_kernel.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/flatten2_utils.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 

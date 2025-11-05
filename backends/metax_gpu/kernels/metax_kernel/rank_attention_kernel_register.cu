@@ -17,8 +17,8 @@
 #include "paddle/phi/backends/gpu/gpu_info.h"
 #include "paddle/phi/backends/gpu/gpu_primitives.h"
 #include "paddle/phi/core/kernel_registry.h"
-// #include "paddle/phi/kernels/funcs/blas/blas.h"
-#include "kernels/funcs/blas/blas.h"
+// #include "paddle/phi/paddle/phi/kernels/funcs/blas/blas.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/eigen/common.h"
 #include "paddle/phi/kernels/funcs/rank_attention.cu.h"
 

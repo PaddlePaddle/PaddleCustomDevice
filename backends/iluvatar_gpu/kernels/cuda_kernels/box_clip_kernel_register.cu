@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/box_clip_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/box_clip_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(
     box_clip, iluvatar_gpu, ALL_LAYOUT, phi::GPUBoxClipKernel, float, double) {}

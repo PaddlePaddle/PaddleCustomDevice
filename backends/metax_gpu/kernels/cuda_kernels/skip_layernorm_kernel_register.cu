@@ -15,7 +15,7 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/core/tensor_utils.h"
 #include "paddle/phi/kernels/funcs/skip_layernorm_functor.h"
-#include "paddle/phi/kernels/fusion/gpu/skip_layernorm_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/fusion/gpu/skip_layernorm_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(skip_layernorm,
                           metax_gpu,

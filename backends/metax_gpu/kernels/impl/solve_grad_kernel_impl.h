@@ -14,11 +14,11 @@ limitations under the License. */
 
 #pragma once
 
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/phi/backends/cpu/cpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/kernels/expand_as_kernel.h"
 #include "paddle/phi/kernels/full_kernel.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/funcs/matrix_solve.h"
 #include "paddle/phi/kernels/funcs/reduce_function.h"

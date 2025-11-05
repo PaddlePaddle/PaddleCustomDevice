@@ -1,7 +1,7 @@
-From 7d13b1862e5d53ec0522658739cc9436d8705a03 Mon Sep 17 00:00:00 2001
+From 324cbc0e4e73cdf3e6db941ad6eb25fdfad43da6 Mon Sep 17 00:00:00 2001
 From: tianyuzhou668 <2431054748@qq.com>
-Date: Fri, 17 Oct 2025 14:46:27 +0800
-Subject: [PATCH] [ILUVATAR_GPU] Fix bug
+Date: Tue, 4 Nov 2025 14:49:01 +0800
+Subject: [PATCH] Fix
 
 ---
  CMakeLists.txt                                |  2 +-
@@ -23,7 +23,7 @@ Subject: [PATCH] [ILUVATAR_GPU] Fix bug
  paddle/phi/core/distributed/nccl_tools.cc     |  2 +-
  paddle/phi/core/enforce.h                     |  6 +-
  paddle/phi/core/utils/data_type.h             |  2 +-
- paddle/phi/kernels/funcs/activation_functor.h |  2 +
+ paddle/phi/kernels/funcs/activation_functor.h | 20 +++++
  paddle/phi/kernels/funcs/affine_grid_utils.h  |  2 +
  paddle/phi/kernels/funcs/blas/blas_impl.cu.h  | 18 ++++-
  paddle/phi/kernels/funcs/cufft_util.h         | 80 +++++++++++++++++++
@@ -43,7 +43,7 @@ Subject: [PATCH] [ILUVATAR_GPU] Fix bug
  paddle/phi/kernels/squeeze_kernel.cc          |  2 +
  paddle/phi/kernels/strided_slice_kernel.cc    |  2 +
  paddle/phi/kernels/unsqueeze_kernel.cc        |  2 +
- 39 files changed, 226 insertions(+), 69 deletions(-)
+ 39 files changed, 244 insertions(+), 69 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 1a4460a3be..b6c6b4a797 100755
@@ -459,10 +459,10 @@ index 1d20fa3173..fab2b90ed2 100644
      return ncclBfloat16;
  #endif
 diff --git a/paddle/phi/kernels/funcs/activation_functor.h b/paddle/phi/kernels/funcs/activation_functor.h
-index 4d494e5839..55d54e7d3a 100644
+index 714a570b85..cb4c3a1944 100644
 --- a/paddle/phi/kernels/funcs/activation_functor.h
 +++ b/paddle/phi/kernels/funcs/activation_functor.h
-@@ -3708,12 +3708,14 @@ struct CudaReciprocalFunctor<ComplexType<T>>
+@@ -3712,12 +3712,14 @@ struct CudaReciprocalFunctor<ComplexType<T>>
        return ::isnan(real) || ::isnan(imag);
      };
      if (either_nan(x.real, x.imag) || both_inf(x.real, x.imag)) {
@@ -477,6 +477,38 @@ index 4d494e5839..55d54e7d3a 100644
      } else if (either_inf(x.real, x.imag)) {
        // If either is Inf, return {0, 0}
        return ComplexType<T>(static_cast<T>(0), static_cast<T>(0));
+@@ -5226,6 +5228,23 @@ struct CudaHardSigmoidGradFunctor : public BaseActivationFunctor<T> {
+   }
+ };
+ 
++#ifdef PADDLE_WITH_COREX
++template <typename T>
++__device__ __forceinline__
++    std::conditional_t<std::is_integral<T>::value, float, T>
++    log_local(T x) {
++  static_assert(!std::is_same<T, float>::value,
++                "this template must be used with float or less precise type");
++
++  return static_cast<std::conditional_t<std::is_integral<T>::value, float, T>>(
++      ::log(static_cast<float>(x)));
++}
++
++template <>
++__device__ __forceinline__ float log_local<float>(float x) {
++  return ::log(x);
++}
++#else
+ template <typename T>
+ __device__ __forceinline__
+     std::conditional_t<std::is_integral<T>::value, float, T>
+@@ -5241,6 +5260,7 @@ template <>
+ __device__ __forceinline__ double log_local<double>(double x) {
+   return ::log(x);
+ }
++#endif
+ 
+ template <typename T>
+ struct CudaLogFunctor : public BaseActivationFunctor<T> {
 diff --git a/paddle/phi/kernels/funcs/affine_grid_utils.h b/paddle/phi/kernels/funcs/affine_grid_utils.h
 index b973d75a9b..daeb4778c6 100644
 --- a/paddle/phi/kernels/funcs/affine_grid_utils.h

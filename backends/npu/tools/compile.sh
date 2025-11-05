@@ -51,6 +51,7 @@ Configuring cmake in build ...
 EOF
 
 set +e
+git submodule update --init --recursive --force
 cmake .. \
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-Release} \
     -DWITH_TESTING=${WITH_TESTING:-ON} \

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_softmax_mask_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/fused_softmax_mask_kernel.h"
 #include "paddle/phi/kernels/fusion/gpu/fused_softmax_mask_utils.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fused_softmax_mask,

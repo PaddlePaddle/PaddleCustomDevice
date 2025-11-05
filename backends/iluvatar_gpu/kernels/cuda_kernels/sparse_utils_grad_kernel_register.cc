@@ -20,12 +20,26 @@ PD_CUSTOM_KERNEL_REGISTER(sparse_coo_tensor_grad,
                           ALL_LAYOUT,
                           phi::sparse::SparseCooTensorGradKernel,
                           float,
-                          double,
                           uint8_t,
                           int16_t,
                           int,
                           int64_t,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {
+                          phi::dtype::complex<float>) {
   kernel->InputAt(1).SetDataLayout(phi::DataLayout::SPARSE_COO);
+}
+
+PD_CUSTOM_KERNEL_REGISTER(values_coo_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::sparse::ValuesCooGradKernel,
+                          float,
+                          phi::float16,
+                          uint8_t,
+                          int8_t,
+                          int16_t,
+                          int,
+                          int64_t,
+                          bool,
+                          phi::dtype::complex<float>) {
+  kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_COO);
 }

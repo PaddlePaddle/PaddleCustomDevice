@@ -20,6 +20,8 @@ PD_CUSTOM_KERNEL_REGISTER(pad_grad,
                           ALL_LAYOUT,
                           phi::PadGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>) {}
+                          double,
+                          phi::float16,
+                          phi::bfloat16,
+                          phi::complex64,
+                          phi::complex128) {}

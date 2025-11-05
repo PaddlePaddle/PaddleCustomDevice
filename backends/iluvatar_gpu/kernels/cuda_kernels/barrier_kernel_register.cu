@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/barrier_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/barrier_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(
     barrier, iluvatar_gpu, ALL_LAYOUT, phi::BarrierKernel, int) {}

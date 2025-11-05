@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/phi/core/dense_tensor.h"
 #include "paddle/phi/kernels/full_kernel.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 namespace phi {
 
 template <typename Context, typename T>

@@ -14,7 +14,7 @@
 
 #include "paddle/ap/include/kernel_dispatch/ap_variadic_kernel.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/ap_variadic_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/ap_variadic_kernel.h"
 
 #ifdef PADDLE_WITH_HIP
 PD_CUSTOM_KERNEL_REGISTER(ap_variadic,

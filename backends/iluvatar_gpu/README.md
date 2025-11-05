@@ -24,6 +24,14 @@ bash build_paddle.sh
 # Install
 bash install_paddle.sh
 ```
+## For incremental compilation（faster rebuilds after code changes）
+```bash
+# For incremental compilation (faster rebuilds after code changes, also installs whl)
+bash build_inc.sh
+
+# Clean build environment (removes build directories, reverts patches, and resets state)
+bash build_inc.sh --clean
+```
 
 ## Verification
 

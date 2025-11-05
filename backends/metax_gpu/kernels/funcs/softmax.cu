@@ -13,13 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 #include <vector>
 
+#include "glog/logging.h"
 #include "kernels/metax_kernel/metax_context.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/funcs/softmax.h"
 #include "paddle/phi/kernels/funcs/softmax_impl.h"
-
 namespace phi {
 namespace funcs {
 
@@ -38,6 +38,7 @@ void SoftmaxCUDNNFunctor<T, DeviceContext>::operator()(
   ScopedTensorDescriptor yDesc;
   std::vector<int> cudnn_tensor_dims = common::vectorize<int>(X->dims());
   DataLayout layout = DataLayout::kNCHW;
+  VLOG(0) << "Enter softmax Kernel22.";
   if (cudnn_tensor_dims.size() == 5) {
     layout = DataLayout::kNCDHW;
   }

@@ -18,7 +18,7 @@ limitations under the License. */
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/complex.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "kernels/impl/matmul_kernel_impl.h"
+#include "paddle/phi/kernels/impl/matmul_kernel_impl.h"
 
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)

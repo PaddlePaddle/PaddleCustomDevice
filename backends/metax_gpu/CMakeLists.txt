@@ -109,6 +109,10 @@ file(
   CUDA_SRCS
   # backends
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_info.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/dynamic_loader.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublas.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublasLt.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cudnn.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cuda_driver.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_graph.cc
   # Core
@@ -120,6 +124,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu
   # kernels/gpu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/spectral_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adamw_kernel.cu
@@ -148,6 +153,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/ap_facade_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/barrier_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/box_clip_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_embedding_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_embedding_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cast_kernel.cu
@@ -156,6 +162,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/concat_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/concat_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/compare_kerc_idfuncsnel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/correlation_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/dist_kernel.cu
@@ -381,6 +388,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/maxout_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/p_send_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/momentum_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/psroi_pool_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/pixel_shuffle_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lu_unpack_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/nll_loss_grad_kernel.cu
@@ -700,7 +708,6 @@ file(
   kernels/gpudnn/*.cu
   kernels/cuda_kernels/*.cc
   kernels/cuda_kernels/*.cu
-  kernels/funcs/blas/*.cc
   kernels/ernie_core/*.cu)
 
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS} ${ERNIE_CORE_SRCS})
@@ -748,11 +755,28 @@ target_compile_definitions(
   PUBLIC PADDLE_WITH_CUDA=1
          PADDLE_WITH_CUSTOM_DEVICE=1
          mcblasContext=cublasContext
+         cublasLtContext=mcblasLtContext
          GPUContext=CustomContext
          KPSContext=CustomContext
          STREAM_TYPE=cudaStream_t
          EVENT_TYPE=cudaEvent_t
-         EIGEN_USE_GPU=1)
+         EIGEN_USE_GPU=1
+         CUDA_LIB_NAME="libmcruntime.so"
+         BLAS_LIB_NAME="libmcblas.so"
+         BLASLT_LIB_NAME="libmcblasLt.so"
+         DNN_LIB_NAME="libmcdnn.so"
+         PTI_LIB_NAME="libmcpti.so"
+         RAND_LIB_NAME="libcurand.so"
+         JPEG_LIB_NAME="libnvjpeg.so"
+         SOLVER_LIB_NAME="libmcsolver.so"
+         SPARSE_LIB_NAME="libmcsparse.so"
+         RTC_LIB_NAME="libmcruntime.so"
+         FLASHATTN_LIB_NAME="libmcFlashAttn.so"
+         FLASHATTNV3_LIB_NAME="libflashattnv3.so"
+         CCL_LIB_NAME="libmccl.so"
+         FFT_LIB_NAME="libcufft.so"
+         SPARSELT_LIB_NAME="libcusparseLt.so"
+         CUPTI_LIB_PATH="/root/cu-bridge/CUDA_DIR/extras/CUPTI/lib64")
 
 # packing wheel package
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in

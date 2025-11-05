@@ -13,13 +13,12 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/psroi_pool_grad_kernel.h"
-
-PD_CUSTOM_KERNEL_REGISTER(psroi_pool_grad,
-                          iluvatar_gpu,
+#include "paddle/phi/kernels/fusion/gpu/fused_linear_param_grad_add_kernel.cu"  //NOLINT
+PD_CUSTOM_KERNEL_REGISTER(fused_linear_param_grad_add,
+                          metax_gpu,
                           ALL_LAYOUT,
-                          phi::PsroiPoolGradKernel,
+                          phi::fusion::FusedLinearParamGradAdd,
                           float,
-                          double) {
-  kernel->InputAt(2).SetDataType(phi::CppTypeToDataType<int>::Type());
-}
+                          double,
+                          phi::float16,
+                          phi::bfloat16) {}

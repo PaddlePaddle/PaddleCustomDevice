@@ -20,7 +20,7 @@ limitations under the License. */
 #include "glog/logging.h"
 
 #include "paddle/phi/kernels/addmm_kernel.h"
-#include "../funcs/blas/blas.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/eigen/common.h"
 #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
 // clang-format on

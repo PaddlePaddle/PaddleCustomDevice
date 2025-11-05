@@ -22,7 +22,7 @@ void Pad3dKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::IntArray& paddings_array,
                  const std::string& mode,
-                 float pad_value,
+                 double pad_value,
                  const std::string& data_format,
                  phi::DenseTensor* out) {
   auto in_dims = x.dims();
@@ -80,7 +80,7 @@ void Pad3dGradKernel(const Context& dev_ctx,
                      const phi::DenseTensor& out_grad,
                      const phi::IntArray& paddings_array,
                      const std::string& mode,
-                     float pad_value,
+                     double pad_value,
                      const std::string& data_format,
                      phi::DenseTensor* x_grad) {
   auto x_grad_dims = x_grad->dims();

@@ -13,13 +13,14 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/psroi_pool_grad_kernel.h"
+#include "paddle/phi/kernels/funcs/fused_gemm_epilogue.h"
+#include "paddle/phi/kernels/fusion/gpu/fused_gemm_epilogue_kernel.cu"  //NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(psroi_pool_grad,
-                          iluvatar_gpu,
+PD_CUSTOM_KERNEL_REGISTER(fused_gemm_epilogue,
+                          metax_gpu,
                           ALL_LAYOUT,
-                          phi::PsroiPoolGradKernel,
+                          phi::fusion::FusedGemmEpilogueKernel,
                           float,
-                          double) {
-  kernel->InputAt(2).SetDataType(phi::CppTypeToDataType<int>::Type());
-}
+                          double,
+                          phi::float16,
+                          phi::bfloat16) {}

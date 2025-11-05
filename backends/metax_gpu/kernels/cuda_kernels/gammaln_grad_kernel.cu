@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/phi/backends/gpu/gpu_context.h"
+#include "paddle/phi/common/amp_type_traits.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/psroi_pool_grad_kernel.h"
+#include "paddle/phi/kernels/gammaln_grad_kernel.h"
+#include "paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h"
 
-PD_CUSTOM_KERNEL_REGISTER(psroi_pool_grad,
-                          iluvatar_gpu,
+PD_CUSTOM_KERNEL_REGISTER(gammaln_grad,
+                          metax_gpu,
                           ALL_LAYOUT,
-                          phi::PsroiPoolGradKernel,
+                          phi::GammalnGradKernel,
                           float,
-                          double) {
-  kernel->InputAt(2).SetDataType(phi::CppTypeToDataType<int>::Type());
-}
+                          double,
+                          phi::float16,
+                          phi::bfloat16) {}

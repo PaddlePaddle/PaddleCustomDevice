@@ -18,6 +18,22 @@ index cfada544d4..a690e97d74 100644
  endif()
  
  set(EIGEN_INCLUDE_DIR ${SOURCE_DIR})
+diff --git a/paddle/fluid/operators/fused/CMakeLists.txt b/paddle/fluid/operators/fused/CMakeLists.txt
+index 99a0116d92..2566e7c41a 100755
+--- a/paddle/fluid/operators/fused/CMakeLists.txt
++++ b/paddle/fluid/operators/fused/CMakeLists.txt
+@@ -43,6 +43,11 @@ if(WITH_GPU OR WITH_ROCM)
+     op_library(fused_multi_transformer_int8_op)
+   endif()
+ 
++  if 1
++  op_library(fused_gemm_epilogue_op)
++  endif()
++
++
+   if(CUDA_VERSION GREATER_EQUAL 11.6)
+     op_library(fused_gemm_epilogue_op)
+   endif()
 diff --git a/paddle/fluid/platform/profiler/cupti_data_process.cc b/paddle/fluid/platform/profiler/cupti_data_process.cc
 index bff0f2bf70..9376b5781f 100644
 --- a/paddle/fluid/platform/profiler/cupti_data_process.cc
@@ -31,6 +47,56 @@ index bff0f2bf70..9376b5781f 100644
  #include "paddle/phi/core/os_info.h"
  #include "paddle/phi/core/platform/device/gpu/gpu_info.h"
  #include "paddle/phi/core/platform/profiler/utils.h"
+diff --git a/paddle/phi/backends/dynload/cublas.h b/paddle/phi/backends/dynload/cublas.h
+index 62beb53cfe..0b0ac09fc0 100644
+--- a/paddle/phi/backends/dynload/cublas.h
++++ b/paddle/phi/backends/dynload/cublas.h
+@@ -49,7 +49,12 @@ extern void *cublas_dso_handle;
+       std::call_once(cublas_dso_flag, []() {                                \
+         cublas_dso_handle = phi::dynload::GetCublasDsoHandle();             \
+       });                                                                   \
+-      static void *p_##__name = dlsym(cublas_dso_handle, #__name);          \
++      std::string replaced_name = #__name;                                  \
++      replaced_name = replaced_name.replace(0, 2, "mc");                    \
++      int index = replaced_name.find("_", 0);                               \
++      if (index != -1) replaced_name = replaced_name.substr(0, index);      \
++      static void* p_##__name =                                             \
++          dlsym(cublas_dso_handle, replaced_name.c_str());                  \
+       return reinterpret_cast<cublas_func>(p_##__name)(args...);            \
+     }                                                                       \
+   };                                                                        \
+diff --git a/paddle/phi/backends/dynload/cublasLt.h b/paddle/phi/backends/dynload/cublasLt.h
+index 8b2e08c777..ca926df151 100644
+--- a/paddle/phi/backends/dynload/cublasLt.h
++++ b/paddle/phi/backends/dynload/cublasLt.h
+@@ -46,12 +46,14 @@ extern void *cublasLt_dso_handle;
+       std::call_once(cublasLt_dso_flag, []() {                              \
+         cublasLt_dso_handle = phi::dynload::GetCublasLtDsoHandle();         \
+       });                                                                   \
+-      static void *p_##__name = dlsym(cublasLt_dso_handle, #__name);        \
++      std::string replaced_name = #__name;                                  \
++      replaced_name = replaced_name.replace(0, 2, "mc");                    \
++      static void* p_##__name =                                             \
++          dlsym(cublasLt_dso_handle, replaced_name.c_str());                \
+       return reinterpret_cast<cublasLt_func>(p_##__name)(args...);          \
+     }                                                                       \
+   };                                                                        \
+   extern DynLoad__##__name __name
+-
+ // APIs available after CUDA 11.1
+ #if CUDA_VERSION >= 11010 || defined(PADDLE_WITH_CUSTOM_DEVICE)
+ #define CUBLASLT_BLAS_ROUTINE_EACH(__macro)         \
+@@ -79,8 +81,8 @@ extern void *cublasLt_dso_handle;
+   __macro(cublasLtMatmulAlgoConfigGetAttribute);    \
+   __macro(cublasLtMatmulAlgoGetIds);                \
+   __macro(cublasLtMatmulAlgoCapGetAttribute);       \
+-  __macro(cublasLtMatmulAlgoCheck);                 \
+-  __macro(cublasLtGetCudartVersion);
++  __macro(cublasLtMatmulAlgoCheck);
++  // __macro(cublasLtGetCudartVersion);
+ #else
+ #define CUBLASLT_BLAS_ROUTINE_EACH(__macro)      \
+   __macro(cublasLtCreate);                       \
 diff --git a/paddle/phi/backends/dynload/cudnn.h b/paddle/phi/backends/dynload/cudnn.h
 index c0080f0a5e..458ca3e2e8 100644
 --- a/paddle/phi/backends/dynload/cudnn.h
@@ -210,6 +276,29 @@ index 8ec3cf2792..6f5460df00 100644
        return reinterpret_cast<Func>(p_##__name)(args...);            \
      }                                                                \
    };                                                                 \
+diff --git a/paddle/phi/backends/dynload/dynamic_loader.cc b/paddle/phi/backends/dynload/dynamic_loader.cc
+index 859f696896..87b5100a1b 100644
+--- a/paddle/phi/backends/dynload/dynamic_loader.cc
++++ b/paddle/phi/backends/dynload/dynamic_loader.cc
+@@ -18,7 +18,6 @@ limitations under the License. */
+ #include <cstdlib>
+ #include <string>
+ #include <vector>
+-#include "paddle/phi/backends/dynload/cupti_lib_path.h"
+ #include "paddle/phi/common/port.h"
+ #include "paddle/phi/core/enforce.h"
+ 
+@@ -108,6 +107,10 @@ COMMON_DECLARE_string(win_cuda_bin_dir);
+ #define SPARSELT_LIB_NAME "libcusparseLt.so"
+ #endif
+ 
++#ifndef CUPTI_LIB_PATH
++#define CUPTI_LIB_PATH "@CUPTI_LIBRARY_PATH@"
++#endif
++
+ #ifdef PADDLE_WITH_HIP
+ 
+ PHI_DEFINE_string(miopen_dir,
 diff --git a/paddle/phi/backends/dynload/nvjpeg.h b/paddle/phi/backends/dynload/nvjpeg.h
 index c5309e7e11..3328571380 100644
 --- a/paddle/phi/backends/dynload/nvjpeg.h
@@ -346,21 +435,10 @@ index 4ff2e528a9..23f7f4b583 100644
  
    for (int offset = warpSize / 2; offset > 0; offset /= 2)
 diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
-index 024a7de73e..1e4cdf16be 100644
+index 024a7de73e..66b373d698 100644
 --- a/paddle/phi/core/enforce.h
 +++ b/paddle/phi/core/enforce.h
-@@ -45,7 +45,9 @@ limitations under the License. */
- #endif
- 
- #ifdef PADDLE_WITH_CUDA
--#include "paddle/phi/backends/dynload/cublas.h"
-+// #include "paddle/phi/backends/dynload/../../../../../cublas.h"
-+#include "../backends/metax_gpu/kernels/funcs/blas/cublas.h"
-+// #include "paddle/phi/backends/dynload/cublas.h"
- #include "paddle/phi/backends/dynload/cudnn.h"
- #include "paddle/phi/backends/dynload/curand.h"
- #include "paddle/phi/backends/dynload/cusolver.h"
-@@ -97,7 +99,7 @@ inline bool is_error(bool stat) { return !stat; }
+@@ -97,7 +97,7 @@ inline bool is_error(bool stat) { return !stat; }
  
  void ThrowWarnInternal(const std::string& message);
  
@@ -369,75 +447,280 @@ index 024a7de73e..1e4cdf16be 100644
  // For cuda, the assertions can affect performance and it is therefore
  // recommended to disable them in production code
  // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#assertion
-@@ -109,7 +111,7 @@ void ThrowWarnInternal(const std::string& message);
+@@ -109,7 +109,7 @@ void ThrowWarnInternal(const std::string& message);
               __LINE__,                                             \
               #_IS_NOT_ERROR,                                       \
               ##__VA_ARGS__);                                       \
 -      asm("trap;");                                                \
-+      __builtin_trap();                                             \
++      __builtin_trap();                                            \
      }                                                              \
    } while (0)
  #elif defined(__HIPCC__)
-@@ -757,4 +759,4 @@ inline void retry_sleep(unsigned millisecond) {
+diff --git a/paddle/phi/kernels/funcs/blas/blas_impl.cu.h b/paddle/phi/kernels/funcs/blas/blas_impl.cu.h
+index ae7b67de6d..9ac725314f 100644
+--- a/paddle/phi/kernels/funcs/blas/blas_impl.cu.h
++++ b/paddle/phi/kernels/funcs/blas/blas_impl.cu.h
+@@ -218,11 +218,27 @@ struct CUBlas<float> {
+   }
+ };
  
- }  // namespace enforce
- using namespace enforce;  // NOLINT
--}  // namespace phi
-+}  // namespace phi
-\ No newline at end of file
-diff --git a/paddle/phi/core/platform/device/gpu/gpu_types.h b/paddle/phi/core/platform/device/gpu/gpu_types.h
-index c646e487d0..325122175c 100644
---- a/paddle/phi/core/platform/device/gpu/gpu_types.h
-+++ b/paddle/phi/core/platform/device/gpu/gpu_types.h
-@@ -25,8 +25,9 @@
++template<typename... Args>
++void print_args(Args... args) {
++    std::cout << "Arguments (" << sizeof...(args) << "): [";
++    bool first = true;
++    auto printer = [&first](const auto& arg) {
++        if (!first) std::cout << ", ";
++        std::cout << arg;
++        first = false;
++    };
++    (printer(args), ...);
++    std::cout << "]" << std::endl;
++}
++
+ template <>
+ struct CUBlas<double> {
+   template <typename... ARGS>
+   static void GEMM(ARGS... args) {
++    // print_args(args...);
+     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cublasDgemm(args...));
++    
++    
+   }
+ 
+   template <typename... ARGS>
+@@ -368,7 +384,7 @@ struct CUBlas<phi::float16> {
+                          cudaDataType_t Ctype,
+                          int ldc,
+                          int batchCount,
+-                         cudaDataType_t computeType) {
++                         cublasComputeType_t computeType) {
+ #if CUDA_VERSION >= 8000
+     cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
+ #if CUDA_VERSION >= 9000
+@@ -476,7 +492,7 @@ struct CUBlas<phi::float16> {
+                       void *C,
+                       cudaDataType_t Ctype,
+                       int ldc,
+-                      cudaDataType_t computeType) {
++                      cublasComputeType_t computeType) {
+ #if CUDA_VERSION >= 8000
+     cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
+ #if CUDA_VERSION >= 9000
+@@ -532,7 +548,7 @@ struct CUBlas<phi::float16> {
+                          void *C,
+                          cudaDataType_t Ctype,
+                          int64_t ldc,
+-                         cudaDataType_t computeType) {
++                         cublasComputeType_t computeType) {
+ #if CUDA_VERSION >= 12030 && defined(__linux__)
+     cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
+     bool use_tensor_op_math = dev_ctx->tensor_core_available();
+@@ -759,7 +775,7 @@ struct CUBlas<phi::complex64> {
+                       void *C,
+                       cudaDataType_t Ctype,
+                       int ldc,
+-                      cudaDataType_t computeType) {
++                      cublasComputeType_t computeType) {
+ #if CUDA_VERSION >= 8000
+     cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
+ #if CUDA_VERSION >= 9000
+@@ -815,7 +831,7 @@ struct CUBlas<phi::complex64> {
+                          void *C,
+                          cudaDataType_t Ctype,
+                          int64_t ldc,
+-                         cudaDataType_t computeType) {
++                         cublasComputeType_t computeType) {
+ #if CUDA_VERSION >= 12030 && defined(__linux__)
+     cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
+     bool use_tensor_op_math = dev_ctx->tensor_core_available();
+@@ -1154,7 +1170,7 @@ struct CUBlas<phi::complex128> {
+                       void *C,
+                       cudaDataType_t Ctype,
+                       int ldc,
+-                      cudaDataType_t computeType) {
++                      cublasComputeType_t computeType) {
+ #if CUDA_VERSION >= 8000
+     cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
+ #if CUDA_VERSION >= 9000
+@@ -1210,7 +1226,7 @@ struct CUBlas<phi::complex128> {
+                          void *C,
+                          cudaDataType_t Ctype,
+                          int64_t ldc,
+-                         cudaDataType_t computeType) {
++                         cublasComputeType_t computeType) {
+ #if CUDA_VERSION >= 12030 && defined(__linux__)
+     cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
+     bool use_tensor_op_math = dev_ctx->tensor_core_available();
+@@ -1484,7 +1500,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+                                      C,
+                                      CUDA_R_16F,
+                                      N,
+-                                     CUDA_R_32F);
++                                     CUBLAS_COMPUTE_32F);
  #else
- #include <cuda_runtime.h>
+     PADDLE_THROW(common::errors::Unimplemented(
+         "GEMM_EX_64 is not supported on cuda < 12.3"));
+@@ -1508,7 +1524,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+                                   C,
+                                   CUDA_R_16F,
+                                   static_cast<int>(N),
+-                                  CUDA_R_32F);
++                                  CUBLAS_COMPUTE_32F);
+   }
+ #else
+   // CUDA 7.5 does not support cublasGemmEx, hence we fall back to use hgemm
+@@ -1694,7 +1710,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+                                      C,
+                                      CUDA_R_16F,
+                                      N,
+-                                     CUDA_R_32F);
++                                     CUBLAS_COMPUTE_32F);
+ #else
+     PADDLE_THROW(common::errors::Unimplemented(
+         "GEMM_EX_64 is not supported on cuda < 12.3"));
+@@ -1719,7 +1735,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+                                   C,
+                                   CUDA_R_16F,
+                                   static_cast<int>(N),
+-                                  CUDA_R_32F);
++                                  CUBLAS_COMPUTE_32F);
+ #else
+     // CUDA 7.5 does not support cublasGemmEx, hence we fall back to use hgemm
+     dev_ctx_.CublasCall([&](cublasHandle_t handle) {
+@@ -1831,7 +1847,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+                                      C,
+                                      CUDA_R_16BF,
+                                      static_cast<int>(N),
+-                                     CUDA_R_32F,
++                                     CUBLAS_COMPUTE_32F,
+                                      algo));
+     });
+   }
+@@ -1932,7 +1948,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+                                      C,
+                                      CUDA_R_16BF,
+                                      static_cast<int>(N),
+-                                     CUDA_R_32F,
++                                     CUBLAS_COMPUTE_32F,
+                                      algo));
+     });
+   }
+@@ -2026,7 +2042,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+                                     C,
+                                     CUDA_C_32F,
+                                     static_cast<int>(N),
+-                                    CUDA_C_32F);
++                                    CUBLAS_COMPUTE_32F);
  
--#include "paddle/phi/backends/dynload/cublas.h"
--#include "paddle/phi/backends/dynload/cublasLt.h"
-+// #include "paddle/phi/backends/dynload/cublas.h"
-+#include "kernels/funcs/blas/cublas.h"
-+// #include "paddle/phi/backends/dynload/cublasLt.h"
- #include "paddle/phi/backends/dynload/cudnn.h"
- #endif
+ #else
+     dev_ctx_.CublasCall([&](cublasHandle_t handle) {
+@@ -2111,7 +2127,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+                                         C,
+                                         CUDA_C_64F,
+                                         N,
+-                                        CUDA_C_64F);
++                                        CUBLAS_COMPUTE_64F);
+ #else
+     PADDLE_THROW(common::errors::Unimplemented(
+         "GEMM_EX_64 is not supported on cuda < 12.3"));
+@@ -2136,7 +2152,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+                                      C,
+                                      CUDA_C_64F,
+                                      static_cast<int>(N),
+-                                     CUDA_C_64F);
++                                     CUBLAS_COMPUTE_64F);
+ #else  // CUDA_VERSION >= 8000
+     // CUDA 7.5 does not support cublasGemmEx, hence we fall back to use hgemm
+     dev_ctx_.CublasCall([&](cublasHandle_t handle) {
+@@ -2272,7 +2288,7 @@ inline void Blas<phi::GPUContext>::GEMM(bool transA,
+                                                           C,
+                                                           CUDA_R_16F,
+                                                           ldc,
+-                                                          CUDA_R_32F,
++                                                          CUBLAS_COMPUTE_32F,
+                                                           algo));
+   });
+ }
+@@ -2334,7 +2350,7 @@ inline void Blas<phi::GPUContext>::GEMM(bool transA,
+                                                           C,
+                                                           CUDA_R_16BF,
+                                                           ldc,
+-                                                          CUDA_R_32F,
++                                                          CUBLAS_COMPUTE_32F,
+                                                           algo));
+   });
+ #else
+@@ -3129,7 +3145,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
+                                    CUDA_R_16F,
+                                    ldc,
+                                    batchCount,
+-                                   CUDA_R_32F);
++                                   CUBLAS_COMPUTE_32F);
+ }
  
-@@ -90,7 +91,7 @@ DECLARE_TYPE_FOR_GPU(gpuStreamCaptureMode,
+ template <>
+@@ -3197,7 +3213,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
+                                           CUDA_R_16BF,
+                                           ldc,
+                                           batchCount,
+-                                          CUDA_R_32F,
++                                          CUBLAS_COMPUTE_32F,
+                                           algo));
+   });
+ #else
+diff --git a/paddle/phi/kernels/funcs/blas/blaslt_gemm_search.h b/paddle/phi/kernels/funcs/blas/blaslt_gemm_search.h
+index e63b3d2f6e..95d7e6f204 100644
+--- a/paddle/phi/kernels/funcs/blas/blaslt_gemm_search.h
++++ b/paddle/phi/kernels/funcs/blas/blaslt_gemm_search.h
+@@ -628,7 +628,13 @@ class CublasLtAlgoCache {
+     infile >> cublaslt_version;
+     VLOG(1) << "cublaslt_version " << cublaslt_version;
  
- // TODO(Ming Huang): Since there is no blasLt handler,
- // use rocblas_handle for workaround.
--DECLARE_TYPE_FOR_GPU(blasLtHandle_t, cublasLtHandle_t, rocblas_handle);
-+// DECLARE_TYPE_FOR_GPU(blasLtHandle_t, cublasLtHandle_t, rocblas_handle);
+-    if (dynload::cublasLtGetCudartVersion() != cublaslt_version) {
++    // if (dynload::cublasLtGetCudartVersion() != cublaslt_version) {
++    //   LOG(INFO) << algo_caches_file_
++    //             << " is not compatible with current cublaslt_version "
++    //             << real_cublaslt_version;
++    //   return;
++    // }
++    if (3000 != cublaslt_version) {
+       LOG(INFO) << algo_caches_file_
+                 << " is not compatible with current cublaslt_version "
+                 << real_cublaslt_version;
+@@ -655,7 +661,8 @@ class CublasLtAlgoCache {
+       if (dev == 0) {
+         std::ofstream outfile;
+         outfile.open(algo_caches_file_, std::ios::out | std::ios::trunc);
+-        outfile << dynload::cublasLtGetCudartVersion() << std::endl;
++        // outfile << dynload::cublasLtGetCudartVersion() << std::endl;
++        outfile << 3000 << std::endl;
  
- #undef DECLARE_TYPE_FOR_GPU
+         for (const auto& [seed, algo] : algo_caches_) {
+           outfile << seed << " ";
+diff --git a/paddle/phi/kernels/funcs/cublaslt.h b/paddle/phi/kernels/funcs/cublaslt.h
+index fbbf57c25a..f690db59e9 100644
+--- a/paddle/phi/kernels/funcs/cublaslt.h
++++ b/paddle/phi/kernels/funcs/cublaslt.h
+@@ -42,19 +42,11 @@ class CublasLtHelper {
+   CublasLtHelper(int m, int k, int n, cublasLtHandle_t handle)
+       : handle_(handle), alpha_(1), beta_(0), m_(m), k_(k), n_(n) {
+     cublasStatus_t status;
+-#if CUBLAS_VER_MAJOR < 11
+-    cudaDataType_t cudaComputeType = CUDA_R_32I;
+-#else
+     cublasComputeType_t cudaComputeType = CUBLAS_COMPUTE_32I;
+-#endif
  
-diff --git a/paddle/phi/core/platform/device_context.h b/paddle/phi/core/platform/device_context.h
-index 2d02eb370b..8a7233e34e 100644
---- a/paddle/phi/core/platform/device_context.h
-+++ b/paddle/phi/core/platform/device_context.h
-@@ -25,8 +25,8 @@ limitations under the License. */
- #include "paddle/phi/core/platform/device/gpu/gpu_types.h"
- #include "paddle/phi/core/platform/device_type.h"
- #ifdef PADDLE_WITH_CUDA
--#include "paddle/phi/backends/dynload/cublas.h"
--#include "paddle/phi/backends/dynload/cublasLt.h"
-+#include "kernels/funcs/blas/cublas.h"
-+#include "kernels/funcs/blas/cublasLt.h"
- #include "paddle/phi/backends/dynload/cudnn.h"
- #include "paddle/phi/backends/dynload/cusolver.h"
- #include "paddle/phi/backends/dynload/cusparse.h"
-diff --git a/paddle/phi/kernels/cpu/index_select_impl.h b/paddle/phi/kernels/cpu/index_select_impl.h
-index d69eb67d6f..1d8b6e9375 100644
---- a/paddle/phi/kernels/cpu/index_select_impl.h
-+++ b/paddle/phi/kernels/cpu/index_select_impl.h
-@@ -18,7 +18,7 @@
+     // matmul desc
+-#if CUBLAS_VER_MAJOR < 11
+-    status = dyl::cublasLtMatmulDescCreate(&matmul_desc_, cudaComputeType);
+-#else
+     status = dyl::cublasLtMatmulDescCreate(
+         &matmul_desc_, cudaComputeType, CUDA_R_32I);
+-#endif
  
- #include "paddle/phi/core/dense_tensor.h"
- #include "paddle/phi/core/tensor_utils.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/eigen/common.h"
- #include "paddle/phi/kernels/funcs/math_function.h"
- 
+     PADDLE_ENFORCE_EQ(
+         status,
 diff --git a/paddle/phi/kernels/funcs/embedding_grad.h b/paddle/phi/kernels/funcs/embedding_grad.h
 index 461e6e2474..48a64ae9ce 100644
 --- a/paddle/phi/kernels/funcs/embedding_grad.h
@@ -453,38 +736,6 @@ index 461e6e2474..48a64ae9ce 100644
  #endif
    dim3 threads(kWarpSize, kBlockDimY);
    dim3 grids(static_cast<int>((D + kWarpSize - 1) / kWarpSize));
-diff --git a/paddle/phi/kernels/funcs/fc_functor.cu b/paddle/phi/kernels/funcs/fc_functor.cu
-index cb35feee32..64f5bd24ac 100644
---- a/paddle/phi/kernels/funcs/fc_functor.cu
-+++ b/paddle/phi/kernels/funcs/fc_functor.cu
-@@ -16,12 +16,12 @@ limitations under the License. */
- 
- #include "paddle/phi/backends/all_context.h"
- #include "paddle/phi/kernels/funcs/aligned_vector.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/fc_functor.h"
- 
- #include "paddle/phi/backends/gpu/gpu_launch_config.h"
- #include "paddle/phi/core/dense_tensor.h"
--#include "paddle/phi/kernels/funcs/blas/blaslt_impl.cu.h"
-+// #include "paddle/phi/kernels/funcs/blas/blaslt_impl.cu.h"
- #include "paddle/phi/kernels/funcs/quant_dequant.h"
- #include "paddle/phi/kernels/matmul_kernel.h"
- 
-diff --git a/paddle/phi/kernels/funcs/gru_compute.cu b/paddle/phi/kernels/funcs/gru_compute.cu
-index 88663ec880..98b93072a3 100644
---- a/paddle/phi/kernels/funcs/gru_compute.cu
-+++ b/paddle/phi/kernels/funcs/gru_compute.cu
-@@ -12,7 +12,7 @@ limitations under the License. */
- #include "paddle/phi/kernels/funcs/gru_compute.h"
- 
- #include "paddle/phi/backends/gpu/gpu_context.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/detail/gru_gpu_kernel.h"
- #include "paddle/phi/kernels/funcs/detail/gru_kernel.h"
- 
 diff --git a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 index 4eae698648..5c047723ea 100644
 --- a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
@@ -503,19 +754,6 @@ index 4eae698648..5c047723ea 100644
  #endif
    return block_dim >= kMaxBlockDim ? kMaxBlockDim : lwarpSize;
  }
-diff --git a/paddle/phi/kernels/funcs/math/context_project.h b/paddle/phi/kernels/funcs/math/context_project.h
-index 15e1a4a3c3..e4780538d7 100644
---- a/paddle/phi/kernels/funcs/math/context_project.h
-+++ b/paddle/phi/kernels/funcs/math/context_project.h
-@@ -18,7 +18,7 @@
- #include <vector>
- 
- #include "paddle/phi/core/tensor_utils.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/im2col.h"
- 
- namespace phi {
 diff --git a/paddle/phi/kernels/funcs/math_cuda_utils.h b/paddle/phi/kernels/funcs/math_cuda_utils.h
 index e5361b836e..5ad238df08 100644
 --- a/paddle/phi/kernels/funcs/math_cuda_utils.h
@@ -559,51 +797,6 @@ index e5361b836e..5ad238df08 100644
    return val;
  }
  
-diff --git a/paddle/phi/kernels/funcs/matrix_inverse.cu b/paddle/phi/kernels/funcs/matrix_inverse.cu
-index e101224970..a52eb6096f 100644
---- a/paddle/phi/kernels/funcs/matrix_inverse.cu
-+++ b/paddle/phi/kernels/funcs/matrix_inverse.cu
-@@ -15,11 +15,13 @@ limitations under the License. */
- #include "paddle/phi/kernels/funcs/matrix_inverse.h"
- 
- #include "paddle/phi/common/memory_utils.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- 
- namespace phi {
- namespace funcs {
- 
-+
-+
- template <typename Context, typename T>
- void MatrixInverseFunctor<Context, T>::operator()(const Context& dev_ctx,
-                                                   const DenseTensor& a,
-diff --git a/paddle/phi/kernels/funcs/matrix_solve.cu b/paddle/phi/kernels/funcs/matrix_solve.cu
-index 558d363b39..05da04b517 100644
---- a/paddle/phi/kernels/funcs/matrix_solve.cu
-+++ b/paddle/phi/kernels/funcs/matrix_solve.cu
-@@ -16,7 +16,7 @@ limitations under the License. */
- #include "paddle/phi/backends/gpu/cuda/cudnn_workspace_helper.h"
- #include "paddle/phi/common/memory_utils.h"
- #include "paddle/phi/core/tensor_utils.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/math_function.h"
- #include "paddle/phi/kernels/funcs/scatter.cu.h"
- 
-diff --git a/paddle/phi/kernels/funcs/multihead_matmul_functor.cu b/paddle/phi/kernels/funcs/multihead_matmul_functor.cu
-index 047f52bd91..a05b34d3ba 100644
---- a/paddle/phi/kernels/funcs/multihead_matmul_functor.cu
-+++ b/paddle/phi/kernels/funcs/multihead_matmul_functor.cu
-@@ -27,7 +27,7 @@ namespace cub = hipcub;
- 
- #include "paddle/phi/kernels/funcs/multihead_matmul_functor.h"
- 
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/math_cuda_utils.h"
- 
- namespace phi {
 diff --git a/paddle/phi/kernels/funcs/top_k_function_cuda.h b/paddle/phi/kernels/funcs/top_k_function_cuda.h
 index e30d440ff3..108edda7ca 100644
 --- a/paddle/phi/kernels/funcs/top_k_function_cuda.h
@@ -873,31 +1066,17 @@ index e30d440ff3..108edda7ca 100644
  }  // namespace funcs
  }  // namespace phi
 +//
-diff --git a/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h b/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h
-index 32db61532f..0220316bc3 100644
---- a/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h
-+++ b/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h
-@@ -15,7 +15,7 @@
- #pragma once
- 
- #if defined(PADDLE_WITH_CUDA)
--#include "paddle/phi/backends/dynload/cublasLt.h"
-+// #include "paddle/phi/backends/dynload/cublasLt.h"
- #endif
- 
- #include "glog/logging.h"
 diff --git a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
-index 9d4bb18d55..ea42cc10a9 100644
+index 9d4bb18d55..80405c2b78 100644
 --- a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
 +++ b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
-@@ -638,9 +638,7 @@ __global__ __launch_bounds__(THREADS_PER_CTA) void fused_fast_ln_fwd_kernel(
+@@ -638,9 +638,6 @@ __global__ __launch_bounds__(THREADS_PER_CTA) void fused_fast_ln_fwd_kernel(
          RandVec<VecSize>(&state, rand);
  #pragma unroll
          for (int jt = 0; jt < VecSize; jt++) {
 -#ifndef PADDLE_WITH_HIP
 -#pragma unroll
 -#endif
-+// #pragma unroll
            mask_vec[it][jt] = static_cast<MaskType>(rand[jt] >= dropout_prob);
          }
        }
@@ -928,7 +1107,7 @@ index b2d15a59f8..f64582e85a 100644
  namespace phi {
  namespace fusion {
 diff --git a/paddle/phi/kernels/gpu/depthwise_conv.h b/paddle/phi/kernels/gpu/depthwise_conv.h
-index f0cca0f701..02ea957240 100644
+index 2edac5eba5..4f265e3db7 100644
 --- a/paddle/phi/kernels/gpu/depthwise_conv.h
 +++ b/paddle/phi/kernels/gpu/depthwise_conv.h
 @@ -29,8 +29,8 @@ namespace cub = hipcub;
@@ -942,19 +1121,6 @@ index f0cca0f701..02ea957240 100644
  
  namespace phi {
  // To determine use cudnn or not.
-diff --git a/paddle/phi/kernels/gpu/dot_kernel.cu b/paddle/phi/kernels/gpu/dot_kernel.cu
-index af27ac89ab..ee0edc6b8e 100644
---- a/paddle/phi/kernels/gpu/dot_kernel.cu
-+++ b/paddle/phi/kernels/gpu/dot_kernel.cu
-@@ -15,7 +15,7 @@
- #include "paddle/phi/kernels/dot_kernel.h"
- #include "paddle/phi/backends/gpu/gpu_context.h"
- #include "paddle/phi/core/kernel_registry.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/eigen/common.h"
- 
- #include "paddle/phi/kernels/full_kernel.h"
 diff --git a/paddle/phi/kernels/gpu/gelu_funcs.h b/paddle/phi/kernels/gpu/gelu_funcs.h
 index 29fa252e96..4ae72b0935 100644
 --- a/paddle/phi/kernels/gpu/gelu_funcs.h
@@ -1007,7 +1173,7 @@ index 63c35dd4ee..15da9aea45 100644
  namespace phi {
  
 diff --git a/paddle/phi/kernels/gpu/lstsq_kernel.cu b/paddle/phi/kernels/gpu/lstsq_kernel.cu
-index 1bdbe1564c..f753b54bc6 100644
+index c7f27b2924..4cf6204ac7 100644
 --- a/paddle/phi/kernels/gpu/lstsq_kernel.cu
 +++ b/paddle/phi/kernels/gpu/lstsq_kernel.cu
 @@ -21,7 +21,7 @@
@@ -1019,84 +1185,6 @@ index 1bdbe1564c..f753b54bc6 100644
  #include "paddle/phi/kernels/impl/qr_kernel_impl.h"
  #include "paddle/phi/kernels/impl/tril_triu_kernel_impl.h"
  #include "paddle/phi/kernels/lstsq_kernel.h"
-diff --git a/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h b/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h
-index 9bc5326c90..79b57a8203 100644
---- a/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/addmm_grad_kernel_impl.h
-@@ -21,7 +21,7 @@ limitations under the License. */
- #include "paddle/phi/common/amp_type_traits.h"
- #include "paddle/phi/kernels/addmm_grad_kernel.h"
- #include "paddle/phi/kernels/full_kernel.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/eigen/common.h"
- #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
- #include "paddle/phi/kernels/funcs/for_range.h"
-diff --git a/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h b/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h
-index cf80666b4e..ca76e055fb 100644
---- a/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h
-@@ -19,7 +19,7 @@ limitations under the License. */
- 
- #include "paddle/phi/common/amp_type_traits.h"
- #include "paddle/phi/kernels/baddbmm_grad_kernel.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/eigen/common.h"
- #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
- #include "paddle/phi/kernels/funcs/for_range.h"
-diff --git a/paddle/phi/kernels/impl/baddbmm_kernel_impl.h b/paddle/phi/kernels/impl/baddbmm_kernel_impl.h
-index 2789cb59a2..b91b076f7f 100644
---- a/paddle/phi/kernels/impl/baddbmm_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/baddbmm_kernel_impl.h
-@@ -20,7 +20,7 @@ limitations under the License. */
- 
- #include "paddle/phi/common/amp_type_traits.h"
- #include "paddle/phi/kernels/baddbmm_kernel.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/eigen/common.h"
- #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
- 
-diff --git a/paddle/phi/kernels/impl/conv_transpose_grad_kernel_impl.h b/paddle/phi/kernels/impl/conv_transpose_grad_kernel_impl.h
-index 9a21c23666..86413d1577 100644
---- a/paddle/phi/kernels/impl/conv_transpose_grad_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/conv_transpose_grad_kernel_impl.h
-@@ -19,7 +19,7 @@
- #include "paddle/phi/kernels/conv_transpose_grad_kernel.h"
- #include "paddle/phi/kernels/cpu/conv_util.h"
- #include "paddle/phi/kernels/full_kernel.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/concat_and_split_functor.h"
- #include "paddle/phi/kernels/funcs/im2col.h"
- #include "paddle/phi/kernels/funcs/slice.h"
-diff --git a/paddle/phi/kernels/impl/deformable_conv_grad_kernel_impl.h b/paddle/phi/kernels/impl/deformable_conv_grad_kernel_impl.h
-index 4459a931da..837c8682b8 100644
---- a/paddle/phi/kernels/impl/deformable_conv_grad_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/deformable_conv_grad_kernel_impl.h
-@@ -18,7 +18,7 @@
- #include "paddle/phi/core/dense_tensor.h"
- #include "paddle/phi/kernels/empty_kernel.h"
- #include "paddle/phi/kernels/full_kernel.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/deformable_conv_functor.h"
- 
- namespace phi {
-diff --git a/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h b/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h
-index ad9e9197dd..5478d9817d 100644
---- a/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/deformable_conv_kernel_impl.h
-@@ -18,7 +18,7 @@
- #include "paddle/phi/core/dense_tensor.h"
- #include "paddle/phi/kernels/empty_kernel.h"
- #include "paddle/phi/kernels/full_kernel.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/deformable_conv_functor.h"
- #include "paddle/phi/kernels/transpose_kernel.h"
- #include "paddle/utils/optional.h"
 diff --git a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h b/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
 index e6b3960f6d..564125f1f6 100644
 --- a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
@@ -1113,9 +1201,20 @@ index e6b3960f6d..564125f1f6 100644
    if ((x <= T{0}) || (a <= T{0})) return (T{1.0});
  
 diff --git a/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h b/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
-index 410fb3c560..009ce03440 100644
+index 410fb3c560..7d173d46f5 100644
 --- a/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
 +++ b/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
+@@ -20,8 +20,8 @@
+ namespace phi {
+ template <typename T>
+ HOSTDEVICE T digamma_positive_domain(T x) {
+-  static T c = T{8.5};
+-  static T euler_mascheroni = T{0.57721566490153286060};
++  const static T c = T{8.5};
++  const static T euler_mascheroni = T{0.57721566490153286060};
+   T r;
+   T value;
+   T x2;
 @@ -54,7 +54,7 @@ HOSTDEVICE T digamma_positive_domain(T x) {
  
  template <typename T>
@@ -1125,67 +1224,3 @@ index 410fb3c560..009ce03440 100644
  
    if (x == T{0.0}) {
      T inf = std::numeric_limits<T>::infinity();
-diff --git a/paddle/phi/kernels/impl/llm_int8_matmul_kernel_impl.h b/paddle/phi/kernels/impl/llm_int8_matmul_kernel_impl.h
-index 5ebbc8d2db..c7b6c338e2 100644
---- a/paddle/phi/kernels/impl/llm_int8_matmul_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/llm_int8_matmul_kernel_impl.h
-@@ -15,8 +15,9 @@ limitations under the License. */
- #include <iostream>
- #include <vector>
- #include "paddle/phi/common/datatype_traits.h"
--#include "paddle/phi/kernels/funcs/cublaslt.h"
--#include "paddle/phi/kernels/funcs/quant_dequant.h"
-+#include "kernels/funcs/blas/cublaslt.h"
-+#include "kernels/funcs/quant_dequant.h"
-+#include "kernels/metax_kernel/metax_context.h"
- 
- #pragma once
- 
-@@ -668,7 +669,7 @@ void LLMGemm(const phi::GPUContext& dev_ctx,
- 
-   {
-     auto helper =
--        std::make_unique<CublasLtHelper>(m, k, n, dev_ctx.cublaslt_handle());
-+        std::make_unique<CublasLtHelper>(m, k, n, GetBlasLtHandle());
-     helper->GEMM(quant_input.data<int8_t>(),
-                  weight->data<int8_t>(),
-                  int_out.data<int32_t>(),
-diff --git a/paddle/phi/kernels/impl/matrix_power_grad_kernel_impl.h b/paddle/phi/kernels/impl/matrix_power_grad_kernel_impl.h
-index 1f319c4ae3..9186eb6906 100644
---- a/paddle/phi/kernels/impl/matrix_power_grad_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/matrix_power_grad_kernel_impl.h
-@@ -15,7 +15,7 @@ limitations under the License. */
- #pragma once
- 
- #include "paddle/phi/core/dense_tensor.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/matrix_inverse.h"
- 
- namespace phi {
-diff --git a/paddle/phi/kernels/impl/matrix_power_kernel_impl.h b/paddle/phi/kernels/impl/matrix_power_kernel_impl.h
-index 6f03f76eeb..5fe2c3e7dc 100644
---- a/paddle/phi/kernels/impl/matrix_power_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/matrix_power_kernel_impl.h
-@@ -15,7 +15,7 @@ limitations under the License. */
- #pragma once
- 
- #include "paddle/phi/core/dense_tensor.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/for_range.h"
- #include "paddle/phi/kernels/funcs/matrix_inverse.h"
- 
-diff --git a/paddle/phi/kernels/impl/spectral_norm_kernel_impl.h b/paddle/phi/kernels/impl/spectral_norm_kernel_impl.h
-index 4099d8b506..baef2cd643 100644
---- a/paddle/phi/kernels/impl/spectral_norm_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/spectral_norm_kernel_impl.h
-@@ -14,7 +14,7 @@
- 
- #pragma once
- 
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/eigen/common.h"
- #include "paddle/phi/kernels/funcs/math_function.h"
- 

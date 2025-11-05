@@ -17,9 +17,9 @@ limitations under the License. */
 #include <type_traits>
 
 #include "glog/logging.h"
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/phi/common/amp_type_traits.h"
 #include "paddle/phi/kernels/baddbmm_kernel.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/eigen/common.h"
 #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
 

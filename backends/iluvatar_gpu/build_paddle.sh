@@ -38,6 +38,16 @@ fi
 
 pushd ${CURRENT_DIR}/../../
 git submodule update --init --recursive --force
+echo "=== Submodule init successfully ==="
+popd
+
+# 进入 protobuf 目录并打印 git 状态和日志
+pushd ${CURRENT_DIR}/../../Paddle/third_party/protobuf
+echo "=== Protobuf Git Status ==="
+git status
+echo ""
+echo "=== Protobuf Git Log (last 5 commits) ==="
+git log --oneline -5
 popd
 
 bash clean_paddle.sh

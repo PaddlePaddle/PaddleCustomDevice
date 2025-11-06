@@ -293,7 +293,10 @@ function(build_protobuf TARGET_NAME)
       SOURCE_DIR ${SOURCE_DIR}
       UPDATE_COMMAND ""
       PATCH_COMMAND
-      COMMAND cd ${SOURCE_DIR}
+      COMMAND
+        cd ${SOURCE_DIR} && echo
+        "Current protobuf commit: $(git rev-parse HEAD)" && git checkout
+        f0dc78d7e6e331b8c6bb2d5283e06aa26883ca7c
       DEPENDS zlib
       CONFIGURE_COMMAND
         ${CMAKE_COMMAND} ${SOURCE_DIR}/cmake ${OPTIONAL_ARGS}

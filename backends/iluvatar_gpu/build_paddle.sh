@@ -41,20 +41,13 @@ git submodule update --init --recursive --force
 echo "=== Submodule init successfully ==="
 popd
 
-# 进入 protobuf 目录并打印 git 状态和日志
+# check protobuf git status and log
 pushd ${CURRENT_DIR}/../../Paddle/third_party/protobuf
 echo "=== Protobuf Git Status ==="
 git status
 echo ""
 echo "=== Protobuf Git Log (last 5 commits) ==="
 git log --oneline -5
-echo "=== Protobuf Git tag check v21.12 ==="
-git tag | grep v21.12
-echo "=== Protobuf Git fetch tag ==="
-git fetch --tags
-echo "=== Protobuf Git tag check v21.12 after fetch ==="
-git tag | grep v21.12
-popd
 
 bash clean_paddle.sh
 

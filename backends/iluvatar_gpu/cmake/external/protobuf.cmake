@@ -293,8 +293,7 @@ function(build_protobuf TARGET_NAME)
       SOURCE_DIR ${SOURCE_DIR}
       UPDATE_COMMAND ""
       PATCH_COMMAND
-      COMMAND cd ${SOURCE_DIR} && git fetch --all --tags && git checkout
-              ${PROTOBUF_TAG}
+      COMMAND cd ${SOURCE_DIR} && git checkout ${PROTOBUF_TAG}
       DEPENDS zlib
       CONFIGURE_COMMAND
         ${CMAKE_COMMAND} ${SOURCE_DIR}/cmake ${OPTIONAL_ARGS}

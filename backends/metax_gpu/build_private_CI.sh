@@ -49,7 +49,7 @@ echo "✅ 脚本执行完毕！"
 echo "📌 已撤销本地修改，并更新到 Paddle 最新的 develop (dev) 分支代码。"
 
 
-pip install safetensors==0.6.2 -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
+pip install parameterized safetensors==0.6.2 -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
 # install paddle
 
 python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/

@@ -72,9 +72,6 @@ jobs:
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
           git --no-pager log --pretty=oneline -5'
-          cd Paddle/third_party/protobuf/
-          git log --oneline -5
-          git tag v21.12
 
       - name: Check bypass
         id: check-bypass

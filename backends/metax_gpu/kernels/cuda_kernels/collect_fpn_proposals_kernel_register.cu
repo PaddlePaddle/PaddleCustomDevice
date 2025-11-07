@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/kernels/gpu/collect_fpn_proposals_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/collect_fpn_proposals_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(collect_fpn_proposals,
                           metax_gpu,

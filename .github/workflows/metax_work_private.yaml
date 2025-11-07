@@ -5,6 +5,8 @@ on:
   pull_request:
     types: [opened, synchronize]
     branches: [develop, release/**]
+    schedule:
+      - cron: "0 15 * * *"
 permissions: read-all
 
 defaults:

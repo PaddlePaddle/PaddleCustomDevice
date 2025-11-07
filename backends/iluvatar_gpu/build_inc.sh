@@ -82,6 +82,13 @@ fi
 if [[ ! -f "$STATE_FILE" ]]; then
     echo "First time build detected. Setting up environment..."
     
+    # Update git submodules
+    echo "Updating git submodules..."
+    pushd ${CURRENT_DIR}/../../ > /dev/null
+    git submodule update --init --recursive --force
+    popd > /dev/null
+    echo "Git submodules updated"
+    
     # Apply patch
     if ! git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null 2>&1; then
         if ! git -C "$PADDLE_SOURCE_DIR" apply "$PATCH_FILE"; then

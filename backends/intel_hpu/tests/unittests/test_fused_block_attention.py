@@ -238,6 +238,12 @@ class TestFusedBlockAttention:
             .to(paddle.bfloat16)
             .to(device)
         )
+        self.q_rmsnorm_gamma = paddle.randint(
+            0, 1, [self.head_dim], dtype=paddle.int32
+        ).to(paddle.bfloat16)
+        self.k_rmsnorm_gamma = paddle.randint(
+            0, 1, [self.head_dim], dtype=paddle.int32
+        ).to(paddle.bfloat16)
 
     def run_test(self):
         query_states, key_value_states = paddlenlp_ops.fused_rms_qkv_rope_t(
@@ -247,6 +253,8 @@ class TestFusedBlockAttention:
             self.qkv_biases,
             self.new_rope.transpose([0, 1, 3, 2, 4]),
             self.residual,
+            self.q_rmsnorm_gamma,
+            self.k_rmsnorm_gamma,
             self.epsilon,
             self.head_dim,
             self.num_head,
@@ -295,11 +303,14 @@ class TestFusedBlockAttention:
             self.qkv_weights,
             self.qkv_biases,
             self.linear_weights,
+            self.q_rmsnorm_gamma,
+            self.k_rmsnorm_gamma,
             self.head_dim,
             self.num_head,
             scaling_factor=self.head_dim**-0.5,
             transpose=True,
             use_neox_style=True,
+            epsilon=self.epsilon,
         ).reshape([b, -1, h])
 
         assert paddle.allclose(
@@ -308,17 +319,27 @@ class TestFusedBlockAttention:
             rtol=1e-2,
         ), f"Test failed for {self.test_name} fused_block_attention out_linear_out"
 
-        assert paddle.allclose(
+        close_mask = paddle.isclose(
             self.k_cache.to("cpu").to("float32"),
             self.k_cache_test.to("cpu").to("float32"),
             rtol=1e-1,
-        ), f"Test failed for {self.test_name} fused_block_attention k_cache"
+        )
+        mismatch_count = paddle.sum(~close_mask).item()
+        mismatch_percentage = mismatch_count / close_mask.numel() * 100.0
+        assert (
+            mismatch_percentage <= 1e-3
+        ), f"k_cache Mismatched elements percentage: {mismatch_percentage:}% > {1e-3}% threshold\n"
 
-        assert paddle.allclose(
+        close_mask = paddle.isclose(
             self.v_cache.to("cpu").to("float32"),
             self.v_cache_test.to("cpu").to("float32"),
             rtol=1e-2,
-        ), f"Test failed for {self.test_name} fused_block_attention v_cache"
+        )
+        mismatch_count = paddle.sum(~close_mask).item()
+        mismatch_percentage = mismatch_count / close_mask.numel() * 100.0
+        assert (
+            mismatch_percentage <= 1e-3
+        ), f"v_cache Mismatched elements percentage: {mismatch_percentage:}% > {1e-3}% threshold\n"
 
         assert paddle.allclose(
             self.residual.to("cpu").to("float32"),

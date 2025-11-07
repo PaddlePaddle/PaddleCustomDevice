@@ -24,7 +24,6 @@
 std::tuple<int, int, int, std::vector<int>> get_max_and_where_nonzero(
     int* seq_lens_encoder, int* seq_lens_decoder, const int elem_cnt) {
   int max_seq_len_without_context = 0;
-  int max_seq_len_with_context = 0;
   int max_context_len = 0;
   std::vector<int> valid_batch;
   for (int i = 0; i < elem_cnt; ++i) {
@@ -32,17 +31,13 @@ std::tuple<int, int, int, std::vector<int>> get_max_and_where_nonzero(
       valid_batch.push_back(i);
       if (seq_lens_encoder[i] > max_seq_len_without_context) {
         max_seq_len_without_context = seq_lens_encoder[i];
-        max_seq_len_with_context = seq_lens_encoder[i];
       }
       if (seq_lens_decoder[i] > max_context_len) {
         max_context_len = seq_lens_decoder[i];
       }
-      if (seq_lens_decoder[i] > 0 && seq_lens_encoder[i] + seq_lens_decoder[i] >
-                                         max_seq_len_with_context) {
-        max_seq_len_with_context = seq_lens_encoder[i] + seq_lens_decoder[i];
-      }
     }
   }
+  int max_seq_len_with_context = max_seq_len_without_context + max_context_len;
   return {max_seq_len_without_context,
           max_seq_len_with_context,
           max_context_len,

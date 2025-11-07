@@ -36,12 +36,12 @@
 #include <unordered_map>
 
 #include "glog/logging.h"
-#include "kernels/funcs/blas/cublasLt.h"
 #include "paddle/fluid/platform/profiler/cuda_tracer.h"
 #include "paddle/fluid/platform/profiler/cupti_data_process.h"
 #include "paddle/phi/api/profiler/trace_event_collector.h"
 #include "paddle/phi/backends/device_base.h"
 #include "paddle/phi/backends/device_ext.h"
+#include "paddle/phi/backends/dynload/cublasLt.h"
 #include "paddle/phi/backends/dynload/cupti.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/allocator.h"
@@ -320,16 +320,14 @@ static std::vector<cudaError_t> g_device_props_init_errors;
 
 C_Status GetDeviceProperties(const C_Device device, void *device_properties) {
   int id = device->id;
+  C_Status init_status = C_SUCCESS;
   if (id == -1) {
     cudaGetDevice(&id);
   }
 
   std::call_once(g_device_props_size_init_flag, [&] {
     size_t count = 0;
-    C_Status status = GetDevicesCount(&count);
-    if (status != C_SUCCESS) {
-      return status;
-    }
+    init_status = GetDevicesCount(&count);
     int gpu_num = count;
 
     g_device_props_init_flags.resize(gpu_num);
@@ -341,8 +339,13 @@ C_Status GetDeviceProperties(const C_Device device, void *device_properties) {
     }
   });
 
+  if (init_status != C_SUCCESS) {
+    VLOG(0) << "GetDevicesCount failed: " << init_status;
+    return C_ERROR;
+  }
+
   if (id < 0 || id >= static_cast<int>(g_device_props.size())) {
-    VLOG(10) << "device id: " << id << " out of range";
+    VLOG(0) << "device id: " << id << " out of range";
     return C_ERROR;
   }
 

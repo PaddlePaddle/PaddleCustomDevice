@@ -15,11 +15,11 @@
 #include <algorithm>
 #include <type_traits>
 
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/common/errors.h"
 #include "paddle/phi/core/enforce.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/core/tensor_utils.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/multihead_matmul_functor.h"
 
 namespace phi {

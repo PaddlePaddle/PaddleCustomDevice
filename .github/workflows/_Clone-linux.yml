@@ -64,7 +64,9 @@ jobs:
           git submodule update --init --recursive --force
           cd Paddle/third_party/protobuf
           git fetch --tags
-          cd -
+          cd ../pybind
+          git fetch --tags
+          cd ../../..
 
       - name: Download bos client
         env:

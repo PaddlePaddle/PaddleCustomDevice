@@ -99,6 +99,8 @@ class Fused_Rms_Qkv_Rope_t(paddle.nn.Layer):
             self.qkv_weights[i],
             rotary_embs,
             residual,
+            None,
+            None,
             self.epsilon,
             self.head_dim,
             self.num_head,

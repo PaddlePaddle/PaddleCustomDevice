@@ -22,7 +22,7 @@ import numpy as np
 import paddle.nn.functional as F
 
 
-intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 1)
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 4)
 paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
 
 paddle.seed(105)
@@ -141,6 +141,12 @@ MAX_SEQ_LENGTH = [2048]
 SCALE_O = [None, paddle.to_tensor([1.0], dtype=paddle.float32)]
 BF16_FP8_MODE = ["ALL_BF16", "BF16_SDPA_FP8_PROJ", "ALL_FP8"]
 
+BATCH_SIZE = [1]
+KV_NUM_HEAD = [8]
+BF16_FP8_MODE = ["BF16_SDPA_FP8_PROJ"]
+SCALE_O = [None]
+MULTI_CARD = [4]
+
 
 class FP8_SDPA_Proj_T_Test(unittest.TestCase):
     @parameterized.expand(
@@ -155,6 +161,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
                 max_seq_length,
                 scale_o,
                 bf16_fp8_mode,
+                tp_size,
             )
             for head_dim in HEAD_DIM
             for num_head in NUM_HEAD
@@ -165,6 +172,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             for max_seq_length in MAX_SEQ_LENGTH
             for scale_o in SCALE_O
             for bf16_fp8_mode in BF16_FP8_MODE
+            for tp_size in MULTI_CARD
         ]
     )
     def test(
@@ -178,9 +186,13 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
         max_seq_length,
         scale_o,
         bf16_fp8_mode,
+        tp_size,
     ):
         hidden_size = num_head * head_dim
         scaling_factor = head_dim**-0.5
+
+        num_head = (int)(num_head / tp_size)
+        kv_num_head = (int)(kv_num_head / tp_size)
 
         query_states = (
             paddle.rand(
@@ -205,9 +217,9 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
         )
 
         linear_weights = (
-            paddle.rand([hidden_size, hidden_size], dtype=paddle.float32).to(
-                paddle.bfloat16
-            )
+            paddle.rand(
+                [(int)(hidden_size / tp_size), hidden_size], dtype=paddle.float32
+            ).to(paddle.bfloat16)
             * 0.6
             - 0.3
         )
@@ -238,7 +250,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
         ).astype(paddle.float8_e4m3fn)
 
         weight_scale, weight_scaleInv = get_scale_values(linear_weights)
-        linear_weights_fp8 = (weight_scale * linear_weights.transpose([1, 0])).astype(
+        linear_weights_fp8 = (weight_scale * linear_weights).astype(
             paddle.float8_e4m3fn
         )
 
@@ -313,6 +325,8 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
                 causal=True,
                 softmax_mode=0,
             )
+        print(f"\nout_linear_t_op.shape: {out_linear_t_op.shape}")
+        print(f"out_linear_out_ref.shape: {out_linear_out_ref.shape}")
         similar = check_using_cosine_similarity(
             out_linear_t_op.to("float32").cpu().numpy(),
             out_linear_out_ref.to("float32").cpu().numpy(),

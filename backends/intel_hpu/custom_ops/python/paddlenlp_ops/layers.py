@@ -278,7 +278,7 @@ class Fused_Mlp(paddle.nn.Layer):
         self.up_weight = up_weight
 
     def forward(self, i, x):
-        fused_mlp_out = fused_mlp(
+        fused_mlp_out = fused_mlp_bf16(
             x,
             self.proj_weight[i],
             self.up_weight[i],

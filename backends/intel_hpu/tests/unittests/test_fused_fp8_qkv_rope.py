@@ -97,7 +97,7 @@ class TestFusedFp8QkvRope(unittest.TestCase):
         ).item()
 
     def check_result(self):
-        ref_query_states, ref_key_value_states = paddlenlp_ops.fused_qkv_rope(
+        ref_query_states, ref_key_value_states = paddlenlp_ops.fused_qkv_rope_bf16(
             self.src,
             self.qkv_weights,
             self.qkv_biases,
@@ -124,7 +124,7 @@ class TestFusedFp8QkvRope(unittest.TestCase):
         out_q_scale = 1.0 / d_out_q_scale
         out_k_scale = 1.0 / d_out_k_scale
         out_v_scale = 1.0 / d_out_v_scale
-        query_states_fp8, key_value_states_fp8 = paddlenlp_ops.fused_fp8_qkv_rope(
+        query_states_fp8, key_value_states_fp8 = paddlenlp_ops.fused_qkv_rope(
             self.src,
             qkv_weights_fp8,
             self.qkv_biases,
@@ -172,7 +172,7 @@ class TestFusedFp8QkvRope(unittest.TestCase):
                 f"TestFusedFp8QkvRope fp8 out passed! Similarities are {similarity_query} and {similarity_key_value}."
             )
 
-        query_states_bf16, key_value_states_bf16 = paddlenlp_ops.fused_fp8_qkv_rope(
+        query_states_bf16, key_value_states_bf16 = paddlenlp_ops.fused_qkv_rope(
             self.src,
             qkv_weights_fp8,
             self.qkv_biases,
@@ -212,7 +212,7 @@ class TestFusedFp8QkvRope(unittest.TestCase):
         (
             query_states_full_bf16,
             key_value_states_full_bf16,
-        ) = paddlenlp_ops.fused_fp8_qkv_rope(
+        ) = paddlenlp_ops.fused_qkv_rope(
             self.src,
             self.qkv_weights,
             self.qkv_biases,

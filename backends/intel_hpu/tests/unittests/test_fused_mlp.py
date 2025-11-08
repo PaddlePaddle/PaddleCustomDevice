@@ -92,6 +92,12 @@ class Test_Fused_MLP_OP(unittest.TestCase):
             gate_weight,
             up_weight,
             down_weight,
+            None,
+            None,
+            None,
+            None,
+            None,
+            False,
         )
         return fused_mlp_out
 
@@ -101,6 +107,12 @@ class Test_Fused_MLP_OP(unittest.TestCase):
             proj_weight,
             None,
             down_weight,
+            None,
+            None,
+            None,
+            None,
+            None,
+            False,
         )
         return fused_gateup_mlp_out
 

@@ -527,7 +527,7 @@ std::vector<paddle::DataType> FusedQkvRopeDtype(
   return {src_dtype, src_dtype};
 }
 
-PD_BUILD_OP(fused_qkv_rope)
+PD_BUILD_OP(fused_qkv_rope_bf16)
     .Inputs(
         {"src", "qkv_weights", paddle::Optional("qkv_biases"), "rotary_embs"})
     .Outputs({"query_states", "key_value_states"})
@@ -675,7 +675,7 @@ std::vector<paddle::DataType> FusedFp8QkvRopeDtype(
   return {src_dtype, src_dtype};
 }
 
-PD_BUILD_OP(fused_fp8_qkv_rope)
+PD_BUILD_OP(fused_qkv_rope)
     .Inputs({"src",
              "qkv_weights",
              paddle::Optional("qkv_biases"),

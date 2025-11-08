@@ -94,7 +94,8 @@ void FusedRopeKernel(const Context& dev_ctx,
 
   ns_RoPESt2::ParamsV2 params;
   params.offset = 0;
-  params.mode = ROTARY_POS_EMBEDDING_MODE_BLOCKWISE;
+  params.mode = use_neox_rotary_style ? ROTARY_POS_EMBEDDING_MODE_BLOCKWISE
+                                      : ROTARY_POS_EMBEDDING_MODE_PAIRWISE;
 
   std::vector<DIMS> inputs = {q_dims, sin_dims, cos_dims};
 

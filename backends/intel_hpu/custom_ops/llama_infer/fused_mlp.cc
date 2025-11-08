@@ -779,11 +779,11 @@ std::vector<paddle::Tensor> FusedFP8MlpForward(
     const paddle::Tensor& proj_weight,
     const paddle::optional<paddle::Tensor>& up_weight,
     const paddle::Tensor& down_weight,
-    const paddle::Tensor& hidden_states_scale,
-    const paddle::Tensor& proj_scale,
+    const paddle::optional<paddle::Tensor>& hidden_states_scale,
+    const paddle::optional<paddle::Tensor>& proj_scale,
     const paddle::optional<paddle::Tensor>& up_scale,
-    const paddle::Tensor& intermediate_hidden_states_scale,
-    const paddle::Tensor& down_scale,
+    const paddle::optional<paddle::Tensor>& intermediate_hidden_states_scale,
+    const paddle::optional<paddle::Tensor>& down_scale,
     const bool permuted_weights) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(
@@ -800,20 +800,40 @@ std::vector<paddle::Tensor> FusedFP8MlpForward(
   }
   auto down_weight_tensor =
       static_cast<const phi::DenseTensor*>(down_weight.impl().get());
-  auto hidden_states_scale_tensor =
-      static_cast<const phi::DenseTensor*>(hidden_states_scale.impl().get());
-  auto proj_scale_tensor =
-      static_cast<const phi::DenseTensor*>(proj_scale.impl().get());
+
+  auto hidden_states_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (hidden_states_scale) {
+    auto hidden_states_scale_dt =
+        static_cast<phi::DenseTensor*>(hidden_states_scale->impl().get());
+    hidden_states_scale_tensor =
+        paddle::optional<phi::DenseTensor>(*hidden_states_scale_dt);
+  }
+  auto proj_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (proj_scale) {
+    auto proj_scale_dt =
+        static_cast<phi::DenseTensor*>(proj_scale->impl().get());
+    proj_scale_tensor = paddle::optional<phi::DenseTensor>(*proj_scale_dt);
+  }
   auto up_scale_tensor = paddle::optional<phi::DenseTensor>();
-  if (up_scale_tensor) {
+  if (up_scale) {
     auto up_scale_dt = static_cast<phi::DenseTensor*>(up_scale->impl().get());
     up_scale_tensor = paddle::optional<phi::DenseTensor>(*up_scale_dt);
   }
   auto intermediate_hidden_states_scale_tensor =
-      static_cast<const phi::DenseTensor*>(
-          intermediate_hidden_states_scale.impl().get());
-  auto down_scale_tensor =
-      static_cast<const phi::DenseTensor*>(down_scale.impl().get());
+      paddle::optional<phi::DenseTensor>();
+  if (intermediate_hidden_states_scale) {
+    auto intermediate_hidden_states_scale_dt = static_cast<phi::DenseTensor*>(
+        intermediate_hidden_states_scale->impl().get());
+    intermediate_hidden_states_scale_tensor =
+        paddle::optional<phi::DenseTensor>(
+            *intermediate_hidden_states_scale_dt);
+  }
+  auto down_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (down_scale) {
+    auto down_scale_dt =
+        static_cast<phi::DenseTensor*>(down_scale->impl().get());
+    down_scale_tensor = paddle::optional<phi::DenseTensor>(*down_scale_dt);
+  }
   auto out_tensor = std::make_shared<phi::DenseTensor>();
   out_tensor->Resize(hidden_states_tensor->dims());
 
@@ -822,11 +842,11 @@ std::vector<paddle::Tensor> FusedFP8MlpForward(
                      *proj_weight_tensor,
                      up_weight_tensor,
                      *down_weight_tensor,
-                     *hidden_states_scale_tensor,
-                     *proj_scale_tensor,
+                     hidden_states_scale_tensor,
+                     proj_scale_tensor,
                      up_scale_tensor,
-                     *intermediate_hidden_states_scale_tensor,
-                     *down_scale_tensor,
+                     intermediate_hidden_states_scale_tensor,
+                     down_scale_tensor,
                      permuted_weights,
                      out_tensor.get());
 
@@ -891,7 +911,7 @@ std::vector<paddle::DataType> FusedMlpInferDtype(
   return {x_dtype};
 }
 
-PD_BUILD_OP(fused_mlp)
+PD_BUILD_OP(fused_mlp_bf16)
     .Inputs({"hidden_states",
              "proj_weight",
              paddle::Optional("up_weight"),
@@ -901,16 +921,16 @@ PD_BUILD_OP(fused_mlp)
     .SetInferShapeFn(PD_INFER_SHAPE(FusedMlpInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedMlpInferDtype));
 
-PD_BUILD_OP(fused_fp8_mlp)
+PD_BUILD_OP(fused_mlp)
     .Inputs({"hidden_states",
              "proj_weight",
              paddle::Optional("up_weight"),
              "down_weight",
-             "hidden_states_scale",
-             "proj_scale",
+             paddle::Optional("hidden_states_scale"),
+             paddle::Optional("proj_scale"),
              paddle::Optional("up_scale"),
-             "intermediate_hidden_states_scales",
-             "down_scale"})
+             paddle::Optional("intermediate_hidden_states_scales"),
+             paddle::Optional("down_scale")})
     .Outputs({"out"})
     .Attrs({"permuted_weights: bool"})
     .SetKernelFn(PD_KERNEL(FusedFP8MlpForward))

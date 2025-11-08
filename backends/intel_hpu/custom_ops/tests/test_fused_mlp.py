@@ -222,11 +222,33 @@ class fusedMlpOP(paddle.nn.Layer):
         self.down_weight = down_weight
 
     def forward(self):
+        """
         fused_mlp_out = paddlenlp_ops.fused_mlp_new(
             self.hidden_states,
             self.proj_weight,
             self.up_weight,
             self.down_weight,
+        )
+        """
+        """
+        fused_mlp_out = paddlenlp_ops.fused_mlp_bf16(
+            self.hidden_states,
+            self.proj_weight,
+            self.up_weight,
+            self.down_weight,
+        )
+        """
+        fused_mlp_out = paddlenlp_ops.fused_mlp(
+            self.hidden_states,
+            self.proj_weight,
+            self.up_weight,
+            self.down_weight,
+            None,
+            None,
+            None,
+            None,
+            None,
+            False,
         )
         return fused_mlp_out
 
@@ -236,6 +258,12 @@ class fusedMlpOP(paddle.nn.Layer):
             self.proj_weight,
             self.up_weight,
             self.down_weight,
+            None,
+            None,
+            None,
+            None,
+            None,
+            False,
         )
         for _ in range(9):
             fused_mlp_out = paddlenlp_ops.fused_mlp(
@@ -243,6 +271,12 @@ class fusedMlpOP(paddle.nn.Layer):
                 self.proj_weight,
                 self.up_weight,
                 self.down_weight,
+                None,
+                None,
+                None,
+                None,
+                None,
+                False,
             )
         return fused_mlp_out
 
@@ -278,16 +312,15 @@ class fusedFp8MlpOP(paddle.nn.Layer):
         self.d_intermediaete_hidden_states_scales = d_intermediaete_hidden_states_scales
 
     def forward(self):
-        """
-        fused_fp8_mlp_out = paddlenlp_ops.fused_fp8_mlp(
+        fused_fp8_mlp_out = paddlenlp_ops.fused_mlp(
             self.hidden_states,
             self.proj_weight,
             self.up_weight,
             self.down_weight,
-            self.hidden_states_scale, # 240/max
+            self.hidden_states_scale,  # 240/max
             self.d_proj_scale,
             self.d_up_scale,
-            self.intermediate_hidden_states_scales, # 240/max
+            self.intermediate_hidden_states_scales,  # 240/max
             self.d_down_scale,
             self.permuted_weights,
         )
@@ -304,10 +337,11 @@ class fusedFp8MlpOP(paddle.nn.Layer):
             self.d_down_scale,
             self.permuted_weights,
         )
+        """
         return fused_fp8_mlp_out
 
     def forward_profile(self):
-        fused_fp8_mlp_out = paddlenlp_ops.fused_fp8_mlp(
+        fused_fp8_mlp_out = paddlenlp_ops.fused_mlp(
             self.hidden_states,
             self.proj_weight,
             self.up_weight,
@@ -320,7 +354,7 @@ class fusedFp8MlpOP(paddle.nn.Layer):
             self.permuted_weights,
         )
         for _ in range(9):
-            fused_fp8_mlp_out = paddlenlp_ops.fused_fp8_mlp(
+            fused_fp8_mlp_out = paddlenlp_ops.fused_mlp(
                 fused_fp8_mlp_out,
                 self.proj_weight,
                 self.up_weight,

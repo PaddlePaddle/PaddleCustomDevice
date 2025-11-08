@@ -871,7 +871,7 @@ PD_BUILD_OP(fused_gate_moe_fp8)
              paddle::Optional("gate_correction_bias"),
              paddle::Vec("gate_up_weights"),
              paddle::Vec("down_weights"),
-             paddle::Optional(paddle::Vec("hidden_states_scales")),
+             paddle::Optional("hidden_states_scales"),
              paddle::Optional(paddle::Vec("intermediate_hidden_states_scales")),
              paddle::Vec("gate_up_weights_scales"),
              paddle::Vec("down_weights_scales")})

@@ -299,7 +299,7 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
     synGEMMParams gemm_params;
     if (params.fp8_gemm) {
       gemm_params.transpose_a = false;
-      gemm_params.transpose_b = true;
+      gemm_params.transpose_b = false;
       auto in_scale = createTensorFromCT(&ct, inputs.size() - 2);
       auto out_scale = createTensorFromCT(&ct, inputs.size() - 1);
       mul_inputs.push_back(in_scale);

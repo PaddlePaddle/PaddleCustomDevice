@@ -477,57 +477,6 @@ std::vector<ActivityBuffer> Tracer::ConsumeBuffers() {
 
 void Tracer::ReleaseBuffer(uint8_t* buffer) { AlignedFree(buffer); }
 
-// struct ActivityBuffer {
-//   ActivityBuffer(uint8_t* addr, size_t size) : addr(addr), valid_size(size)
-//   {} uint8_t* addr; size_t valid_size;
-// };
-
-// class Tracer {
-//  public:
-//   static Tracer& Instance() {
-//     static Tracer instance;
-//     return instance;
-//   }
-
-//   void AllocateBuffer(uint8_t** buffer, size_t* size) {
-//     constexpr size_t kBufSize = 1 << 23;  // 8 MB
-//     constexpr size_t kBufAlign = 8;       // 8 B
-//     *buffer = reinterpret_cast<uint8_t*>(AlignedMalloc(kBufSize, kBufAlign));
-//     *size = kBufSize;
-//   }
-//   void ProduceBuffer(uint8_t* buffer, size_t valid_size) {
-//     std::lock_guard<std::mutex> guard(activity_buffer_lock_);
-//     activity_buffers_.emplace_back(buffer, valid_size);
-//   }
-//   std::vector<ActivityBuffer> ConsumeBuffers();
-//   void ReleaseBuffer(uint8_t* buffer);
-
-//  private:
-//   Tracer() {}
-
-//   std::mutex activity_buffer_lock_;
-//   std::vector<ActivityBuffer> activity_buffers_;
-// };
-
-// class Tracer {
-//  public:
-//   static Tracer& Instance() {
-//     static Tracer instance;
-//     return instance;
-//   }
-
-//   void AllocateBuffer(uint8_t** buffer, size_t* size);
-//   void ProduceBuffer(uint8_t* buffer, size_t valid_size);
-//   std::vector<ActivityBuffer> ConsumeBuffers();
-//   void ReleaseBuffer(uint8_t* buffer);
-
-//  private:
-//   Tracer() {}
-
-//   std::mutex activity_buffer_lock_;
-//   std::vector<ActivityBuffer> activity_buffers_;
-// };
-
 const char* MemoryKind(uint16_t kind) {
   switch (kind) {
     case CUPTI_ACTIVITY_MEMORY_KIND_UNKNOWN:
@@ -579,35 +528,3 @@ std::unordered_map<uint32_t, uint64_t> CreateThreadIdMapping() {
   return mapping;
 }
 }  // namespace details
-
-// void Tracer::ReleaseBuffer(void* buffer) { AlignedFree(buffer); }
-
-// int ProcessCuptiActivity(C_Profiler prof, uint64_t tracing_start_ns_) {
-//   int record_cnt = 0;
-//   CUPTI_CALL(cuptiActivityFlushAll(CUPTI_ACTIVITY_FLAG_FLUSH_FORCED));
-//   auto mapping = details::CreateThreadIdMapping();
-//   std::vector<ActivityBuffer> buffers = Tracer::Instance().ConsumeBuffers();
-//   for (auto& buffer : buffers) {
-//     if (buffer.addr == nullptr || buffer.valid_size == 0) {
-//       continue;
-//     }
-//     CUpti_Activity* record = nullptr;
-//     while (true) {
-//       CUptiResult status =
-//           cuptiActivityGetNextRecord(buffer.addr, buffer.valid_size,
-//           &record);
-//       if (status == CUPTI_SUCCESS) {
-//         ProcessCuptiActivityRecord(record, tracing_start_ns_, mapping, prof);
-//         ++record_cnt;
-//       } else if (status == CUPTI_ERROR_MAX_LIMIT_REACHED) {
-//         break;
-//       } else {
-//         CUPTI_CALL(status);
-//       }
-//     }
-
-//     Tracer::Instance().ReleaseBuffer(buffer.addr);
-//     // ReleaseBuffer(buffer.addr);
-//   }
-//   return record_cnt;
-// }

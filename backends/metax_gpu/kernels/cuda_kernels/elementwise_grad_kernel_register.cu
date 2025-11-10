@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/elementwise_grad_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/elementwise_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fmax_grad,
                           metax_gpu,

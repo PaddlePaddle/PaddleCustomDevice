@@ -2285,22 +2285,6 @@ std::vector<paddle::Tensor> FusedBlockAttentionForward(
         paddle::optional<phi::DenseTensor>(*k_norm_weights_dt);
   }
 
-  auto q_norm_weights_tensor = paddle::optional<phi::DenseTensor>();
-  if (q_norm_weights) {
-    auto q_norm_weights_dt =
-        static_cast<phi::DenseTensor*>(q_norm_weights->impl().get());
-    q_norm_weights_tensor =
-        paddle::optional<phi::DenseTensor>(*q_norm_weights_dt);
-  }
-
-  auto k_norm_weights_tensor = paddle::optional<phi::DenseTensor>();
-  if (k_norm_weights) {
-    auto k_norm_weights_dt =
-        static_cast<phi::DenseTensor*>(k_norm_weights->impl().get());
-    k_norm_weights_tensor =
-        paddle::optional<phi::DenseTensor>(*k_norm_weights_dt);
-  }
-
   auto src_scale_tensor = paddle::optional<phi::DenseTensor>();
   if (src_scale) {
     auto src_scale_dt = static_cast<phi::DenseTensor*>(src_scale->impl().get());

@@ -33,7 +33,6 @@ def init_measure_dict():
 
 
 def save_measure_dict():
-    print(f"--------  saving measured amax to {model_measurement_file}")
     with open(model_measurement_file, "w") as f:
         for key, value in measure_dict.items():
             f.write(f"{key}\t{value}\n")
@@ -58,7 +57,6 @@ def measure_matrix(amax_in, key):
                 measure_dict[subkey] = new_val
                 results.append(new_val)
         else:
-            print(f"amax_in shape is {amax_in.shape}")
             raise ValueError("Unsupported tensor shape for measure_matrix")
     else:
         prev_val = measure_dict.get(key, float("-inf"))
@@ -146,8 +144,6 @@ def fused_sdpa_ref(
     scale: float,
     measurement_mode: bool = False,
 ) -> paddle.Tensor:
-    print(f" query is {query.shape}")
-    print(f" key is {key.shape}")
     _, _, query_heads, _ = query.shape
     _, _, kv_heads, _ = key.shape
 
@@ -183,17 +179,6 @@ def fused_sdpa_ref(
     attn_weights_steps_final = attn_weights_steps / sum_exp
 
     attn_weights = attn_weights_steps_final
-
-    print("Attention weights (fused):", attn_weights_fused)
-    print("Attention weights (stepwise):", attn_weights_steps)
-    print("Attention weights (sum_exp):", sum_exp)
-    print("Attention weights (stepwise_final):", attn_weights_steps_final)
-
-    print(f"attn_weights max: {paddle.max(paddle.abs(attn_weights))}")
-    print(f"attn_weights_steps max: {paddle.max(paddle.abs(attn_weights_steps))}")
-    print(
-        f"attn_weights_steps_final max: {paddle.max(paddle.abs(attn_weights_steps_final))}"
-    )
 
     if measurement_mode:
         s_amax = paddle.max(paddle.abs(attn_weights))

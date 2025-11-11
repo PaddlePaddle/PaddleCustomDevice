@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_transpose_wlch_split_quant_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/fusion/gpu/fused_transpose_wlch_split_quant_kernel.h"
 #include "paddle/phi/kernels/fusion/gpu/quant_utils.h"
 #include "paddle/phi/kernels/primitive/datamover_primitives.h"
 

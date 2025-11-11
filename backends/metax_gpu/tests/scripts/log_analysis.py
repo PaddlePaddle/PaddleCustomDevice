@@ -206,10 +206,10 @@ if __name__ == "__main__":
 
     analyzer = LogAnalyzer(
         classify_file="./classify.json",
-        search_path="./NPU_logs/20250918_065326",
+        search_path="./High_op/logs_output-20251106",
         pattern="test_*.log",
     )
 
     analyzer.run()
     analyzer.show_result()
-    analyzer.save_result("./output")
+    analyzer.save_result("./High_op/logs_output-20251106-result")

@@ -101,7 +101,10 @@ void ActivationGPUImpl(const Context& dev_ctx,
     ActivationGPUImpl<T, Context, funcs::functor_class<T>>( \
         dev_ctx, x, out, functor);                          \
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> d2ccf6fa130ad0560ca42e1b4b6c84ed19e6b9f6
 #define DEFINE_GPU_ACT_KERNEL_WITH_TWO_DOUBLE_ATTRS(        \
     name, functor_class, attr1, attr2)                      \
   template <typename T, typename Context>                   \
@@ -117,7 +120,10 @@ void ActivationGPUImpl(const Context& dev_ctx,
     ActivationGPUImpl<T, Context, funcs::functor_class<T>>( \
         dev_ctx, x, out, functor);                          \
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> d2ccf6fa130ad0560ca42e1b4b6c84ed19e6b9f6
 DEFINE_GPU_ACTIVATION_KERNEL(Cos, CudaCosFunctor)
 DEFINE_GPU_ACTIVATION_KERNEL(Tan, CudaTanFunctor)
 DEFINE_GPU_ACTIVATION_KERNEL(Acos, CudaAcosFunctor)

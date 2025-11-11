@@ -132,7 +132,10 @@ void ActivationGradGPUImpl(const Context& dev_ctx,
     ActivationGradGPUImpl<T, Context, funcs::functor_class<T>>( \
         dev_ctx, &x, nullptr, &dout, dx, functor);              \
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> d2ccf6fa130ad0560ca42e1b4b6c84ed19e6b9f6
 #define DEFINE_GPU_ACT_GRAD_KERNEL_WITH_TWO_DOUBLE_ATTRS_DEPX(  \
     name, functor_class, attr1, attr2)                          \
   template <typename T, typename Context>                       \
@@ -149,7 +152,10 @@ void ActivationGradGPUImpl(const Context& dev_ctx,
     ActivationGradGPUImpl<T, Context, funcs::functor_class<T>>( \
         dev_ctx, &x, nullptr, &dout, dx, functor);              \
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> d2ccf6fa130ad0560ca42e1b4b6c84ed19e6b9f6
 #define DEFINE_GPU_ACTIVATION_GRAD_KERNEL_DEPOUT(name, functor_class) \
   template <typename T, typename Context>                             \
   void name##GradKernel(const Context& dev_ctx,                       \

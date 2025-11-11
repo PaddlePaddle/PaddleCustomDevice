@@ -13,10 +13,8 @@
 # limitations under the License.
 
 DEFAULT_DIR="/opt/maca"
-export MACA_PATH=${1:$DEFAULT_DIR}
-export CUDA_PATH=/workspace/cuda-11.7/
-export PATH=${CUDA_PATH}/bin:${PATH}
+export MACA_PATH=${1:-$DEFAULT_DIR}
+export CUDA_PATH=/usr/local/cuda
 export CUCC_PATH=${MACA_PATH}/tools/cu-bridge
-export PATH=${PATH}:${CUCC_PATH}/tools:${CUCC_PATH}/bin
-export PATH=${MACA_PATH}/bin:${PATH}
-export LD_LIBRARY_PATH=${MACA_PATH}/lib:${MACA_PATH}/mxgpu_llvm/lib:${LD_LIBRARY_PATH}
+export PATH=${CUDA_PATH}/bin:${MACA_PATH}/ompi/bin:${MACA_PATH}/ucx/bin:${MACA_PATH}/mxgpu_llvm/bin:${MACA_PATH}/bin:${CUCC_PATH}/tools:${CUCC_PATH}/bin:${PATH}
+export LD_LIBRARY_PATH=${MACA_PATH}/lib:${MACA_PATH}/ompi/lib:${MACA_PATH}/mxgpu_llvm/lib:${LD_LIBRARY_PATH}

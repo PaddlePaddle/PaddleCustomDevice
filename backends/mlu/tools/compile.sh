@@ -16,6 +16,9 @@
 
 set -ex
 
+# Set PADDLE_VERSION environment variable
+export PADDLE_VERSION=0.0.0
+
 SOURCE_ROOT="$( cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)"
 
 # prepare build directory

@@ -107,7 +107,7 @@ jobs:
 
           python -c "import paddle; print(paddle.__version__)"
           python -c "import paddle; print(paddle.version.commit)"
-
+          export PADDLE_VERSION=0.0.0
           bash backends/mlu/tools/pr_ci_mlu.sh'
 
       - name: Terminate and delete the container

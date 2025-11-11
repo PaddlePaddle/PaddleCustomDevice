@@ -1,0 +1,1 @@
+/home/PaddleCustomDevice/Paddle/version.txt

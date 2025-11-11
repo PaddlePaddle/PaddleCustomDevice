@@ -14,9 +14,6 @@
 
 set -ex
 
-# Set PADDLE_VERSION environment variable
-export PADDLE_VERSION=0.0.0
-
 WORKSPACE=`pwd`
 echo "Install whl"
 pip install safetensors==0.6.2

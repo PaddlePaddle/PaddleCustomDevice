@@ -13,7 +13,6 @@ Subject: [PATCH] Fix
  paddle/phi/backends/dynload/cusolver.h        |  6 --
  .../backends/gpu/cuda/cuda_device_function.h  |  4 +-
  paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 +-
- paddle/phi/backends/gpu/cuda/cuda_graph.h     |  2 +-
  paddle/phi/backends/gpu/cuda/cuda_helper.h    |  2 +-
  paddle/phi/backends/gpu/cuda/cudnn_desc.h     | 16 +++-
  paddle/phi/backends/gpu/cuda/cudnn_helper.h   |  2 +-
@@ -131,47 +130,7 @@ index c0080f0a5e..dc6384985f 100644
 +CUDNN_DNN_ROUTINE_EACH_ATTN(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
  }  // namespace dynload
  }  // namespace phi
- 
-diff --git a/paddle/phi/backends/dynload/cusolver.h b/paddle/phi/backends/dynload/cusolver.h
-index 86651fc8f1..42a261bdfd 100644
---- a/paddle/phi/backends/dynload/cusolver.h
-+++ b/paddle/phi/backends/dynload/cusolver.h
-@@ -46,10 +46,8 @@ extern void *cusolver_dso_handle;
-   __macro(cusolverDnSetStream);         \
-   __macro(cusolverDnSpotrf_bufferSize); \
-   __macro(cusolverDnDpotrf_bufferSize); \
--  __macro(cusolverDnXpotrf_bufferSize); \
-   __macro(cusolverDnSpotrf);            \
-   __macro(cusolverDnDpotrf);            \
--  __macro(cusolverDnXpotrf);            \
-   __macro(cusolverDnSpotrs);            \
-   __macro(cusolverDnDpotrs);            \
-   __macro(cusolverDnCpotrs);            \
-@@ -79,7 +77,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
-   __macro(cusolverDnDgeqrf_bufferSize);   \
-   __macro(cusolverDnCgeqrf_bufferSize);   \
-   __macro(cusolverDnZgeqrf_bufferSize);   \
--  __macro(cusolverDnXgeqrf_bufferSize);   \
-   __macro(cusolverDnSorgqr_bufferSize);   \
-   __macro(cusolverDnDorgqr_bufferSize);   \
-   __macro(cusolverDnSormqr_bufferSize);   \
-@@ -108,7 +105,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
-   __macro(cusolverDnDgeqrf);              \
-   __macro(cusolverDnCgeqrf);              \
-   __macro(cusolverDnZgeqrf);              \
--  __macro(cusolverDnXgeqrf);              \
-   __macro(cusolverDnSorgqr);              \
-   __macro(cusolverDnDorgqr);              \
-   __macro(cusolverDnSormqr);              \
-@@ -122,8 +118,6 @@ CUSOLVER_ROUTINE_EACH_R1(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP)
- #if CUDA_VERSION >= 9020
- #define CUSOLVER_ROUTINE_EACH_R2(__macro)      \
-   __macro(cusolverDnCreateSyevjInfo);          \
--  __macro(cusolverDnCreateParams);             \
--  __macro(cusolverDnDestroyParams);            \
-   __macro(cusolverDnSsyevj_bufferSize);        \
-   __macro(cusolverDnDsyevj_bufferSize);        \
-   __macro(cusolverDnCheevj_bufferSize);        \
+
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_device_function.h b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
 index 4ff2e528a9..956bac0c64 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_device_function.h
@@ -198,7 +157,7 @@ diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.cc b/paddle/phi/backends/gp
 index 9fd1b1d1d9..7db9b409b7 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_graph.cc
 +++ b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
-@@ -214,7 +214,7 @@ inline void sync_streams(gpuStream_t to_record, gpuStream_t to_wait) {
+@@ -196,7 +196,7 @@ inline void sync_streams(gpuStream_t to_record, gpuStream_t to_wait) {
    PADDLE_ENFORCE_GPU_SUCCESS(
        cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventRecord(event, to_record));
@@ -206,29 +165,7 @@ index 9fd1b1d1d9..7db9b409b7 100644
 +  PADDLE_ENFORCE_GPU_SUCCESS(cudaStreamWaitEvent(to_wait, event, 0));
    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventDestroy(event));
  }
- 
-@@ -331,7 +331,7 @@ void CUDAGraph::PrintToDotFiles(const std::string &dirname,
- #endif
- }
- 
--#if CUDA_VERSION >= 11000
-+#if CUDA_VERSION >= 11000 || defined(PADDLE_WITH_COREX)
- void CUDAGraphNodeLauncher::KernelNodeLaunch(
-     parameterSetter_t parameterSetter, gpuKernelCallback_t cudakernelCallback) {
-   if (UNLIKELY(phi::backends::gpu::CUDAGraph::IsThisThreadCapturing())) {
-diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.h b/paddle/phi/backends/gpu/cuda/cuda_graph.h
-index f0408b8b03..98a01868db 100644
---- a/paddle/phi/backends/gpu/cuda/cuda_graph.h
-+++ b/paddle/phi/backends/gpu/cuda/cuda_graph.h
-@@ -39,7 +39,7 @@
- 
- #ifdef PADDLE_WITH_CUDA
- 
--#if CUDA_VERSION < 11000
-+#if CUDA_VERSION < 11000 && !defined(PADDLE_WITH_COREX)
- // For CUDA versions less than 11.0, use a dummy type for cudaFunction_t.
- using cudaFunction_t = void *;
- cudaError_t cudaGetFuncBySymbol(cudaFunction_t *functionPtr,
+
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_helper.h b/paddle/phi/backends/gpu/cuda/cuda_helper.h
 index 02753c0333..bcf435dfae 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_helper.h

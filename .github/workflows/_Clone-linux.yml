@@ -62,6 +62,11 @@ jobs:
           git merge --no-edit ${BRANCH}
           git submodule sync
           git submodule update --init --recursive --force
+          cd Paddle/third_party/protobuf
+          git fetch --tags
+          cd ../pybind
+          git fetch --tags
+          cd ../../..
 
       - name: Download bos client
         env:

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/comm_init_all_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/comm_init_all_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(
     comm_init_all, iluvatar_gpu, ALL_LAYOUT, phi::CommInitAllKernel, float) {}

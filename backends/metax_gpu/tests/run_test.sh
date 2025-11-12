@@ -21,8 +21,9 @@ LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
 TEST_PATH1="${SCRIPT_DIR}/../../../python"
 TEST_PATH2="${SCRIPT_DIR}/../../../python/tests"
 export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}:${TEST_PATH1}:${TEST_PATH2}"
-
-export
+export PADDLE_XCCL_BACKEND=metax_gpu
+export CUDA_VISIBLE_DEVICES=0
+# export
 # sleep 1000000
 
 

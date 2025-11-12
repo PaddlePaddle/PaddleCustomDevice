@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/ap_trivial_fusion_end_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/ap_trivial_fusion_end_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(ap_trivial_fusion_end,
                           iluvatar_gpu,

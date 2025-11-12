@@ -22,16 +22,29 @@
 
 // retrun: amax and where(>0)
 std::tuple<int, int, int, std::vector<int>> get_max_and_where_nonzero(
-    int* seq_lens_encoder, int* seq_lens_decoder, const int elem_cnt) {
+    int* seq_lens_encoder,
+    int* seq_lens_decoder,
+    const int elem_cnt,
+    int max_num_batched_tokens,
+    int block_size) {
   int max_seq_len_without_context = 0;
   int max_context_len = 0;
   std::vector<int> valid_batch;
   for (int i = 0; i < elem_cnt; ++i) {
     if (seq_lens_encoder[i] > 0) {
       valid_batch.push_back(i);
-      if (seq_lens_encoder[i] > max_seq_len_without_context) {
-        max_seq_len_without_context = seq_lens_encoder[i];
+      int candidate_max_seq_len_without_context = max_seq_len_without_context;
+      if (seq_lens_encoder[i] > candidate_max_seq_len_without_context) {
+        candidate_max_seq_len_without_context = seq_lens_encoder[i];
       }
+      int current_num_batched_tokens =
+          (candidate_max_seq_len_without_context + block_size - 1) /
+          block_size * block_size * (valid_batch.size());
+      if (current_num_batched_tokens > max_num_batched_tokens) {
+        valid_batch.pop_back();
+        break;
+      }
+      max_seq_len_without_context = candidate_max_seq_len_without_context;
       if (seq_lens_decoder[i] > max_context_len) {
         max_context_len = seq_lens_decoder[i];
       }
@@ -203,7 +216,8 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
     const paddle::Tensor& seq_lens_encoder,
     const paddle::Tensor& seq_lens_decoder,
     int block_size,
-    std::string dtype) {
+    std::string dtype,
+    int max_num_batched_tokens) {
   auto hpu_place = rope_emb.place();
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(hpu_place));
@@ -238,7 +252,9 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
       get_max_and_where_nonzero(
           const_cast<int*>(seq_lens_encoder_cpu.data<int>()),
           const_cast<int*>(seq_lens_decoder_cpu.data<int>()),
-          max_batches_in);
+          max_batches_in,
+          max_num_batched_tokens,
+          block_size);
   int enc_count = valid_batches_enc.size();
 
   auto valid_batches_dec = where_nonzero(
@@ -559,7 +575,8 @@ std::vector<paddle::DataType> PrepareBlockMetadataDtype(
     const paddle::DataType& seq_lens_encoder_dtype,
     const paddle::DataType& seq_lens_decoder_dtype,
     int block_size,
-    std::string dtype) {
+    std::string dtype,
+    int max_num_batched_tokens) {
   return {input_ids_dtype,
           phi::StringToDataType(dtype),
           phi::DataType::INT32,
@@ -590,7 +607,9 @@ PD_BUILD_OP(prepare_block_metadata)
               "batch_ids",
               "total_batch",
               "is_prompt"})
-    .Attrs({"block_size: int", "device_dtype: std::string"})
+    .Attrs({"block_size: int",
+            "device_dtype: std::string",
+            "max_num_batched_tokens: int"})
     .SetKernelFn(PD_KERNEL(PrepareBlockMetadata))
     .SetInferShapeFn(PD_INFER_SHAPE(PrepareBlockMetadataShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(PrepareBlockMetadataDtype));

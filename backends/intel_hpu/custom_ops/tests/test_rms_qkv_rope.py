@@ -305,6 +305,8 @@ class TestFusedRmsQkvRope:
             self.qkv_biases,
             self.new_rope.transpose([0, 1, 3, 2, 4]),
             self.residual,
+            None,
+            None,
             self.epsilon,
             self.head_dim,
             self.num_head,

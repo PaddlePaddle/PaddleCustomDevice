@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/c_scatter_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/c_scatter_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(c_scatter,
                           metax_gpu,

@@ -16,7 +16,11 @@
 #include "paddle/phi/common/complex.h"
 #include "paddle/phi/common/data_type.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/elementwise_grad_kernel.h"  // NOLINT
+#include "paddle/phi/kernels/elementwise_add_grad_kernel.h"
+#include "paddle/phi/kernels/elementwise_divide_grad_kernel.h"
+#include "paddle/phi/kernels/elementwise_grad_kernel.h"
+#include "paddle/phi/kernels/elementwise_multiply_grad_kernel.h"
+#include "paddle/phi/kernels/elementwise_subtract_grad_kernel.h"
 PD_CUSTOM_KERNEL_REGISTER(fmax_grad,
                           metax_gpu,
                           ALL_LAYOUT,

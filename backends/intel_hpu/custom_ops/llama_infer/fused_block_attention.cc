@@ -26,6 +26,7 @@ struct FusedBlockAttentionParams {
   ns_GatherKernel::Params index_select_params;
   ns_Reduction::Params reduce_params;
   ns_IndexReduce::Params index_reduce_params;
+  ns_LayerNormKernel::Params rmsnorm_params;
 
   int head_dim;
   int num_head;
@@ -35,6 +36,7 @@ struct FusedBlockAttentionParams {
   bool with_qkv_biases = false;
   bool transpose = true;
   bool use_fp8 = false;
+  bool use_qk_rmsnorm = false;
 };
 
 class FusedBlockAttentionBase : public HpuFusedOperator {
@@ -124,7 +126,7 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
     int src_scale_index = -1, qkv_weights_scale_index = -1, q_scale_index = -1,
         k_scale_index = -1, a_scale_index = -1, v_scale_index = -1,
         o_linear_scale_x_index = -1, o_linear_scale_y_index = -1,
-        qkv_biases_index = -1;
+        qkv_biases_index = -1, q_gamma_index = -1, k_gamma_index = -1;
     if (params.use_fp8) {
       src_scale_index = (index_base++);
       qkv_weights_scale_index = (index_base++);
@@ -138,6 +140,11 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
 
     if (params.with_qkv_biases) {
       qkv_biases_index = (index_base++);
+    }
+
+    if (params.use_qk_rmsnorm) {
+      q_gamma_index = (index_base++);
+      k_gamma_index = (index_base++);
     }
 
     std::vector<int64_t> src_dims = std::vector<int64_t>(ins[src_index].dims);
@@ -299,7 +306,58 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
 
     std::vector<synTensor> inputs_q;
     std::vector<synTensor> outputs_q;
-    inputs_q.push_back(q_split);
+
+    std::vector<synTensor> inputs_k;
+    std::vector<synTensor> outputs_k;
+
+    if (params.use_qk_rmsnorm) {
+      auto q_rmsnorm = createTensorNoPresist("q_rmsnorm", dtype_, q_dims);
+      auto k_rmsnorm = createTensorNoPresist("k_rmsnorm", dtype_, kv_dims);
+
+      synTensor q_gamma = createTensorFromCT(&ct, q_gamma_index);
+      synTensor k_gamma = createTensorFromCT(&ct, k_gamma_index);
+
+      auto tmp_q_dims = q_dims;
+      tmp_q_dims[2] = 1;
+      auto q_rmsnorm_var =
+          createTensorNoPresist("q_rmsnorm_var", dtype_, tmp_q_dims);
+
+      auto tmp_k_dims = kv_dims;
+      tmp_k_dims[2] = 1;
+      auto k_rmsnorm_var =
+          createTensorNoPresist("k_rmsnorm_var", dtype_, tmp_k_dims);
+
+      std::vector<synTensor> rmsnorm_inputs_q;
+      rmsnorm_inputs_q.push_back(q_split);
+      rmsnorm_inputs_q.push_back(q_gamma);
+
+      std::vector<synTensor> rmsnorm_outputs_q;
+      rmsnorm_outputs_q.push_back(q_rmsnorm);
+      rmsnorm_outputs_q.push_back(q_rmsnorm_var);
+
+      AddNodeRmsNorm<T>(rmsnorm_inputs_q,
+                        rmsnorm_outputs_q,
+                        params.rmsnorm_params,
+                        guid_ + "q_rmsnorm");
+
+      std::vector<synTensor> rmsnorm_inputs_k;
+      rmsnorm_inputs_k.push_back(k_split);
+      rmsnorm_inputs_k.push_back(k_gamma);
+      std::vector<synTensor> rmsnorm_outputs_k;
+      rmsnorm_outputs_k.push_back(k_rmsnorm);
+      rmsnorm_outputs_k.push_back(k_rmsnorm_var);
+
+      AddNodeRmsNorm<T>(rmsnorm_inputs_k,
+                        rmsnorm_outputs_k,
+                        params.rmsnorm_params,
+                        guid_ + "k_rmsnorm");
+
+      inputs_q.push_back(q_rmsnorm);
+      inputs_k.push_back(k_rmsnorm);
+    } else {
+      inputs_q.push_back(q_split);
+      inputs_k.push_back(k_split);
+    }
     inputs_q.push_back(sin_sq);
     inputs_q.push_back(cos_sq);
 
@@ -313,9 +371,6 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
                           : ROTARY_POS_EMBEDDING_MODE_PAIRWISE;
     AddNodeRope<T>(inputs_q, outputs_q, ropeParams, guid_ + "rope_q");
 
-    std::vector<synTensor> inputs_k;
-    std::vector<synTensor> outputs_k;
-    inputs_k.push_back(k_split);
     inputs_k.push_back(sin_sq);
     inputs_k.push_back(cos_sq);
 
@@ -933,7 +988,7 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
     int src_scale_index = -1, qkv_weights_scale_index = -1, q_scale_index = -1,
         k_scale_index = -1, a_scale_index = -1, v_scale_index = -1,
         o_linear_scale_x_index = -1, o_linear_scale_y_index = -1,
-        qkv_biases_index = -1;
+        qkv_biases_index = -1, q_gamma_index = -1, k_gamma_index = -1;
     if (params.use_fp8) {
       src_scale_index = (index_base++);
       qkv_weights_scale_index = (index_base++);
@@ -947,6 +1002,11 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
 
     if (params.with_qkv_biases) {
       qkv_biases_index = (index_base++);
+    }
+
+    if (params.use_qk_rmsnorm) {
+      q_gamma_index = (index_base++);
+      k_gamma_index = (index_base++);
     }
 
     std::vector<int64_t> src_dims = std::vector<int64_t>(ins[src_index].dims);
@@ -1109,7 +1169,57 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
 
     std::vector<synTensor> inputs_q;
     std::vector<synTensor> outputs_q;
-    inputs_q.push_back(q_split);
+
+    std::vector<synTensor> inputs_k;
+    std::vector<synTensor> outputs_k;
+
+    if (params.use_qk_rmsnorm) {
+      auto q_rmsnorm = createTensorNoPresist("q_rmsnorm", dtype_, q_dims);
+      auto k_rmsnorm = createTensorNoPresist("k_rmsnorm", dtype_, kv_dims);
+      synTensor q_gamma = createTensorFromCT(&ct, q_gamma_index);
+      synTensor k_gamma = createTensorFromCT(&ct, k_gamma_index);
+
+      auto tmp_q_dims = q_dims;
+      tmp_q_dims[2] = 1;
+      auto q_rmsnorm_var =
+          createTensorNoPresist("q_rmsnorm_var", dtype_, tmp_q_dims);
+
+      auto tmp_k_dims = kv_dims;
+      tmp_k_dims[2] = 1;
+      auto k_rmsnorm_var =
+          createTensorNoPresist("k_rmsnorm_var", dtype_, tmp_k_dims);
+
+      std::vector<synTensor> rmsnorm_inputs_q;
+      rmsnorm_inputs_q.push_back(q_split);
+      rmsnorm_inputs_q.push_back(q_gamma);
+      std::vector<synTensor> rmsnorm_outputs_q;
+      rmsnorm_outputs_q.push_back(q_rmsnorm);
+      rmsnorm_outputs_q.push_back(q_rmsnorm_var);
+
+      AddNodeRmsNorm<T>(rmsnorm_inputs_q,
+                        rmsnorm_outputs_q,
+                        params.rmsnorm_params,
+                        guid_ + "q_rmsnorm");
+
+      std::vector<synTensor> rmsnorm_inputs_k;
+      rmsnorm_inputs_k.push_back(k_split);
+      rmsnorm_inputs_k.push_back(k_gamma);
+      std::vector<synTensor> rmsnorm_outputs_k;
+      rmsnorm_outputs_k.push_back(k_rmsnorm);
+      rmsnorm_outputs_k.push_back(k_rmsnorm_var);
+
+      AddNodeRmsNorm<T>(rmsnorm_inputs_k,
+                        rmsnorm_outputs_k,
+                        params.rmsnorm_params,
+                        guid_ + "k_rmsnorm");
+
+      inputs_q.push_back(q_rmsnorm);
+      inputs_k.push_back(k_rmsnorm);
+    } else {
+      inputs_q.push_back(q_split);
+      inputs_k.push_back(k_split);
+    }
+
     inputs_q.push_back(sin_sq);
     inputs_q.push_back(cos_sq);
 
@@ -1123,9 +1233,6 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
                           : ROTARY_POS_EMBEDDING_MODE_PAIRWISE;
     AddNodeRope<T>(inputs_q, outputs_q, ropeParams, guid_ + "rope_q");
 
-    std::vector<synTensor> inputs_k;
-    std::vector<synTensor> outputs_k;
-    inputs_k.push_back(k_split);
     inputs_k.push_back(sin_sq);
     inputs_k.push_back(cos_sq);
 
@@ -1777,6 +1884,8 @@ void FusedBlockAttentionKernel(
     const phi::DenseTensor& qkv_weights,
     const paddle::optional<phi::DenseTensor>& qkv_biases,
     const phi::DenseTensor& linear_weights,
+    const paddle::optional<phi::DenseTensor>& q_norm_weights,
+    const paddle::optional<phi::DenseTensor>& k_norm_weights,
     const paddle::optional<phi::DenseTensor>& src_scale,
     const paddle::optional<phi::DenseTensor>& qkv_weights_scale,
     const paddle::optional<phi::DenseTensor>& qk_scale_x,
@@ -1790,7 +1899,8 @@ void FusedBlockAttentionKernel(
     const phi::Scalar& num_head,
     const phi::Scalar& scaling_factor,
     const phi::Scalar& transpose,
-    const phi::Scalar& use_neox_style) {
+    const phi::Scalar& use_neox_style,
+    const phi::Scalar& epsilon) {
   std::vector<int64_t> src_dims = phi::vectorize<int64_t>(src.dims());
   std::vector<int64_t> qkv_weights_dims =
       phi::vectorize<int64_t>(qkv_weights.dims());
@@ -1849,6 +1959,14 @@ void FusedBlockAttentionKernel(
     ct.Add(qkv_biases.get());
     guid_prefix += "bias_";
   }
+
+  bool qk_rmsnorm = false;
+  if (q_norm_weights && k_norm_weights) {
+    qk_rmsnorm = true;
+    ct.Add(q_norm_weights.get());
+    ct.Add(k_norm_weights.get());
+    guid_prefix += "qk_rmsnorm_";
+  }
   if (num_head_ == num_kv_head) {
     guid_prefix += "MHA_";
   } else {
@@ -1871,6 +1989,8 @@ void FusedBlockAttentionKernel(
     params.index_reduce_params.mode = INDEX_REDUCE_AMAX;
     params.index_reduce_params.include_self = true;
     params.index_reduce_params.axis = 0;
+    params.rmsnorm_params.epsValid = true;
+    params.rmsnorm_params.eps = epsilon.to<float>();
     params.use_neox_style = use_neox_style_;
     params.transpose = transpose_;
     params.head_dim = head_dim_;
@@ -1879,6 +1999,9 @@ void FusedBlockAttentionKernel(
     params.use_fp8 = use_fp8;
     if (qkv_biases) {
       params.with_qkv_biases = true;
+    }
+    if (qk_rmsnorm) {
+      params.use_qk_rmsnorm = true;
     }
 
     if (num_head_ == num_kv_head) {
@@ -1919,6 +2042,8 @@ void CallFusedBlockAttentionKernel(
     const phi::DenseTensor& qkv_weights,
     const paddle::optional<phi::DenseTensor>& qkv_biases,
     const phi::DenseTensor& linear_weights,
+    const paddle::optional<phi::DenseTensor>& q_norm_weights,
+    const paddle::optional<phi::DenseTensor>& k_norm_weights,
     const paddle::optional<phi::DenseTensor>& src_scale,
     const paddle::optional<phi::DenseTensor>& qkv_weights_scale,
     const paddle::optional<phi::DenseTensor>& q_scale,
@@ -1932,7 +2057,8 @@ void CallFusedBlockAttentionKernel(
     const phi::Scalar& num_head,
     const phi::Scalar& scaling_factor,
     const phi::Scalar& transpose,
-    const phi::Scalar& use_neox_style) {
+    const phi::Scalar& use_neox_style,
+    const phi::Scalar& epsilon) {
   if (src.dtype() == phi::DataType::FLOAT16) {
     custom_kernel::FusedBlockAttentionKernel<phi::dtype::float16>(
         dev_ctx,
@@ -1949,6 +2075,8 @@ void CallFusedBlockAttentionKernel(
         qkv_weights,
         qkv_biases,
         linear_weights,
+        q_norm_weights,
+        k_norm_weights,
         src_scale,
         qkv_weights_scale,
         q_scale,
@@ -1962,7 +2090,8 @@ void CallFusedBlockAttentionKernel(
         num_head,
         scaling_factor,
         transpose,
-        use_neox_style);
+        use_neox_style,
+        epsilon);
   } else if (src.dtype() == phi::DataType::BFLOAT16) {
     custom_kernel::FusedBlockAttentionKernel<phi::dtype::bfloat16>(
         dev_ctx,
@@ -1979,6 +2108,8 @@ void CallFusedBlockAttentionKernel(
         qkv_weights,
         qkv_biases,
         linear_weights,
+        q_norm_weights,
+        k_norm_weights,
         src_scale,
         qkv_weights_scale,
         q_scale,
@@ -1992,7 +2123,8 @@ void CallFusedBlockAttentionKernel(
         num_head,
         scaling_factor,
         transpose,
-        use_neox_style);
+        use_neox_style,
+        epsilon);
   } else {
     throw std::runtime_error(
         "Unsupported data type for FusedBlockAttentionKernel");
@@ -2013,11 +2145,14 @@ std::vector<paddle::Tensor> FusedBlockAttentionForward(
     const paddle::Tensor& qkv_weights,
     const paddle::optional<paddle::Tensor>& qkv_biases,
     const paddle::Tensor& linear_weights,
+    const paddle::optional<paddle::Tensor>& q_norm_weights,
+    const paddle::optional<paddle::Tensor>& k_norm_weights,
     int head_dim,
     int num_head,
     float scaling_factor,
     bool transpose,
-    bool use_neox_style) {
+    bool use_neox_style,
+    float epsilon) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
   auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
@@ -2051,6 +2186,22 @@ std::vector<paddle::Tensor> FusedBlockAttentionForward(
     qkv_biases_tensor = paddle::optional<phi::DenseTensor>(*qkv_biases_dt);
   }
 
+  auto q_norm_weights_tensor = paddle::optional<phi::DenseTensor>();
+  if (q_norm_weights) {
+    auto q_norm_weights_dt =
+        static_cast<phi::DenseTensor*>(q_norm_weights->impl().get());
+    q_norm_weights_tensor =
+        paddle::optional<phi::DenseTensor>(*q_norm_weights_dt);
+  }
+
+  auto k_norm_weights_tensor = paddle::optional<phi::DenseTensor>();
+  if (k_norm_weights) {
+    auto k_norm_weights_dt =
+        static_cast<phi::DenseTensor*>(k_norm_weights->impl().get());
+    k_norm_weights_tensor =
+        paddle::optional<phi::DenseTensor>(*k_norm_weights_dt);
+  }
+
   // allocate memory on device.
   int64_t batch_size = src.dims()[0];
   int64_t out_features = linear_weights.dims()[1];
@@ -2074,6 +2225,8 @@ std::vector<paddle::Tensor> FusedBlockAttentionForward(
                                 *qkv_weights_tensor,
                                 qkv_biases_tensor,
                                 *linear_weights_tensor,
+                                q_norm_weights_tensor,
+                                k_norm_weights_tensor,
                                 paddle::optional<phi::DenseTensor>(),
                                 paddle::optional<phi::DenseTensor>(),
                                 paddle::optional<phi::DenseTensor>(),
@@ -2087,7 +2240,8 @@ std::vector<paddle::Tensor> FusedBlockAttentionForward(
                                 phi::Scalar(num_head),
                                 phi::Scalar(scaling_factor),
                                 phi::Scalar(transpose),
-                                phi::Scalar(use_neox_style));
+                                phi::Scalar(use_neox_style),
+                                phi::Scalar(epsilon));
   return {paddle::Tensor(out_linear)};
 }
 
@@ -2145,13 +2299,16 @@ PD_BUILD_OP(fused_block_attention)
              "block_offsets",
              "qkv_weights",
              paddle::Optional("qkv_biases"),
-             "linear_weights"})
+             "linear_weights",
+             paddle::Optional("q_norm_weights"),
+             paddle::Optional("k_norm_weights")})
     .Outputs({"out_linear"})
     .Attrs({"head_dim: int",
             "num_head: int",
             "scaling_factor: float",
             "transpose: bool",
-            "use_neox_style: bool"})
+            "use_neox_style: bool",
+            "epsilon: float"})
     .SetKernelFn(PD_KERNEL(FusedBlockAttentionForward))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedBlockAttentionShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedBlockAttentionDtype));
@@ -2170,6 +2327,8 @@ std::vector<paddle::Tensor> FusedFp8BlockAttentionForward(
     const paddle::Tensor& qkv_weights,
     const paddle::optional<paddle::Tensor>& qkv_biases,
     const paddle::Tensor& linear_weights,
+    const paddle::optional<paddle::Tensor>& q_norm_weights,
+    const paddle::optional<paddle::Tensor>& k_norm_weights,
     const paddle::Tensor& src_scale,
     const paddle::Tensor& qkv_weights_scale,
     const paddle::Tensor& q_scale,
@@ -2182,7 +2341,8 @@ std::vector<paddle::Tensor> FusedFp8BlockAttentionForward(
     int num_head,
     float scaling_factor,
     bool transpose,
-    bool use_neox_style) {
+    bool use_neox_style,
+    float epsilon) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
   auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
@@ -2214,6 +2374,22 @@ std::vector<paddle::Tensor> FusedFp8BlockAttentionForward(
     auto qkv_biases_dt =
         static_cast<phi::DenseTensor*>(qkv_biases->impl().get());
     qkv_biases_tensor = paddle::optional<phi::DenseTensor>(*qkv_biases_dt);
+  }
+
+  auto q_norm_weights_tensor = paddle::optional<phi::DenseTensor>();
+  if (q_norm_weights) {
+    auto q_norm_weights_dt =
+        static_cast<phi::DenseTensor*>(q_norm_weights->impl().get());
+    q_norm_weights_tensor =
+        paddle::optional<phi::DenseTensor>(*q_norm_weights_dt);
+  }
+
+  auto k_norm_weights_tensor = paddle::optional<phi::DenseTensor>();
+  if (k_norm_weights) {
+    auto k_norm_weights_dt =
+        static_cast<phi::DenseTensor*>(k_norm_weights->impl().get());
+    k_norm_weights_tensor =
+        paddle::optional<phi::DenseTensor>(*k_norm_weights_dt);
   }
 
   auto src_scale_tensor =
@@ -2256,6 +2432,8 @@ std::vector<paddle::Tensor> FusedFp8BlockAttentionForward(
                                 *qkv_weights_tensor,
                                 qkv_biases_tensor,
                                 *linear_weights_tensor,
+                                q_norm_weights_tensor,
+                                k_norm_weights_tensor,
                                 *src_scale_tensor,
                                 *qkv_weights_scale_tensor,
                                 *q_scale_tensor,
@@ -2269,7 +2447,8 @@ std::vector<paddle::Tensor> FusedFp8BlockAttentionForward(
                                 phi::Scalar(num_head),
                                 phi::Scalar(scaling_factor),
                                 phi::Scalar(transpose),
-                                phi::Scalar(use_neox_style));
+                                phi::Scalar(use_neox_style),
+                                phi::Scalar(epsilon));
   return {paddle::Tensor(out_linear)};
 }
 
@@ -2287,6 +2466,8 @@ PD_BUILD_OP(fused_fp8_block_attention)
              "qkv_weights",
              paddle::Optional("qkv_biases"),
              "linear_weights",
+             paddle::Optional("q_norm_weights"),
+             paddle::Optional("k_norm_weights"),
              "src_scale",
              "qkv_weights_scale",
              "q_scale",
@@ -2300,7 +2481,8 @@ PD_BUILD_OP(fused_fp8_block_attention)
             "num_head: int",
             "scaling_factor: float",
             "transpose: bool",
-            "use_neox_style: bool"})
+            "use_neox_style: bool",
+            "epsilon: float"})
     .SetKernelFn(PD_KERNEL(FusedFp8BlockAttentionForward))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedBlockAttentionShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedBlockAttentionDtype));

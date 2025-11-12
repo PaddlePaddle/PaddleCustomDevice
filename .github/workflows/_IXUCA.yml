@@ -116,6 +116,7 @@ jobs:
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           cd /workspace/PaddleCustomDevice/backends/iluvatar_gpu
+          export PADDLE_VERSION=0.0.0
           # build
           bash build_paddle.sh
           # Install

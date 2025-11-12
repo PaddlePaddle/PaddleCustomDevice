@@ -32,6 +32,11 @@ jobs:
     uses: ./.github/workflows/_GCU.yml
     needs: [Codestyle-Check]
 
+  Metax:
+    name: Metax-GPU-X86
+    uses: ./.github/workflows/_Metax-X86.yaml
+    needs: [Codestyle-Check]
+
   hpu:
     name: hpu
     uses: ./.github/workflows/_HPU.yml

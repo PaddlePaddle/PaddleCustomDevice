@@ -130,7 +130,7 @@ jobs:
           python -c "import paddle; print(paddle.version.commit)"
           # Install python packages required for incremental coverage
           python -m pip install PyGithub
-
+          export PADDLE_VERSION=0.0.0
           bash backends/npu/tools/pr_ci_npu.sh'
 
       - name: Terminate and delete the container

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/interpolate_grad_kernel.cu"  //NOLINT
 #include "paddle/phi/kernels/interpolate_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(bilinear_interp_grad,

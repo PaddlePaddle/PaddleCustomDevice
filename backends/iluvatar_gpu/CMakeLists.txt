@@ -707,6 +707,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/shuffle_batch_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sigmoid_cross_entropy_with_logits_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/slogdeterminant_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/determinant_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/determinant_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sparse_momentum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/straight_through_estimator_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/svd_grad_kernel.cu

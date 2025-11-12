@@ -13,11 +13,12 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/correlation_kernel.h"
+#include "paddle/phi/kernels/gpu/determinant_kernel.cu"  // NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(correlation,
+PD_CUSTOM_KERNEL_REGISTER(determinant,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::CorrelationCUDAKernel,
+                          phi::DeterminantKernel,
                           float,
-                          double) {}
+                          phi::float16,
+                          phi::complex64) {}

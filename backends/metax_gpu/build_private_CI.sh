@@ -67,7 +67,7 @@ export CUCC_PATH=${MACA_PATH}/tools/cu-bridge
 export PATH=${PATH}:${CUCC_PATH}/tools:${CUCC_PATH}/bin
 export PATH=${MACA_PATH}/bin:${PATH}
 export LD_LIBRARY_PATH=${MACA_PATH}/lib:${MACA_PATH}/mxgpu_llvm/lib:${LD_LIBRARY_PATH}
-export PADDLE_VERSION=3.3.0
+export PADDLE_VERSION="3.3.0.dev$(date +%Y%m%d)"
 
 if [ ! -d build ]; then
     echo "build directory not found, creating..."
@@ -86,6 +86,7 @@ echo "Done!"
 
 cd build/dist/
 ossutil ls oss://opensource-ci/paddle/
-ossutil cat oss://opensource-ci/paddle/test1
-ossutil cp ./paddle_metax_gpu-*.whl oss://opensource-ci/paddle/test1/
+ossutil cat oss://opensource-ci/paddle/
+
+ossutil cp ./paddle_metax_gpu-*.whl oss://opensource-ci/paddle/ -f
 cd -

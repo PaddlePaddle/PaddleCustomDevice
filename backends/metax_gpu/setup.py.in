@@ -81,6 +81,11 @@ class BinaryDistribution(Distribution):
     def has_ext_modules(self):
         return True
 
+# maca ai version
+maca_ai_version = os.getenv('MACA_AI_VERSION')
+if not maca_ai_version:
+    maca_ai_version = "0.0.0"
+
 
 def main():
     write_custom_op_api_py()
@@ -89,7 +94,7 @@ def main():
 
     setup(
     name = '@CMAKE_PROJECT_NAME@',
-    version='@PLUGIN_VERSION@',
+    version='@PLUGIN_VERSION@' + "+maca" + maca_ai_version,
     description='Paddle metax_gpu plugin',
     long_description='',
     long_description_content_type="text/markdown",

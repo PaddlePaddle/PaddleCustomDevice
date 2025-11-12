@@ -1,6 +1,6 @@
-From 324cbc0e4e73cdf3e6db941ad6eb25fdfad43da6 Mon Sep 17 00:00:00 2001
+From 6484778861092b0d56309f5be9aae4d6c23726ef Mon Sep 17 00:00:00 2001
 From: tianyuzhou668 <2431054748@qq.com>
-Date: Tue, 4 Nov 2025 14:49:01 +0800
+Date: Wed, 12 Nov 2025 15:37:49 +0800
 Subject: [PATCH] Fix
 
 ---
@@ -8,12 +8,12 @@ Subject: [PATCH] Fix
  .../operators/collective/recv_v2_op.cu.cc     |  2 +-
  .../operators/collective/send_v2_op.cu.cc     |  2 +-
  .../fluid/platform/device/gpu/nccl_helper.h   |  2 +-
- paddle/phi/backends/dynload/cudnn.cc          |  4 +
- paddle/phi/backends/dynload/cudnn.h           |  9 +++
- paddle/phi/backends/dynload/cusolver.h        |  6 --
+ paddle/phi/backends/dynload/cudnn.cc          |  8 ++
+ paddle/phi/backends/dynload/cudnn.h           | 28 ++++++-
+ paddle/phi/backends/dynload/cusolver.h        |  2 -
+ paddle/phi/backends/dynload/cusparse.h        |  2 +
  .../backends/gpu/cuda/cuda_device_function.h  |  4 +-
- paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 +-
- paddle/phi/backends/gpu/cuda/cuda_graph.h     |  2 +-
+ paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  2 +-
  paddle/phi/backends/gpu/cuda/cuda_helper.h    |  2 +-
  paddle/phi/backends/gpu/cuda/cudnn_desc.h     | 16 +++-
  paddle/phi/backends/gpu/cuda/cudnn_helper.h   |  2 +-
@@ -43,7 +43,7 @@ Subject: [PATCH] Fix
  paddle/phi/kernels/squeeze_kernel.cc          |  2 +
  paddle/phi/kernels/strided_slice_kernel.cc    |  2 +
  paddle/phi/kernels/unsqueeze_kernel.cc        |  2 +
- 39 files changed, 244 insertions(+), 69 deletions(-)
+ 39 files changed, 266 insertions(+), 64 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 1a4460a3be..b6c6b4a797 100755
@@ -98,10 +98,21 @@ index 93e1278861..da47b74e70 100644
      return ncclBfloat16;
  #endif
 diff --git a/paddle/phi/backends/dynload/cudnn.cc b/paddle/phi/backends/dynload/cudnn.cc
-index c474a1a417..749073ce38 100644
+index 5a18808d47..749073ce38 100644
 --- a/paddle/phi/backends/dynload/cudnn.cc
 +++ b/paddle/phi/backends/dynload/cudnn.cc
-@@ -61,6 +61,10 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(DEFINE_WRAP);
+@@ -25,6 +25,10 @@ void* cudnn_dso_handle = nullptr;
+ 
+ CUDNN_DNN_ROUTINE_EACH(DEFINE_WRAP);
+ 
++#ifdef CUDNN_DNN_ROUTINE_EACH_AFTER_R7_LESS_R8
++CUDNN_DNN_ROUTINE_EACH_AFTER_R7_LESS_R8(DEFINE_WRAP);
++#endif
++
+ #ifdef CUDNN_DNN_ROUTINE_EACH_R7
+ CUDNN_DNN_ROUTINE_EACH_R7(DEFINE_WRAP);
+ #endif
+@@ -57,6 +61,10 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(DEFINE_WRAP);
  CUDNN_DNN_ROUTINE_EACH_R9(DEFINE_WRAP);
  #endif
  
@@ -113,10 +124,72 @@ index c474a1a417..749073ce38 100644
    std::call_once(cudnn_dso_flag,
                   []() { cudnn_dso_handle = GetCUDNNDsoHandle(); });
 diff --git a/paddle/phi/backends/dynload/cudnn.h b/paddle/phi/backends/dynload/cudnn.h
-index c0080f0a5e..dc6384985f 100644
+index a943bbed9a..dc6384985f 100644
 --- a/paddle/phi/backends/dynload/cudnn.h
 +++ b/paddle/phi/backends/dynload/cudnn.h
-@@ -229,6 +229,15 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(
+@@ -121,6 +121,16 @@ extern void EnforceCUDNNLoaded(const char* fn_name);
+   __macro(cudnnDestroyActivationDescriptor);
+ CUDNN_DNN_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
+ 
++#if CUDNN_VERSION >= 7000 && CUDNN_VERSION < 8000
++#define CUDNN_DNN_ROUTINE_EACH_AFTER_R7_LESS_R8(__macro) \
++  __macro(cudnnGetConvolutionBackwardFilterAlgorithm);   \
++  __macro(cudnnGetConvolutionForwardAlgorithm);          \
++  __macro(cudnnGetConvolutionBackwardDataAlgorithm);     \
++  __macro(cudnnSetRNNDescriptor);
++CUDNN_DNN_ROUTINE_EACH_AFTER_R7_LESS_R8(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
++#endif
++
++#if CUDNN_VERSION >= 7001
+ #define CUDNN_DNN_ROUTINE_EACH_R7(__macro)                \
+   __macro(cudnnSetConvolutionGroupCount);                 \
+   __macro(cudnnSetConvolutionMathType);                   \
+@@ -136,13 +146,17 @@ CUDNN_DNN_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
+   __macro(cudnnGetConvolutionForwardAlgorithm_v7);        \
+   __macro(cudnnGetConvolutionBackwardFilterAlgorithmMaxCount);
+ CUDNN_DNN_ROUTINE_EACH_R7(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
++#endif
+ 
++#if CUDNN_VERSION >= 7201
+ #define CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7(__macro) \
+   __macro(cudnnCreateRNNDataDescriptor);             \
+   __macro(cudnnDestroyRNNDataDescriptor);            \
+   __macro(cudnnSetRNNDataDescriptor);
+ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
++#endif
+ 
++#if CUDNN_VERSION >= 7401
+ #define CUDNN_DNN_ROUTINE_EACH_AFTER_R7(__macro)                     \
+   __macro(cudnnGetBatchNormalizationForwardTrainingExWorkspaceSize); \
+   __macro(cudnnBatchNormalizationForwardTrainingEx);                 \
+@@ -150,7 +164,9 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
+   __macro(cudnnBatchNormalizationBackwardEx);                        \
+   __macro(cudnnGetBatchNormalizationTrainingExReserveSpaceSize);
+ CUDNN_DNN_ROUTINE_EACH_AFTER_R7(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
++#endif
+ 
++#if CUDNN_VERSION >= 8000
+ #define CUDNN_DNN_ROUTINE_EACH_R8(__macro)            \
+   __macro(cudnnSetRNNDescriptor_v8);                  \
+   __macro(cudnnCreateFusedOpsPlan);                   \
+@@ -164,6 +180,7 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_R7(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
+   __macro(cudnnSetFusedOpsVariantParamPackAttribute); \
+   __macro(cudnnMakeFusedOpsPlan);
+ CUDNN_DNN_ROUTINE_EACH_R8(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
++#endif
+ 
+ #ifdef PADDLE_WITH_CUDNN_FRONTEND
+ #define CUDNN_DNN_ROUTINE_EACH_FRONTEND(__macro) \
+@@ -191,7 +208,7 @@ CUDNN_DNN_ROUTINE_EACH_FRONTEND(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
+ CUDNN_DNN_ROUTINE_EACH_REMOVED_IN_E9(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
+ #endif
+ 
+-#if CUDNN_VERSION < 90000
++#if CUDNN_VERSION < 90000 && CUDNN_VERSION >= 7201
+ #define CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(__macro) \
+   __macro(cudnnSetRNNPaddingMode);                                 \
+   __macro(cudnnRNNForwardInferenceEx);                             \
+@@ -212,6 +229,15 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(
    __macro(cudnnRNNBackwardWeights_v8);
  CUDNN_DNN_ROUTINE_EACH_R9(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
  #endif
@@ -133,45 +206,38 @@ index c0080f0a5e..dc6384985f 100644
  }  // namespace phi
  
 diff --git a/paddle/phi/backends/dynload/cusolver.h b/paddle/phi/backends/dynload/cusolver.h
-index 86651fc8f1..42a261bdfd 100644
+index 57e09bb6e4..dc9eb09105 100644
 --- a/paddle/phi/backends/dynload/cusolver.h
 +++ b/paddle/phi/backends/dynload/cusolver.h
-@@ -46,10 +46,8 @@ extern void *cusolver_dso_handle;
-   __macro(cusolverDnSetStream);         \
-   __macro(cusolverDnSpotrf_bufferSize); \
-   __macro(cusolverDnDpotrf_bufferSize); \
--  __macro(cusolverDnXpotrf_bufferSize); \
-   __macro(cusolverDnSpotrf);            \
-   __macro(cusolverDnDpotrf);            \
--  __macro(cusolverDnXpotrf);            \
-   __macro(cusolverDnSpotrs);            \
-   __macro(cusolverDnDpotrs);            \
-   __macro(cusolverDnCpotrs);            \
-@@ -79,7 +77,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
-   __macro(cusolverDnDgeqrf_bufferSize);   \
-   __macro(cusolverDnCgeqrf_bufferSize);   \
-   __macro(cusolverDnZgeqrf_bufferSize);   \
--  __macro(cusolverDnXgeqrf_bufferSize);   \
-   __macro(cusolverDnSorgqr_bufferSize);   \
-   __macro(cusolverDnDorgqr_bufferSize);   \
-   __macro(cusolverDnSormqr_bufferSize);   \
-@@ -108,7 +105,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
-   __macro(cusolverDnDgeqrf);              \
-   __macro(cusolverDnCgeqrf);              \
-   __macro(cusolverDnZgeqrf);              \
--  __macro(cusolverDnXgeqrf);              \
-   __macro(cusolverDnSorgqr);              \
-   __macro(cusolverDnDorgqr);              \
-   __macro(cusolverDnSormqr);              \
-@@ -122,8 +118,6 @@ CUSOLVER_ROUTINE_EACH_R1(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP)
- #if CUDA_VERSION >= 9020
- #define CUSOLVER_ROUTINE_EACH_R2(__macro)      \
+@@ -111,8 +111,6 @@ extern void *cusolver_dso_handle;
+   __macro(cusolverDnCungqr);                   \
+   __macro(cusolverDnZungqr);                   \
    __macro(cusolverDnCreateSyevjInfo);          \
 -  __macro(cusolverDnCreateParams);             \
 -  __macro(cusolverDnDestroyParams);            \
    __macro(cusolverDnSsyevj_bufferSize);        \
    __macro(cusolverDnDsyevj_bufferSize);        \
    __macro(cusolverDnCheevj_bufferSize);        \
+diff --git a/paddle/phi/backends/dynload/cusparse.h b/paddle/phi/backends/dynload/cusparse.h
+index e8cb0ac643..d07c093aa8 100644
+--- a/paddle/phi/backends/dynload/cusparse.h
++++ b/paddle/phi/backends/dynload/cusparse.h
+@@ -41,6 +41,7 @@ extern void *cusparse_dso_handle;
+   extern DynLoad__##__name __name
+ 
+ #if defined(PADDLE_WITH_CUDA)
++#ifndef PADDLE_WITH_COREX
+ #define CUSPARSE_ROUTINE_EACH(__macro)    \
+   __macro(cusparseCreate);                \
+   __macro(cusparseSetStream);             \
+@@ -70,6 +71,7 @@ extern void *cusparse_dso_handle;
+   __macro(cusparseSpGEMM_destroyDescr);
+ 
+ CUSPARSE_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSPARSE_WRAP)
++#endif  // PADDLE_WITH_COREX
+ 
+ #if CUDA_VERSION >= 11030
+ #define CUSPARSE_ROUTINE_EACH_R2(__macro) \
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_device_function.h b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
 index 4ff2e528a9..956bac0c64 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_device_function.h
@@ -195,10 +261,10 @@ index 4ff2e528a9..956bac0c64 100644
    unsigned mask = 0u;
    CREATE_SHFL_MASK(mask, tid < len);
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.cc b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
-index 9fd1b1d1d9..7db9b409b7 100644
+index 1c4f13e6b4..a90c0f6d21 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_graph.cc
 +++ b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
-@@ -214,7 +214,7 @@ inline void sync_streams(gpuStream_t to_record, gpuStream_t to_wait) {
+@@ -199,7 +199,7 @@ inline void sync_streams(gpuStream_t to_record, gpuStream_t to_wait) {
    PADDLE_ENFORCE_GPU_SUCCESS(
        cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventRecord(event, to_record));
@@ -207,28 +273,6 @@ index 9fd1b1d1d9..7db9b409b7 100644
    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventDestroy(event));
  }
  
-@@ -331,7 +331,7 @@ void CUDAGraph::PrintToDotFiles(const std::string &dirname,
- #endif
- }
- 
--#if CUDA_VERSION >= 11000
-+#if CUDA_VERSION >= 11000 || defined(PADDLE_WITH_COREX)
- void CUDAGraphNodeLauncher::KernelNodeLaunch(
-     parameterSetter_t parameterSetter, gpuKernelCallback_t cudakernelCallback) {
-   if (UNLIKELY(phi::backends::gpu::CUDAGraph::IsThisThreadCapturing())) {
-diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.h b/paddle/phi/backends/gpu/cuda/cuda_graph.h
-index f0408b8b03..98a01868db 100644
---- a/paddle/phi/backends/gpu/cuda/cuda_graph.h
-+++ b/paddle/phi/backends/gpu/cuda/cuda_graph.h
-@@ -39,7 +39,7 @@
- 
- #ifdef PADDLE_WITH_CUDA
- 
--#if CUDA_VERSION < 11000
-+#if CUDA_VERSION < 11000 && !defined(PADDLE_WITH_COREX)
- // For CUDA versions less than 11.0, use a dummy type for cudaFunction_t.
- using cudaFunction_t = void *;
- cudaError_t cudaGetFuncBySymbol(cudaFunction_t *functionPtr,
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_helper.h b/paddle/phi/backends/gpu/cuda/cuda_helper.h
 index 02753c0333..bcf435dfae 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_helper.h
@@ -446,10 +490,10 @@ index 024a7de73e..907ffd5f25 100644
  #define PADDLE_ENFORCE(_IS_NOT_ERROR, __FORMAT, ...)               \
    do {                                                             \
 diff --git a/paddle/phi/core/utils/data_type.h b/paddle/phi/core/utils/data_type.h
-index 1d20fa3173..fab2b90ed2 100644
+index 9da5940434..e0df0c06ca 100644
 --- a/paddle/phi/core/utils/data_type.h
 +++ b/paddle/phi/core/utils/data_type.h
-@@ -249,7 +249,7 @@ inline ncclDataType_t ToNCCLDataType(DataType type) {
+@@ -258,7 +258,7 @@ inline ncclDataType_t ToNCCLDataType(DataType type) {
               type == DataType::FLOAT8_E5M2) {
      return ncclUint8;
  #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
@@ -459,10 +503,10 @@ index 1d20fa3173..fab2b90ed2 100644
      return ncclBfloat16;
  #endif
 diff --git a/paddle/phi/kernels/funcs/activation_functor.h b/paddle/phi/kernels/funcs/activation_functor.h
-index 714a570b85..cb4c3a1944 100644
+index 9c9ab5dff9..ecf4e8f5e8 100644
 --- a/paddle/phi/kernels/funcs/activation_functor.h
 +++ b/paddle/phi/kernels/funcs/activation_functor.h
-@@ -3712,12 +3712,14 @@ struct CudaReciprocalFunctor<ComplexType<T>>
+@@ -3727,12 +3727,14 @@ struct CudaReciprocalFunctor<ComplexType<T>>
        return ::isnan(real) || ::isnan(imag);
      };
      if (either_nan(x.real, x.imag) || both_inf(x.real, x.imag)) {
@@ -477,7 +521,7 @@ index 714a570b85..cb4c3a1944 100644
      } else if (either_inf(x.real, x.imag)) {
        // If either is Inf, return {0, 0}
        return ComplexType<T>(static_cast<T>(0), static_cast<T>(0));
-@@ -5226,6 +5228,23 @@ struct CudaHardSigmoidGradFunctor : public BaseActivationFunctor<T> {
+@@ -5247,6 +5249,23 @@ struct CudaHardSigmoidGradFunctor : public BaseActivationFunctor<T> {
    }
  };
  
@@ -501,7 +545,7 @@ index 714a570b85..cb4c3a1944 100644
  template <typename T>
  __device__ __forceinline__
      std::conditional_t<std::is_integral<T>::value, float, T>
-@@ -5241,6 +5260,7 @@ template <>
+@@ -5262,6 +5281,7 @@ template <>
  __device__ __forceinline__ double log_local<double>(double x) {
    return ::log(x);
  }
@@ -510,7 +554,7 @@ index 714a570b85..cb4c3a1944 100644
  template <typename T>
  struct CudaLogFunctor : public BaseActivationFunctor<T> {
 diff --git a/paddle/phi/kernels/funcs/affine_grid_utils.h b/paddle/phi/kernels/funcs/affine_grid_utils.h
-index b973d75a9b..daeb4778c6 100644
+index 1df6184141..fc6015b209 100644
 --- a/paddle/phi/kernels/funcs/affine_grid_utils.h
 +++ b/paddle/phi/kernels/funcs/affine_grid_utils.h
 @@ -15,7 +15,9 @@
@@ -954,7 +998,7 @@ index 20015f7b87..8fee4c4b70 100644
  PD_REGISTER_KERNEL(rms_norm_grad,
                     GPU,
 diff --git a/paddle/phi/kernels/primitive/compute_primitives.h b/paddle/phi/kernels/primitive/compute_primitives.h
-index 607b581292..855628bf00 100644
+index 11481a8b02..136593297e 100644
 --- a/paddle/phi/kernels/primitive/compute_primitives.h
 +++ b/paddle/phi/kernels/primitive/compute_primitives.h
 @@ -33,7 +33,7 @@ constexpr int kReduceMaxThread = 256;

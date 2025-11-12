@@ -37,7 +37,7 @@ else
 fi
 
 pushd ${CURRENT_DIR}/../../
-git submodule update --init --recursive --force
+# git submodule update --init --recursive --force
 popd
 echo "=== Submodule init successfully ==="
 

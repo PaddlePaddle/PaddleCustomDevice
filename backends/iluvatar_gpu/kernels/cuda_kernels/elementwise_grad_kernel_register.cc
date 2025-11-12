@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/common/layout.h"
+#include "paddle/phi/common/complex.h"
+#include "paddle/phi/common/data_type.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/elementwise_add_grad_kernel.h"
 #include "paddle/phi/kernels/elementwise_divide_grad_kernel.h"
 #include "paddle/phi/kernels/elementwise_grad_kernel.h"
 #include "paddle/phi/kernels/elementwise_multiply_grad_kernel.h"
 #include "paddle/phi/kernels/elementwise_subtract_grad_kernel.h"
-
 PD_CUSTOM_KERNEL_REGISTER(fmax_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,

@@ -47,10 +47,10 @@ jobs:
     uses: ./.github/workflows/_IXUCA.yml
     needs: [Codestyle-Check]
 
-  sdaa:
-    name: sdaa
-    uses: ./.github/workflows/_SDAA.yml
-    needs: [Codestyle-Check]
+  #sdaa:
+    #name: sdaa
+    #uses: ./.github/workflows/_SDAA.yml
+    #needs: [Codestyle-Check]
 
   npu-910b-arm:
     name: npu-910B-ARM

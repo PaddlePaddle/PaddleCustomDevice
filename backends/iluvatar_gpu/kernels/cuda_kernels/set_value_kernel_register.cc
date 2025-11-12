@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/set_value_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/set_value_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(set_value,
                           iluvatar_gpu,

@@ -132,7 +132,7 @@ jobs:
           # Install python packages required for incremental coverage
           python -m pip install PyGithub
           export LD_PRELOAD=/lib/aarch64-linux-gnu/libgomp.so.1:$LD_PRELOAD
-
+          export PADDLE_VERSION=0.0.0
           bash backends/npu/tools/pr_ci_npu.sh'
 
       - name: Terminate and delete the container

@@ -22,7 +22,7 @@ export CUCC_PATH=${MACA_PATH}/tools/cu-bridge
 export PATH=${PATH}:${CUCC_PATH}/tools:${CUCC_PATH}/bin
 export PATH=${MACA_PATH}/bin:${PATH}
 export LD_LIBRARY_PATH=${MACA_PATH}/lib:${MACA_PATH}/mxgpu_llvm/lib:${LD_LIBRARY_PATH}
-
+export PADDLE_VERSION="3.3.0.dev$(date +%Y%m%d)"
 if [ ! -d build ]; then
     echo "build directory not found, creating..."
     mkdir build
@@ -31,7 +31,7 @@ fi
 echo "make_maca"
 cd build
 cmake_maca .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON
-make_maca -j10
+make_maca -j18
 
 
 echo "install whl"

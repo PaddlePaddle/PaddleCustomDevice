@@ -14,7 +14,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/aligned_vector.h"
-#include "paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(qkv_unpack_mha,
                           metax_gpu,

@@ -38,28 +38,36 @@ def tensors_total_size(tensors_dict):
 
 def save_tail_tensors_and_index(
     tensors_dict,
-    measurement_file,
+    measurement_files,
     model_fp8_path,
     total_size,
     out_file_idx,
     out_files,
     approximate_total_files,
 ):
-    measure_dict = {}
-    with open(measurement_file, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            key, value = line.split("\t")
-            if "self_attn" not in key:
-                scale = float(value) / 240.0
-            else:
-                scale = float(value)
-            meas_scale_tensor = paddle.to_tensor([scale], dtype=paddle.bfloat16)
-            # print(f"--- meas_scale for {key}: {meas_scale_tensor} ---")
-            tensors_dict[key] = meas_scale_tensor
-            total_size += tensor_size(meas_scale_tensor)
+    for measurement_file in measurement_files:
+        with open(measurement_file, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                key, value = line.split("\t")
+                if value == 0.0:
+                    print(f"warning: amax is 0.0 for {key}, set to 1e-5")
+                    value = 1e-5
+                if "self_attn" not in key:
+                    scale = float(value) / 240.0
+                else:
+                    scale = float(value)
+                meas_scale_tensor = paddle.to_tensor([scale], dtype=paddle.bfloat16)
+                # print(f"--- meas_scale for {key}: {meas_scale_tensor} ---")
+                if key in tensors_dict:
+                    tensors_dict[key] = paddle.maximum(
+                        tensors_dict[key], meas_scale_tensor
+                    )
+                else:
+                    tensors_dict[key] = meas_scale_tensor
+                    total_size += tensor_size(meas_scale_tensor)
 
     file_name = f"model-{out_file_idx:05d}-of-{approximate_total_files:05d}.safetensors"
     file_path = os.path.join(model_fp8_path, file_name)
@@ -150,16 +158,32 @@ def process_safetensors_file(
 
 def main():
     print(
-        f"Usage: python {sys.argv[0]} <model_bf16_path> [model_measurement_file] <model_fp8_path>"
+        f"Usage: python {sys.argv[0]} [model_bf16_path] [model_fp8_path] [model_measurement_file] <ranks_total_number>"
     )
-    model_bf16_path = (
-        sys.argv[1] if len(sys.argv) > 1 else "/mnt/disk2/ERNIE-4.5-21B-A3B-Paddle"
-    )
-    model_measurement_file = (
-        sys.argv[2] if len(sys.argv) > 2 else "./model_measurement.txt"
-    )
-    model_fp8_path = sys.argv[3] if len(sys.argv) > 3 else "./model_fp8"
+    if len(sys.argv) > 3:
+        model_bf16_path = sys.argv[1]
+        model_fp8_path = sys.argv[2]
+        model_measurement_file = sys.argv[3]
+        ranks = "0"
+    if len(sys.argv) > 4:
+        ranks = sys.argv[4]
+    if len(sys.argv) < 4 or len(sys.argv) > 5:
+        print("Error: Invalid number of arguments.")
+        return
     os.makedirs(model_fp8_path, exist_ok=True)
+
+    if ranks.isdigit() and int(ranks) > 1:
+        measurement_files = [
+            f"{os.path.splitext(model_measurement_file)[0]}_{i}{os.path.splitext(model_measurement_file)[1]}"
+            for i in range(int(ranks))
+        ]
+    else:
+        measurement_files = [model_measurement_file]
+
+    for measurement_file in measurement_files:
+        if not os.path.isfile(measurement_file):
+            print(f"Error: Measurement file not found: {measurement_file}")
+            return
 
     # copy none safetensor files (except model.safetensors.index.json) to new folder
     for item_name in os.listdir(model_bf16_path):
@@ -223,7 +247,7 @@ def main():
 
     save_tail_tensors_and_index(
         tensors_dict,
-        model_measurement_file,
+        measurement_files,
         model_fp8_path,
         total_size,
         out_file_idx,

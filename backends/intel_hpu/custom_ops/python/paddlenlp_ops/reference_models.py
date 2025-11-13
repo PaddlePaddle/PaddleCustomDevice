@@ -13,11 +13,19 @@
 # limitations under the License.
 
 import paddle
+import paddle.distributed as dist
 import paddlenlp_ops
 import os
 
+# import logging
+
 measure_dict = {}
-model_measurement_file = "./model_measurement.txt"
+rank = dist.get_rank()
+world_size = dist.get_world_size()
+if world_size == 1:
+    model_measurement_file = "./model_measurement.txt"
+else:
+    model_measurement_file = f"./model_measurement_{rank}.txt"
 
 
 def init_measure_dict():
@@ -38,7 +46,7 @@ def save_measure_dict():
             f.write(f"{key}\t{value}\n")
 
 
-def measure_matrix(amax_in, key):
+def measure_matrix(amax_in, key, experts_min=0, experts_max=0):
     global measure_dict
 
     if isinstance(amax_in, paddle.Tensor):
@@ -49,9 +57,12 @@ def measure_matrix(amax_in, key):
             measure_dict[key] = new_val
         elif len(amax_in.shape) == 1 and amax_in.shape[0] > 1:
             results = []
-            for i in range(amax_in.shape[0]):
+            assert (
+                amax_in.shape[0] == experts_max - experts_min + 1
+            ), f"Assertion failed: Expect amax_in.shape[0](={amax_in.shape[0]}) = experts_max(={experts_max}) -  experts_min(={experts_min}) + 1"
+            for i in range(experts_min, experts_max + 1):
                 subkey = key.format(i)
-                val = float(amax_in[i].item())
+                val = float(amax_in[i - experts_min].item())
                 prev_val = measure_dict.get(subkey, float("-inf"))
                 new_val = max(prev_val, val)
                 measure_dict[subkey] = new_val
@@ -77,6 +88,7 @@ def fused_qkv_rope_ref(
     measurement_mode=False,
     qkv_act_scale_key=None,
 ):
+    # logging.info("---- run fused_qkv_rope_ref ----")
     src = src.reshape([total_batch, -1, src.shape[-1]])
 
     qkv_out = paddle.matmul(src, qkv_weights, False, transpose)
@@ -223,11 +235,12 @@ def fused_sdpa_proj_ref(
     measurement_mode=False,
     o_act_scale_key=None,
 ):
+    # logging.info("---- run fused_sdpa_proj_ref ----")
     bsz, q_len, num_heads, head_dim = query_states.shape
     key_states = key_value_states[0]
     value_states = key_value_states[1]
 
-    use_fsdpa = True
+    use_fsdpa = False
 
     if use_fsdpa:
         if is_gqa(query_states, key_states):
@@ -447,6 +460,7 @@ def fused_block_attention_ref(
     qkv_act_scale_key=None,
     o_act_scale_key=None,
 ):
+    # logging.info("---- run fused_block_attention_ref ----")
     query_states, key_value_states = paddlenlp_ops.fused_qkv_rope(
         src,
         qkv_weights,
@@ -519,6 +533,7 @@ def fused_mlp_ref(
     up_gate_act_scale_key=None,
     down_act_scale_key=None,
 ):
+    # logging.info("---- run fused_mlp_ref ----")
     def swiglu_naive(hidden_states, up=None):
         if up is not None:
             gate = hidden_states
@@ -562,6 +577,7 @@ def fused_gate_moe_ref(
     up_gate_act_scale_key=None,
     down_act_scale_key=None,
 ):
+    # logging.info("---- run fused_gate_moe_ref ----")
     gate_out = paddle.matmul(hidden_states.cast("float32"), gate_weights)
     weights = paddle.nn.functional.softmax(gate_out, axis=-1)
     if gate_correction_bias is not None:
@@ -589,5 +605,5 @@ def fused_gate_moe_ref(
     if measurement_mode:
         amax = paddle.max(paddle.abs(hidden_states))
         measure_matrix(amax, up_gate_act_scale_key)
-        measure_matrix(amax_per_expert, down_act_scale_key)
+        measure_matrix(amax_per_expert, down_act_scale_key, experts_min, experts_max)
     return fused_moe_out

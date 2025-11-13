@@ -24,8 +24,21 @@ import paddle
 import paddle.distributed as dist
 import paddlenlp_ops
 
-intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 1)
-paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
+local_rank = dist.get_rank()
+world_size = dist.get_world_size()
+
+print(
+    f"**************************************\n"
+    f"      World size: {world_size}, Local rank: {local_rank}\n"
+    f"**************************************"
+)
+
+if world_size == 1:
+    intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 1)
+    paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
+else:
+    paddle.set_device("intel_hpu")
+    dist.init_parallel_env()
 
 np.random.seed(2049)
 paddle.seed(102)
@@ -540,7 +553,6 @@ class FusedGateMoE:
             )
             common_params = (
                 self.top_k,
-                True,  # moe_use_gate_correction_bias
                 True,  # norm_topk_prob
                 self.permuted_weights,
                 self.activation,
@@ -616,12 +628,14 @@ class FusedGateMoE:
                     self.chunk_size,
                 )
             else:
-                slice_result, slice_amax = self.fn(
+                slice_result = self.fn(
                     *common_inputs,
                     *slice_weights,
                     *common_params,
                     self.chunk_size,
                 )
+                # paddlenlp_ops.fused_gate_moe no requirement to return amax
+                slice_amax = None
             if compute_amax:
                 amax_per_expert[slice_experts_min : slice_experts_max + 1] = slice_amax
 
@@ -689,7 +703,7 @@ SLICE_MAX_EXPERT = [8]
 FUSED_WEIGHTS = [True]  # [True, False]
 ACTIVATIONS = ["silu"]  # ["gelu", "relu", "silu"]
 PERMUTED_WEIGHTS = [False]  # [True, False]
-EP_SIZE = [1]
+EP_SIZE = [2]
 TP_SIZE = [1]
 # for bfloat16 only
 COMPUTE_AMAX = [False]  # [True, False]
@@ -892,8 +906,8 @@ class MoETest(unittest.TestCase):
             tp_rank=tp_rank,
             logger=logger,
         )
-        print(f"--final_hidden_states_ref {final_hidden_states_ref}")
-        print(f"--final_hidden_states {final_hidden_states}")
+        # print(f"--final_hidden_states_ref {final_hidden_states_ref}")
+        # print(f"--final_hidden_states {final_hidden_states}")
         assert similar, f"Cosine similarity check failed: {similar}"
 
 

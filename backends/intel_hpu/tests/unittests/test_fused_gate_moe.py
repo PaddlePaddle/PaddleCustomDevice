@@ -703,7 +703,7 @@ SLICE_MAX_EXPERT = [8]
 FUSED_WEIGHTS = [True]  # [True, False]
 ACTIVATIONS = ["silu"]  # ["gelu", "relu", "silu"]
 PERMUTED_WEIGHTS = [False]  # [True, False]
-EP_SIZE = [2]
+EP_SIZE = [world_size]
 TP_SIZE = [1]
 # for bfloat16 only
 COMPUTE_AMAX = [False]  # [True, False]

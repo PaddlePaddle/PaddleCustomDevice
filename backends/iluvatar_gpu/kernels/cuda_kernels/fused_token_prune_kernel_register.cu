@@ -14,7 +14,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/fused_token_prune_utils.h"
-#include "paddle/phi/kernels/gpu/fused_token_prune_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/fused_token_prune_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fused_token_prune,
                           iluvatar_gpu,

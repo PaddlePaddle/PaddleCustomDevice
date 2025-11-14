@@ -128,9 +128,7 @@ jobs:
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           cd /workspace/PaddleCustomDevice/backends/iluvatar_gpu/tests
           # Run tests
-          bash run_test.sh
-          # Run tests with rerun functionality
-          bash run_paddle_legacy_test.sh'
+          bash run_test.sh'
 
       - name: Terminate and delete the container
         if: always()

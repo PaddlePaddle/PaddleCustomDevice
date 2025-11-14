@@ -70,6 +70,7 @@ jobs:
           container_name=${TASK}-$(date +%Y%m%d-%H%M%S)
           echo "container_name=${container_name}" >> ${{ github.env }}
           docker run --shm-size=128G \
+            -u $(id -u):$(id -g) \
             -d -t --name ${container_name} \
             --privileged --network=host \
             -e PR_ID \

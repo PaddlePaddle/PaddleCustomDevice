@@ -1,4 +1,4 @@
-// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,11 +13,12 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/c_softmax_with_cross_entropy_grad_kernel.h"
+#include "paddle/phi/kernels/funcs/aligned_vector.h"
+#include "paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(c_softmax_with_cross_entropy_grad,
+PD_CUSTOM_KERNEL_REGISTER(qkv_unpack_mha,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::CSoftmaxWithCrossEntropyGradKernel,
+                          phi::fusion::QKVMMHAKernel,
                           float,
                           phi::dtype::float16) {}

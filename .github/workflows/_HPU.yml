@@ -96,6 +96,7 @@ jobs:
           fi
           mkdir -p /workspace/PaddleCustomDevice/backends/intel_hpu/build/
           export GC_KERNEL_PATH=/workspace/PaddleCustomDevice/backends/intel_hpu/build/libcustom_tpc_perf_lib.so:/usr/lib/habanalabs/libtpc_kernels.so
+          export PADDLE_VERSION=0.0.0
           cd /workspace
           bash /workspace/PaddleCustomDevice/backends/intel_hpu/tools/pr_hpu_ci.sh'
 

@@ -62,8 +62,8 @@ cmake .. || { echo "ERROR: CMake configuration failed"; exit 1; }
 echo "=== Building project (if needed) ==="
 make -j$(nproc) || { echo "ERROR: Build failed"; exit 1; }
 
-echo "=== Running iluvatar tests ==="
-ctest --output-on-failure -V || { 
+echo "=== Running tests ==="
+ctest --output-on-failure -V -j8 || { 
     echo "ERROR: Tests failed!" >&2
     echo "Exit code: $?" >&2
     exit 1

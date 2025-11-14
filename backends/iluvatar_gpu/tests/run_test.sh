@@ -74,6 +74,8 @@ if git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null
   echo "Patch successfully reverted!"
 fi
 
+cd ..
+
 # Run legacy tests only if primary tests passed
 echo "=== Running Paddle legacy tests ==="
 # Navigate to unittest_runner directory

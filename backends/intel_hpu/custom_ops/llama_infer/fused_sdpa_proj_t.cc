@@ -178,17 +178,21 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
       attn_inputs.push_back(q_r);
       attn_inputs.push_back(k_r);
       attn_inputs.push_back(v_r);
+      size_t scale_index = 3;
       if (!params.sdpa_params.is_causal) {
         attn_inputs.push_back(createTensor(inputs[3].dims.size(),
                                            inputs[3].type,
                                            inputs[3].dims,
                                            true,
                                            inputs[3].name));
+        scale_index++;
       }
       if (params.fp8_sdpa) {
-        attn_inputs.push_back(nullptr);  // Mask
+        if (params.sdpa_params.is_causal) {
+          attn_inputs.push_back(nullptr);  // Mask
+        }
         attn_inputs.push_back(nullptr);  // Seed
-        for (size_t i = 3; i < inputs.size() - 2; i++) {
+        for (size_t i = scale_index; i < inputs.size() - 2; i++) {
           attn_inputs.push_back(createTensor(inputs[i].dims.size(),
                                              inputs[i].type,
                                              inputs[i].dims,
@@ -215,15 +219,28 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
       attn_outputs.push_back(attn_o);
       AddNodeReshape(attn_outputs_r, attn_outputs, guid_ + "reshape_sdpa");
     } else {
-      // is_MQA
+      // is_MHA
       std::vector<synTensor> attn_inputs;
       attn_inputs.push_back(q_t);
       attn_inputs.push_back(k_t);
       attn_inputs.push_back(v_t);
+      size_t scale_index = 3;
+      // params.is_causal = true; <==> input[3] is not used
+      // input[3] is in use <==> params.is_causal = false;
+      if (!params.sdpa_params.is_causal) {
+        attn_inputs.push_back(createTensor(inputs[3].dims.size(),
+                                           inputs[3].type,
+                                           inputs[3].dims,
+                                           true,
+                                           inputs[3].name));
+        scale_index++;
+      }
       if (params.fp8_sdpa) {
-        attn_inputs.push_back(nullptr);  // Mask
+        if (params.sdpa_params.is_causal) {
+          attn_inputs.push_back(nullptr);  // Mask
+        }
         attn_inputs.push_back(nullptr);  // Seed
-        for (size_t i = 3; i < inputs.size() - 2; i++) {
+        for (size_t i = scale_index; i < inputs.size() - 2; i++) {
           attn_inputs.push_back(createTensor(inputs[i].dims.size(),
                                              inputs[i].type,
                                              inputs[i].dims,
@@ -231,8 +248,6 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
                                              inputs[i].name));
         }
       }
-      // params.is_causal = true; ==> input[3] is not used
-      // input[3] is in use ==> params.is_causal = false;
       auto attn = createTensorNoPresist("attn", atten_dtype, qt_dims);
       attn_outputs.push_back(attn);
 

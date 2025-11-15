@@ -11,18 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+
+# os.environ['ENABLE_EXPERIMENTAL_FLAGS'] = '1'
+# os.environ['VISUALIZATION_MODE'] = '0'
+# os.environ['GRAPH_VISUALIZATION'] = '1'
+# os.environ['HABANA_LOGS'] = 'logs'
+# os.environ['LOG_LEVEL_ALL'] = '0'
+# os.environ['LOG_LEVEL_PERF_LIB'] = '0'
 
 import paddle
 import paddlenlp_ops
 import unittest
 from parameterized import parameterized
 
-import os
 import numpy as np
 import paddle.nn.functional as F
 
 
-intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 4)
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 1)
 paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
 
 paddle.seed(105)
@@ -46,9 +53,12 @@ def get_max_weight(
     scale=None,
 ):
     sqrt_dim_head = query.shape[-1] ** 0.5
+
+    if is_gqa(query, key):
+        key, _ = gqa_input_reshape_fwd(query, key, key)
     scores = paddle.matmul(
-        query,
-        key,
+        query.transpose([0, 2, 1, 3]),
+        key.transpose([0, 2, 1, 3]),
         transpose_x=False,
         transpose_y=True,
     )
@@ -95,7 +105,7 @@ def check_using_cosine_similarity(final_states, final_states_ref):
     else:
         cos_sim = np.dot(vec1, vec2) / (norm1 * norm2)
 
-    print(f"Cosine similarity: {cos_sim}")
+    # print(f"Cosine similarity: {cos_sim}")
     return cos_sim
 
 
@@ -133,19 +143,26 @@ def ref_result(
 
 BATCH_SIZE = [1, 4]
 SEQ_LEN = [128]
+KV_SEQ_LEN = [128, 1024]
 NUM_HEAD = [64]
-KV_SEQ_LEN = [128]
 KV_NUM_HEAD = [8, 64]
 HEAD_DIM = [128]
 MAX_SEQ_LENGTH = [2048]
 SCALE_O = [None, paddle.to_tensor([1.0], dtype=paddle.float32)]
 BF16_FP8_MODE = ["ALL_BF16", "BF16_SDPA_FP8_PROJ", "ALL_FP8"]
+MULTI_CARD = [1, 4]
+IS_CAUSAL = [True, False]
 
-BATCH_SIZE = [1]
-KV_NUM_HEAD = [8]
-BF16_FP8_MODE = ["BF16_SDPA_FP8_PROJ"]
+"""
+BATCH_SIZE = [4]
+KV_NUM_HEAD = [64]
+SEQ_LEN = [128]
+KV_SEQ_LEN = [1024]
+BF16_FP8_MODE = ["ALL_BF16"]
 SCALE_O = [None]
-MULTI_CARD = [4]
+IS_CAUSAL = [False]
+MULTI_CARD = [1]
+"""
 
 
 class FP8_SDPA_Proj_T_Test(unittest.TestCase):
@@ -162,6 +179,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
                 scale_o,
                 bf16_fp8_mode,
                 tp_size,
+                is_causal,
             )
             for head_dim in HEAD_DIM
             for num_head in NUM_HEAD
@@ -173,6 +191,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             for scale_o in SCALE_O
             for bf16_fp8_mode in BF16_FP8_MODE
             for tp_size in MULTI_CARD
+            for is_causal in IS_CAUSAL
         ]
     )
     def test(
@@ -187,7 +206,11 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
         scale_o,
         bf16_fp8_mode,
         tp_size,
+        is_causal,
     ):
+        # print(
+        #     f"Test for head_dim={head_dim}, num_head={num_head}, kv_num_head={kv_num_head}, batch_size={batch_size}, seq_len={seq_len}, kv_seq_len={kv_seq_len}, max_seq_length={max_seq_length}, scale_o={scale_o}, bf16_fp8_mode={bf16_fp8_mode}, tp_size={tp_size}, is_causal={is_causal}"
+        # )
         hidden_size = num_head * head_dim
         scaling_factor = head_dim**-0.5
 
@@ -223,6 +246,23 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             * 0.6
             - 0.3
         )
+        if not is_causal:
+            attn_mask = paddle.full(
+                [batch_size, 1, seq_len, kv_seq_len],
+                float("-inf"),
+                dtype=paddle.bfloat16,
+            )
+            mask = paddle.tril(
+                paddle.ones([seq_len, kv_seq_len], dtype="bool"),
+                diagonal=kv_seq_len - seq_len,
+            )
+            attn_mask[:, :, :, :] = paddle.where(
+                mask, paddle.zeros_like(attn_mask), attn_mask
+            )
+            if num_head != kv_num_head:
+                attn_mask = attn_mask.unsqueeze(1)
+        else:
+            attn_mask = None
 
         out_linear_out_ref, attn_output_ref = ref_result(
             query_states,
@@ -272,7 +312,7 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             out_linear_t_op = paddlenlp_ops.fused_sdpa_proj(
                 query_states,
                 key_value_states,
-                None,
+                attn_mask,
                 None,
                 linear_weights,
                 None,
@@ -284,14 +324,14 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
                 None,
                 None,
                 scaling_factor,
-                causal=True,
+                causal=attn_mask is None,
                 softmax_mode=0,
             )
         elif bf16_fp8_mode == "BF16_SDPA_FP8_PROJ":
             out_linear_t_op = paddlenlp_ops.fused_sdpa_proj(
                 query_states,
                 key_value_states,
-                None,
+                attn_mask,
                 None,
                 linear_weights_fp8,
                 None,
@@ -303,14 +343,14 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
                 linear_in_scale,
                 scale_weight,
                 scaling_factor,
-                causal=True,
+                causal=attn_mask is None,
                 softmax_mode=0,
             )
         else:  # "ALL_FP8"
             out_linear_t_op = paddlenlp_ops.fused_sdpa_proj(
                 q_fp8,
                 kv_fp8,
-                None,
+                attn_mask,
                 None,
                 linear_weights_fp8,
                 d_scale_q,
@@ -322,11 +362,11 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
                 linear_in_scale,
                 scale_weight,
                 scaling_factor,
-                causal=True,
+                causal=attn_mask is None,
                 softmax_mode=0,
             )
-        print(f"\nout_linear_t_op.shape: {out_linear_t_op.shape}")
-        print(f"out_linear_out_ref.shape: {out_linear_out_ref.shape}")
+        # print(f"\nout_linear_t_op.shape: {out_linear_t_op.shape}")
+        # print(f"out_linear_out_ref.shape: {out_linear_out_ref.shape}")
         similar = check_using_cosine_similarity(
             out_linear_t_op.to("float32").cpu().numpy(),
             out_linear_out_ref.to("float32").cpu().numpy(),

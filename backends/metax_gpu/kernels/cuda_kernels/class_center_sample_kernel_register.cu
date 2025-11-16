@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/class_center_sample_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/class_center_sample_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(class_center_sample,
                           metax_gpu,

@@ -579,7 +579,8 @@ C_Status AsyncMemCpyH2D(const C_Device device,
     return C_ERROR;
   }
 
-  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToDevice);
+  cudaErr = cudaMemcpyAsync(
+      dst, src, size, cudaMemcpyHostToDevice, (cudaStream_t)stream);
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
@@ -605,7 +606,8 @@ C_Status AsyncMemCpyD2H(const C_Device device,
     return C_ERROR;
   }
 
-  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToHost);
+  cudaErr = cudaMemcpyAsync(
+      dst, src, size, cudaMemcpyDeviceToHost, (cudaStream_t)stream);
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
@@ -633,7 +635,8 @@ C_Status AsyncMemCpyD2D(const C_Device device,
     return C_ERROR;
   }
 
-  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToDevice);
+  cudaErr = cudaMemcpyAsync(
+      dst, src, size, cudaMemcpyDeviceToDevice, (cudaStream_t)stream);
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }

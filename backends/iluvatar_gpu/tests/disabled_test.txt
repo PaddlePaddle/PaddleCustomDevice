@@ -231,6 +231,7 @@ test_fused_scale_bias_add_relu_op.py
 test_fused_scale_bias_relu_conv_bn_op.py
 test_fused_stack_transpose_quant_op.py
 test_fused_swiglu_weighted_bwd_op.py
+test_fused_token_prune_op.py
 test_fused_transformer_encoder_layer.py
 test_fused_transpose_split_quant_op.py
 test_fused_transpose_wlch_split_quant_op.py

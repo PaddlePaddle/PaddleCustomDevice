@@ -16,8 +16,7 @@
 #include "paddle/phi/common/complex.h"
 #include "paddle/phi/common/data_type.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/embedding_with_scaled_gradient_grad_kernel.h"  // NOLINT
-
+#include "paddle/phi/kernels/embedding_with_scaled_gradient_grad_kernel.h"  // NOLINT
 PD_CUSTOM_KERNEL_REGISTER(embedding_with_scaled_gradient_grad,
                           metax_gpu,
                           ALL_LAYOUT,

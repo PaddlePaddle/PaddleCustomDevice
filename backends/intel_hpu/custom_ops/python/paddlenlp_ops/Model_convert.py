@@ -25,7 +25,7 @@ from typing import Dict
 paddle.device.set_device("intel_hpu:5")
 
 MAX_FILE_SIZE_IN_GB = 5
-max_size_bytes = MAX_FILE_SIZE_IN_GB * 1024**3
+max_size_bytes = MAX_FILE_SIZE_IN_GB * 1000**3
 
 
 def tensor_size(tensor):
@@ -158,7 +158,7 @@ def process_safetensors_file(
 
 def main():
     print(
-        f"Usage: python {sys.argv[0]} [model_bf16_path] [model_fp8_path] [model_measurement_file] <ranks_total_number>"
+        f"Usage: python {sys.argv[0]} [model_bf16_path] [model_fp8_path] [model_measurement_file_or_folder] <ranks_total_number>"
     )
     if len(sys.argv) > 3:
         model_bf16_path = sys.argv[1]
@@ -172,7 +172,13 @@ def main():
         return
     os.makedirs(model_fp8_path, exist_ok=True)
 
-    if ranks.isdigit() and int(ranks) > 1:
+    if os.path.isdir(model_measurement_file):
+        measurement_files = [
+            os.path.join(model_measurement_file, f)
+            for f in os.listdir(model_measurement_file)
+            if os.path.isfile(os.path.join(model_measurement_file, f))
+        ]
+    elif ranks.isdigit() and int(ranks) > 1:
         measurement_files = [
             f"{os.path.splitext(model_measurement_file)[0]}_{i}{os.path.splitext(model_measurement_file)[1]}"
             for i in range(int(ranks))
@@ -214,7 +220,7 @@ def main():
                     print(f"Error copying {item_name}: {e}")
 
     # 计算预计总文件数
-    total_size /= 2
+    total_size *= 0.506
     approximate_total_files = int((total_size + max_size_bytes - 1) // max_size_bytes)
     print(f"Approximate total files to be generated: {approximate_total_files}")
     total_size = 0

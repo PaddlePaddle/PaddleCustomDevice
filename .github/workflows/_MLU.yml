@@ -63,13 +63,12 @@ jobs:
             -v ${{ github.workspace }}/../../..:${{ github.workspace }}/../../.. \
             -v ${{ github.workspace }}:/PaddleCustomDevice -w /PaddleCustomDevice \
             ${docker_image} /bin/bash
-          docker exec -t ${{ env.container_name }} /bin/bash -c 'rm -rf /PaddleCustomDevice/* /PaddleCustomDevice/.[^.]* 2>/dev/null || true'
 
       - name: Download Code
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
+          rm -rf /PaddleCustomDevice/* /PaddleCustomDevice/.[^.]* 2>/dev/null || true
           source ${{ github.workspace }}/../../../proxy
-          rm -rf * .[^.]*
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
           echo "Extracting PaddleCustomDevice.tar.gz"
           tar -xf PaddleCustomDevice.tar.gz --strip-components=1

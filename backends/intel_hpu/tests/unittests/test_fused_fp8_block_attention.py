@@ -211,10 +211,10 @@ class TestFusedBlockAttention:
 
         self.src_scale = paddle.to_tensor([1.0]).to(device)
         self.qkv_weights_scale = paddle.to_tensor([1.0]).to(device)
-        self.qk_scale_x = paddle.to_tensor([0.002]).to(device)
-        self.qk_scale_y = paddle.to_tensor([0.002]).to(device)
-        self.av_scale_x = paddle.to_tensor([0.1]).to(device)
-        self.av_scale_y = paddle.to_tensor([0.1]).to(device)
+        self.q_scale = paddle.to_tensor([0.002]).to(device)
+        self.k_scale = paddle.to_tensor([0.002]).to(device)
+        self.a_scale = paddle.to_tensor([0.1]).to(device)
+        self.v_scale = paddle.to_tensor([0.1]).to(device)
         self.o_linear_scale_x = paddle.to_tensor([1.0]).to(device)
         self.o_linear_scale_y = paddle.to_tensor([1.0]).to(device)
 
@@ -262,7 +262,73 @@ class TestFusedBlockAttention:
 
         b, s, h = src.shape
         src = src.reshape([-1, h])
-        out_linear_out = paddlenlp_ops.fused_fp8_block_attention(
+
+        print("==== fused_block_attention 参数 shape 和 dtype ====")
+        print("src:", src.shape, src.dtype)
+        print(
+            "new_rope:",
+            self.new_rope.transpose([0, 1, 3, 2, 4]).squeeze(2).shape,
+            self.new_rope.dtype,
+        )
+        print("k_cache_test:", self.k_cache_test.shape, self.k_cache_test.dtype)
+        print("v_cache_test:", self.v_cache_test.shape, self.v_cache_test.dtype)
+        print("block_groups:", self.block_groups.shape, self.block_groups.dtype)
+        print("block_list:", self.block_list.shape, self.block_list.dtype)
+        print("block_mapping:", self.block_mapping.shape, self.block_mapping.dtype)
+        print("block_bias:", self.block_bias.shape, self.block_bias.dtype)
+        print("block_indices:", self.block_indices.shape, self.block_indices.dtype)
+        print("block_offsets:", self.block_offsets.shape, self.block_offsets.dtype)
+        print("qkv_weights:", self.qkv_weights.shape, self.qkv_weights.dtype)
+        print(
+            "qkv_biases:",
+            None
+            if self.qkv_biases is None
+            else (self.qkv_biases.shape, self.qkv_biases.dtype),
+        )
+        print(
+            "linear_weights_test:",
+            self.linear_weights_test.shape,
+            self.linear_weights_test.dtype,
+        )
+        print("src_scale:", self.src_scale.shape, self.src_scale.dtype)
+        print(
+            "qkv_weights_scale:",
+            self.qkv_weights_scale.shape,
+            self.qkv_weights_scale.dtype,
+        )
+        print(
+            "q_scale:",
+            None if self.q_scale is None else (self.q_scale.shape, self.q_scale.dtype),
+        )
+        print(
+            "k_scale:",
+            None if self.k_scale is None else (self.k_scale.shape, self.k_scale.dtype),
+        )
+        print(
+            "a_scale:",
+            None if self.a_scale is None else (self.a_scale.shape, self.a_scale.dtype),
+        )
+        print(
+            "v_scale:",
+            None if self.v_scale is None else (self.v_scale.shape, self.v_scale.dtype),
+        )
+        print(
+            "o_linear_scale_x:",
+            self.o_linear_scale_x.shape,
+            self.o_linear_scale_x.dtype,
+        )
+        print(
+            "o_linear_scale_y:",
+            self.o_linear_scale_y.shape,
+            self.o_linear_scale_y.dtype,
+        )
+        print("head_dim:", self.head_dim, type(self.head_dim))
+        print("num_head:", self.num_head, type(self.num_head))
+        print("scaling_factor:", self.head_dim**-0.5, type(self.head_dim**-0.5))
+        print("transpose:", True, type(True))
+        print("use_neox_style:", True, type(True))
+        print("===============================================")
+        out_linear_out = paddlenlp_ops.fused_block_attention(
             src,
             self.new_rope.transpose([0, 1, 3, 2, 4]).squeeze(2),
             self.k_cache_test,
@@ -280,10 +346,10 @@ class TestFusedBlockAttention:
             None,
             self.src_scale,
             self.qkv_weights_scale,
-            self.qk_scale_x,
-            self.qk_scale_y,
-            self.av_scale_x,
-            self.av_scale_y,
+            self.q_scale,
+            self.k_scale,
+            self.a_scale,
+            self.v_scale,
             self.o_linear_scale_x,
             self.o_linear_scale_y,
             self.head_dim,
@@ -315,6 +381,13 @@ class test_case_decode_MHA(TestFusedBlockAttention):
         super().__init__()
         self.init_decode_MHA_params()
         self.create_tensors()
+        self.k_cache_test = self.k_cache_test.astype(paddle.bfloat16)
+        self.v_cache_test = self.v_cache_test.astype(paddle.bfloat16)
+
+        self.q_scale = None
+        self.k_scale = None
+        self.a_scale = None
+        self.v_scale = None
 
 
 class test_case_decode_GQA(TestFusedBlockAttention):
@@ -322,6 +395,13 @@ class test_case_decode_GQA(TestFusedBlockAttention):
         super().__init__()
         self.init_decode_GQA_params()
         self.create_tensors()
+        self.k_cache_test = self.k_cache_test.astype(paddle.bfloat16)
+        self.v_cache_test = self.v_cache_test.astype(paddle.bfloat16)
+
+        self.q_scale = None
+        self.k_scale = None
+        self.a_scale = None
+        self.v_scale = None
 
 
 if __name__ == "__main__":

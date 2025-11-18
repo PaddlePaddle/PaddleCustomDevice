@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/spectral_norm_grad_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/spectral_norm_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(spectral_norm_grad,
                           metax_gpu,

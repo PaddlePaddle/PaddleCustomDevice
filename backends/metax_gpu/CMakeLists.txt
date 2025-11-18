@@ -124,6 +124,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu
   # kernels/gpu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/spectral_norm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/spectral_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_grad_kernel.cu
@@ -671,6 +672,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lars_momentum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/partial_sum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/elementwise_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_with_scaled_gradient_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/gpu_info.cc
   # ############################################################################
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/adamw_kernel.cu

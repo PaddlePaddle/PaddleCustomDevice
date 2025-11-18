@@ -103,7 +103,7 @@ jobs:
 
           echo "============ Install PaddlePaddle CPU ============="
           pip install safetensors==0.6.2
-          pip install ruamel.yaml.clib
+          pip install --force-reinstall --no-cache-dir ruamel.yaml.clib==0.2.12
           python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 
           python -c "import paddle; print(paddle.__version__)"

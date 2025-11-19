@@ -68,7 +68,7 @@ jobs:
     needs: code-checkout
     environment: PublishUploadUse
     env:
-      PaddleCustomDeviceVersion: ${{ env.PaddleCustomDeviceVersion }}
+      PaddleCustomDeviceVersion: ${{ vars.PaddleCustomDeviceVersion }}
       AK: ${{ secrets.BOS_AK }}
       SK: ${{ secrets.BOS_SK }}
       TASK: Publish-${{ github.sha }}-ixuca

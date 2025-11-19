@@ -2,7 +2,7 @@ name: Update Paddle Submodule NightlyAdd commentMore actions
 
 on:
   schedule:
-    - cron: '0 16 * * *'
+    - cron: '0 22 * * *'
   workflow_dispatch:
 
 jobs:
@@ -24,12 +24,12 @@ jobs:
           echo "BRANCH_NAME=update-paddle-submodule-$(date +'%Y%m%d')" >> $GITHUB_ENV
           git config --global user.name "tianshuo78520a"
           git config --global user.email "tianshuo78520a@users.noreply.github.com"
-          
+
           git submodule deinit -f --all
           git submodule update --remote --init
           cd Paddle && git checkout develop && git pull origin develop
           cd ..
-          
+
           git submodule status
           git add Paddle
           if [ -z "$(git diff --cached --name-only)" ]; then
@@ -38,7 +38,7 @@ jobs:
               git commit -m "Update Paddle submodule to latest develop"
               echo "Paddle submodule updated successfully"
           fi
-          
+
           echo "=== 最终状态 ==="
           git status
           echo "=== 子模块状态 ==="

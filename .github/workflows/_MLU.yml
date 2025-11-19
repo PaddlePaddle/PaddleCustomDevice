@@ -67,8 +67,8 @@ jobs:
       - name: Download Code
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
+          rm -rf /PaddleCustomDevice/* /PaddleCustomDevice/.[^.]* 2>/dev/null || true
           source ${{ github.workspace }}/../../../proxy
-          rm -rf * .[^.]*
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
           echo "Extracting PaddleCustomDevice.tar.gz"
           tar -xf PaddleCustomDevice.tar.gz --strip-components=1
@@ -86,7 +86,7 @@ jobs:
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
           change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
           change_mlu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/mlu"| wc -l)
-          git diff --name-only remotes/origin/${BRANCH}
+          git --no-pager diff --name-only remotes/origin/${BRANCH}
 
           if [ $change_numbers -ne $change_backend ]; then
             echo "Common file changed, continue to run MLU FULL CI test ..."
@@ -103,6 +103,7 @@ jobs:
 
           echo "============ Install PaddlePaddle CPU ============="
           pip install safetensors==0.6.2
+          pip install --force-reinstall --no-cache-dir ruamel.yaml.clib==0.2.12
           python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 
           python -c "import paddle; print(paddle.__version__)"
@@ -115,6 +116,7 @@ jobs:
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           rm -rf * .[^.]*
+          chmod -R 777 . || true
           '
           docker stop ${container_name}
           docker rm ${container_name}

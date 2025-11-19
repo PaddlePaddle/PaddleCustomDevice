@@ -39,10 +39,6 @@ jobs:
       no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
 
     steps:
-      - name: Cleanup
-        run: |
-          rm -rf * .[^.]*
-
       - name: Check docker image and run container
         env:
           GIT_PR_ID: ${{ github.event.pull_request.number || '0' }}
@@ -91,6 +87,7 @@ jobs:
       - name: Download Code
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
+          rm -rf /PaddleCustomDevice/* /PaddleCustomDevice/.[^.]* 2>/dev/null || true
           source ${{ github.workspace }}/../../../proxy
           set -x
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
@@ -109,7 +106,7 @@ jobs:
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
           change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
           change_npu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/npu"| wc -l)
-          git diff --name-only remotes/origin/${BRANCH}
+          git --no-pager diff --name-only remotes/origin/${BRANCH}
 
           if [ $change_numbers -ne $change_backend ]; then
             echo "Common file changed, continue to run NPU FULL CI test ..."
@@ -140,6 +137,7 @@ jobs:
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           rm -rf * .[^.]*
+          chmod -R 777 . || true
           '
           docker stop ${container_name}
           docker rm ${container_name}

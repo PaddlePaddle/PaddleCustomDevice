@@ -32,7 +32,7 @@ jobs:
 
           git submodule status
           git add Paddle
-          if [ -z "$(git diff --cached --name-only)" ]; then
+          if [ -z "$(git --no-pager diff --cached --name-only)" ]; then
               echo "No changes to commit in Paddle submodule"
           else
               git commit -m "Update Paddle submodule to latest develop"

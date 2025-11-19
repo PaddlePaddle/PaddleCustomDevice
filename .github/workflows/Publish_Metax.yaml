@@ -1,0 +1,75 @@
+name: paddle metax build and publish
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 18 * * *'   # 2:00 AM China Standard Time (UTC+8)
+  push:
+    tags:
+      - '*'
+
+permissions: read-all
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  metax-gpu-publish:
+    environment: PublishUploadUse
+    runs-on: paddle-metax-runner-set
+    steps:
+      - name: Checkout repository
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+          git clone \
+            --reference-if-able /home/runner/PaddleCustomDevice \
+            --depth=1 \
+            --shallow-submodules \
+            --jobs=8 \
+            --branch ${{ github.base_ref || github.ref_name}} \
+            --recurse-submodules \
+            https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git .
+
+
+      - name: compile
+        run: |
+          if [[ "${{ github.ref_name }}" == "develop" ]];then
+            GIT_COMMIT_TIME=$(git --no-pager show -s --format=%ci HEAD)
+            DATE_ONLY=$(echo $GIT_COMMIT_TIME | sed "s/ .*//;s/-//g")
+            echo "Git Commit Time: $GIT_COMMIT_TIME"
+            echo "Date Only: $DATE_ONLY"
+            export PADDLE_VERSION="${PaddleCustomDeviceVersion}.dev${DATE_ONLY}"
+            export PLUGIN_VERSION="${PaddleCustomDeviceVersion}.dev${DATE_ONLY}"
+          else
+            TAG_REF="${{ github.ref_name }}"
+            VERSION="${TAG_REF#v}"
+            echo "VERSION=$VERSION"
+            export PADDLE_VERSION="${VERSION}"
+            export PLUGIN_VERSION="${VERSION}"
+          fi
+          cd backends/metax_gpu
+          bash build.sh
+
+      - name: push whl
+        env:
+          AK: ${{ secrets.BOS_AK }}
+          SK: ${{ secrets.BOS_SK }}
+        run: |
+          if [[ "${{ github.ref_name }}" == "develop" ]];then
+            target_path="paddle-whl/nightly/maca/paddle-metax-gpu"
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            target_path="paddle-whl/stable/maca/paddle-metax-gpu"
+          else
+            echo "Not develop or tag, do nothing"
+          fi
+          pip install bce-python-sdk==0.8.74
+
+          if [ ! -f "BosClient.py}" ]; then
+            wget -q --no-proxy https://xly-devops.bj.bcebos.com/home/bos_retry.tar.gz --no-check-certificate
+            tar xf bos_retry.tar.gz
+          fi
+          cp backends/metax_gpu/build/dist/paddle_metax_gpu*.whl .
+          python BosClient.py paddle_metax_gpu*.whl ${target_path}

@@ -16,7 +16,9 @@
 float64_skip_plugin.py
 
 pytest plugin to skip test cases that use float64 data type.
-When the environment variable FLAG_SKIP_FLOAT64 is set to 1, this plugin will skip all test cases that use float64.
+When the environment variable FLAG_SKIP_FLOAT64 is set to 1, this plugin will skip
+all test cases that use float64, unless the child class overrides the attribute
+or method and removes float64 usage.
 """
 
 import inspect
@@ -27,11 +29,72 @@ import numpy as np
 import pytest
 
 
+def _get_func_source(val):
+    """Return the source of a callable or property method."""
+    try:
+        if isinstance(val, (staticmethod, classmethod)):
+            return inspect.getsource(val.__func__)
+        elif isinstance(val, property):
+            srcs = []
+            for f in (val.fget, val.fset, val.fdel):
+                if f is not None:
+                    try:
+                        srcs.append(inspect.getsource(f))
+                    except Exception:
+                        pass
+            return "\n".join(srcs)
+        else:
+            return inspect.getsource(val)
+    except Exception:
+        return ""
+
+
+def _attr_contains_float64(val):
+    """Check whether attribute value contains float64."""
+    try:
+        if val is np.float64:
+            return True
+        if isinstance(val, np.dtype) and val == np.dtype("float64"):
+            return True
+        s = repr(val)
+        return "float64" in s
+    except Exception:
+        return False
+
+
+def _callable_contains_float64(val):
+    """Check whether a callable or property method contains float64 in its source."""
+    src = _get_func_source(val)
+    return "float64" in src
+
+
+def _child_overrides_without_float64(test_class, name):
+    """
+    If child class defines the same attribute/method name, and its version
+    does NOT contain float64, return True (meaning: don't skip).
+    """
+    if name not in test_class.__dict__:
+        return False  # child does NOT override
+
+    child_val = test_class.__dict__[name]
+
+    # callable or property?
+    if callable(child_val) or isinstance(
+        child_val, (staticmethod, classmethod, property)
+    ):
+        return not _callable_contains_float64(child_val)
+
+    # normal attribute: check if float64-free
+    return not _attr_contains_float64(child_val)
+
+
 def pytest_collection_modifyitems(config, items):
     """
     Skip tests whose class or base classes (up to but NOT including OpTest) contain
-    'float64' in method source or class attributes.
+    'float64' in method source or class attributes, unless the child class overrides
+    the attribute and removes float64 usage.
     """
+
     skip_float64 = os.environ.get("FLAG_SKIP_FLOAT64", "0") == "1"
     if not skip_float64:
         return
@@ -45,101 +108,45 @@ def pytest_collection_modifyitems(config, items):
             skip_test = False
             debug_info = None
 
-            # Walk MRO from the class itself upward, but STOP when we reach OpTest or object.
+            # Walk class MRO (stop at OpTest or object)
             for cls in inspect.getmro(test_class):
-                # Stop traversing when we reach OpTest or object (do not inspect OpTest or above)
                 if cls is object or cls.__name__ == "OpTest":
                     break
 
-                # Only iterate attributes actually defined on this class (avoid inherited ones)
                 for name, val in cls.__dict__.items():
                     if name.startswith("_"):
                         continue
 
-                    # 1) If attribute is a function/staticmethod/classmethod/property -> extract the underlying func
-                    func = None
-                    if isinstance(val, staticmethod):
-                        func = val.__func__
-                    elif isinstance(val, classmethod):
-                        func = val.__func__
-                    elif isinstance(val, property):
-                        # check fget/fset/fdel if present
-                        for f in (val.fget, val.fset, val.fdel):
-                            if f is not None:
-                                try:
-                                    src = inspect.getsource(f)
-                                except Exception:
-                                    src = ""
-                                if "float64" in src:
-                                    skip_test = True
-                                    debug_info = (
-                                        cls,
-                                        name,
-                                        "property method",
-                                        f,
-                                    )
-                                    break
-                        if skip_test:
-                            break
-                        continue
-                    elif callable(val):
-                        func = val
+                    # ----- Case 1: callable / method / property -----
+                    if callable(val) or isinstance(
+                        val, (staticmethod, classmethod, property)
+                    ):
+                        if _callable_contains_float64(val):
 
-                    # If we have a function, check its source code
-                    if func is not None:
-                        try:
-                            src = inspect.getsource(func)
-                            if "float64" in src:
-                                skip_test = True
-                                debug_info = (cls, name, "callable", func)
-                                break
-                        except (OSError, TypeError):
-                            # source not available (e.g., builtins, C-extensions) — ignore
-                            pass
-                        except Exception:
-                            # safeguard: don't crash plugin
-                            pass
+                            # Check override in child class
+                            if _child_overrides_without_float64(test_class, name):
+                                continue  # child removes float64 → safe
+
+                            skip_test = True
+                            debug_info = (cls, name, "callable/property", val)
+                            break
+
+                    # ----- Case 2: normal attribute -----
                     else:
-                        # 2) Non-callable attribute: check if its string contains float64 or it is np.float64/dtype
-                        try:
-                            # direct dtype object check
-                            if val is np.float64:
-                                skip_test = True
-                                debug_info = (
-                                    cls,
-                                    name,
-                                    "np.float64 object",
-                                    val,
-                                )
-                                break
-                            if isinstance(val, np.dtype) and val == np.dtype("float64"):
-                                skip_test = True
-                                debug_info = (
-                                    cls,
-                                    name,
-                                    "np.dtype('float64')",
-                                    val,
-                                )
-                                break
-                            # fallback: string representation check (handles things like "float64" or "np.float64")
-                            if "float64" in repr(val) or "float64" in str(val):
-                                skip_test = True
-                                debug_info = (
-                                    cls,
-                                    name,
-                                    "attr repr/str contains float64",
-                                    val,
-                                )
-                                break
-                        except Exception:
-                            # ignore weird attributes that raise on repr
-                            pass
+                        if _attr_contains_float64(val):
+
+                            # Check override in child class
+                            if _child_overrides_without_float64(test_class, name):
+                                continue  # child removes float64 → safe
+
+                            skip_test = True
+                            debug_info = (cls, name, "attribute", val)
+                            break
 
                 if skip_test:
                     break
 
             if skip_test:
-                # debug print - helps find exactly which class/attr triggered the skip
                 try:
                     cls, name, kind, what = debug_info
                     print(
@@ -148,11 +155,11 @@ def pytest_collection_modifyitems(config, items):
                     )
                 except Exception:
                     print(
-                        f"[SKIP-FLOAT64] Skipping test {item.nodeid}: detected 'float64' (debug info unavailable)"
+                        f"[SKIP-FLOAT64] Skipping test {item.nodeid}: detected 'float64'"
                     )
+
                 item.add_marker(pytest.mark.skip(reason="SKIP FLOAT64 TESTS"))
 
         except Exception:
-            # don't let a plugin crash the collection
             traceback.print_exc()
             continue

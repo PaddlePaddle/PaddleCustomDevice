@@ -72,9 +72,9 @@ def extract_test_results(input_file, passed_file, failed_file):
 
 if __name__ == "__main__":
     # Input file path
-    input_file = "/home/PaddleCustomDevice/unittests/tests_result.txt"
+    input_file = "tests_result.txt"
     # Output file paths
-    passed_file = "/home/PaddleCustomDevice/unittests/passed_tests.txt"
-    failed_file = "/home/PaddleCustomDevice/unittests/failed_tests.txt"
+    passed_file = "passed_tests.txt"
+    failed_file = "failed_tests.txt"
 
     extract_test_results(input_file, passed_file, failed_file)

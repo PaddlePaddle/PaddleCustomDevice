@@ -21,12 +21,13 @@ It manages test results and handles disabled tests according to configuration fi
 
 FEATURES:
 - Discovers Python files starting with 'test_' in the specified path (--path)
-- Paddle unit tests are located in the Paddle/test/legacy_test directory, with all test names prefixed by ‘test_’.
+- Paddle unit tests are located in the Paddle/test/legacy_test directory, with all test names prefixed by 'test_'.
 - Reads disabled test file from the script directory or a custom path (--disabled-file)
 - Manages all_tests.txt and tests_result.txt in the script directory
 - Executes tests in parallel across available Devices with a timeout of 180s (configurable via --timeout)
 - Saves failed or timeout logs to script_directory/failed_logs/<test_file>.log
 - Supports skipping float64 tests via --skip-float64 (sets FLAG_SKIP_FLOAT64=1 in subprocess environment)
+- Supports rerunning failed tests via --rerun-failed (reruns all tests that previously failed or timed out)
 
 REQUIREMENTS:
 - Python 3.10+
@@ -59,7 +60,10 @@ USAGE EXAMPLES:
 6. Specify custom disabled test file:
    python test_runner.py --disabled-file /path/to/disabled_test.txt
 
-7. Control which GPUs to use by setting CUDA_VISIBLE_DEVICES:
+7. Rerun failed tests:
+   python test_runner.py --rerun-failed
+
+8. Control which GPUs to use by setting CUDA_VISIBLE_DEVICES:
    export CUDA_VISIBLE_DEVICES=0,1,2,3  # Use GPUs 0 to 3
    python test_runner.py
 

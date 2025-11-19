@@ -1,4 +1,4 @@
-name: paddle metax build and publish
+name: paddle ixuca build and publish
 
 on:
   workflow_dispatch:
@@ -64,7 +64,7 @@ jobs:
           repo_archive_url=https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/COMMIT/${BRANCH}/${COMMIT}/PaddleCustomDevice.tar.gz 
           echo "repo_archive_url=${repo_archive_url}" >> $GITHUB_OUTPUT
     
-  metax-gpu-publish:
+  ixuca-gpu-publish:
     needs: code-checkout
     environment: PublishUploadUse
     env:

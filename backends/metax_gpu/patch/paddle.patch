@@ -229,7 +229,7 @@ index c5309e7e11..3328571380 100644
      }                                                              \
    };                                                               \
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_device_function.h b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
-index 4ff2e528a9..23f7f4b583 100644
+index 092365a961..23d3b65dc6 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_device_function.h
 +++ b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
 @@ -1,3 +1,4 @@
@@ -237,7 +237,7 @@ index 4ff2e528a9..23f7f4b583 100644
  /* Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
  
  Licensed under the Apache License, Version 2.0 (the "License");
-@@ -25,7 +26,7 @@ namespace phi {
+@@ -23,7 +24,7 @@ namespace phi {
  namespace backends {
  namespace gpu {
  
@@ -246,7 +246,7 @@ index 4ff2e528a9..23f7f4b583 100644
  #define CREATE_SHFL_MASK(mask, predicate) \
    mask = __ballot_sync(FULL_WARP_MASK, (predicate))
  
-@@ -45,12 +46,12 @@ namespace gpu {
+@@ -43,12 +44,12 @@ namespace gpu {
  
  template <typename T>
  __forceinline__ __device__ T
@@ -261,7 +261,7 @@ index 4ff2e528a9..23f7f4b583 100644
                                                  T val,
                                                  int width = warpSize) {
    return __shfl_xor_sync(mask, val, width);
-@@ -58,14 +59,14 @@ __forceinline__ __device__ T CudaShuffleXorSync(unsigned mask,
+@@ -56,14 +57,14 @@ __forceinline__ __device__ T CudaShuffleXorSync(unsigned mask,
  
  template <>
  __forceinline__ __device__ phi::dtype::float16 CudaShuffleDownSync(
@@ -278,7 +278,7 @@ index 4ff2e528a9..23f7f4b583 100644
  #if defined(PADDLE_CUDA_BF16)
    return phi::dtype::bfloat16(__shfl_down_sync(
        mask, val.to_nv_bfloat16(), static_cast<unsigned>(delta), width));
-@@ -77,7 +78,7 @@ __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleDownSync(
+@@ -75,7 +76,7 @@ __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleDownSync(
  
  template <>
  __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleDownSync(
@@ -287,7 +287,7 @@ index 4ff2e528a9..23f7f4b583 100644
    float real = static_cast<float>(__shfl_down_sync(
        mask, static_cast<float>(val.real), static_cast<unsigned>(delta), width));
    float imag = static_cast<float>(__shfl_down_sync(
-@@ -87,7 +88,7 @@ __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleDownSync(
+@@ -85,7 +86,7 @@ __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleDownSync(
  
  template <>
  __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleDownSync(
@@ -296,7 +296,7 @@ index 4ff2e528a9..23f7f4b583 100644
    double real =
        static_cast<double>(__shfl_down_sync(mask,
                                             static_cast<double>(val.real),
-@@ -103,13 +104,13 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleDownSync(
+@@ -101,20 +102,20 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleDownSync(
  
  template <>
  __forceinline__ __device__ phi::dtype::float16 CudaShuffleXorSync(
@@ -309,10 +309,9 @@ index 4ff2e528a9..23f7f4b583 100644
  __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleXorSync(
 -    unsigned mask, phi::dtype::bfloat16 val, int width) {
 +    unsigned long long mask, phi::dtype::bfloat16 val, int width) {
- #if defined(PADDLE_CUDA_BF16)
    return phi::dtype::bfloat16(
        __shfl_xor_sync(mask, val.to_nv_bfloat16(), width));
-@@ -121,7 +122,7 @@ __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleXorSync(
+ }
  
  template <>
  __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleXorSync(
@@ -321,7 +320,7 @@ index 4ff2e528a9..23f7f4b583 100644
    float real = static_cast<float>(
        __shfl_xor_sync(mask, static_cast<float>(val.real), width));
    float imag = static_cast<float>(
-@@ -131,7 +132,7 @@ __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleXorSync(
+@@ -124,7 +125,7 @@ __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleXorSync(
  
  template <>
  __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleXorSync(
@@ -330,7 +329,7 @@ index 4ff2e528a9..23f7f4b583 100644
    double real = static_cast<double>(
        __shfl_xor_sync(mask, static_cast<double>(val.real), width));
    double imag = static_cast<double>(
-@@ -141,7 +142,7 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleXorSync(
+@@ -134,7 +135,7 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleXorSync(
  
  template <typename T>
  __forceinline__ __device__ T
@@ -339,7 +338,7 @@ index 4ff2e528a9..23f7f4b583 100644
    return __shfl_sync(mask, val, src_line, width);
  }
  
-@@ -160,7 +161,7 @@ __device__ T reduceSum(T val, int tid, int len) {
+@@ -153,7 +154,7 @@ __device__ T reduceSum(T val, int tid, int len) {
    // but most card's warp size is 32.
    const int warpSize = 32;
    __shared__ T shm[warpSize];
@@ -348,6 +347,7 @@ index 4ff2e528a9..23f7f4b583 100644
    CREATE_SHFL_MASK(mask, tid < len);
  
    for (int offset = warpSize / 2; offset > 0; offset /= 2)
+
 diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
 index 024a7de73e..66b373d698 100644
 --- a/paddle/phi/core/enforce.h

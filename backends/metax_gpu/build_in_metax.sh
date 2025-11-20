@@ -17,6 +17,9 @@
 
 set -e
 
+# install requirement.txt
+pip install -r requirement.txt -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+
 # init paddle
 git submodule sync --recursive && git submodule update --init --recursive
 

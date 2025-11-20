@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-pip install scipy -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
+# pip install scipy -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
 SCRIPT_DIR=$(dirname "$0")
 LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
 TEST_PATH1="${SCRIPT_DIR}/../../../python"

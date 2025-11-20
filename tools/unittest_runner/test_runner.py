@@ -38,7 +38,7 @@ REQUIREMENTS:
 
 USAGE EXAMPLES:
 0. Example on Iluvatar GPU:
-   python test_runner.py --path ../../Paddle/test/legacy_test/ --skip-float64 --devices 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 --disabled-file ../../backends/iluvatar_gpu/tests/disabled_test.txt
+   python test_runner.py --path ../../Paddle/test/legacy_test/ --skip-float64 --devices 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 --disabled-file ../../backends/iluvatar_gpu/tests/disabled_test.txt --rerun-failed
 
 1. Basic usage (run tests in current directory):
    python test_runner.py

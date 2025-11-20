@@ -88,6 +88,18 @@ def _child_overrides_without_float64(test_class, name):
     return not _attr_contains_float64(child_val)
 
 
+def pytest_configure(config):
+    """
+    Monkey-patch numpy.random.random to generate float32.
+    """
+    original_random = np.random.random
+
+    def random_float32(size=None):
+        return original_random(size).astype(np.float32)
+
+    np.random.random = random_float32
+
+
 def pytest_collection_modifyitems(config, items):
     """
     Skip tests whose class or base classes (up to but NOT including OpTest) contain

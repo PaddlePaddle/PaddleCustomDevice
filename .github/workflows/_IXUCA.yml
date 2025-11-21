@@ -81,39 +81,47 @@ jobs:
         id: run-ixuca
         if: steps.check-bypass.outputs.can-skip != 'true'
         run: |
-          docker exec -t ${{ env.container_name }} /bin/bash -c '
-          cd /workspace/PaddleCustomDevice
-          # !!!!! SKIP IF NO IXUCA CHANGE !!!!
           echo "=========== Checking PR Changes If IXUCA FULL CI Needed ==========="
-          change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
-          change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
-          change_ixuca_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/iluvatar_gpu"| wc -l)
-          git --no-pager diff --name-only remotes/origin/${BRANCH}
 
-          if [ $change_numbers -ne $change_backend ]; then
-            echo "Common file changed, continue to run IXUCA FULL CI test ..."
-            echo "should_skip=false" >> $GITHUB_OUTPUT
-          elif [ $change_ixuca_only -eq 0 ] ; then
-            echo "NO IXUCA backend changes found, skip IXUCA FULL CI ...."
-            echo "should_skip=true" >> $GITHUB_OUTPUT
-            exit 0
-          else
-            echo "should_skip=false" >> $GITHUB_OUTPUT
-          fi
+          should_skip=$(docker exec -t ${{ env.container_name }} /bin/bash -c '
+            cd /workspace/PaddleCustomDevice
 
-          export PATH=/usr/local/corex-4.3.0/bin:$PATH
-          mkdir -p /workspace/PaddleCustomDevice/Paddle/third_party/mklml/Linux
-          curl -o /workspace/PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz  http://paddlepaddledeps.bj.bcebos.com/csrmm_mklml_lnx_2019.0.5.tgz
-          tar xf /workspace/PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz
-          python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
-          python3 -m pip install parameterized'
+            change_numbers=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | wc -l)
+            change_backend=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep "backends/" | wc -l)
+            change_ixuca_only=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep "backends/iluvatar_gpu" | wc -l)
+
+            echo "Changed files:"
+            git --no-pager diff --name-only remotes/origin/${BRANCH}
+
+            if [ $change_numbers -ne $change_backend ]; then
+              echo "Common file changed, continue to run IXUCA FULL CI test ..."
+              echo false
+            elif [ $change_ixuca_only -eq 0 ]; then
+              echo "NO IXUCA backend changes found, skip IXUCA FULL CI ...."
+              echo true
+            else
+              echo "IXUCA backend changed, run FULL CI ..."
+              echo false
+            fi
+          ' | tail -n 1 | tr -d '\r')
+
+          echo "should_skip from docker = $should_skip"
+          echo "should_skip=$should_skip" >> $GITHUB_OUTPUT
 
       - name: Build and Install paddle_iluvatar_gpu
         if: steps.check-bypass.outputs.can-skip != 'true' && steps.run-ixuca.outputs.should_skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
-          cd /workspace/PaddleCustomDevice/backends/iluvatar_gpu
+          export PATH=/usr/local/corex-4.3.0/bin:$PATH
+          mkdir -p /workspace/PaddleCustomDevice/Paddle/third_party/mklml/Linux
+          curl -o /workspace/PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz  http://paddlepaddledeps.bj.bcebos.com/csrmm_mklml_lnx_2019.0.5.tgz
+          tar xf /workspace/PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz
+          python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
+          pip show paddlepaddle
+          python3 -m pip install parameterized
+          pip show parameterized
           export PADDLE_VERSION=0.0.0
+          cd /workspace/PaddleCustomDevice/backends/iluvatar_gpu
           # build
           bash build_paddle.sh
           # Install
@@ -123,6 +131,8 @@ jobs:
         if: steps.check-bypass.outputs.can-skip != 'true' && steps.run-ixuca.outputs.should_skip != 'true'
         run: |
           docker exec -t ${{ env.container_name }} /bin/bash -c '
+          pip show parameterized
+          python3 -m pip install parameterized
           cd /workspace/PaddleCustomDevice/backends/iluvatar_gpu/tests
           # Run tests
           bash run_test.sh'

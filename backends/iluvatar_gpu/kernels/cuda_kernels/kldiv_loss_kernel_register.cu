@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/kldiv_loss_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/kldiv_loss_kernel.h"
 PD_CUSTOM_KERNEL_REGISTER(
     kldiv_loss, iluvatar_gpu, ALL_LAYOUT, phi::KLDivLossKernel, float, double) {
 }

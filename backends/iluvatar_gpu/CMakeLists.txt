@@ -34,6 +34,7 @@ include(version)
 include(generic)
 include(cblas)
 include(external/eigen)
+include(external/magma)
 include(external/xxhash)
 include(external/zlib)
 include(external/protobuf)
@@ -119,11 +120,13 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/magma/magma_function.cc
   # cudnn/cublas
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cudnn.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublas.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublasLt.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cufft.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/magma.cc
   # kernels/gpu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/spectral_norm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/spectral_norm_kernel.cu
@@ -1008,7 +1011,7 @@ target_link_libraries(
           ixattnbkd
           nccl
           # change nccl to ${FLAGCX_LIB} if compiling with FlagCX ${FLAGCX_LIB}
-)
+          magma)
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 

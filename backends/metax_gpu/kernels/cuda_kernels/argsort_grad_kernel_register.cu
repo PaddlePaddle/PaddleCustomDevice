@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/argsort_kernel.h"
 #include "paddle/phi/kernels/argsort_grad_kernel.h"
+#include "paddle/phi/kernels/argsort_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(argsort_grad,
                           metax_gpu,

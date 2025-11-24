@@ -14,7 +14,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/fusion/gpu/quant_utils.h"
-#include "paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fp8_quant_blockwise,
                           metax_gpu,

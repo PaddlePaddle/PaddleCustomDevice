@@ -9,57 +9,20 @@ Subject: [PATCH] Add patch
  2 files changed, 22 insertions(+), 17 deletions(-)
 
 diff --git a/test/legacy_test/op_test.py b/test/legacy_test/op_test.py
-index 36c17513d8..6deee3b9e8 100644
+index a652faba99..dd69d6f393 100644
 --- a/test/legacy_test/op_test.py
 +++ b/test/legacy_test/op_test.py
-@@ -585,22 +585,22 @@ class OpTest(unittest.TestCase):
-                     f"This test of {cls.op_type} op needs check_grad."
-                 )
- 
--            # check for op test with fp64 precision, but not check onednn op test for now
--            if (
--                cls.dtype in [np.float32, np.float64]
--                and cls.op_type
--                not in op_accuracy_white_list.NO_FP64_CHECK_GRAD_OP_LIST
--                and not hasattr(cls, 'exist_fp64_check_grad')
--                and not is_xpu_op_test()
--                and not is_onednn_op_test()
--                and not is_rocm_op_test()
--                and not is_custom_device_op_test()
--                and not cls.check_prim
--                and not cls.check_prim_pir
--            ):
--                raise AssertionError(
--                    f"This test of {cls.op_type} op needs check_grad with fp64 precision."
--                )
-+            # # check for op test with fp64 precision, but not check onednn op test for now
-+            # if (
-+            #     cls.dtype in [np.float32, np.float64]
-+            #     and cls.op_type
-+            #     not in op_accuracy_white_list.NO_FP64_CHECK_GRAD_OP_LIST
-+            #     and not hasattr(cls, 'exist_fp64_check_grad')
-+            #     and not is_xpu_op_test()
-+            #     and not is_onednn_op_test()
-+            #     and not is_rocm_op_test()
-+            #     and not is_custom_device_op_test()
-+            #     and not cls.check_prim
-+            #     and not cls.check_prim_pir
-+            # ):
-+            #     raise AssertionError(
-+            #         f"This test of {cls.op_type} op needs check_grad with fp64 precision."
-+            #     )
- 
-             if (
-                 not cls.input_shape_is_large
-@@ -3035,6 +3035,7 @@ class OpTest(unittest.TestCase):
+@@ -3095,7 +3095,8 @@ class OpTest(unittest.TestCase):
+         check_auto_parallel=False,
          check_pir_onednn=False,
          check_symbol_infer=True,
-     ):
+-    ):
++    ):  
 +        check_prim_pir = False
          self.__class__.op_type = self.op_type
          if self.is_onednn_op():
              self.__class__.use_onednn = True
-@@ -3235,6 +3236,8 @@ class OpTest(unittest.TestCase):
+@@ -3296,6 +3297,8 @@ class OpTest(unittest.TestCase):
          check_auto_parallel=False,
          check_pir_onednn=False,
      ):
@@ -68,7 +31,7 @@ index 36c17513d8..6deee3b9e8 100644
          if hasattr(self, "use_custom_device") and self.use_custom_device:
              check_dygraph = False
  
-@@ -3382,6 +3385,8 @@ class OpTest(unittest.TestCase):
+@@ -3443,6 +3446,8 @@ class OpTest(unittest.TestCase):
                          "Skipping test due to float64 inputs and FLAG_SKIP_FLOAT64 is set"
                      )
  

@@ -1,4 +1,5 @@
-name: paddle metax gpu test
+name: PR-CI-METAX
+
 
 on:
   workflow_call:
@@ -15,18 +16,21 @@ on:
         required: false
         default: 'true'
 
+
 defaults:
   run:
     shell: bash
 
+
 jobs:
   metax-gpu-test:
+    runs-on: paddle-metax-runner-set
     env:
       PR_ID: ${{ github.event.pull_request.number }}
       COMMIT_ID: ${{ github.event.pull_request.head.sha }}
       BRANCH: develop
-      runs-on: paddle-metax-runner-set
-      # runs-on: debug-paddle-runner-set
+
+
     steps:
       - name: Checkout repository
         run: |
@@ -38,7 +42,7 @@ jobs:
           git config --global --add safe.directory "*"
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
-          git --no-pager log --pretty=oneline -5'
+          git --no-pager log --pretty=oneline -5
 
       - name: Check bypass
         id: check-bypass
@@ -47,6 +51,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           workflow-name: metax
 
+
       - name: RUN METAX-GPU
         id: run-metax
         if: steps.check-bypass.outputs.can-skip != 'true'
@@ -54,11 +59,12 @@ jobs:
           cd PaddleCustomDevice
           # !!!!! SKIP IF NO METAX CHANGE !!!!
           echo "=========== Checking PR Changes If METAX FULL CI Needed ==========="
+
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
+
           change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
           change_metax_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/metax_gpu"| wc -l)
           git --no-pager diff --name-only remotes/origin/${BRANCH}
-
           if [ $change_numbers -ne $change_backend ]; then
             echo "Common file changed, continue to run METAX FULL CI test ..."
             echo "should_skip=false" >> $GITHUB_OUTPUT
@@ -76,7 +82,6 @@ jobs:
           bash build.sh
 
       - name: run test
-
         run: |
           cd PaddleCustomDevice/backends/metax_gpu/tests
           bash run_test.sh -j 8

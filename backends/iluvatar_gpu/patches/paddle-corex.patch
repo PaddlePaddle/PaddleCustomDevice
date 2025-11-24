@@ -552,6 +552,7 @@ index 1df6184141..fc6015b209 100644
  #pragma once
  
  #include "paddle/phi/core/dense_tensor.h"
+ #include "paddle/phi/core/device_context.h"
 +#ifndef PADDLE_WITH_COREX
  #include "paddle/phi/kernels/funcs/blas/blas.h"
 +#endif

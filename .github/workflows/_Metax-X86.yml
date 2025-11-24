@@ -39,6 +39,7 @@ jobs:
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
           git --no-pager log --pretty=oneline -5'
+
       - name: Check bypass
         id: check-bypass
         uses: ./PaddleCustomDevice/.github/actions/check-bypass
@@ -67,15 +68,18 @@ jobs:
           else
             echo "should_skip=false" >> $GITHUB_OUTPUT
           fi
+
       - name: compile
         run: |
           cd PaddleCustomDevice/backends/metax_gpu
           bash build.sh
+
       - name: run test
 
         run: |
           cd PaddleCustomDevice/backends/metax_gpu/tests
           bash run_test.sh -j 8
+
       - name: push whl
         env:
           PR_ID: ${{ github.event.pull_request.number }}

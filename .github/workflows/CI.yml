@@ -47,11 +47,6 @@ jobs:
     uses: ./.github/workflows/_IXUCA.yml
     needs: [Codestyle-Check]
 
-  metax:
-    name: metax
-    uses: ./.github/workflows/_Metax-X86.yml
-    needs: [Codestyle-Check]
-
   #sdaa:
     #name: sdaa
     #uses: ./.github/workflows/_SDAA.yml

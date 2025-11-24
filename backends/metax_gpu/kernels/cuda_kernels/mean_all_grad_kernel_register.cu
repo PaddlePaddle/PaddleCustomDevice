@@ -15,7 +15,7 @@
 // clang-format off
 #include "paddle/phi/common/amp_type_traits.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/mean_all_grad_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/mean_all_grad_kernel.h"
 #include "paddle/phi/kernels/mean_all_kernel.h"
 // clang-format on
 PD_CUSTOM_KERNEL_REGISTER(mean_all_grad,

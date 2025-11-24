@@ -14,7 +14,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/aligned_vector.h"
-#include "paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(masked_multihead_attention,
                           metax_gpu,

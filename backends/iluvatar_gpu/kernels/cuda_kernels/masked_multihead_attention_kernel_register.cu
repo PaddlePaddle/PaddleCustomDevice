@@ -13,11 +13,13 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/c_softmax_with_cross_entropy_grad_kernel.h"
+#include "paddle/phi/kernels/funcs/aligned_vector.h"
+#include "paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(c_softmax_with_cross_entropy_grad,
+PD_CUSTOM_KERNEL_REGISTER(masked_multihead_attention,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::CSoftmaxWithCrossEntropyGradKernel,
+                          phi::fusion::MMHAKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          int32_t) {}

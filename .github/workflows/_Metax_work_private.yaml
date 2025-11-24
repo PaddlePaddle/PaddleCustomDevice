@@ -6,7 +6,7 @@ on:
     types: [opened, synchronize]
     branches: [develop, release/**]
   schedule:
-    - cron: "0 15 * * *"
+    - cron: "0 16 * * *"
 permissions: read-all
 
 defaults:
@@ -16,7 +16,6 @@ defaults:
 jobs:
   metax-gpu-test:
     runs-on: paddle-metax-runner-set
-    # runs-on: debug-paddle-runner-set
     steps:
       - name: Checkout repository
         run: |
@@ -96,3 +95,7 @@ jobs:
           fi
           cp backends/metax_gpu/build/dist/paddle_metax_gpu*.whl .
           python BosClient.py paddle_metax_gpu*.whl paddle-github-action/PaddleCustomDevice/metax_gpu/${PR_ID}/${COMMIT_ID}
+          cd backends/metax_gpu/build/dist/
+          ossutil ls oss://opensource-ci/paddle/
+          ossutil cat oss://opensource-ci/paddle/
+          ossutil cp ./paddle_metax_gpu-*.whl oss://opensource-ci/paddle/ -f

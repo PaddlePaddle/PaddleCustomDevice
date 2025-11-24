@@ -180,16 +180,7 @@ index a943bbed9a..dc6384985f 100644
  
  #ifdef PADDLE_WITH_CUDNN_FRONTEND
  #define CUDNN_DNN_ROUTINE_EACH_FRONTEND(__macro) \
-@@ -191,7 +208,7 @@ CUDNN_DNN_ROUTINE_EACH_FRONTEND(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
- CUDNN_DNN_ROUTINE_EACH_REMOVED_IN_E9(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
- #endif
- 
--#if CUDNN_VERSION < 90000
-+#if CUDNN_VERSION < 90000 && CUDNN_VERSION >= 7201
- #define CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(__macro) \
-   __macro(cudnnSetRNNPaddingMode);                                 \
-   __macro(cudnnRNNForwardInferenceEx);                             \
-@@ -212,6 +229,15 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(
+@@ -210,6 +227,15 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(
    __macro(cudnnRNNBackwardWeights_v8);
  CUDNN_DNN_ROUTINE_EACH_R9(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
  #endif
@@ -561,6 +552,7 @@ index 1df6184141..fc6015b209 100644
  #pragma once
  
  #include "paddle/phi/core/dense_tensor.h"
+ #include "paddle/phi/core/device_context.h"
 +#ifndef PADDLE_WITH_COREX
  #include "paddle/phi/kernels/funcs/blas/blas.h"
 +#endif
@@ -958,6 +950,34 @@ index f3a2874b92..47d2c0b4d7 100644
      dim3 block_size = dim3(PREDEFINED_BLOCK_SIZE, 1);
      dim3 grid_size =
          dim3(((size + vec_size - 1) / vec_size + PREDEFINED_BLOCK_SIZE - 1) /
+diff --git a/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu b/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
+index 6f656ca7be..db87d15919 100644
+--- a/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
++++ b/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
+@@ -296,16 +296,16 @@ __global__ void KeBilinearInterpBwShareMemory(T* in,
+         &in_img_idy, &h_id, &h1lambda, &h2lambda, src_h, in_h);
+ 
+     // top_left_index is just input_index.
+-    int64_t input_index = out_id_h * in_chw + channel_id * in_img_size +
++    int32_t input_index = out_id_h * in_chw + channel_id * in_img_size +
+                           in_img_idy * in_w + in_img_idx;
+-    int64_t top_right_index = input_index + w_id;
+-    int64_t bot_left_index = input_index + h_id * in_w;
+-    int64_t bot_right_index = input_index + h_id * in_w + w_id;
+-    int64_t in_top_min_index, in_bot_min_index;
++    int32_t top_right_index = input_index + w_id;
++    int32_t bot_left_index = input_index + h_id * in_w;
++    int32_t bot_right_index = input_index + h_id * in_w + w_id;
++    int32_t in_top_min_index, in_bot_min_index;
+ 
+     s_data[0][threadIdx.x] = static_cast<MT>(0);
+     s_data[1][threadIdx.x] = static_cast<MT>(0);
+-    int64_t remain = nthreads - (tid & (-static_cast<int64_t>(blockDim.x)));
++    int64_t remain = nthreads - (tid & (-blockDim.x));
+     int64_t in_top_max_index =
+         phi::funcs::BlockReduceMax(top_right_index, FINAL_MASK);
+     int64_t in_bot_max_index =
+
 diff --git a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
 index 2645060f4c..6a38e20776 100644
 --- a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu

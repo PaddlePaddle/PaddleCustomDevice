@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_transpose_split_quant_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/fusion/gpu/fused_transpose_split_quant_kernel.h"
 #include "paddle/phi/kernels/fusion/gpu/quant_utils.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fused_transpose_split_quant,

@@ -16,6 +16,10 @@
 # limitations under the License.
 
 set -e
+
+# install requirement.txt
+pip install -r requirement.txt -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+
 # uninstall paddle
 pip  uninstall paddlepaddle -y
 
@@ -24,7 +28,7 @@ pip  uninstall paddlepaddle -y
 # git submodule sync --recursive && git submodule update --init --recursive
 
 
-pip install parameterized safetensors==0.6.2 -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
+# pip install parameterized safetensors==0.6.2 -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
 # install paddle
 
 

@@ -38,6 +38,10 @@ fi
 
 bash clean_paddle.sh
 
+pushd "${CURRENT_DIR}/../.."
+git submodule update --init --recursive --force
+popd
+
 if ! git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null 2>&1; then
   if ! git -C "$PADDLE_SOURCE_DIR" apply "$PATCH_FILE"; then
     echo "Error: Failed to apply patch!"

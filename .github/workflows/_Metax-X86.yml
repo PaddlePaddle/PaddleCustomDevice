@@ -38,7 +38,7 @@ jobs:
           git config --global --add safe.directory "*"
           git remote add upstream https://github.com/PaddlePaddle/PaddleCustomDevice.git
           git merge ${BRANCH} --no-edit
-          git --no-pager log --pretty=oneline -5'
+          git --no-pager log --pretty=oneline -5
 
       - name: Check bypass
         id: check-bypass

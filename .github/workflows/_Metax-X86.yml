@@ -1,4 +1,4 @@
-name: paddle metax gpu test
+name: PR-CI-METAX
 
 on:
   workflow_call:
@@ -75,7 +75,6 @@ jobs:
           bash build.sh
 
       - name: run test
-
         run: |
           cd PaddleCustomDevice/backends/metax_gpu/tests
           bash run_test.sh -j 8

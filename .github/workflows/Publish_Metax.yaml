@@ -17,6 +17,8 @@ defaults:
 jobs:
   metax-gpu-publish:
     environment: PublishUploadUse
+    env:
+      PaddleCustomDeviceVersion: ${{ vars.PaddleCustomDeviceVersion }}
     runs-on: paddle-metax-runner-set
     steps:
       - name: Checkout repository

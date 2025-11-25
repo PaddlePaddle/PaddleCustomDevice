@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/legacy/gpu/moe_ops_partial_nosoftmaxtopk_grad_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/legacy/gpu/moe_ops_partial_nosoftmaxtopk_grad_kernel.h"
 PD_CUSTOM_KERNEL_REGISTER(moe_gate_dispatch_partial_nosoftmaxtopk_grad,
                           metax_gpu,
                           ALL_LAYOUT,

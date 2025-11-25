@@ -20,6 +20,10 @@
 #include "paddle/extension.h"
 #include "utils/utils.h"
 
+#define SDPA_SET_FLAGS(condition, flag_name)      \
+  if (condition) {                                \
+    flags |= SdpaFlags_t::SDPA_FLAGS_##flag_name; \
+  }
 #define SDPA_SET_INPUT_AND_FLAGS(ptr, flag_name)  \
   if (ptr) {                                      \
     flags |= SdpaFlags_t::SDPA_FLAGS_##flag_name; \
@@ -35,7 +39,7 @@ struct SDPAParams {
 
 class FusedFp8Sdpa : public HpuOperator {
  public:
-  FusedFp8Sdpa() : HpuOperator("sdpa_recomp_fwd_hf8") {}
+  explicit FusedFp8Sdpa(std::string guid) : HpuOperator(guid) {}
   void AddNode(ConvertTensors& ct, SDPAParams& params) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
@@ -67,12 +71,24 @@ class FusedFp8Sdpa : public HpuOperator {
     }
 
     std::vector<synTensor> sync_outputs;
-    for (size_t i = 0; i < outputs.size(); i++) {
-      sync_outputs.push_back(createTensor(outputs[i].dims.size(),
-                                          outputs[i].type,
-                                          outputs[i].dims,
-                                          true,
-                                          outputs[i].name));
+    // [0] out,  bf16
+    sync_outputs.push_back(createTensor(outputs[0].dims.size(),
+                                        outputs[0].type,
+                                        outputs[0].dims,
+                                        true,
+                                        outputs[0].name));
+    if (params.params.flags & SdpaFlags_t::SDPA_FLAGS_AMAX_S) {
+      // [1] m,  bf16  [1]
+      sync_outputs.push_back(createTensor(1, syn_type_bf16, {1}, false, "m"));
+      // [2] linv,  float32 [1]
+      sync_outputs.push_back(
+          createTensor(1, syn_type_float, {1}, false, "linv"));
+      // [3] seed,  int32  [1]
+      sync_outputs.push_back(
+          createTensor(1, syn_type_int32, {1}, false, "seed"));
+      // [4] amax_s,  float32 [1]
+      sync_outputs.push_back(
+          createTensor(1, syn_type_float, {1}, true, outputs[1].name));
     }
 
     status = synNodeCreate(graphHandle_,
@@ -105,9 +121,13 @@ void fused_fp8_sdpa(const Context& dev_ctx,
                     const paddle::optional<phi::DenseTensor>& d_scale_s,
                     float scale,
                     bool causal,
-                    phi::DenseTensor* out) {
+                    bool is_amax_s,
+                    phi::DenseTensor* out,
+                    phi::DenseTensor* amax) {
   // allocate memory on device.
   dev_ctx.template Alloc<T>(out);
+  dev_ctx.template Alloc<float>(amax);
+
   if (out->numel() == 0) {
     return;
   }
@@ -117,6 +137,7 @@ void fused_fp8_sdpa(const Context& dev_ctx,
   ct.Add(k);
   ct.Add(v);
 
+  std::string guid = "sdpa_recomp_fwd_hf8";
   unsigned int flags = 0;
 
   SDPA_SET_INPUT_AND_FLAGS(d_scale_q.get_ptr(), D_SCALE_Q)
@@ -125,6 +146,10 @@ void fused_fp8_sdpa(const Context& dev_ctx,
   SDPA_SET_INPUT_AND_FLAGS(q_scale_s.get_ptr(), Q_SCALE_S)
   SDPA_SET_INPUT_AND_FLAGS(q_scale_o.get_ptr(), Q_SCALE_O)
   SDPA_SET_INPUT_AND_FLAGS(d_scale_s.get_ptr(), D_SCALE_S)
+  if (flags == 0) {
+    guid = "sdpa_recomp_fwd_bf16";
+  }
+  SDPA_SET_FLAGS(is_amax_s, AMAX_S)
 
   SDPAParams params{};
 
@@ -141,6 +166,8 @@ void fused_fp8_sdpa(const Context& dev_ctx,
   params.params.flags = flags;
 
   ct.Add(*out, false);
+  ct.Add(*amax, false);
+
   std::vector<DIMS> inputs_dims = ct.GetDims();
 
   OpCacheOperator op_info;
@@ -149,7 +176,7 @@ void fused_fp8_sdpa(const Context& dev_ctx,
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
-    FusedFp8Sdpa op;
+    FusedFp8Sdpa op(guid);
     op.AddNode(ct, params);
     op.Compile();
     op_info.setOp(op);
@@ -175,7 +202,8 @@ std::vector<paddle::Tensor> FusedFp8SdpaForward(
     const paddle::optional<paddle::Tensor>& q_scale_o,
     const paddle::optional<paddle::Tensor>& d_scale_s,
     bool causal,
-    float scale) {
+    float scale,
+    bool is_amax_s) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(q.place()));
 
@@ -242,6 +270,9 @@ std::vector<paddle::Tensor> FusedFp8SdpaForward(
   auto out_tensor = std::make_shared<phi::DenseTensor>();
   out_tensor->Resize(q_tensor->dims());
 
+  auto amax_tensor = std::make_shared<phi::DenseTensor>();
+  amax_tensor->Resize({1});
+
   custom_kernel::fused_fp8_sdpa<phi::dtype::bfloat16>(
       *dev_ctx,
       *q_tensor,
@@ -256,11 +287,11 @@ std::vector<paddle::Tensor> FusedFp8SdpaForward(
       d_scale_s ? *d_scale_s_tensor : paddle::optional<phi::DenseTensor>(),
       scale,
       causal,
-      out_tensor.get());
+      is_amax_s,
+      out_tensor.get(),
+      amax_tensor.get());
 
-  paddle::Tensor out(out_tensor);
-
-  return {out};
+  return {paddle::Tensor(out_tensor), paddle::Tensor(amax_tensor)};
 }
 
 std::vector<std::vector<int64_t>> FusedFp8SdpaForwardShape(
@@ -271,7 +302,7 @@ std::vector<std::vector<int64_t>> FusedFp8SdpaForwardShape(
   int64_t num_heads = query_states_shape[1];
   int64_t seq_len = query_states_shape[2];
   int head_dim = query_states_shape[3];
-  return {{bsz, num_heads, seq_len, head_dim}};
+  return {{bsz, num_heads, seq_len, head_dim}, {1}};
 }
 
 std::vector<paddle::DataType> FusedFp8SdpaForwardDtype(
@@ -294,8 +325,8 @@ PD_BUILD_OP(fused_fp8_sdpa)
         paddle::Optional("q_scale_o"),
         paddle::Optional("d_scale_s"),
     })
-    .Attrs({"causal: bool", "scaling_factor: float"})
-    .Outputs({"out"})
+    .Attrs({"causal: bool", "scaling_factor: float", "is_amax_s: bool"})
+    .Outputs({"out", "amax"})
     .SetKernelFn(PD_KERNEL(FusedFp8SdpaForward))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedFp8SdpaForwardShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedFp8SdpaForwardDtype));

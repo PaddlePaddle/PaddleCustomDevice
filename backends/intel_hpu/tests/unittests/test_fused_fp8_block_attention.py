@@ -211,10 +211,10 @@ class TestFusedBlockAttention:
 
         self.src_scale = paddle.to_tensor([1.0]).to(device)
         self.qkv_weights_scale = paddle.to_tensor([1.0]).to(device)
-        self.qk_scale_x = paddle.to_tensor([0.002]).to(device)
-        self.qk_scale_y = paddle.to_tensor([0.002]).to(device)
-        self.av_scale_x = paddle.to_tensor([0.1]).to(device)
-        self.av_scale_y = paddle.to_tensor([0.1]).to(device)
+        self.q_scale = paddle.to_tensor([0.002]).to(device)
+        self.k_scale = paddle.to_tensor([0.002]).to(device)
+        self.a_scale = paddle.to_tensor([0.1]).to(device)
+        self.v_scale = paddle.to_tensor([0.1]).to(device)
         self.o_linear_scale_x = paddle.to_tensor([1.0]).to(device)
         self.o_linear_scale_y = paddle.to_tensor([1.0]).to(device)
 
@@ -262,7 +262,8 @@ class TestFusedBlockAttention:
 
         b, s, h = src.shape
         src = src.reshape([-1, h])
-        out_linear_out = paddlenlp_ops.fused_fp8_block_attention(
+
+        out_linear_out = paddlenlp_ops.fused_block_attention(
             src,
             self.new_rope.transpose([0, 1, 3, 2, 4]).squeeze(2),
             self.k_cache_test,
@@ -280,10 +281,10 @@ class TestFusedBlockAttention:
             None,
             self.src_scale,
             self.qkv_weights_scale,
-            self.qk_scale_x,
-            self.qk_scale_y,
-            self.av_scale_x,
-            self.av_scale_y,
+            self.q_scale,
+            self.k_scale,
+            self.a_scale,
+            self.v_scale,
             self.o_linear_scale_x,
             self.o_linear_scale_y,
             self.head_dim,
@@ -315,6 +316,13 @@ class test_case_decode_MHA(TestFusedBlockAttention):
         super().__init__()
         self.init_decode_MHA_params()
         self.create_tensors()
+        self.k_cache_test = self.k_cache_test.astype(paddle.bfloat16)
+        self.v_cache_test = self.v_cache_test.astype(paddle.bfloat16)
+
+        self.q_scale = None
+        self.k_scale = None
+        self.a_scale = None
+        self.v_scale = None
 
 
 class test_case_decode_GQA(TestFusedBlockAttention):
@@ -322,6 +330,13 @@ class test_case_decode_GQA(TestFusedBlockAttention):
         super().__init__()
         self.init_decode_GQA_params()
         self.create_tensors()
+        self.k_cache_test = self.k_cache_test.astype(paddle.bfloat16)
+        self.v_cache_test = self.v_cache_test.astype(paddle.bfloat16)
+
+        self.q_scale = None
+        self.k_scale = None
+        self.a_scale = None
+        self.v_scale = None
 
 
 if __name__ == "__main__":

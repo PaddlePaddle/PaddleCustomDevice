@@ -132,6 +132,13 @@ void CallIndexCopyKernel(const Context& dev_ctx,
   } else if (input.dtype() == phi::DataType::BFLOAT16) {
     custom_kernel::IndexCopyKernel<phi::dtype::bfloat16>(
         dev_ctx, input, dim, index, source);
+  } else if (input.dtype() == phi::DataType::FLOAT8_E4M3FN) {
+    custom_kernel::IndexCopyKernel<phi::dtype::float8_e4m3fn>(
+        dev_ctx, input, dim, index, source);
+  } else if (input.dtype() == phi::DataType::UINT8) {
+    custom_kernel::IndexCopyKernel<uint8_t>(dev_ctx, input, dim, index, source);
+  } else if (input.dtype() == phi::DataType::INT8) {
+    custom_kernel::IndexCopyKernel<int8_t>(dev_ctx, input, dim, index, source);
   } else {
     throw std::runtime_error("Unsupported data type for IndexCopyKernel");
   }

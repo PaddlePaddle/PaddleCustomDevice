@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/cast_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/cast_kernel.h"
 
 #define PTEN_REGISTER_CAST_CUDA_BASE_TYPE(op_name, ...)        \
   PD_CUSTOM_KERNEL_REGISTER(cast,                              \

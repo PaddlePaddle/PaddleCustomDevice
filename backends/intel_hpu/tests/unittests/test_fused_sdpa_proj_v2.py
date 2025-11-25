@@ -113,7 +113,7 @@ class SDPA_PROJ_v2_Test(unittest.TestCase):
         attention_mask = attn_mask[..., :seq_len, :kv_seq_len]
         attention_mask = attention_mask.astype(query_states.dtype)
 
-        out_linear_out_op = paddlenlp_ops.fused_sdpa_proj(
+        out_linear_out_op = paddlenlp_ops.fused_sdpa_proj_legacy(
             query_states,
             key_states,
             value_states,

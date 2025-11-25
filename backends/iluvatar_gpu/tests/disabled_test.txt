@@ -537,3 +537,14 @@ test_zero_dim_sundry_static_api_part2.py
 test_zero_dim_sundry_static_api_part3.py
 test_zero_dim_unary_api.py
 test_zeros.py
+test_bilinear_interp_v2_op.py
+test_capture_fwd_graph.py
+test_combinations.py
+test_eye_op.py
+test_incubate_cal_aux_loss.py
+test_incubate_fast_ln.py
+test_incubate_fused_loss.py
+test_linear_interp_v2_op.py
+test_nearest_interp_v2_op.py
+test_poisson_op.py
+test_rrelu_op.py

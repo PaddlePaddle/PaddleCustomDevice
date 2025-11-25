@@ -63,7 +63,7 @@ echo "=== Building project (if needed) ==="
 make -j$(nproc) || { echo "ERROR: Build failed"; exit 1; }
 
 echo "=== Running tests ==="
-ctest --output-on-failure -V || { 
+ctest --output-on-failure -V -j8 || { 
     echo "ERROR: Tests failed!" >&2
     echo "Exit code: $?" >&2
     exit 1

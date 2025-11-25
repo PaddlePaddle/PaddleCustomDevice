@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/legacy/gpu/cal_aux_loss_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/legacy/gpu/cal_aux_loss_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(cal_aux_loss,
                           metax_gpu,

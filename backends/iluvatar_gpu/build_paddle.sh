@@ -36,12 +36,11 @@ else
     WITH_FLAGCX="OFF"
 fi
 
-pushd ${CURRENT_DIR}/../../
+bash clean_paddle.sh
+
+pushd "${CURRENT_DIR}/../.."
 git submodule update --init --recursive --force
 popd
-echo "=== Submodule init successfully ==="
-
-bash clean_paddle.sh
 
 if ! git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null 2>&1; then
   if ! git -C "$PADDLE_SOURCE_DIR" apply "$PATCH_FILE"; then

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/cvm_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/cvm_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(
     cvm, metax_gpu, ALL_LAYOUT, phi::CVMCUDAKernel, float, double) {}

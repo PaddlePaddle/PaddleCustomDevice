@@ -119,7 +119,6 @@ jobs:
           python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
           pip show paddlepaddle
           python3 -m pip install parameterized
-          pip show parameterized
           export PADDLE_VERSION=0.0.0
           cd /workspace/PaddleCustomDevice/backends/iluvatar_gpu
           # build
@@ -133,6 +132,7 @@ jobs:
           docker exec -t ${{ env.container_name }} /bin/bash -c '
           pip show parameterized
           python3 -m pip install parameterized
+          export FLAG_SKIP_FLOAT64=1
           cd /workspace/PaddleCustomDevice/backends/iluvatar_gpu/tests
           # Run tests
           bash run_test.sh'

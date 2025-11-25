@@ -499,7 +499,7 @@ std::vector<paddle::DataType> FusedSdpaProjDtype(
   return {query_states_dtype};
 }
 
-PD_BUILD_OP(fused_sdpa_proj)
+PD_BUILD_OP(fused_sdpa_proj_legacy)
     .Inputs({"query_states",
              "key_states",
              "value_states",

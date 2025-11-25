@@ -19,10 +19,10 @@ index cfada544d4..a690e97d74 100644
  
  set(EIGEN_INCLUDE_DIR ${SOURCE_DIR})
 diff --git a/paddle/fluid/operators/fused/CMakeLists.txt b/paddle/fluid/operators/fused/CMakeLists.txt
-index 99a0116d92..2566e7c41a 100755
+index 8d445b39ae..504e7b6293 100755
 --- a/paddle/fluid/operators/fused/CMakeLists.txt
 +++ b/paddle/fluid/operators/fused/CMakeLists.txt
-@@ -43,6 +43,11 @@ if(WITH_GPU OR WITH_ROCM)
+@@ -39,6 +39,11 @@ if(WITH_GPU OR WITH_ROCM)
      op_library(fused_multi_transformer_int8_op)
    endif()
  
@@ -34,19 +34,6 @@ index 99a0116d92..2566e7c41a 100755
    if(CUDA_VERSION GREATER_EQUAL 11.6)
      op_library(fused_gemm_epilogue_op)
    endif()
-diff --git a/paddle/fluid/platform/profiler/cupti_data_process.cc b/paddle/fluid/platform/profiler/cupti_data_process.cc
-index bff0f2bf70..9376b5781f 100644
---- a/paddle/fluid/platform/profiler/cupti_data_process.cc
-+++ b/paddle/fluid/platform/profiler/cupti_data_process.cc
-@@ -16,7 +16,7 @@
- 
- #include <cstdio>
- 
--#include "paddle/fluid/platform/enforce.h"
-+// #include "paddle/fluid/platform/enforce.h"
- #include "paddle/phi/core/os_info.h"
- #include "paddle/phi/core/platform/device/gpu/gpu_info.h"
- #include "paddle/phi/core/platform/profiler/utils.h"
 diff --git a/paddle/phi/backends/dynload/cublas.h b/paddle/phi/backends/dynload/cublas.h
 index bda9cbe17e..c73eba9c8a 100644
 --- a/paddle/phi/backends/dynload/cublas.h
@@ -98,7 +85,7 @@ index 8b2e08c777..ca926df151 100644
  #define CUBLASLT_BLAS_ROUTINE_EACH(__macro)      \
    __macro(cublasLtCreate);                       \
 diff --git a/paddle/phi/backends/dynload/cudnn.h b/paddle/phi/backends/dynload/cudnn.h
-index a943bbed9a..af931490e3 100644
+index ad2ada9dfa..9e8389e7dc 100644
 --- a/paddle/phi/backends/dynload/cudnn.h
 +++ b/paddle/phi/backends/dynload/cudnn.h
 @@ -38,7 +38,10 @@ extern void EnforceCUDNNLoaded(const char* fn_name);
@@ -134,7 +121,7 @@ index 1547909d92..ef20838434 100644
      }                                                                \
    };                                                                 \
 diff --git a/paddle/phi/backends/dynload/cupti.h b/paddle/phi/backends/dynload/cupti.h
-index 59e92955c9..d2f8c2da15 100644
+index 4241a512e8..94e32b743e 100644
 --- a/paddle/phi/backends/dynload/cupti.h
 +++ b/paddle/phi/backends/dynload/cupti.h
 @@ -24,8 +24,8 @@ limitations under the License. */
@@ -148,7 +135,7 @@ index 59e92955c9..d2f8c2da15 100644
  
  extern std::once_flag cupti_dso_flag;
  extern void *cupti_dso_handle;
-@@ -71,7 +71,7 @@ extern void *cupti_dso_handle;
+@@ -105,7 +105,7 @@ inline bool IsXPUTracingEnabled() {
  CUPTI_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUPTI_WRAP);
  
  #undef DECLARE_DYNAMIC_LOAD_CUPTI_WRAP
@@ -191,7 +178,7 @@ index e8cb0ac643..e8e7596d44 100644
      }                                                                \
    };                                                                 \
 diff --git a/paddle/phi/backends/dynload/dynamic_loader.cc b/paddle/phi/backends/dynload/dynamic_loader.cc
-index c74ae9592e..f6dc68917c 100644
+index 39f50bd95d..4d627b99b7 100644
 --- a/paddle/phi/backends/dynload/dynamic_loader.cc
 +++ b/paddle/phi/backends/dynload/dynamic_loader.cc
 @@ -18,7 +18,6 @@ limitations under the License. */
@@ -229,7 +216,7 @@ index c5309e7e11..3328571380 100644
      }                                                              \
    };                                                               \
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_device_function.h b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
-index 092365a961..23d3b65dc6 100644
+index 092365a961..8bd3f9fcea 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_device_function.h
 +++ b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
 @@ -1,3 +1,4 @@
@@ -347,7 +334,22 @@ index 092365a961..23d3b65dc6 100644
    CREATE_SHFL_MASK(mask, tid < len);
  
    for (int offset = warpSize / 2; offset > 0; offset /= 2)
-
+diff --git a/paddle/phi/common/float16.h b/paddle/phi/common/float16.h
+index d970878dc2..fe0382ccad 100644
+--- a/paddle/phi/common/float16.h
++++ b/paddle/phi/common/float16.h
+@@ -105,8 +105,9 @@ struct PADDLE_ALIGN(2) float16 {
+ #endif
+ 
+   HOSTDEVICE inline explicit float16(float val) {
+-#if defined(PADDLE_CUDA_FP16) && \
+-    (defined(__HIPCC__) || (defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300))
++// #if defined(PADDLE_CUDA_FP16) && \
++//     (defined(__HIPCC__) || (defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300))
++#if 1
+     half tmp = __float2half(val);
+     x = *reinterpret_cast<uint16_t*>(&tmp);
+ 
 diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
 index 024a7de73e..66b373d698 100644
 --- a/paddle/phi/core/enforce.h
@@ -651,7 +653,7 @@ index 461e6e2474..48a64ae9ce 100644
    dim3 threads(kWarpSize, kBlockDimY);
    dim3 grids(static_cast<int>((D + kWarpSize - 1) / kWarpSize));
 diff --git a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
-index 4eae698648..5c047723ea 100644
+index 470b0d33ee..d58838d53c 100644
 --- a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 +++ b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 @@ -43,11 +43,11 @@ template <typename T>
@@ -995,7 +997,7 @@ index 9d4bb18d55..80405c2b78 100644
          }
        }
 diff --git a/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu b/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
-index acb3b83bc9..264d2a2b3e 100644
+index 6cf08a5ac7..c09018ba78 100644
 --- a/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
 @@ -15,7 +15,7 @@
@@ -1008,7 +1010,7 @@ index acb3b83bc9..264d2a2b3e 100644
  namespace phi {
  namespace fusion {
 diff --git a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
-index b2d15a59f8..f64582e85a 100644
+index 1e7869afec..26ac439fc7 100644
 --- a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
 @@ -15,7 +15,7 @@
@@ -1021,7 +1023,7 @@ index b2d15a59f8..f64582e85a 100644
  namespace phi {
  namespace fusion {
 diff --git a/paddle/phi/kernels/gpu/depthwise_conv.h b/paddle/phi/kernels/gpu/depthwise_conv.h
-index 2edac5eba5..4f265e3db7 100644
+index 770a3e1296..b0ec1b949b 100644
 --- a/paddle/phi/kernels/gpu/depthwise_conv.h
 +++ b/paddle/phi/kernels/gpu/depthwise_conv.h
 @@ -29,8 +29,8 @@ namespace cub = hipcub;

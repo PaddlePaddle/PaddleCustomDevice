@@ -44,6 +44,8 @@ class HpuFusedOperator : public HpuOperator {
       return "i8";
     } else if (std::is_same<T, int8_t>::value) {
       return "i8";
+    } else if (std::is_same<T, uint8_t>::value) {
+      return "u8";
     } else if (std::is_same<T, int64_t>::value) {
       return "i64";
     } else {
@@ -524,6 +526,24 @@ class HpuFusedOperator : public HpuOperator {
         inputs, outputs, *params, guid, node_name);
   }
 
+  template <typename Tscale, typename Ttensor>
+  inline void AddScalarAsTensor(std::vector<synTensor> outputs,
+                                Tscale scalar,
+                                std::string node_name) {
+    ns_ConstantKernel::Params const_params;
+    if (std::is_same<Tscale, float>::value ||
+        std::is_same<Tscale, phi::dtype::bfloat16>::value) {
+      const_params.constant.f = scalar;
+    } else if (std::is_same<Tscale, int32_t>::value) {
+      const_params.constant.i = scalar;
+    } else {
+      PD_CHECK(false,
+               "[RUNTIME] AddScaleToTensor not supported scale type = %s",
+               typeid(Tscale).name());
+    }
+    AddNodeFull<Ttensor>(outputs, const_params, node_name);
+  }
+
   synTensor cloneTensor(std::string name, synTensor base, synDataType type) {
     synTensorGeometry geometry;
     synTensorGetGeometry(base, &geometry, synGeometrySizes);
@@ -647,6 +667,60 @@ class HpuFusedOperator : public HpuOperator {
                  node_name + "reciprocal_scale_y_");
       gemm_ins.push_back(d_scale_y_tensor);
     }
+    AddNodeFP8Gemm<T>(gemm_ins, outputs, params, node_name);
+  }
+
+  /*
+   * Function:
+   *           FP8[0]     @     FP8[1]       * scale[2] * scale[3] --> bf16
+   *     BF16[0]/scale[2] @     FP8[1]       * scale[2] * scale[3] --> bf16
+   *           FP8[0]     @ BF16[1]/scale[3] * scale[2] * scale[3] --> bf16
+   *     BF16[0]/scale[2] @ BF16[1]/scale[3] * scale[2] * scale[3] --> bf16
+   *  Inputs:
+   *     inputs[0]:  x tensor, fp8 or bf16
+   *     inputs[1]:  y tensor, fp8 or bf16
+   *     inputs[2]:  x dequant scale, bf16
+   *     inputs[3]:  y dequant scale, bf16
+   *     inputs[4]:  zero_point, int32  // for bf16 input x/y only
+   *     inputs[5]:  quant_min, int32   // for bf16 input x/y only
+   *     inputs[6]:  quant_max, int32   // for bf16 input x/y only
+   */
+  template <typename T>
+  void AddNodeFusedFP8GemmBF16(std::vector<synTensor> inputs,
+                               std::vector<synTensor> outputs,
+                               synGEMMParams params,
+                               std::string node_name) {
+    synTensorDeviceFullLayout x_layout;
+    synTensorDeviceFullLayout y_layout;
+    synTensorGetDeviceFullLayout(inputs[0], &x_layout);
+    synTensorGetDeviceFullLayout(inputs[1], &y_layout);
+
+    bool x_is_bf16 = (x_layout.deviceDataType != syn_type_fp8_143);
+    bool y_is_bf16 = (y_layout.deviceDataType != syn_type_fp8_143);
+
+    synTensor x_tensor = inputs[0];
+    synTensor y_tensor = inputs[1];
+
+    if (x_is_bf16) {
+      x_tensor = cloneTensor(node_name + "_x", inputs[0], syn_type_fp8_143);
+      std::vector<synTensor> cast_ins = {
+          inputs[0], inputs[2], inputs[4], inputs[5], inputs[6]};
+      std::vector<synTensor> cast_outs = {x_tensor};
+      AddNodeQuantizePerTensor<T>(cast_ins, cast_outs, node_name + "_quant_x");
+    }
+    if (y_is_bf16) {
+      y_tensor = cloneTensor(node_name + "_y", inputs[1], syn_type_fp8_143);
+      std::vector<synTensor> cast_ins = {
+          inputs[1], inputs[3], inputs[4], inputs[5], inputs[6]};
+      std::vector<synTensor> cast_outs = {y_tensor};
+      AddNodeQuantizePerTensor<T>(cast_ins, cast_outs, node_name + "_quant_y");
+    }
+
+    std::vector<synTensor> gemm_ins;
+    gemm_ins.push_back(x_tensor);
+    gemm_ins.push_back(y_tensor);
+    gemm_ins.push_back(inputs[2]);
+    gemm_ins.push_back(inputs[3]);
     AddNodeFP8Gemm<T>(gemm_ins, outputs, params, node_name);
   }
 };

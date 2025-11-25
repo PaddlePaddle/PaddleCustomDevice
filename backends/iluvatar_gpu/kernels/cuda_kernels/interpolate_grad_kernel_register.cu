@@ -13,91 +13,82 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/interpolate_kernel.h"
+#include "paddle/phi/kernels/interpolate_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(bilinear_interp,
+PD_CUSTOM_KERNEL_REGISTER(bilinear_interp_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::BilinearInterpKernel,
+                          phi::BilinearInterpGradKernel,
                           float,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          int) {
-  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+                          phi::dtype::bfloat16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
 }
-PD_CUSTOM_KERNEL_REGISTER(legacy_bilinear_interp,
+PD_CUSTOM_KERNEL_REGISTER(legacy_bilinear_interp_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::LegacyBilinearInterpKernel,
+                          phi::LegacyBilinearInterpGradKernel,
                           float,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          int) {
-  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+                          phi::dtype::bfloat16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
 }
-PD_CUSTOM_KERNEL_REGISTER(nearest_interp,
+PD_CUSTOM_KERNEL_REGISTER(nearest_interp_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::NearestInterpKernel,
+                          phi::NearestInterpGradKernel,
                           float,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          int,
-                          int64_t) {
-  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+                          phi::dtype::bfloat16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
 }
-PD_CUSTOM_KERNEL_REGISTER(legacy_nearest_interp,
+PD_CUSTOM_KERNEL_REGISTER(legacy_nearest_interp_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::LegacyNearestInterpKernel,
+                          phi::LegacyNearestInterpGradKernel,
                           float,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          int,
-                          int64_t) {
-  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+                          phi::dtype::bfloat16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
 }
-PD_CUSTOM_KERNEL_REGISTER(trilinear_interp,
+PD_CUSTOM_KERNEL_REGISTER(trilinear_interp_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::TrilinearInterpKernel,
+                          phi::TrilinearInterpGradKernel,
                           float,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          int) {
-  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+                          phi::dtype::bfloat16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
 }
-PD_CUSTOM_KERNEL_REGISTER(linear_interp,
+PD_CUSTOM_KERNEL_REGISTER(linear_interp_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::LinearInterpKernel,
+                          phi::LinearInterpGradKernel,
                           float,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          int) {
-  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+                          phi::dtype::bfloat16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
 }
-PD_CUSTOM_KERNEL_REGISTER(bicubic_interp,
+PD_CUSTOM_KERNEL_REGISTER(bicubic_interp_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::BicubicInterpKernel,
+                          phi::BicubicInterpGradKernel,
                           float,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          int) {
-  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+                          phi::dtype::bfloat16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
 }

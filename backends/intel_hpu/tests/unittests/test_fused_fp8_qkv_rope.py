@@ -102,11 +102,14 @@ class TestFusedFp8QkvRope(unittest.TestCase):
             self.qkv_weights,
             self.qkv_biases,
             self.new_rope.transpose([0, 1, 3, 2, 4]),
+            None,
+            None,
             self.head_dim,
             self.num_head,
             self.batch_size,
             True,
             False,
+            1e-6,
         )
 
         _, de_src_scale = paddlenlp_ops.fused_quant(self.src)
@@ -134,11 +137,14 @@ class TestFusedFp8QkvRope(unittest.TestCase):
             out_q_scale,
             out_k_scale,
             out_v_scale,
+            None,
+            None,
             self.head_dim,
             self.num_head,
             self.batch_size,
             True,
             False,
+            1e-6,
         )
         key_states_fp8 = key_value_states_fp8[0]
         value_states_fp8 = key_value_states_fp8[1]
@@ -182,11 +188,14 @@ class TestFusedFp8QkvRope(unittest.TestCase):
             None,
             None,
             None,
+            None,
+            None,
             self.head_dim,
             self.num_head,
             self.batch_size,
             True,
             False,
+            1e-6,
         )
         similarity_query = self.get_similarity(ref_query_states, query_states_bf16)
         similarity_key_value = self.get_similarity(
@@ -222,11 +231,14 @@ class TestFusedFp8QkvRope(unittest.TestCase):
             None,
             None,
             None,
+            None,
+            None,
             self.head_dim,
             self.num_head,
             self.batch_size,
             True,
             False,
+            1e-6,
         )
         similarity_query = self.get_similarity(ref_query_states, query_states_full_bf16)
         similarity_key_value = self.get_similarity(

@@ -35,8 +35,9 @@ TEST_LOG_LEVEL=0
 TEST_LIST_FILE=""
 TEST_LOG_OUTPUT_DIR=""
 TEST_PARALLEL_NUM=1
+IGNORE_BLOCKS=""   
 
-while getopts "i:o:v:j:h" opt; do
+while getopts "i:o:v:j:b:h" opt; do
   case "$opt" in
     i)
       TEST_LIST_FILE="$OPTARG"
@@ -51,13 +52,17 @@ while getopts "i:o:v:j:h" opt; do
     j)
       TEST_PARALLEL_NUM="$OPTARG"
       ;;
+    b)
+      IGNORE_BLOCKS="$OPTARG"
+      echo "Set ignore blocks: $IGNORE_BLOCKS"
+      ;;
     h)
       echo "用法：$0 -i <测试列表文件> -o <日志输出路径> ..."
-      echo "选项说明："
       echo "  -i  测试程序列表文件"
       echo "  -o  日志输出路径"
       echo "  -v  GLOG_v 日志等级"
-      echo "  -j  ctest 测试并行数量"
+      echo "  -j  ctest 并行数量"
+      echo "  -b  忽略的块列表，例如：\"elementwise;conv\" 或 NONE"
       echo "  -h  显示帮助"
       exit 0
       ;;
@@ -76,7 +81,7 @@ done
 export GLOG_v=$TEST_LOG_LEVEL
 
 
-cmake .. -DTEST_LIST_FILE=$TEST_LIST_FILE -DLOG_OUTPUT_DIR=$TEST_LOG_OUTPUT_DIR
+cmake .. -DTEST_LIST_FILE=$TEST_LIST_FILE -DLOG_OUTPUT_DIR=$TEST_LOG_OUTPUT_DIR -DIGNORE_BLOCKS="$IGNORE_BLOCKS"
 
 cmake --build .
 

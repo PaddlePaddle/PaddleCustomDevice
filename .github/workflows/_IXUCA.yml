@@ -20,7 +20,7 @@ jobs:
     name: PR-CI-IXUCA
     if: ${{ github.repository_owner == 'PaddlePaddle' }}
     runs-on:
-      group: test2
+      group: iluvatar
     env:
       PR_ID: ${{ github.event.pull_request.number }}
       COMMIT_ID: ${{ github.event.pull_request.head.sha }}

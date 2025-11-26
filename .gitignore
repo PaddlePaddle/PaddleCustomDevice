@@ -38,3 +38,13 @@ Paddle/
 
 # ignore clangd cache
 .cache/
+
+# ignore unittest_runner result file
+tools/unittest_runner/__pycache__
+tools/unittest_runner/all_tests.txt
+tools/unittest_runner/tests_result.txt
+tools/unittest_runner/failed_logs/
+tools/unittest_runner/passed_tests.txt
+tools/unittest_runner/failed_tests.txt
+tools/unittest_runner/disabled_tests.txt
+tools/unittest_runner/failed_tests_classification.txt

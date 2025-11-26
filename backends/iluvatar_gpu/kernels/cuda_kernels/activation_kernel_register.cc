@@ -163,7 +163,7 @@ PD_CUSTOM_KERNEL_REGISTER(mish,
 PD_CUSTOM_KERNEL_REGISTER(stanh,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::STanhKernel,
+                          phi::StanhKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

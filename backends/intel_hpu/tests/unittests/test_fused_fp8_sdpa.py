@@ -138,7 +138,7 @@ class TestSdpaFp8(unittest.TestCase):
         k_fp8 = (scaleK_hpu * key_states).astype(paddle.float8_e4m3fn)
         v_fp8 = (scaleV_hpu * value_states).astype(paddle.float8_e4m3fn)
 
-        out_fused_sdpa_tensor = paddlenlp_ops.fused_fp8_sdpa(
+        out_fused_sdpa_tensor, _ = paddlenlp_ops.fused_fp8_sdpa(
             q_fp8,
             k_fp8,
             v_fp8,
@@ -151,6 +151,7 @@ class TestSdpaFp8(unittest.TestCase):
             q_scale_s=q_scale_s,
             q_scale_o=q_scale_o,
             d_scale_s=paddle.to_tensor([scaleSInv_hpu]),
+            is_amax_s=False,
         )
         return out_fused_sdpa_tensor
 

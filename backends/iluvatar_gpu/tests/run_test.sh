@@ -69,11 +69,38 @@ ctest --output-on-failure -V -j8 || {
     exit 1
 }
 
-echo "=== All tests passed successfully ==="
-
 if git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null 2>&1; then
   git -C "$PADDLE_SOURCE_DIR" apply --reverse "$PATCH_FILE"
   echo "Patch successfully reverted!"
 fi
 
+cd ..
+
+# Run legacy tests only if primary tests passed
+echo "=== Running Paddle legacy tests ==="
+# Navigate to unittest_runner directory
+cd ../../../tools/unittest_runner
+
+# Run test_runner.py with specified parameters
+python test_runner.py --path ../../Paddle/test/legacy_test/ --skip-float64 --disabled-file ../../backends/iluvatar_gpu/tests/disabled_test.txt --rerun-failed
+
+# Check if failed_logs directory has any log files
+if [ -d "failed_logs" ] && [ "$(ls -A failed_logs)" ]; then
+    echo "Failed tests found in CI. Displaying all failure logs:"
+    for log_file in failed_logs/*; do
+        if [ -f "$log_file" ]; then
+            echo "=== $log_file ==="
+            cat "$log_file"
+            echo ""
+        fi
+    done
+    echo "Legacy tests failed!"
+    exit 1
+else
+    echo "All legacy tests passed in CI."
+fi
+
+echo "=== All tests passed successfully ==="
+
+# Return to original directory
 cd - > /dev/null

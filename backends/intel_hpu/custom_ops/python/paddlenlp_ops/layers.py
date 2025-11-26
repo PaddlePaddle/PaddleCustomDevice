@@ -115,7 +115,7 @@ class Fused_Sdpa_Proj(paddle.nn.Layer):
         self.linear_weights = linear_weights
 
     def forward(self, i, query_states, key_states, value_states, attention_mask):
-        out_linear_out = fused_sdpa_proj(
+        out_linear_out = fused_sdpa_proj_legacy(
             query_states,
             key_states,
             value_states,
@@ -278,7 +278,7 @@ class Fused_Mlp(paddle.nn.Layer):
         self.up_weight = up_weight
 
     def forward(self, i, x):
-        fused_mlp_out = fused_mlp(
+        fused_mlp_out = fused_mlp_bf16(
             x,
             self.proj_weight[i],
             self.up_weight[i],

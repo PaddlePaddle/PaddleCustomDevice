@@ -79,7 +79,7 @@ jobs:
 
         run: |
           cd backends/metax_gpu/tests
-          bash run_test.sh -j 8
+          bash run_test.sh -j 8 -b "default"
 
       - name: push whl
         env:

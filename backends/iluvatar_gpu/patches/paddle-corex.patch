@@ -1,7 +1,7 @@
-From 6484778861092b0d56309f5be9aae4d6c23726ef Mon Sep 17 00:00:00 2001
+From e6691eaf6e0f2981188c0a6006c7737c7699d6c5 Mon Sep 17 00:00:00 2001
 From: tianyuzhou668 <2431054748@qq.com>
-Date: Wed, 12 Nov 2025 15:37:49 +0800
-Subject: [PATCH] Fix
+Date: Wed, 26 Nov 2025 15:47:08 +0800
+Subject: [PATCH] [ILUVATAR_GPU] Patch
 
 ---
  CMakeLists.txt                                |  2 +-
@@ -9,7 +9,7 @@ Subject: [PATCH] Fix
  .../operators/collective/send_v2_op.cu.cc     |  2 +-
  .../fluid/platform/device/gpu/nccl_helper.h   |  2 +-
  paddle/phi/backends/dynload/cudnn.cc          |  8 ++
- paddle/phi/backends/dynload/cudnn.h           | 28 ++++++-
+ paddle/phi/backends/dynload/cudnn.h           | 26 ++++++
  paddle/phi/backends/dynload/cusolver.h        |  2 -
  paddle/phi/backends/dynload/cusparse.h        |  2 +
  .../backends/gpu/cuda/cuda_device_function.h  |  4 +-
@@ -30,10 +30,12 @@ Subject: [PATCH] Fix
  paddle/phi/kernels/funcs/layer_norm_impl.cu.h |  4 -
  paddle/phi/kernels/funcs/reduce_function.h    |  2 +-
  paddle/phi/kernels/funcs/segmented_array.h    |  8 ++
+ paddle/phi/kernels/funcs/select_impl.cu.h     | 12 +++
  paddle/phi/kernels/funcs/softmax_impl.h       |  1 +
  .../fusion/gpu/fused_layernorm_kernel.cu      |  4 -
  .../fused_layernorm_residual_dropout_bias.h   | 17 ----
  paddle/phi/kernels/gpu/elementwise_grad.h     |  4 +
+ .../kernels/gpu/interpolate_grad_kernel.cu    | 12 +--
  .../phi/kernels/gpu/layer_norm_grad_kernel.cu |  2 +-
  paddle/phi/kernels/gpu/layer_norm_kernel.cu   |  2 +-
  .../phi/kernels/gpu/rms_norm_grad_kernel.cu   |  2 +-
@@ -43,7 +45,7 @@ Subject: [PATCH] Fix
  paddle/phi/kernels/squeeze_kernel.cc          |  2 +
  paddle/phi/kernels/strided_slice_kernel.cc    |  2 +
  paddle/phi/kernels/unsqueeze_kernel.cc        |  2 +
- 39 files changed, 266 insertions(+), 64 deletions(-)
+ 41 files changed, 283 insertions(+), 69 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 1a4460a3be..b6c6b4a797 100755
@@ -124,7 +126,7 @@ index 5a18808d47..749073ce38 100644
    std::call_once(cudnn_dso_flag,
                   []() { cudnn_dso_handle = GetCUDNNDsoHandle(); });
 diff --git a/paddle/phi/backends/dynload/cudnn.h b/paddle/phi/backends/dynload/cudnn.h
-index a943bbed9a..dc6384985f 100644
+index ad2ada9dfa..c45e254f23 100644
 --- a/paddle/phi/backends/dynload/cudnn.h
 +++ b/paddle/phi/backends/dynload/cudnn.h
 @@ -121,6 +121,16 @@ extern void EnforceCUDNNLoaded(const char* fn_name);
@@ -230,10 +232,10 @@ index e8cb0ac643..d07c093aa8 100644
  #if CUDA_VERSION >= 11030
  #define CUSPARSE_ROUTINE_EACH_R2(__macro) \
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_device_function.h b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
-index 4ff2e528a9..956bac0c64 100644
+index 092365a961..6b05da600b 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_device_function.h
 +++ b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
-@@ -141,7 +141,7 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleXorSync(
+@@ -134,7 +134,7 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleXorSync(
  
  template <typename T>
  __forceinline__ __device__ T
@@ -242,7 +244,7 @@ index 4ff2e528a9..956bac0c64 100644
    return __shfl_sync(mask, val, src_line, width);
  }
  
-@@ -158,7 +158,7 @@ __device__ T reduceSum(T val, int tid, int len) {
+@@ -151,7 +151,7 @@ __device__ T reduceSum(T val, int tid, int len) {
    // I use Warp-Level Parallelism and assume the Warp size
    // is 32 which may be different for different GPU,
    // but most card's warp size is 32.
@@ -373,7 +375,7 @@ index af1c7ba8b9..132e488061 100644
    const int capability = dev_ctx.GetComputeCapability();
    GpuLaunchConfig config;
 diff --git a/paddle/phi/backends/gpu/gpu_primitives.h b/paddle/phi/backends/gpu/gpu_primitives.h
-index ab505091ab..8b7dd5ff86 100644
+index a7df8a4023..d4ff45d8d5 100644
 --- a/paddle/phi/backends/gpu/gpu_primitives.h
 +++ b/paddle/phi/backends/gpu/gpu_primitives.h
 @@ -134,13 +134,38 @@ CUDA_ATOMIC_WRAPPER(Add, int16_t) {
@@ -545,11 +547,10 @@ index 9c9ab5dff9..ecf4e8f5e8 100644
  template <typename T>
  struct CudaLogFunctor : public BaseActivationFunctor<T> {
 diff --git a/paddle/phi/kernels/funcs/affine_grid_utils.h b/paddle/phi/kernels/funcs/affine_grid_utils.h
-index 1df6184141..fc6015b209 100644
+index 70abf63a3d..af6f2136c5 100644
 --- a/paddle/phi/kernels/funcs/affine_grid_utils.h
 +++ b/paddle/phi/kernels/funcs/affine_grid_utils.h
-@@ -15,7 +15,9 @@
- #pragma once
+@@ -16,7 +16,9 @@
  
  #include "paddle/phi/core/dense_tensor.h"
  #include "paddle/phi/core/device_context.h"
@@ -798,7 +799,7 @@ index df4f214e66..e31b8eb1f6 100644
  }  // namespace detail
  }  // namespace funcs
 diff --git a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
-index 4eae698648..9247535e0d 100644
+index 470b0d33ee..c136834137 100644
 --- a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 +++ b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 @@ -44,11 +44,7 @@ using LayerNormParamType = typename CudnnDataType<T>::BatchNormParamType;
@@ -852,8 +853,48 @@ index dad852093e..71adfaf3ed 100644
  
      auto ptr = allocation->ptr();
      allocations.emplace_back(std::move(allocation));
+diff --git a/paddle/phi/kernels/funcs/select_impl.cu.h b/paddle/phi/kernels/funcs/select_impl.cu.h
+index 45e5b0558e..abca655002 100644
+--- a/paddle/phi/kernels/funcs/select_impl.cu.h
++++ b/paddle/phi/kernels/funcs/select_impl.cu.h
+@@ -189,7 +189,11 @@ struct SelectCaller {
+                                     int64_t thread_fix,
+                                     int64_t num) {
+     int64_t in_data[VecSize];
++#ifdef PADDLE_WITH_COREX
++    OutT store_data[VecSize];
++#else
+     OutT store_data[VecSize * phi::DDim::kMaxRank];
++#endif
+     // set index
+     kps::InitWithDataIndex<int64_t, VecSize, 1>(&in_data[0], data_offset);
+     // Get store data according to mask_idt
+@@ -216,7 +220,11 @@ struct SelectCaller<OutT, MT, InT, Functor, VecSize, IsBoundary, 1> {
+                                     int thread_fix,
+                                     int num) {
+     InT in_data[VecSize];
++#ifdef PADDLE_WITH_COREX
++    OutT store_data[VecSize];
++#else
+     OutT store_data[VecSize * phi::DDim::kMaxRank];
++#endif
+     kps::ReadData<InT, VecSize, 1, IsBoundary>(&in_data[0], in, num);
+     // Get store data according to mask_idt
+     kps::OperatorTernary<MT, InT, OutT, Functor>(
+@@ -242,7 +250,11 @@ struct SelectCaller<OutT, MT, InT, Functor, VecSize, IsBoundary, 2> {
+                                     int thread_fix,
+                                     int num) {
+     InT in_data[VecSize];
++#ifdef PADDLE_WITH_COREX
++    OutT store_data[VecSize];
++#else
+     OutT store_data[VecSize * phi::DDim::kMaxRank];
++#endif
+     kps::details::ReadData<InT>(&in_data[0], in + thread_fix, store_num);
+     kps::OperatorTernary<MT, InT, OutT, Functor>(
+         store_data, mask_data, &in_data[0], func, VecSize);
 diff --git a/paddle/phi/kernels/funcs/softmax_impl.h b/paddle/phi/kernels/funcs/softmax_impl.h
-index 361936305c..f4c680fe56 100644
+index 9f12293c0f..4e897bb433 100644
 --- a/paddle/phi/kernels/funcs/softmax_impl.h
 +++ b/paddle/phi/kernels/funcs/softmax_impl.h
 @@ -21,6 +21,7 @@ limitations under the License. */
@@ -935,10 +976,10 @@ index 9d4bb18d55..78bf0ad1b9 100644
          }
        }
 diff --git a/paddle/phi/kernels/gpu/elementwise_grad.h b/paddle/phi/kernels/gpu/elementwise_grad.h
-index f3a2874b92..47d2c0b4d7 100644
+index 411ee4510c..36c2f8fba7 100644
 --- a/paddle/phi/kernels/gpu/elementwise_grad.h
 +++ b/paddle/phi/kernels/gpu/elementwise_grad.h
-@@ -213,7 +213,11 @@ void ElementwiseAddGrad(const GPUContext &dev_ctx,
+@@ -352,7 +352,11 @@ void ElementwiseAddGrad(const GPUContext &dev_ctx,
      phi::Copy(dev_ctx, dout, dev_ctx.GetPlace(), false, dx);
    } else if (dx_data != dout_data && dy_data != dout_data) {
      auto size = x.numel();
@@ -977,7 +1018,6 @@ index 6f656ca7be..db87d15919 100644
      int64_t in_top_max_index =
          phi::funcs::BlockReduceMax(top_right_index, FINAL_MASK);
      int64_t in_bot_max_index =
-
 diff --git a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
 index 2645060f4c..6a38e20776 100644
 --- a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu

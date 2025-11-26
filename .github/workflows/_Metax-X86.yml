@@ -23,16 +23,28 @@ defaults:
 
 
 jobs:
-  metax-gpu-test:
+
+  check-bypass:
+    name: Check bypass
+    if: ${{ inputs.can-skip != 'true' }}
+    uses: ./.github/workflows/check-bypass.yml
+    with:
+      workflow-name: 'metax'
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  PR-CI-METAX:
+    name: PR-CI-METAX
+    needs: check-bypass
+    if: ${{ needs.check-bypass.outputs.can-skip != 'true' }}
     runs-on: paddle-metax-runner-set
     env:
       PR_ID: ${{ github.event.pull_request.number }}
       COMMIT_ID: ${{ github.event.pull_request.head.sha }}
       BRANCH: develop
 
-
     steps:
-      - name: Checkout repository
+      - name: Download Code
         run: |
           set -x
           wget -q --tries=5 --no-proxy https://paddle-github-action.bj.bcebos.com/PaddleCustomDevice/PR/${PR_ID}/${COMMIT_ID}/PaddleCustomDevice.tar.gz --no-check-certificate
@@ -44,13 +56,6 @@ jobs:
           git merge ${BRANCH} --no-edit
           git --no-pager log --pretty=oneline -5
 
-      - name: Check bypass
-        id: check-bypass
-        uses: ./PaddleCustomDevice/.github/actions/check-bypass
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          workflow-name: metax
-
 
       - name: RUN METAX-GPU
         id: run-metax
@@ -59,21 +64,16 @@ jobs:
           cd PaddleCustomDevice
           # !!!!! SKIP IF NO METAX CHANGE !!!!
           echo "=========== Checking PR Changes If METAX FULL CI Needed ==========="
-
           change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
-
           change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
           change_metax_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/metax_gpu"| wc -l)
           git --no-pager diff --name-only remotes/origin/${BRANCH}
+
           if [ $change_numbers -ne $change_backend ]; then
             echo "Common file changed, continue to run METAX FULL CI test ..."
-            echo "should_skip=false" >> $GITHUB_OUTPUT
           elif [ $change_metax_only -eq 0 ] ; then
-            echo "NO METAX backend changes found, skip METAX FULL CI ...."
-            echo "should_skip=true" >> $GITHUB_OUTPUT
+            echo "NO METAX  backend changes found, skip MLU FULL CI ...."
             exit 0
-          else
-            echo "should_skip=false" >> $GITHUB_OUTPUT
           fi
 
       - name: compile
@@ -84,7 +84,7 @@ jobs:
       - name: run test
         run: |
           cd PaddleCustomDevice/backends/metax_gpu/tests
-          bash run_test.sh -j 8
+          bash run_test.sh -j 8 -b "default"
 
       - name: push whl
         env:

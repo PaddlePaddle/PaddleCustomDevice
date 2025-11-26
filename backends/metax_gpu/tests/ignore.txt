@@ -1,3 +1,4 @@
+[default]
 test_matmul_op_metax
 test_sum_op
 test_elementwise_add_op
@@ -13,3 +14,8 @@ test_conv3d_layer
 test_conv3d_transpose_part2_op
 test_fused_conv2d_add_act_op
 test_bilinear_interp_v2_op
+
+[internet]
+test_hapi_amp
+test_momentum_op
+test_adam_optimizer_fp32_fp64

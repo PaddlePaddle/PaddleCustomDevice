@@ -29,18 +29,18 @@ jobs:
     name: PR-CI-IXUCA
     needs: check-bypass
     if:  ${{ needs.check-bypass.outputs.can-skip != 'true' && github.repository_owner == 'PaddlePaddle' }}
-    runs-on:
-      group: iluvatar
+    runs-on: iluvatar-gpu-2
     container:
       image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:latest
       env:
         LD_LIBRARY_PATH: /usr/local/corex-4.3.0/lib
         LIBRARY_PATH: /usr/local/corex-4.3.0/lib
-        PR_ID: ${{ github.event.pull_request.number }}
-        COMMIT_ID: ${{ github.event.pull_request.head.sha }}
-        BRANCH: develop
-        TASK: paddle-CI-${{ github.event.pull_request.number }}-ixuca
-        no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
+    env:
+      PR_ID: ${{ github.event.pull_request.number }}
+      COMMIT_ID: ${{ github.event.pull_request.head.sha }}
+      BRANCH: develop
+      TASK: paddle-CI-${{ github.event.pull_request.number }}-ixuca
+      no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
 
     steps:
       - name: Download Code

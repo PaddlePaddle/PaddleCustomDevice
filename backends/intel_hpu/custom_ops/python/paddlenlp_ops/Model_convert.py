@@ -87,13 +87,26 @@ def save_tail_tensors_and_index(
 def tensorwise_quant_to_fp8(tensor):
     x_abs = paddle.abs(tensor).astype(paddle.float32)
     x_amax = paddle.amax(x_abs)
-    x_amax = paddle.clip(x_amax, min=1e-4)
+    x_amax = paddle.clip(x_amax, min=1e-8)
     scale = x_amax / 240.0
     x_scaled = (tensor.cast("float32") / scale).cast("float8_e4m3fn").clone()
 
     return paddle.view(x_scaled, "int8").clone(), paddle.to_tensor([scale]).cast(
         "bfloat16"
     )
+
+
+def channelwise_quant_to_fp8(tensor):
+    # Channel-wise quantization along the last dimension (N)
+    x_abs = paddle.abs(tensor).astype(paddle.float32)
+    x_amax = paddle.amax(x_abs, axis=0)  # shape: [N]
+    x_amax = paddle.clip(x_amax, min=1e-8)
+    scale = x_amax / 240.0  # shape: [N]
+    x_scaled = (
+        (tensor.cast("float32") / scale.cast("float32")).cast("float8_e4m3fn").clone()
+    )
+
+    return paddle.view(x_scaled, "int8").clone(), scale.cast("bfloat16").clone()
 
 
 def process_safetensors_file(
@@ -118,7 +131,10 @@ def process_safetensors_file(
                 continue
             else:
                 tensor = paddle.Tensor(tensor, zero_copy=True)
-            quant_tensor, scale = tensorwise_quant_to_fp8(tensor)
+            if ".experts." in key:  # except for shared_experts
+                quant_tensor, scale = channelwise_quant_to_fp8(tensor)
+            else:
+                quant_tensor, scale = tensorwise_quant_to_fp8(tensor)
 
             t_size = tensor_size(quant_tensor) + tensor_size(scale)
             if current_size + t_size > max_size_bytes and tensors_dict:

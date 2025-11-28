@@ -15,6 +15,10 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/kps/elementwise_kernel.cu"  // NOLINT
 
+using float16 = phi::dtype::float16;
+using bfloat16 = phi::dtype::bfloat16;
+using complex64 = ::phi::dtype::complex<float>;
+
 PD_CUSTOM_KERNEL_REGISTER(maximum,
                           iluvatar_gpu,
                           ALL_LAYOUT,
@@ -22,8 +26,8 @@ PD_CUSTOM_KERNEL_REGISTER(maximum,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          float16,
+                          bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(minimum,
                           iluvatar_gpu,
@@ -32,8 +36,8 @@ PD_CUSTOM_KERNEL_REGISTER(minimum,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          float16,
+                          bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(remainder,
                           iluvatar_gpu,
@@ -42,8 +46,9 @@ PD_CUSTOM_KERNEL_REGISTER(remainder,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          float16,
+                          bfloat16,
+                          complex64) {}
 
 PD_CUSTOM_KERNEL_REGISTER(floor_divide,
                           iluvatar_gpu,
@@ -55,8 +60,8 @@ PD_CUSTOM_KERNEL_REGISTER(floor_divide,
                           int,
                           int64_t,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          float16,
+                          bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(elementwise_pow,
                           iluvatar_gpu,
@@ -65,8 +70,8 @@ PD_CUSTOM_KERNEL_REGISTER(elementwise_pow,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          float16,
+                          bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(copysign,
                           iluvatar_gpu,
@@ -79,12 +84,8 @@ PD_CUSTOM_KERNEL_REGISTER(copysign,
                           int,
                           int64_t,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
-
-using float16 = phi::dtype::float16;
-using bfloat16 = phi::dtype::bfloat16;
-using complex64 = ::phi::dtype::complex<float>;
+                          float16,
+                          bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(fmax,
                           iluvatar_gpu,
@@ -127,8 +128,8 @@ PD_CUSTOM_KERNEL_REGISTER(add,
                           uint8_t,
                           int8_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          float16,
+                          bfloat16,
                           complex64) {}
 
 PD_CUSTOM_KERNEL_REGISTER(grad_add,
@@ -142,8 +143,8 @@ PD_CUSTOM_KERNEL_REGISTER(grad_add,
                           uint8_t,
                           int8_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          float16,
+                          bfloat16,
                           complex64) {}
 
 PD_CUSTOM_KERNEL_REGISTER(divide,

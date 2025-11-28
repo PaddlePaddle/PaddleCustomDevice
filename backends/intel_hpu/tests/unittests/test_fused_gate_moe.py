@@ -162,6 +162,12 @@ def check_using_cosine_similarity(
     return cos_sim >= required_similarity
 
 
+def tensorwise_cast_to_fp8(tensor, scale):
+    scale = paddle.to_tensor(scale, dtype=tensor.dtype)
+    x_scaled = (tensor * scale).cast(paddle.float8_e4m3fn)
+    return x_scaled
+
+
 def tensorwise_quant_to_fp8(tensor):
     """
     x_abs = paddle.abs(tensor).astype(paddle.float32)
@@ -174,10 +180,15 @@ def tensorwise_quant_to_fp8(tensor):
     return paddlenlp_ops.fused_quant(tensor)
 
 
-def tensorwise_cast_to_fp8(tensor, scale):
-    scale = paddle.to_tensor(scale, dtype=tensor.dtype)
-    x_scaled = (tensor * scale).cast(paddle.float8_e4m3fn)
-    return x_scaled
+def channelwise_quant_to_fp8(tensor):
+    # Channel-wise quantization along the last dimension (N)
+    x_abs = paddle.abs(tensor).astype(paddle.float32)
+    x_amax = paddle.amax(x_abs, axis=0)  # shape: [N]
+    x_amax = paddle.clip(x_amax, min=1e-4)
+    scale = x_amax / 240.0  # shape: [N]
+    scale = paddle.to_tensor(scale, dtype=paddle.bfloat16)
+    x_scaled = (tensor / scale).astype(paddle.float8_e4m3fn)
+    return x_scaled, scale
 
 
 def blockwise_quant_to_fp8(tensorlist, block_size):
@@ -221,9 +232,9 @@ def generate_tensors(
     num_experts,
     permuted_weights,
     fused_weights,
-    dynamic_scale=None,
-    fp8_scales=None,
+    intermediate_dynamic_scale=None,
     hidden_states_dynamic_quant=False,
+    weight_scale_type=None,
     block_size=None,
 ):
     if dtype == "bfloat16":
@@ -274,36 +285,37 @@ def generate_tensors(
         d_scales_intermediate_hidden_states = None
     elif dtype == "fp8":
         # weights cast to fp8, scales to tensor
+        weight_quant_method = (
+            channelwise_quant_to_fp8
+            if weight_scale_type == "channelwise"
+            else tensorwise_quant_to_fp8
+        )
         if fused_weights:
             up_gate_weights, d_scales_up_gate = zip(
-                *[tensorwise_quant_to_fp8(w) for w in up_gate_weights]
+                *[weight_quant_method(w) for w in up_gate_weights]
             )
             up_gate_weights = list(up_gate_weights)
             d_scales_up_gate = list(d_scales_up_gate)
         else:
-            up_weights, d_scales_up = zip(
-                *[tensorwise_quant_to_fp8(w) for w in up_weights]
-            )
+            up_weights, d_scales_up = zip(*[weight_quant_method(w) for w in up_weights])
             up_weights = list(up_weights)
             d_scales_up = list(d_scales_up)
             gate_weights, d_scales_gate = zip(
-                *[tensorwise_quant_to_fp8(w) for w in gate_weights]
+                *[weight_quant_method(w) for w in gate_weights]
             )
             gate_weights = list(gate_weights)
             d_scales_gate = list(d_scales_gate)
         down_weights, d_scales_down = zip(
-            *[tensorwise_quant_to_fp8(w) for w in down_weights]
+            *[weight_quant_method(w) for w in down_weights]
         )
         down_weights = list(down_weights)
         d_scales_down = list(d_scales_down)
 
-        if dynamic_scale is False:
-            d_scales_intermediate_hidden_states = fp8_scales[
-                "d_scale_intermediate_hidden_states"
-            ]
+        if intermediate_dynamic_scale is False:
             d_scales_intermediate_hidden_states = [
-                paddle.to_tensor(scale, dtype=paddle_dtype)
-                for scale in d_scales_intermediate_hidden_states
+                paddle.to_tensor([1.0], dtype=paddle_dtype)
+                # paddle.ones(shape=[num_tokens, 1], dtype=paddle_dtype)
+                for _ in range(num_experts)
             ]
         else:
             d_scales_intermediate_hidden_states = None
@@ -485,14 +497,14 @@ class FusedGateMoE:
         tp_size=1,
         tp_group=None,
         dtype="fp8",
-        dynamic_scale=None,
+        intermediate_dynamic_scale=None,
         block_size=None,
         chunk_size=0,
     ):
         self.num_experts = num_experts
         self.permuted_weights = permuted_weights
         self.fused_weights = fused_weights
-        self.dynamic_scale = dynamic_scale
+        self.intermediate_dynamic_scale = intermediate_dynamic_scale
         self.activation = activation
         self.ep_rank = ep_rank
         self.ep_size = ep_size
@@ -561,14 +573,26 @@ class FusedGateMoE:
             )
             slice_weights = (
                 (
-                    expert_weights[0][slice_experts_min : slice_experts_max + 1],
-                    expert_weights[1][slice_experts_min : slice_experts_max + 1],
+                    paddle.stack(
+                        expert_weights[0][slice_experts_min : slice_experts_max + 1],
+                        axis=0,
+                    ),
+                    paddle.stack(
+                        expert_weights[1][slice_experts_min : slice_experts_max + 1],
+                        axis=0,
+                    ),
                 )
                 if self.fused_weights
                 else (
-                    expert_weights[0][slice_experts_min : slice_experts_max + 1]
-                    + expert_weights[1][slice_experts_min : slice_experts_max + 1],
-                    expert_weights[2][slice_experts_min : slice_experts_max + 1],
+                    paddle.stack(
+                        expert_weights[0][slice_experts_min : slice_experts_max + 1]
+                        + expert_weights[1][slice_experts_min : slice_experts_max + 1],
+                        axis=0,
+                    ),
+                    paddle.stack(
+                        expert_weights[2][slice_experts_min : slice_experts_max + 1],
+                        axis=0,
+                    ),
                 )
             )
             if self.dtype == "fp8":
@@ -576,37 +600,77 @@ class FusedGateMoE:
                     (
                         hidden_states_scale,
                         None
-                        if self.dynamic_scale
+                        if self.intermediate_dynamic_scale
                         else intermediate_states_scales[
                             slice_experts_min : slice_experts_max + 1
                         ],
-                        weights_scales[0][slice_experts_min : slice_experts_max + 1],
-                        weights_scales[1][slice_experts_min : slice_experts_max + 1],
+                        paddle.stack(
+                            weights_scales[0][
+                                slice_experts_min : slice_experts_max + 1
+                            ],
+                            axis=0,
+                        ),
+                        paddle.stack(
+                            weights_scales[1][
+                                slice_experts_min : slice_experts_max + 1
+                            ],
+                            axis=0,
+                        ),
                     )
                     if self.fused_weights
                     else (
                         hidden_states_scale,
                         None
-                        if self.dynamic_scale
+                        if self.intermediate_dynamic_scale
                         else intermediate_states_scales[
                             slice_experts_min : slice_experts_max + 1
                         ],
-                        weights_scales[0][slice_experts_min : slice_experts_max + 1]
-                        + weights_scales[1][slice_experts_min : slice_experts_max + 1],
-                        weights_scales[2][slice_experts_min : slice_experts_max + 1],
+                        paddle.stack(
+                            weights_scales[0][slice_experts_min : slice_experts_max + 1]
+                            + weights_scales[1][
+                                slice_experts_min : slice_experts_max + 1
+                            ],
+                            axis=0,
+                        ),
+                        paddle.stack(
+                            weights_scales[2][
+                                slice_experts_min : slice_experts_max + 1
+                            ],
+                            axis=0,
+                        ),
                     )
                 )
             elif self.dtype == "blockwise_fp8":
                 slice_scales = (
                     (
-                        weights_scales[0][slice_experts_min : slice_experts_max + 1],
-                        weights_scales[1][slice_experts_min : slice_experts_max + 1],
+                        paddle.stack(
+                            weights_scales[0][
+                                slice_experts_min : slice_experts_max + 1
+                            ],
+                            axis=0,
+                        ),
+                        paddle.stack(
+                            weights_scales[1][
+                                slice_experts_min : slice_experts_max + 1
+                            ],
+                            axis=0,
+                        ),
                     )
                     if self.fused_weights
                     else (
-                        weights_scales[0][slice_experts_min : slice_experts_max + 1]
-                        + weights_scales[1][slice_experts_min : slice_experts_max + 1],
-                        weights_scales[2][slice_experts_min : slice_experts_max + 1],
+                        paddle.stack(
+                            weights_scales[0][slice_experts_min : slice_experts_max + 1]
+                            + weights_scales[1][
+                                slice_experts_min : slice_experts_max + 1
+                            ],
+                            axis=0,
+                        ),
+                        paddle.stack(
+                            weights_scales[2][
+                                slice_experts_min : slice_experts_max + 1
+                            ],
+                            axis=0,
+                        ),
                     )
                 )
 
@@ -709,23 +773,10 @@ TP_SIZE = [1]
 COMPUTE_AMAX = [False]  # [True, False]
 # for fp8 only
 HIDDEN_STATES_DYNAMIC_SCALE = [True, False]
-MOE_DYNAMIC_SCALE = [True, False]
-FP8_SCALES = [
-    {
-        "d_scale_intermediate_hidden_states": [
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-        ],
-    },
-]
+INTERMEDIATE_DYNAMIC_SCALE = [True, False]
 # for blockwise_fp8 only
 BLOCK_SIZES = [128]
+WEIGHT_SCALE_TYPES = ["channelwise"]  # ["tensorwise", "channelwise"]
 
 
 class MoETest(unittest.TestCase):
@@ -743,9 +794,9 @@ class MoETest(unittest.TestCase):
                 permuted_weights,
                 ep_size,
                 tp_size,
-                dynamic_scale,
-                fp8_scales,
-                hidden_states_dynamic_quant,
+                intermediate_dynamic_scale if dtype == "fp8" else None,
+                hidden_states_dynamic_quant if dtype == "fp8" else None,
+                weight_scale_type if dtype == "fp8" else None,
                 dtype,
             )
             for num_tokens in NUM_TOKENS
@@ -759,10 +810,14 @@ class MoETest(unittest.TestCase):
             for permuted_weights in PERMUTED_WEIGHTS
             for ep_size in EP_SIZE
             for tp_size in TP_SIZE
-            for dynamic_scale in MOE_DYNAMIC_SCALE
-            for fp8_scales in FP8_SCALES
-            for hidden_states_dynamic_quant in HIDDEN_STATES_DYNAMIC_SCALE
             for dtype in DTYPES
+            for intermediate_dynamic_scale in (
+                INTERMEDIATE_DYNAMIC_SCALE if dtype == "fp8" else [None]
+            )
+            for hidden_states_dynamic_quant in (
+                HIDDEN_STATES_DYNAMIC_SCALE if dtype == "fp8" else [None]
+            )
+            for weight_scale_type in (WEIGHT_SCALE_TYPES if dtype == "fp8" else [None])
         ]
     )
     def test_fused_gate_moe(
@@ -778,9 +833,9 @@ class MoETest(unittest.TestCase):
         permuted_weights,
         ep_size,
         tp_size,
-        dynamic_scale,
-        fp8_scales,
+        intermediate_dynamic_scale,
         hidden_states_dynamic_quant,
+        weight_scale_type,
         dtype="fp8",
     ):
         (ep_rank, ep_size, ep_group), (tp_rank, tp_size, tp_group) = init_distributed(
@@ -793,8 +848,8 @@ class MoETest(unittest.TestCase):
             f" num_tokens={num_tokens}, hidden_dim={hidden_dim}, ffn_dim={ffn_dim}, \n"
             f" top_k={top_k}, num_experts={num_experts}, slice_max_expert={slice_max_expert}, \n"
             f" fused_weights={fused_weights}, permuted_weights={permuted_weights}, activation={activation}, \n"
-            f" dtype={dtype}, dynamic_scale={dynamic_scale}, \n"
-            f" ep_size={ep_size}, tp_size={tp_size}, \n",
+            f" dtype={dtype}, intermediate_dynamic_scale={intermediate_dynamic_scale}, \n"
+            f"  hidden_states_dynamic_quant={hidden_states_dynamic_quant}, ep_size={ep_size}, tp_size={tp_size}, \n",
             extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
         )
 
@@ -808,9 +863,9 @@ class MoETest(unittest.TestCase):
             num_experts=num_experts,
             permuted_weights=permuted_weights,
             fused_weights=fused_weights,
-            dynamic_scale=dynamic_scale,
-            fp8_scales=fp8_scales,
+            intermediate_dynamic_scale=intermediate_dynamic_scale,
             hidden_states_dynamic_quant=hidden_states_dynamic_quant,
+            weight_scale_type=weight_scale_type,
             dtype=dtype,
         )
 
@@ -827,7 +882,7 @@ class MoETest(unittest.TestCase):
         ) = out_tensors
 
         # CPU Reference Implementation
-        mixtral_ref = MixtralSparseMoeRef(dynamic_scale, dtype)
+        mixtral_ref = MixtralSparseMoeRef(intermediate_dynamic_scale, dtype)
 
         final_hidden_states_ref = mixtral_ref.forward(
             hidden_states,
@@ -864,7 +919,7 @@ class MoETest(unittest.TestCase):
             activation=activation,
             permuted_weights=permuted_weights,
             fused_weights=fused_weights,
-            dynamic_scale=dynamic_scale,
+            intermediate_dynamic_scale=intermediate_dynamic_scale,
             slice_max_expert=slice_max_expert,
             logger=logger,
             ep_rank=ep_rank,

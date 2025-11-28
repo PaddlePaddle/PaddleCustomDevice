@@ -27,7 +27,7 @@ class BinaryDistribution(Distribution):
 def main():
     setup(
         name="paddlenlp_ops",
-        version="0.0.0",
+        version="0.0.2",
         description="PaddleNLP INTEL_HPU CustomOps",
         long_description="",
         long_description_content_type="text/markdown",

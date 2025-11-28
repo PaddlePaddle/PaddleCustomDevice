@@ -67,17 +67,47 @@ list(REMOVE_DUPLICATES PYTHON_TEST_SCRIPTS)
 
 if(NOT TEST_LIST_FILE)
   set(NEED_IGNORE_FILE ${CMAKE_CURRENT_LIST_DIR}/ignore.txt)
+
   if(EXISTS ${NEED_IGNORE_FILE})
-    file(STRINGS ${NEED_IGNORE_FILE} NEED_IGNORE_TEST_PROGRAMS)
-    foreach(test_name ${NEED_IGNORE_TEST_PROGRAMS})
-      if(EXISTS ${PADDLE_LEGACY_TEST_PATH}/${test_name}.py)
-        list(REMOVE_ITEM PYTHON_TEST_SCRIPTS
-             ${PADDLE_LEGACY_TEST_PATH}/${test_name}.py)
-      else()
-        list(REMOVE_ITEM PYTHON_TEST_SCRIPTS
-             ${METAX_UNIT_TEST_PATH}/${test_name}.py)
+
+    file(STRINGS ${NEED_IGNORE_FILE} ignore_lines)
+
+    set(current_block "")
+    set(all_blocks "")
+
+    foreach(line ${ignore_lines})
+      if(line MATCHES "^\\[(.+)\\]$")
+        set(current_block "${CMAKE_MATCH_1}")
+        list(APPEND all_blocks "${current_block}")
+        set(ignore_map_${current_block} "")
+      elseif(NOT line STREQUAL "")
+        if(NOT current_block STREQUAL "")
+          list(APPEND ignore_map_${current_block} "${line}")
+        endif()
       endif()
     endforeach()
+
+    if(IGNORE_BLOCKS STREQUAL "NONE")
+      message(STATUS "IGNORE_BLOCKS=NONE → No ignore blocks applied.")
+      set(blocks_to_ignore "")
+    elseif(IGNORE_BLOCKS)
+      string(REPLACE ";" " " blocks_to_ignore "${IGNORE_BLOCKS}")
+      message(STATUS "Only ignoring blocks: ${blocks_to_ignore}")
+    else()
+      set(blocks_to_ignore "${all_blocks}")
+      message(STATUS "Default: ignoring ALL blocks: ${blocks_to_ignore}")
+    endif()
+
+    foreach(block ${blocks_to_ignore})
+      set(varname "ignore_map_${block}")
+      foreach(test_name ${${varname}})
+        list(REMOVE_ITEM PYTHON_TEST_SCRIPTS
+             "${PADDLE_LEGACY_TEST_PATH}/${test_name}.py")
+        list(REMOVE_ITEM PYTHON_TEST_SCRIPTS
+             "${METAX_UNIT_TEST_PATH}/${test_name}.py")
+      endforeach()
+    endforeach()
+
   endif()
 endif()
 

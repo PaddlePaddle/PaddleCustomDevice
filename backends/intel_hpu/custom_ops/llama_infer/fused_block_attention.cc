@@ -35,7 +35,9 @@ struct FusedBlockAttentionParams {
   bool use_neox_style = true;
   bool with_qkv_biases = false;
   bool transpose = true;
-  bool use_fp8 = false;
+  bool use_fp8_embedding = false;
+  bool use_fp8_kv_cache = false;
+  bool use_fp8_out_proj = false;
   bool use_qk_rmsnorm = false;
 };
 
@@ -107,7 +109,8 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
   void AddNode(ConvertTensors& ct, FusedBlockAttentionParams& params) {
     auto ins = ct.GetTensors();
     auto outs = ct.GetTensors(false);
-    auto kv_dtype = params.use_fp8 ? synDataType::syn_type_fp8_143 : dtype_;
+    auto kv_dtype =
+        params.use_fp8_kv_cache ? synDataType::syn_type_fp8_143 : dtype_;
 
     int index_base = 0;
     int src_index = (index_base++);             // 0
@@ -127,13 +130,19 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
         k_scale_index = -1, a_scale_index = -1, v_scale_index = -1,
         o_linear_scale_x_index = -1, o_linear_scale_y_index = -1,
         qkv_biases_index = -1, q_gamma_index = -1, k_gamma_index = -1;
-    if (params.use_fp8) {
+    if (params.use_fp8_embedding) {
       src_scale_index = (index_base++);
       qkv_weights_scale_index = (index_base++);
+    }
+
+    if (params.use_fp8_kv_cache) {
       q_scale_index = (index_base++);
       k_scale_index = (index_base++);
       a_scale_index = (index_base++);
       v_scale_index = (index_base++);
+    }
+
+    if (params.use_fp8_out_proj) {
       o_linear_scale_x_index = (index_base++);
       o_linear_scale_y_index = (index_base++);
     }
@@ -201,7 +210,7 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
       gemm_params.transpose_a = false;
       gemm_params.transpose_b = params.transpose;
 
-      AddNodeMixedPrecisionGemm<T>(params.use_fp8,
+      AddNodeMixedPrecisionGemm<T>(params.use_fp8_embedding,
                                    ct,
                                    src_scale_index,
                                    qkv_weights_scale_index,
@@ -210,7 +219,7 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
                                    linear_inputs,
                                    linear_outputs,
                                    gemm_params,
-                                   "batchgemm");
+                                   "embedding_gemm");
 
       if (params.with_qkv_biases) {
         auto qkv_out_with_bias =
@@ -632,7 +641,7 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
     q_k_out.push_back(q_k);
 
     // Q*k^T
-    AddNodeMixedPrecisionGemm<T>(params.use_fp8,
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_kv_cache,
                                  ct,
                                  q_scale_index,
                                  k_scale_index,
@@ -788,7 +797,7 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
     score_v_out.push_back(score_v);
 
     // Score*V
-    AddNodeMixedPrecisionGemm<T>(params.use_fp8,
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_kv_cache,
                                  ct,
                                  a_scale_index,
                                  v_scale_index,
@@ -945,7 +954,7 @@ class FusedMHABlockAttention : public FusedBlockAttentionBase {
     proj_out.push_back(linear_out);
 
     // Final linear
-    AddNodeMixedPrecisionGemm<T>(params.use_fp8,
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_out_proj,
                                  ct,
                                  o_linear_scale_x_index,
                                  o_linear_scale_y_index,
@@ -969,7 +978,8 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
   void AddNode(ConvertTensors& ct, FusedBlockAttentionParams& params) {
     auto ins = ct.GetTensors();
     auto outs = ct.GetTensors(false);
-    auto kv_dtype = params.use_fp8 ? synDataType::syn_type_fp8_143 : dtype_;
+    auto kv_dtype =
+        params.use_fp8_kv_cache ? synDataType::syn_type_fp8_143 : dtype_;
 
     int index_base = 0;
     int src_index = (index_base++);             // 0
@@ -989,13 +999,19 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
         k_scale_index = -1, a_scale_index = -1, v_scale_index = -1,
         o_linear_scale_x_index = -1, o_linear_scale_y_index = -1,
         qkv_biases_index = -1, q_gamma_index = -1, k_gamma_index = -1;
-    if (params.use_fp8) {
+    if (params.use_fp8_embedding) {
       src_scale_index = (index_base++);
       qkv_weights_scale_index = (index_base++);
+    }
+
+    if (params.use_fp8_kv_cache) {
       q_scale_index = (index_base++);
       k_scale_index = (index_base++);
       a_scale_index = (index_base++);
       v_scale_index = (index_base++);
+    }
+
+    if (params.use_fp8_out_proj) {
       o_linear_scale_x_index = (index_base++);
       o_linear_scale_y_index = (index_base++);
     }
@@ -1064,7 +1080,7 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
       gemm_params.transpose_a = false;
       gemm_params.transpose_b = params.transpose;
 
-      AddNodeMixedPrecisionGemm<T>(params.use_fp8,
+      AddNodeMixedPrecisionGemm<T>(params.use_fp8_embedding,
                                    ct,
                                    src_scale_index,
                                    qkv_weights_scale_index,
@@ -1073,7 +1089,7 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
                                    linear_inputs,
                                    linear_outputs,
                                    gemm_params,
-                                   "batchgemm");
+                                   "embedding_gemm");
 
       if (params.with_qkv_biases) {
         auto qkv_out_with_bias =
@@ -1518,7 +1534,7 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
     q_k_out.push_back(q_k);
 
     // Q*K^T
-    AddNodeMixedPrecisionGemm<T>(params.use_fp8,
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_kv_cache,
                                  ct,
                                  q_scale_index,
                                  k_scale_index,
@@ -1679,7 +1695,7 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
     score_v_out.push_back(score_v);
 
     // Score*V
-    AddNodeMixedPrecisionGemm<T>(params.use_fp8,
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_kv_cache,
                                  ct,
                                  a_scale_index,
                                  v_scale_index,
@@ -1852,7 +1868,7 @@ class FusedGQABlockAttention : public FusedBlockAttentionBase {
     proj_out.push_back(linear_out);
 
     // Final Linear
-    AddNodeMixedPrecisionGemm<T>(params.use_fp8,
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_out_proj,
                                  ct,
                                  o_linear_scale_x_index,
                                  o_linear_scale_y_index,
@@ -1888,10 +1904,10 @@ void FusedBlockAttentionKernel(
     const paddle::optional<phi::DenseTensor>& k_norm_weights,
     const paddle::optional<phi::DenseTensor>& src_scale,
     const paddle::optional<phi::DenseTensor>& qkv_weights_scale,
-    const paddle::optional<phi::DenseTensor>& qk_scale_x,
-    const paddle::optional<phi::DenseTensor>& qk_scale_y,
-    const paddle::optional<phi::DenseTensor>& av_scale_x,
-    const paddle::optional<phi::DenseTensor>& av_scale_y,
+    const paddle::optional<phi::DenseTensor>& q_scale,
+    const paddle::optional<phi::DenseTensor>& k_scale,
+    const paddle::optional<phi::DenseTensor>& a_scale,
+    const paddle::optional<phi::DenseTensor>& v_scale,
     const paddle::optional<phi::DenseTensor>& o_linear_scale_x,
     const paddle::optional<phi::DenseTensor>& o_linear_scale_y,
     phi::DenseTensor* out_linear,
@@ -1934,23 +1950,39 @@ void FusedBlockAttentionKernel(
 
   std::string guid_prefix = "fused_block_attention_";
 
-  bool use_fp8 = false;
-  if (qk_scale_x || qk_scale_y || av_scale_x || av_scale_y ||
-      o_linear_scale_x || o_linear_scale_y) {
-    if (!qk_scale_x || !qk_scale_y || !av_scale_x || !av_scale_y ||
-        !o_linear_scale_x || !o_linear_scale_y) {
+  bool use_fp8_embedding = false;
+  if (src_scale || qkv_weights_scale) {
+    if (!src_scale || !qkv_weights_scale) {
       throw std::runtime_error(
-          "Please specify all scale values for FusedBlockAttentionKernel");
+          "Please specify src/qkv_weights scale values for "
+          "FusedBlockAttentionKernel");
     }
-
-    use_fp8 = true;
-    guid_prefix = "fused_fp8_block_attention_";
+    use_fp8_embedding = true;
     ct.Add(src_scale.get());
     ct.Add(qkv_weights_scale.get());
-    ct.Add(qk_scale_x.get());
-    ct.Add(qk_scale_y.get());
-    ct.Add(av_scale_x.get());
-    ct.Add(av_scale_y.get());
+  }
+
+  bool use_fp8_kv_cache = false;
+  if (q_scale || k_scale || a_scale || v_scale) {
+    if (!q_scale || !k_scale || !a_scale || !v_scale)
+      throw std::runtime_error(
+          "Please specify q/k/a/v scale values for FusedBlockAttentionKernel");
+
+    use_fp8_kv_cache = true;
+    ct.Add(q_scale.get());
+    ct.Add(k_scale.get());
+    ct.Add(a_scale.get());
+    ct.Add(v_scale.get());
+  }
+
+  bool use_fp8_out_proj = false;
+  if (o_linear_scale_x || o_linear_scale_y) {
+    if (!o_linear_scale_x || !o_linear_scale_y) {
+      throw std::runtime_error(
+          "Please specify o_linear_x/y scale values for "
+          "FusedBlockAttentionKernel");
+    }
+    use_fp8_out_proj = true;
     ct.Add(o_linear_scale_x.get());
     ct.Add(o_linear_scale_y.get());
   }
@@ -1996,7 +2028,9 @@ void FusedBlockAttentionKernel(
     params.head_dim = head_dim_;
     params.num_head = num_head_;
     params.num_kv_head = num_kv_head;
-    params.use_fp8 = use_fp8;
+    params.use_fp8_embedding = use_fp8_embedding;
+    params.use_fp8_kv_cache = use_fp8_kv_cache;
+    params.use_fp8_out_proj = use_fp8_out_proj;
     if (qkv_biases) {
       params.with_qkv_biases = true;
     }
@@ -2131,120 +2165,6 @@ void CallFusedBlockAttentionKernel(
   }
 }
 
-std::vector<paddle::Tensor> FusedBlockAttentionForward(
-    const paddle::Tensor& src,
-    const paddle::Tensor& rotary_embs,
-    const paddle::Tensor& key_cache,
-    const paddle::Tensor& value_cache,
-    const paddle::Tensor& block_groups,
-    const paddle::Tensor& block_list,
-    const paddle::Tensor& block_mapping,
-    const paddle::Tensor& block_bias,
-    const paddle::Tensor& block_indices,
-    const paddle::Tensor& block_offsets,
-    const paddle::Tensor& qkv_weights,
-    const paddle::optional<paddle::Tensor>& qkv_biases,
-    const paddle::Tensor& linear_weights,
-    const paddle::optional<paddle::Tensor>& q_norm_weights,
-    const paddle::optional<paddle::Tensor>& k_norm_weights,
-    int head_dim,
-    int num_head,
-    float scaling_factor,
-    bool transpose,
-    bool use_neox_style,
-    float epsilon) {
-  auto dev_ctx = static_cast<const phi::CustomContext*>(
-      paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
-  auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
-  auto rotary_embs_tensor =
-      static_cast<const phi::DenseTensor*>(rotary_embs.impl().get());
-  auto key_cache_tensor =
-      static_cast<const phi::DenseTensor*>(key_cache.impl().get());
-  auto value_cache_tensor =
-      static_cast<const phi::DenseTensor*>(value_cache.impl().get());
-  auto block_groups_tensor =
-      static_cast<const phi::DenseTensor*>(block_groups.impl().get());
-  auto block_list_tensor =
-      static_cast<const phi::DenseTensor*>(block_list.impl().get());
-  auto block_mapping_tensor =
-      static_cast<const phi::DenseTensor*>(block_mapping.impl().get());
-  auto block_bias_tensor =
-      static_cast<const phi::DenseTensor*>(block_bias.impl().get());
-  auto block_indices_tensor =
-      static_cast<const phi::DenseTensor*>(block_indices.impl().get());
-  auto block_offsets_tensor =
-      static_cast<const phi::DenseTensor*>(block_offsets.impl().get());
-  auto qkv_weights_tensor =
-      static_cast<const phi::DenseTensor*>(qkv_weights.impl().get());
-  auto linear_weights_tensor =
-      static_cast<const phi::DenseTensor*>(linear_weights.impl().get());
-
-  auto qkv_biases_tensor = paddle::optional<phi::DenseTensor>();
-  if (qkv_biases) {
-    auto qkv_biases_dt =
-        static_cast<phi::DenseTensor*>(qkv_biases->impl().get());
-    qkv_biases_tensor = paddle::optional<phi::DenseTensor>(*qkv_biases_dt);
-  }
-
-  auto q_norm_weights_tensor = paddle::optional<phi::DenseTensor>();
-  if (q_norm_weights) {
-    auto q_norm_weights_dt =
-        static_cast<phi::DenseTensor*>(q_norm_weights->impl().get());
-    q_norm_weights_tensor =
-        paddle::optional<phi::DenseTensor>(*q_norm_weights_dt);
-  }
-
-  auto k_norm_weights_tensor = paddle::optional<phi::DenseTensor>();
-  if (k_norm_weights) {
-    auto k_norm_weights_dt =
-        static_cast<phi::DenseTensor*>(k_norm_weights->impl().get());
-    k_norm_weights_tensor =
-        paddle::optional<phi::DenseTensor>(*k_norm_weights_dt);
-  }
-
-  // allocate memory on device.
-  int64_t batch_size = src.dims()[0];
-  int64_t out_features = linear_weights.dims()[1];
-
-  std::shared_ptr<phi::DenseTensor> out_linear =
-      std::make_shared<phi::DenseTensor>();
-  out_linear->Resize(phi::make_ddim({batch_size, out_features}));
-  dev_ctx->Alloc(out_linear.get(), src_tensor->dtype());
-
-  CallFusedBlockAttentionKernel(*dev_ctx,
-                                *src_tensor,
-                                *rotary_embs_tensor,
-                                *key_cache_tensor,
-                                *value_cache_tensor,
-                                *block_groups_tensor,
-                                *block_list_tensor,
-                                *block_mapping_tensor,
-                                *block_bias_tensor,
-                                *block_indices_tensor,
-                                *block_offsets_tensor,
-                                *qkv_weights_tensor,
-                                qkv_biases_tensor,
-                                *linear_weights_tensor,
-                                q_norm_weights_tensor,
-                                k_norm_weights_tensor,
-                                paddle::optional<phi::DenseTensor>(),
-                                paddle::optional<phi::DenseTensor>(),
-                                paddle::optional<phi::DenseTensor>(),
-                                paddle::optional<phi::DenseTensor>(),
-                                paddle::optional<phi::DenseTensor>(),
-                                paddle::optional<phi::DenseTensor>(),
-                                paddle::optional<phi::DenseTensor>(),
-                                paddle::optional<phi::DenseTensor>(),
-                                out_linear.get(),
-                                phi::Scalar(head_dim),
-                                phi::Scalar(num_head),
-                                phi::Scalar(scaling_factor),
-                                phi::Scalar(transpose),
-                                phi::Scalar(use_neox_style),
-                                phi::Scalar(epsilon));
-  return {paddle::Tensor(out_linear)};
-}
-
 std::vector<std::vector<int64_t>> FusedBlockAttentionShape(
     const std::vector<int64_t>& src_shape,
     const std::vector<int64_t>& rotary_embs_shape,
@@ -2286,34 +2206,7 @@ std::vector<paddle::DataType> FusedBlockAttentionDtype(
   return {src_dtype};
 }
 
-PD_BUILD_OP(fused_block_attention)
-    .Inputs({"src",
-             "rotary_embs",
-             "key_cache",
-             "value_cache",
-             "block_groups",
-             "block_list",
-             "block_mapping",
-             "block_bias",
-             "block_indices",
-             "block_offsets",
-             "qkv_weights",
-             paddle::Optional("qkv_biases"),
-             "linear_weights",
-             paddle::Optional("q_norm_weights"),
-             paddle::Optional("k_norm_weights")})
-    .Outputs({"out_linear"})
-    .Attrs({"head_dim: int",
-            "num_head: int",
-            "scaling_factor: float",
-            "transpose: bool",
-            "use_neox_style: bool",
-            "epsilon: float"})
-    .SetKernelFn(PD_KERNEL(FusedBlockAttentionForward))
-    .SetInferShapeFn(PD_INFER_SHAPE(FusedBlockAttentionShape))
-    .SetInferDtypeFn(PD_INFER_DTYPE(FusedBlockAttentionDtype));
-
-std::vector<paddle::Tensor> FusedFp8BlockAttentionForward(
+std::vector<paddle::Tensor> FusedBlockAttentionForward(
     const paddle::Tensor& src,
     const paddle::Tensor& rotary_embs,
     const paddle::Tensor& key_cache,
@@ -2329,14 +2222,14 @@ std::vector<paddle::Tensor> FusedFp8BlockAttentionForward(
     const paddle::Tensor& linear_weights,
     const paddle::optional<paddle::Tensor>& q_norm_weights,
     const paddle::optional<paddle::Tensor>& k_norm_weights,
-    const paddle::Tensor& src_scale,
-    const paddle::Tensor& qkv_weights_scale,
-    const paddle::Tensor& q_scale,
-    const paddle::Tensor& k_scale,
-    const paddle::Tensor& a_scale,
-    const paddle::Tensor& v_scale,
-    const paddle::Tensor& o_linear_scale_x,
-    const paddle::Tensor& o_linear_scale_y,
+    const paddle::optional<paddle::Tensor>& src_scale,
+    const paddle::optional<paddle::Tensor>& qkv_weights_scale,
+    const paddle::optional<paddle::Tensor>& q_scale,
+    const paddle::optional<paddle::Tensor>& k_scale,
+    const paddle::optional<paddle::Tensor>& a_scale,
+    const paddle::optional<paddle::Tensor>& v_scale,
+    const paddle::optional<paddle::Tensor>& o_linear_scale_x,
+    const paddle::optional<paddle::Tensor>& o_linear_scale_y,
     int head_dim,
     int num_head,
     float scaling_factor,
@@ -2392,22 +2285,59 @@ std::vector<paddle::Tensor> FusedFp8BlockAttentionForward(
         paddle::optional<phi::DenseTensor>(*k_norm_weights_dt);
   }
 
-  auto src_scale_tensor =
-      static_cast<const phi::DenseTensor*>(src_scale.impl().get());
-  auto qkv_weights_scale_tensor =
-      static_cast<const phi::DenseTensor*>(qkv_weights_scale.impl().get());
-  auto k_scale_tensor =
-      static_cast<const phi::DenseTensor*>(q_scale.impl().get());
-  auto q_scale_tensor =
-      static_cast<const phi::DenseTensor*>(k_scale.impl().get());
-  auto a_scale_tensor =
-      static_cast<const phi::DenseTensor*>(a_scale.impl().get());
-  auto v_scale_tensor =
-      static_cast<const phi::DenseTensor*>(v_scale.impl().get());
-  auto o_linear_scale_x_tensor =
-      static_cast<const phi::DenseTensor*>(o_linear_scale_x.impl().get());
-  auto o_linear_scale_y_tensor =
-      static_cast<const phi::DenseTensor*>(o_linear_scale_y.impl().get());
+  auto src_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (src_scale) {
+    auto src_scale_dt = static_cast<phi::DenseTensor*>(src_scale->impl().get());
+    src_scale_tensor = paddle::optional<phi::DenseTensor>(*src_scale_dt);
+  }
+
+  auto qkv_weights_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (qkv_weights_scale) {
+    auto qkv_weights_scale_dt =
+        static_cast<phi::DenseTensor*>(qkv_weights_scale->impl().get());
+    qkv_weights_scale_tensor =
+        paddle::optional<phi::DenseTensor>(*qkv_weights_scale_dt);
+  }
+
+  auto q_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (q_scale) {
+    auto q_scale_dt = static_cast<phi::DenseTensor*>(q_scale->impl().get());
+    q_scale_tensor = paddle::optional<phi::DenseTensor>(*q_scale_dt);
+  }
+
+  auto k_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (k_scale) {
+    auto k_scale_dt = static_cast<phi::DenseTensor*>(k_scale->impl().get());
+    k_scale_tensor = paddle::optional<phi::DenseTensor>(*k_scale_dt);
+  }
+
+  auto a_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (a_scale) {
+    auto a_scale_dt = static_cast<phi::DenseTensor*>(a_scale->impl().get());
+    a_scale_tensor = paddle::optional<phi::DenseTensor>(*a_scale_dt);
+  }
+
+  auto v_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (v_scale) {
+    auto v_scale_dt = static_cast<phi::DenseTensor*>(v_scale->impl().get());
+    v_scale_tensor = paddle::optional<phi::DenseTensor>(*v_scale_dt);
+  }
+
+  auto o_linear_scale_x_tensor = paddle::optional<phi::DenseTensor>();
+  if (o_linear_scale_x) {
+    auto o_linear_scale_x_dt =
+        static_cast<phi::DenseTensor*>(o_linear_scale_x->impl().get());
+    o_linear_scale_x_tensor =
+        paddle::optional<phi::DenseTensor>(*o_linear_scale_x_dt);
+  }
+
+  auto o_linear_scale_y_tensor = paddle::optional<phi::DenseTensor>();
+  if (o_linear_scale_y) {
+    auto o_linear_scale_y_dt =
+        static_cast<phi::DenseTensor*>(o_linear_scale_y->impl().get());
+    o_linear_scale_y_tensor =
+        paddle::optional<phi::DenseTensor>(*o_linear_scale_y_dt);
+  }
 
   // allocate memory on device.
   int64_t batch_size = src.dims()[0];
@@ -2434,14 +2364,14 @@ std::vector<paddle::Tensor> FusedFp8BlockAttentionForward(
                                 *linear_weights_tensor,
                                 q_norm_weights_tensor,
                                 k_norm_weights_tensor,
-                                *src_scale_tensor,
-                                *qkv_weights_scale_tensor,
-                                *q_scale_tensor,
-                                *k_scale_tensor,
-                                *a_scale_tensor,
-                                *v_scale_tensor,
-                                *o_linear_scale_x_tensor,
-                                *o_linear_scale_y_tensor,
+                                src_scale_tensor,
+                                qkv_weights_scale_tensor,
+                                q_scale_tensor,
+                                k_scale_tensor,
+                                a_scale_tensor,
+                                v_scale_tensor,
+                                o_linear_scale_x_tensor,
+                                o_linear_scale_y_tensor,
                                 out_linear.get(),
                                 phi::Scalar(head_dim),
                                 phi::Scalar(num_head),
@@ -2452,7 +2382,7 @@ std::vector<paddle::Tensor> FusedFp8BlockAttentionForward(
   return {paddle::Tensor(out_linear)};
 }
 
-PD_BUILD_OP(fused_fp8_block_attention)
+PD_BUILD_OP(fused_block_attention)
     .Inputs({"src",
              "rotary_embs",
              "key_cache",
@@ -2468,14 +2398,14 @@ PD_BUILD_OP(fused_fp8_block_attention)
              "linear_weights",
              paddle::Optional("q_norm_weights"),
              paddle::Optional("k_norm_weights"),
-             "src_scale",
-             "qkv_weights_scale",
-             "q_scale",
-             "k_scale",
-             "a_scale",
-             "v_scale",
-             "o_linear_scale_x",
-             "o_linear_scale_y"})
+             paddle::Optional("src_scale"),
+             paddle::Optional("qkv_weights_scale"),
+             paddle::Optional("q_scale"),
+             paddle::Optional("k_scale"),
+             paddle::Optional("a_scale"),
+             paddle::Optional("v_scale"),
+             paddle::Optional("o_linear_scale_x"),
+             paddle::Optional("o_linear_scale_y")})
     .Outputs({"out_linear"})
     .Attrs({"head_dim: int",
             "num_head: int",
@@ -2483,6 +2413,6 @@ PD_BUILD_OP(fused_fp8_block_attention)
             "transpose: bool",
             "use_neox_style: bool",
             "epsilon: float"})
-    .SetKernelFn(PD_KERNEL(FusedFp8BlockAttentionForward))
+    .SetKernelFn(PD_KERNEL(FusedBlockAttentionForward))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedBlockAttentionShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedBlockAttentionDtype));

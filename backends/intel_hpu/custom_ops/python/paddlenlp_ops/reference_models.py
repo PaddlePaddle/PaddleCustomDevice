@@ -466,16 +466,19 @@ def fused_block_attention_ref(
         qkv_weights,
         qkv_biases,
         rotary_embs.unsqueeze(2),
-        None,
-        None,
-        None,
-        None,
-        None,
+        None,  # act_scale
+        None,  # weight_scale
+        None,  # q_scale
+        None,  # cache_k_scale
+        None,  # cache_v_scale
+        None,  # q_norm
+        None,  # k_norm
         head_dim,
         num_heads,
         total_batch=src.shape[0],
         transpose=transpose,
         use_neox_style=use_neox_style,
+        epsilon=1e-6,
     )
     key_states = key_value_states[0].squeeze(1)
     value_states = key_value_states[1].squeeze(1)
@@ -590,7 +593,12 @@ def fused_gate_moe_ref(
         routing_weights /= paddle.sum(routing_weights, axis=-1, keepdim=True)
     routing_weights = routing_weights.cast("bfloat16")
     common_inputs = (hidden_states, selected_experts, routing_weights)
-    weights = (up_gate_weights, down_weights)
+
+    num_experts = up_gate_weights.shape[0]
+    up_gate_proj_weight = [up_gate_weights[i] for i in range(num_experts)]
+    down_proj_weight = [down_weights[i] for i in range(num_experts)]
+
+    weights = (up_gate_proj_weight, down_proj_weight)
     common_params = (
         permuted_weights,
         activation,  # "silu",

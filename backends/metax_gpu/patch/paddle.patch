@@ -1023,12 +1023,12 @@ index 1e7869afec..26ac439fc7 100644
  namespace phi {
  namespace fusion {
 diff --git a/paddle/phi/kernels/gpu/depthwise_conv.h b/paddle/phi/kernels/gpu/depthwise_conv.h
-index 770a3e1296..b0ec1b949b 100644
+index 1be18a24cb..b83e094d31 100644
 --- a/paddle/phi/kernels/gpu/depthwise_conv.h
 +++ b/paddle/phi/kernels/gpu/depthwise_conv.h
-@@ -29,8 +29,8 @@ namespace cub = hipcub;
- #include "paddle/phi/backends/gpu/gpu_device_function.h"
+@@ -21,8 +21,8 @@ limitations under the License. */
  #include "paddle/phi/backends/gpu/gpu_primitives.h"
+ #include "paddle/phi/kernels/funcs/cub.h"
  #include "paddle/phi/kernels/funcs/math_function.h"
 -#include "paddle/phi/kernels/gpudnn/conv_gpudnn.h"
 -#include "paddle/phi/kernels/impl/conv_cudnn_impl.h"

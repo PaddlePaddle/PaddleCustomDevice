@@ -357,6 +357,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_unpermute_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/momentum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mp_allreduce_sum_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multiclass_nms3_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multiplex_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/nonzero_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/pad3d_kernel.cu

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/deformable_conv_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(deformable_conv_grad,

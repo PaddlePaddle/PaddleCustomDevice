@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/multiclass_nms3_kernel.cu"  //NOLINT
 #include "paddle/phi/kernels/multiclass_nms3_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(multiclass_nms3,

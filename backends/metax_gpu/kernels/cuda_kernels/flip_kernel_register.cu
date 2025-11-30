@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/flip_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/flip_kernel.h"  //NOLINT
 PD_CUSTOM_KERNEL_REGISTER(flip,
                           metax_gpu,
                           ALL_LAYOUT,

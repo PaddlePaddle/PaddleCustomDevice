@@ -13,8 +13,21 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/gpu/interpolate_grad_kernel.cu"  //NOLINT
 #include "paddle/phi/kernels/interpolate_grad_kernel.h"
 
+PD_CUSTOM_KERNEL_REGISTER(interp_antialias_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::InterpolateGradKernel,
+                          float,
+                          double,
+                          phi::float16,
+                          phi::bfloat16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::CPU);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 PD_CUSTOM_KERNEL_REGISTER(bilinear_interp_grad,
                           metax_gpu,
                           ALL_LAYOUT,

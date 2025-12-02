@@ -59,15 +59,15 @@ static inline bool IsVoltaOrLater(const phi::GPUContext& dev_ctx) {
 // }
 
 static inline void GetNCDHW(const DDim& dims,
-                            const phi::DataLayout& layout,
+                            const DataLayout& layout,
                             int* N,
                             int* C,
                             int* D,
                             int* H,
                             int* W) {
   *N = dims[0];
-  *C = layout == phi::DataLayout::kNCHW ? dims[1] : dims[dims.size() - 1];
-  int i = layout == phi::DataLayout::kNCHW ? 0 : 1;
+  *C = layout == DataLayout::NCHW ? dims[1] : dims[dims.size() - 1];
+  int i = layout == DataLayout::NCHW ? 0 : 1;
   if (dims.size() == 5) {
     *D = dims[2 - i];
     *H = dims[3 - i];

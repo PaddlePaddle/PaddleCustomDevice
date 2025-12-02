@@ -125,6 +125,7 @@ PD_REGISTER_PLUGIN_KERNEL(index_select,
                           custom_kernel::IndexSelectKernel,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
+                          phi::dtype::float8_e4m3fn,
                           float,
                           int32_t,
                           int64_t) {}

@@ -2,18 +2,21 @@ name: Update Paddle Submodule NightlyAdd commentMore actions
 
 on:
   schedule:
-    - cron: '0 16 * * *'
+    - cron: '0 22 * * *'
   workflow_dispatch:
 
 jobs:
   update-submodule-and-pr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
 
       - name: Update Paddle Submodule
         run: |
@@ -21,12 +24,12 @@ jobs:
           echo "BRANCH_NAME=update-paddle-submodule-$(date +'%Y%m%d')" >> $GITHUB_ENV
           git config --global user.name "tianshuo78520a"
           git config --global user.email "tianshuo78520a@users.noreply.github.com"
-          
+
           git submodule deinit -f --all
           git submodule update --remote --init
           cd Paddle && git checkout develop && git pull origin develop
           cd ..
-          
+
           git submodule status
           git add Paddle
           if [ -z "$(git diff --cached --name-only)" ]; then
@@ -35,7 +38,7 @@ jobs:
               git commit -m "Update Paddle submodule to latest develop"
               echo "Paddle submodule updated successfully"
           fi
-          
+
           echo "=== 最终状态 ==="
           git status
           echo "=== 子模块状态 ==="
@@ -44,6 +47,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
+          token: ${{ secrets.PAT }}
           branch: ${{ env.BRANCH_NAME }}
           delete-branch: true
           title: "Nightly Update: Paddle Submodule"

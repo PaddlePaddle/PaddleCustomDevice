@@ -30,7 +30,7 @@ option(WITH_MKL "compile with mkl support" ON)
 option(WITH_ARM "compile with arm support" OFF)
 
 set(PLUGIN_NAME "paddle-intel-hpu")
-set(PLUGIN_VERSION "0.0.1")
+set(PLUGIN_VERSION "0.0.2")
 
 include(paddle)
 include(generic)

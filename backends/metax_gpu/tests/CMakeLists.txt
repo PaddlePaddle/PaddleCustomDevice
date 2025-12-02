@@ -49,7 +49,13 @@ foreach(test_name ${TEST_PROGRAMS})
     continue()
   endif()
 
-  set(CURRENT_TEST_PROGRAM ${PADDLE_LEGACY_TEST_PATH}/${test_name}.py)
+  string(FIND "${test_name}" "metax" METAX_SUFFIX_POS)
+  if(NOT METAX_SUFFIX_POS EQUAL -1)
+    set(CURRENT_TEST_PROGRAM ${METAX_UNIT_TEST_PATH}/${test_name}.py)
+  else()
+    set(CURRENT_TEST_PROGRAM ${PADDLE_LEGACY_TEST_PATH}/${test_name}.py)
+  endif()
+
   if(NOT EXISTS ${CURRENT_TEST_PROGRAM})
     message(WARNING "${CURRENT_TEST_PROGRAM} is not exist, skip it.")
   else()
@@ -61,17 +67,47 @@ list(REMOVE_DUPLICATES PYTHON_TEST_SCRIPTS)
 
 if(NOT TEST_LIST_FILE)
   set(NEED_IGNORE_FILE ${CMAKE_CURRENT_LIST_DIR}/ignore.txt)
+
   if(EXISTS ${NEED_IGNORE_FILE})
-    file(STRINGS ${NEED_IGNORE_FILE} NEED_IGNORE_TEST_PROGRAMS)
-    foreach(test_name ${NEED_IGNORE_TEST_PROGRAMS})
-      if(EXISTS ${PADDLE_LEGACY_TEST_PATH}/${test_name}.py)
-        list(REMOVE_ITEM PYTHON_TEST_SCRIPTS
-             ${PADDLE_LEGACY_TEST_PATH}/${test_name}.py)
-      else()
-        list(REMOVE_ITEM PYTHON_TEST_SCRIPTS
-             ${METAX_UNIT_TEST_PATH}/${test_name}.py)
+
+    file(STRINGS ${NEED_IGNORE_FILE} ignore_lines)
+
+    set(current_block "")
+    set(all_blocks "")
+
+    foreach(line ${ignore_lines})
+      if(line MATCHES "^\\[(.+)\\]$")
+        set(current_block "${CMAKE_MATCH_1}")
+        list(APPEND all_blocks "${current_block}")
+        set(ignore_map_${current_block} "")
+      elseif(NOT line STREQUAL "")
+        if(NOT current_block STREQUAL "")
+          list(APPEND ignore_map_${current_block} "${line}")
+        endif()
       endif()
     endforeach()
+
+    if(IGNORE_BLOCKS STREQUAL "NONE")
+      message(STATUS "IGNORE_BLOCKS=NONE → No ignore blocks applied.")
+      set(blocks_to_ignore "")
+    elseif(IGNORE_BLOCKS)
+      string(REPLACE ";" " " blocks_to_ignore "${IGNORE_BLOCKS}")
+      message(STATUS "Only ignoring blocks: ${blocks_to_ignore}")
+    else()
+      set(blocks_to_ignore "${all_blocks}")
+      message(STATUS "Default: ignoring ALL blocks: ${blocks_to_ignore}")
+    endif()
+
+    foreach(block ${blocks_to_ignore})
+      set(varname "ignore_map_${block}")
+      foreach(test_name ${${varname}})
+        list(REMOVE_ITEM PYTHON_TEST_SCRIPTS
+             "${PADDLE_LEGACY_TEST_PATH}/${test_name}.py")
+        list(REMOVE_ITEM PYTHON_TEST_SCRIPTS
+             "${METAX_UNIT_TEST_PATH}/${test_name}.py")
+      endforeach()
+    endforeach()
+
   endif()
 endif()
 

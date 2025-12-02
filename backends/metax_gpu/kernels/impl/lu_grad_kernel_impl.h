@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "kernels/funcs/blas/blas.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/impl/lu_kernel_impl.h"
 #include "paddle/phi/kernels/triangular_solve_kernel.h"

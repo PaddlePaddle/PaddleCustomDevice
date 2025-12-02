@@ -17,9 +17,9 @@
 #include <functional>
 #include <mutex>
 
-#include "kernels/funcs/blas/cublasLt.h"
 #include "paddle/phi/backends/context_pool.h"
 #include "paddle/phi/backends/custom/custom_context.h"
+#include "paddle/phi/backends/dynload/cublasLt.h"
 #include "paddle/phi/backends/gpu/forwards.h"
 #include "paddle/phi/backends/gpu/gpu_decls.h"
 #include "paddle/phi/backends/gpu/gpu_helper.h"
@@ -27,8 +27,6 @@
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/attribute.h"
 #include "paddle/phi/core/device_context.h"
-
-cublasLtHandle_t GetBlasLtHandle();
 
 namespace phi {
 class DnnWorkspaceHandle {

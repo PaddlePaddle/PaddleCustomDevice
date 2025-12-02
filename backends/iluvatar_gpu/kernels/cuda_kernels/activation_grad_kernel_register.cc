@@ -31,10 +31,42 @@ PD_CUSTOM_KERNEL_REGISTER(sin_grad,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
 
+PD_CUSTOM_KERNEL_REGISTER(sin_double_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::SinDoubleGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_CUSTOM_KERNEL_REGISTER(sin_triple_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::SinTripleGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
 PD_CUSTOM_KERNEL_REGISTER(cos_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::CosGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_CUSTOM_KERNEL_REGISTER(cos_double_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::CosDoubleGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_CUSTOM_KERNEL_REGISTER(cos_triple_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::CosTripleGradKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
@@ -115,6 +147,14 @@ PD_CUSTOM_KERNEL_REGISTER(tanh_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::TanhGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_CUSTOM_KERNEL_REGISTER(tanh_double_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::TanhDoubleGradKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
@@ -285,6 +325,22 @@ PD_CUSTOM_KERNEL_REGISTER(sigmoid_grad,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
 
+PD_CUSTOM_KERNEL_REGISTER(sigmoid_double_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::SigmoidDoubleGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_CUSTOM_KERNEL_REGISTER(sigmoid_triple_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::SigmoidTripleGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
 PD_CUSTOM_KERNEL_REGISTER(logsigmoid_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
@@ -393,6 +449,16 @@ PD_CUSTOM_KERNEL_REGISTER(pow_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::PowGradKernel,
+                          float,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_CUSTOM_KERNEL_REGISTER(pow_double_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::PowDoubleGradKernel,
                           float,
                           int,
                           int64_t,

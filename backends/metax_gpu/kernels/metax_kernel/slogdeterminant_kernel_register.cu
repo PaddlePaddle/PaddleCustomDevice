@@ -20,12 +20,12 @@
 #include <vector>
 
 #include "glog/logging.h"
-#include "kernels/funcs/blas/blas.h"
 #include "paddle/phi/common/complex.h"
 #include "paddle/phi/core/enforce.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/core/tensor_utils.h"
 #include "paddle/phi/kernels/determinant_kernel.h"
+#include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/impl/determinant_kernel_impl.h"
 #include "paddle/phi/kernels/slogdeterminant_kernel.h"
 

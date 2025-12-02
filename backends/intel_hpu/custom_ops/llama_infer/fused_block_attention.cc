@@ -26,6 +26,7 @@ struct FusedBlockAttentionParams {
   ns_GatherKernel::Params index_select_params;
   ns_Reduction::Params reduce_params;
   ns_IndexReduce::Params index_reduce_params;
+  ns_LayerNormKernel::Params rmsnorm_params;
 
   int head_dim;
   int num_head;
@@ -34,16 +35,82 @@ struct FusedBlockAttentionParams {
   bool use_neox_style = true;
   bool with_qkv_biases = false;
   bool transpose = true;
+  bool use_fp8_embedding = false;
+  bool use_fp8_kv_cache = false;
+  bool use_fp8_out_proj = false;
+  bool use_qk_rmsnorm = false;
 };
 
-class FusedMHABlockAttention : public HpuFusedOperator {
+class FusedBlockAttentionBase : public HpuFusedOperator {
+ public:
+  explicit FusedBlockAttentionBase(const std::string& guid, bool is_eager)
+      : HpuFusedOperator(guid, is_eager) {}
+
+  template <typename T>
+  inline void AddNodeMixedPrecisionGemm(bool use_fp8,
+                                        ConvertTensors& ct,
+                                        int scale_x_index,
+                                        int scale_y_index,
+                                        int reciprocal_scale_x,
+                                        int reciprocal_scale_y,
+                                        std::vector<synTensor> inputs,
+                                        std::vector<synTensor> outputs,
+                                        synGEMMParams gemm_params,
+                                        const std::string& suffix) {
+    if (use_fp8) {
+      synTensor scale_x = createTensorFromCT(&ct, scale_x_index);
+      synTensor scale_y = createTensorFromCT(&ct, scale_y_index);
+
+      if (reciprocal_scale_x) {
+        std::vector<synTensor> reciprocal_in = {scale_x};
+        auto reciprocal_scale_x = cloneTensor(
+            "reciprocal_scale_x_" + suffix, scale_x, syn_type_float);
+
+        std::vector<synTensor> reciprocal_outs = {reciprocal_scale_x};
+        AddNode_IO(reciprocal_in,
+                   reciprocal_outs,
+                   "reciprocal_fwd_f32",
+                   "reciprocal_scale_x_" + suffix);
+        inputs.push_back(reciprocal_scale_x);
+      } else {
+        inputs.push_back(scale_x);
+      }
+
+      if (reciprocal_scale_y) {
+        std::vector<synTensor> reciprocal_in = {
+            createTensorFromCT(&ct, scale_y_index)};
+        auto reciprocal_scale_y = cloneTensor(
+            "reciprocal_scale_y_" + suffix, scale_y, syn_type_float);
+
+        std::vector<synTensor> reciprocal_outs = {reciprocal_scale_y};
+        AddNode_IO(reciprocal_in,
+                   reciprocal_outs,
+                   "reciprocal_fwd_f32",
+                   "reciprocal_scale_y_" + suffix);
+        inputs.push_back(reciprocal_scale_y);
+      } else {
+        inputs.push_back(scale_y);
+      }
+
+      AddNodeFusedFP8Gemm<T>(
+          inputs, outputs, gemm_params, guid_ + "fused_fp8_gemm_" + suffix);
+    } else {
+      AddNodeBatchGemm(
+          inputs, outputs, gemm_params, guid_ + "batchgemm_" + suffix);
+    }
+  }
+};
+
+class FusedMHABlockAttention : public FusedBlockAttentionBase {
  public:
   explicit FusedMHABlockAttention(std::string guid_prefix, synDataType dtype)
-      : HpuFusedOperator(guid_prefix, false), dtype_(dtype) {}
+      : FusedBlockAttentionBase(guid_prefix, false), dtype_(dtype) {}
   template <typename T>
   void AddNode(ConvertTensors& ct, FusedBlockAttentionParams& params) {
     auto ins = ct.GetTensors();
     auto outs = ct.GetTensors(false);
+    auto kv_dtype =
+        params.use_fp8_kv_cache ? synDataType::syn_type_fp8_143 : dtype_;
 
     int index_base = 0;
     int src_index = (index_base++);             // 0
@@ -58,7 +125,36 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     int block_offsets_index = (index_base++);   // 9
     int qkv_weights_index = (index_base++);     // 10
     int linear_weights_index = (index_base++);  // 11
-    int qkv_biases_index = (index_base++);      // 12
+
+    int src_scale_index = -1, qkv_weights_scale_index = -1, q_scale_index = -1,
+        k_scale_index = -1, a_scale_index = -1, v_scale_index = -1,
+        o_linear_scale_x_index = -1, o_linear_scale_y_index = -1,
+        qkv_biases_index = -1, q_gamma_index = -1, k_gamma_index = -1;
+    if (params.use_fp8_embedding) {
+      src_scale_index = (index_base++);
+      qkv_weights_scale_index = (index_base++);
+    }
+
+    if (params.use_fp8_kv_cache) {
+      q_scale_index = (index_base++);
+      k_scale_index = (index_base++);
+      a_scale_index = (index_base++);
+      v_scale_index = (index_base++);
+    }
+
+    if (params.use_fp8_out_proj) {
+      o_linear_scale_x_index = (index_base++);
+      o_linear_scale_y_index = (index_base++);
+    }
+
+    if (params.with_qkv_biases) {
+      qkv_biases_index = (index_base++);
+    }
+
+    if (params.use_qk_rmsnorm) {
+      q_gamma_index = (index_base++);
+      k_gamma_index = (index_base++);
+    }
 
     std::vector<int64_t> src_dims = std::vector<int64_t>(ins[src_index].dims);
 
@@ -113,8 +209,17 @@ class FusedMHABlockAttention : public HpuFusedOperator {
       synGEMMParams gemm_params;
       gemm_params.transpose_a = false;
       gemm_params.transpose_b = params.transpose;
-      AddNodeBatchGemm(
-          linear_inputs, linear_outputs, gemm_params, guid_ + "batchgemm");
+
+      AddNodeMixedPrecisionGemm<T>(params.use_fp8_embedding,
+                                   ct,
+                                   src_scale_index,
+                                   qkv_weights_scale_index,
+                                   0,
+                                   0,
+                                   linear_inputs,
+                                   linear_outputs,
+                                   gemm_params,
+                                   "embedding_gemm");
 
       if (params.with_qkv_biases) {
         auto qkv_out_with_bias =
@@ -210,7 +315,58 @@ class FusedMHABlockAttention : public HpuFusedOperator {
 
     std::vector<synTensor> inputs_q;
     std::vector<synTensor> outputs_q;
-    inputs_q.push_back(q_split);
+
+    std::vector<synTensor> inputs_k;
+    std::vector<synTensor> outputs_k;
+
+    if (params.use_qk_rmsnorm) {
+      auto q_rmsnorm = createTensorNoPresist("q_rmsnorm", dtype_, q_dims);
+      auto k_rmsnorm = createTensorNoPresist("k_rmsnorm", dtype_, kv_dims);
+
+      synTensor q_gamma = createTensorFromCT(&ct, q_gamma_index);
+      synTensor k_gamma = createTensorFromCT(&ct, k_gamma_index);
+
+      auto tmp_q_dims = q_dims;
+      tmp_q_dims[2] = 1;
+      auto q_rmsnorm_var =
+          createTensorNoPresist("q_rmsnorm_var", dtype_, tmp_q_dims);
+
+      auto tmp_k_dims = kv_dims;
+      tmp_k_dims[2] = 1;
+      auto k_rmsnorm_var =
+          createTensorNoPresist("k_rmsnorm_var", dtype_, tmp_k_dims);
+
+      std::vector<synTensor> rmsnorm_inputs_q;
+      rmsnorm_inputs_q.push_back(q_split);
+      rmsnorm_inputs_q.push_back(q_gamma);
+
+      std::vector<synTensor> rmsnorm_outputs_q;
+      rmsnorm_outputs_q.push_back(q_rmsnorm);
+      rmsnorm_outputs_q.push_back(q_rmsnorm_var);
+
+      AddNodeRmsNorm<T>(rmsnorm_inputs_q,
+                        rmsnorm_outputs_q,
+                        params.rmsnorm_params,
+                        guid_ + "q_rmsnorm");
+
+      std::vector<synTensor> rmsnorm_inputs_k;
+      rmsnorm_inputs_k.push_back(k_split);
+      rmsnorm_inputs_k.push_back(k_gamma);
+      std::vector<synTensor> rmsnorm_outputs_k;
+      rmsnorm_outputs_k.push_back(k_rmsnorm);
+      rmsnorm_outputs_k.push_back(k_rmsnorm_var);
+
+      AddNodeRmsNorm<T>(rmsnorm_inputs_k,
+                        rmsnorm_outputs_k,
+                        params.rmsnorm_params,
+                        guid_ + "k_rmsnorm");
+
+      inputs_q.push_back(q_rmsnorm);
+      inputs_k.push_back(k_rmsnorm);
+    } else {
+      inputs_q.push_back(q_split);
+      inputs_k.push_back(k_split);
+    }
     inputs_q.push_back(sin_sq);
     inputs_q.push_back(cos_sq);
 
@@ -224,9 +380,6 @@ class FusedMHABlockAttention : public HpuFusedOperator {
                           : ROTARY_POS_EMBEDDING_MODE_PAIRWISE;
     AddNodeRope<T>(inputs_q, outputs_q, ropeParams, guid_ + "rope_q");
 
-    std::vector<synTensor> inputs_k;
-    std::vector<synTensor> outputs_k;
-    inputs_k.push_back(k_split);
     inputs_k.push_back(sin_sq);
     inputs_k.push_back(cos_sq);
 
@@ -272,11 +425,33 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> inputs_scatter_k;
     inputs_scatter_k.push_back(key_cache);
     inputs_scatter_k.push_back(indices_concat);
-    inputs_scatter_k.push_back(k_rope);
     std::vector<synTensor> outputs_scatter_k;
     outputs_scatter_k.push_back(kCache_out);
-    AddNodeScatter<T>(
-        inputs_scatter_k, outputs_scatter_k, guid_ + "index_put_k");
+
+    ns_CastKernel::Params convert_fp8_params;
+    convert_fp8_params.round_mode = CAST_ROUND_HALF_NE;
+
+    if (kv_dtype == synDataType::syn_type_fp8_143) {
+      auto k_rope_fp8 = createTensorNoPresist(
+          "k_rope_fp8", synDataType::syn_type_fp8_143, kv_dims);
+      auto k_scale = createTensorFromCT(&ct, k_scale_index);
+      std::vector<synTensor> k_convert_inputs;
+      k_convert_inputs.push_back(k_rope);
+      k_convert_inputs.push_back(k_scale);
+      std::vector<synTensor> k_convert_outputs;
+      k_convert_outputs.push_back(k_rope_fp8);
+      AddNodeConvertToFP8<T>(k_convert_inputs,
+                             k_convert_outputs,
+                             convert_fp8_params,
+                             guid_ + "cast_k_fp8");
+      inputs_scatter_k.push_back(k_rope_fp8);
+      AddNodeScatter<phi::dtype::float8_e4m3fn>(
+          inputs_scatter_k, outputs_scatter_k, guid_ + "index_put_k_fp8");
+    } else {
+      inputs_scatter_k.push_back(k_rope);
+      AddNodeScatter<T>(
+          inputs_scatter_k, outputs_scatter_k, guid_ + "index_put_k");
+    }
 
     synSectionHandle vCache_section = createSection();
     auto value_cache =
@@ -285,11 +460,31 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> inputs_scatter_v;
     inputs_scatter_v.push_back(value_cache);
     inputs_scatter_v.push_back(indices_concat);
-    inputs_scatter_v.push_back(v_split);
     std::vector<synTensor> outputs_scatter_v;
     outputs_scatter_v.push_back(vCache_out);
-    AddNodeScatter<T>(
-        inputs_scatter_v, outputs_scatter_v, guid_ + "index_put_v");
+
+    if (kv_dtype == synDataType::syn_type_fp8_143) {
+      auto v_split_fp8 = createTensorNoPresist(
+          "v_split_fp8", synDataType::syn_type_fp8_143, kv_dims);
+      auto v_scale = createTensorFromCT(&ct, v_scale_index);
+      std::vector<synTensor> v_convert_inputs;
+      v_convert_inputs.push_back(v_split);
+      v_convert_inputs.push_back(v_scale);
+      std::vector<synTensor> v_convert_outputs;
+      v_convert_outputs.push_back(v_split_fp8);
+      AddNodeConvertToFP8<T>(v_convert_inputs,
+                             v_convert_outputs,
+                             convert_fp8_params,
+                             guid_ + "cast_v_fp8");
+      inputs_scatter_v.push_back(v_split_fp8);
+      AddNodeScatter<phi::dtype::float8_e4m3fn>(
+          inputs_scatter_v, outputs_scatter_v, guid_ + "index_put_v_fp8");
+    } else {
+      inputs_scatter_v.push_back(v_split);
+      AddNodeScatter<T>(
+          inputs_scatter_v, outputs_scatter_v, guid_ + "index_put_v");
+    }
+
     //////////////////////////////////////////////////////////////////
 
     std::vector<int64_t> scaler_dims = {1};
@@ -367,23 +562,36 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     index_selected_dims.push_back(num_kv_head);
     index_selected_dims.push_back(head_dim);
 
-    auto index_select_k_i =
-        createTensorNoPresist("index_select_k_i", dtype_, index_selected_dims);
-    auto index_select_v_i =
-        createTensorNoPresist("index_select_v_i", dtype_, index_selected_dims);
+    auto index_select_k_i = createTensorNoPresist(
+        "index_select_k_i", kv_dtype, index_selected_dims);
+    auto index_select_v_i = createTensorNoPresist(
+        "index_select_v_i", kv_dtype, index_selected_dims);
     std::vector<synTensor> index_select_k_out;
     index_select_k_out.push_back(index_select_k_i);
     std::vector<synTensor> index_select_v_out;
     index_select_v_out.push_back(index_select_v_i);
 
-    AddNodeIndexSelect<T>(index_select_k_in,
-                          index_select_k_out,
-                          params.index_select_params,
-                          guid_ + "index_select_k_i");
-    AddNodeIndexSelect<T>(index_select_v_in,
-                          index_select_v_out,
-                          params.index_select_params,
-                          guid_ + "index_select_v_i");
+    if (kv_dtype == synDataType::syn_type_fp8_143) {
+      AddNodeIndexSelect<phi::dtype::float8_e4m3fn>(
+          index_select_k_in,
+          index_select_k_out,
+          params.index_select_params,
+          guid_ + "index_select_k_i_fp8");
+      AddNodeIndexSelect<phi::dtype::float8_e4m3fn>(
+          index_select_v_in,
+          index_select_v_out,
+          params.index_select_params,
+          guid_ + "index_select_v_i_fp8");
+    } else {
+      AddNodeIndexSelect<T>(index_select_k_in,
+                            index_select_k_out,
+                            params.index_select_params,
+                            guid_ + "index_select_k_i");
+      AddNodeIndexSelect<T>(index_select_v_in,
+                            index_select_v_out,
+                            params.index_select_params,
+                            guid_ + "index_select_v_i");
+    }
 
     std::vector<int> axis = {0, 2, 1, 3};
     synTransposeParams trans_params;
@@ -400,7 +608,7 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     transpose_dims.push_back(head_dim);
 
     auto transpose_k =
-        createTensorNoPresist("transpose_k", dtype_, transpose_dims);
+        createTensorNoPresist("transpose_k", kv_dtype, transpose_dims);
     std::vector<synTensor> trans_index_select_k;
     trans_index_select_k.push_back(transpose_k);
 
@@ -410,7 +618,7 @@ class FusedMHABlockAttention : public HpuFusedOperator {
                      guid_ + "transpose_k");
 
     auto transpose_v =
-        createTensorNoPresist("transpose_v", dtype_, transpose_dims);
+        createTensorNoPresist("transpose_v", kv_dtype, transpose_dims);
     std::vector<synTensor> trans_index_select_v;
     trans_index_select_v.push_back(transpose_v);
 
@@ -432,10 +640,19 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> q_k_out;
     q_k_out.push_back(q_k);
 
-    AddNodeBatchGemm(q_k_in, q_k_out, gemm_params_f_t, guid_ + "batchgemm_q_k");
+    // Q*k^T
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_kv_cache,
+                                 ct,
+                                 q_scale_index,
+                                 k_scale_index,
+                                 0,
+                                 1,
+                                 q_k_in,
+                                 q_k_out,
+                                 gemm_params_f_t,
+                                 "q_k");
 
     /*******************************/
-
     auto block_bias = createTensorFromCT(&ct, block_bias_index);
     std::vector<synTensor> block_bias_in;
     block_bias_in.push_back(block_bias);
@@ -579,8 +796,17 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> score_v_out;
     score_v_out.push_back(score_v);
 
-    AddNodeBatchGemm(
-        score_v_in, score_v_out, gemm_params_f_f, guid_ + "batchgemm_score_v");
+    // Score*V
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_kv_cache,
+                                 ct,
+                                 a_scale_index,
+                                 v_scale_index,
+                                 0,
+                                 1,
+                                 score_v_in,
+                                 score_v_out,
+                                 gemm_params_f_f,
+                                 "score_v");
 
     auto reduceSum = createTensorNoPresist("reduceSum", dtype_, block_max_dims);
     std::vector<synTensor> reduceSum_out;
@@ -727,22 +953,33 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> proj_out;
     proj_out.push_back(linear_out);
 
-    AddNodeBatchGemm(
-        proj_in, proj_out, gemm_params_f_f, guid_ + "batchgemm_proj");
+    // Final linear
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_out_proj,
+                                 ct,
+                                 o_linear_scale_x_index,
+                                 o_linear_scale_y_index,
+                                 0,
+                                 0,
+                                 proj_in,
+                                 proj_out,
+                                 gemm_params_f_f,
+                                 "proj");
   }
 
  protected:
   synDataType dtype_;
 };
 
-class FusedGQABlockAttention : public HpuFusedOperator {
+class FusedGQABlockAttention : public FusedBlockAttentionBase {
  public:
   explicit FusedGQABlockAttention(std::string guid_prefix, synDataType dtype)
-      : HpuFusedOperator(guid_prefix, false), dtype_(dtype) {}
+      : FusedBlockAttentionBase(guid_prefix, false), dtype_(dtype) {}
   template <typename T>
   void AddNode(ConvertTensors& ct, FusedBlockAttentionParams& params) {
     auto ins = ct.GetTensors();
     auto outs = ct.GetTensors(false);
+    auto kv_dtype =
+        params.use_fp8_kv_cache ? synDataType::syn_type_fp8_143 : dtype_;
 
     int index_base = 0;
     int src_index = (index_base++);             // 0
@@ -757,7 +994,36 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     int block_offsets_index = (index_base++);   // 9
     int qkv_weights_index = (index_base++);     // 10
     int linear_weights_index = (index_base++);  // 11
-    int qkv_biases_index = (index_base++);      // 12
+
+    int src_scale_index = -1, qkv_weights_scale_index = -1, q_scale_index = -1,
+        k_scale_index = -1, a_scale_index = -1, v_scale_index = -1,
+        o_linear_scale_x_index = -1, o_linear_scale_y_index = -1,
+        qkv_biases_index = -1, q_gamma_index = -1, k_gamma_index = -1;
+    if (params.use_fp8_embedding) {
+      src_scale_index = (index_base++);
+      qkv_weights_scale_index = (index_base++);
+    }
+
+    if (params.use_fp8_kv_cache) {
+      q_scale_index = (index_base++);
+      k_scale_index = (index_base++);
+      a_scale_index = (index_base++);
+      v_scale_index = (index_base++);
+    }
+
+    if (params.use_fp8_out_proj) {
+      o_linear_scale_x_index = (index_base++);
+      o_linear_scale_y_index = (index_base++);
+    }
+
+    if (params.with_qkv_biases) {
+      qkv_biases_index = (index_base++);
+    }
+
+    if (params.use_qk_rmsnorm) {
+      q_gamma_index = (index_base++);
+      k_gamma_index = (index_base++);
+    }
 
     std::vector<int64_t> src_dims = std::vector<int64_t>(ins[src_index].dims);
 
@@ -813,8 +1079,17 @@ class FusedGQABlockAttention : public HpuFusedOperator {
       synGEMMParams gemm_params;
       gemm_params.transpose_a = false;
       gemm_params.transpose_b = params.transpose;
-      AddNodeBatchGemm(
-          linear_inputs, linear_outputs, gemm_params, guid_ + "batchgemm");
+
+      AddNodeMixedPrecisionGemm<T>(params.use_fp8_embedding,
+                                   ct,
+                                   src_scale_index,
+                                   qkv_weights_scale_index,
+                                   0,
+                                   0,
+                                   linear_inputs,
+                                   linear_outputs,
+                                   gemm_params,
+                                   "embedding_gemm");
 
       if (params.with_qkv_biases) {
         auto qkv_out_with_bias =
@@ -910,7 +1185,57 @@ class FusedGQABlockAttention : public HpuFusedOperator {
 
     std::vector<synTensor> inputs_q;
     std::vector<synTensor> outputs_q;
-    inputs_q.push_back(q_split);
+
+    std::vector<synTensor> inputs_k;
+    std::vector<synTensor> outputs_k;
+
+    if (params.use_qk_rmsnorm) {
+      auto q_rmsnorm = createTensorNoPresist("q_rmsnorm", dtype_, q_dims);
+      auto k_rmsnorm = createTensorNoPresist("k_rmsnorm", dtype_, kv_dims);
+      synTensor q_gamma = createTensorFromCT(&ct, q_gamma_index);
+      synTensor k_gamma = createTensorFromCT(&ct, k_gamma_index);
+
+      auto tmp_q_dims = q_dims;
+      tmp_q_dims[2] = 1;
+      auto q_rmsnorm_var =
+          createTensorNoPresist("q_rmsnorm_var", dtype_, tmp_q_dims);
+
+      auto tmp_k_dims = kv_dims;
+      tmp_k_dims[2] = 1;
+      auto k_rmsnorm_var =
+          createTensorNoPresist("k_rmsnorm_var", dtype_, tmp_k_dims);
+
+      std::vector<synTensor> rmsnorm_inputs_q;
+      rmsnorm_inputs_q.push_back(q_split);
+      rmsnorm_inputs_q.push_back(q_gamma);
+      std::vector<synTensor> rmsnorm_outputs_q;
+      rmsnorm_outputs_q.push_back(q_rmsnorm);
+      rmsnorm_outputs_q.push_back(q_rmsnorm_var);
+
+      AddNodeRmsNorm<T>(rmsnorm_inputs_q,
+                        rmsnorm_outputs_q,
+                        params.rmsnorm_params,
+                        guid_ + "q_rmsnorm");
+
+      std::vector<synTensor> rmsnorm_inputs_k;
+      rmsnorm_inputs_k.push_back(k_split);
+      rmsnorm_inputs_k.push_back(k_gamma);
+      std::vector<synTensor> rmsnorm_outputs_k;
+      rmsnorm_outputs_k.push_back(k_rmsnorm);
+      rmsnorm_outputs_k.push_back(k_rmsnorm_var);
+
+      AddNodeRmsNorm<T>(rmsnorm_inputs_k,
+                        rmsnorm_outputs_k,
+                        params.rmsnorm_params,
+                        guid_ + "k_rmsnorm");
+
+      inputs_q.push_back(q_rmsnorm);
+      inputs_k.push_back(k_rmsnorm);
+    } else {
+      inputs_q.push_back(q_split);
+      inputs_k.push_back(k_split);
+    }
+
     inputs_q.push_back(sin_sq);
     inputs_q.push_back(cos_sq);
 
@@ -924,9 +1249,6 @@ class FusedGQABlockAttention : public HpuFusedOperator {
                           : ROTARY_POS_EMBEDDING_MODE_PAIRWISE;
     AddNodeRope<T>(inputs_q, outputs_q, ropeParams, guid_ + "rope_q");
 
-    std::vector<synTensor> inputs_k;
-    std::vector<synTensor> outputs_k;
-    inputs_k.push_back(k_split);
     inputs_k.push_back(sin_sq);
     inputs_k.push_back(cos_sq);
 
@@ -972,11 +1294,33 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> inputs_scatter_k;
     inputs_scatter_k.push_back(key_cache);
     inputs_scatter_k.push_back(indices_concat);
-    inputs_scatter_k.push_back(k_rope);
     std::vector<synTensor> outputs_scatter_k;
     outputs_scatter_k.push_back(kCache_out);
-    AddNodeScatter<T>(
-        inputs_scatter_k, outputs_scatter_k, guid_ + "index_put_k");
+
+    ns_CastKernel::Params convert_fp8_params;
+    convert_fp8_params.round_mode = CAST_ROUND_HALF_NE;
+
+    if (kv_dtype == synDataType::syn_type_fp8_143) {
+      auto k_rope_fp8 = createTensorNoPresist(
+          "k_rope_fp8", synDataType::syn_type_fp8_143, kv_dims);
+      auto k_scale = createTensorFromCT(&ct, k_scale_index);
+      std::vector<synTensor> k_convert_inputs;
+      k_convert_inputs.push_back(k_rope);
+      k_convert_inputs.push_back(k_scale);
+      std::vector<synTensor> k_convert_outputs;
+      k_convert_outputs.push_back(k_rope_fp8);
+      AddNodeConvertToFP8<T>(k_convert_inputs,
+                             k_convert_outputs,
+                             convert_fp8_params,
+                             guid_ + "cast_k_fp8");
+      inputs_scatter_k.push_back(k_rope_fp8);
+      AddNodeScatter<phi::dtype::float8_e4m3fn>(
+          inputs_scatter_k, outputs_scatter_k, guid_ + "index_put_k_fp8");
+    } else {
+      inputs_scatter_k.push_back(k_rope);
+      AddNodeScatter<T>(
+          inputs_scatter_k, outputs_scatter_k, guid_ + "index_put_k");
+    }
 
     synSectionHandle vCache_section = createSection();
     auto value_cache =
@@ -985,11 +1329,31 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> inputs_scatter_v;
     inputs_scatter_v.push_back(value_cache);
     inputs_scatter_v.push_back(indices_concat);
-    inputs_scatter_v.push_back(v_split);
     std::vector<synTensor> outputs_scatter_v;
     outputs_scatter_v.push_back(vCache_out);
-    AddNodeScatter<T>(
-        inputs_scatter_v, outputs_scatter_v, guid_ + "index_put_v");
+
+    if (kv_dtype == synDataType::syn_type_fp8_143) {
+      auto v_split_fp8 = createTensorNoPresist(
+          "v_split_fp8", synDataType::syn_type_fp8_143, kv_dims);
+      auto v_scale = createTensorFromCT(&ct, v_scale_index);
+      std::vector<synTensor> v_convert_inputs;
+      v_convert_inputs.push_back(v_split);
+      v_convert_inputs.push_back(v_scale);
+      std::vector<synTensor> v_convert_outputs;
+      v_convert_outputs.push_back(v_split_fp8);
+      AddNodeConvertToFP8<T>(v_convert_inputs,
+                             v_convert_outputs,
+                             convert_fp8_params,
+                             guid_ + "cast_v_fp8");
+      inputs_scatter_v.push_back(v_split_fp8);
+      AddNodeScatter<phi::dtype::float8_e4m3fn>(
+          inputs_scatter_v, outputs_scatter_v, guid_ + "index_put_v_fp8");
+    } else {
+      inputs_scatter_v.push_back(v_split);
+      AddNodeScatter<T>(
+          inputs_scatter_v, outputs_scatter_v, guid_ + "index_put_v");
+    }
+
     //////////////////////////////////////////////////////////////////
 
     std::vector<int64_t> scaler_dims = {1};
@@ -1068,24 +1432,36 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     index_selected_dims.push_back(num_kv_head);
     index_selected_dims.push_back(head_dim);
 
-    auto index_select_k_i =
-        createTensorNoPresist("index_select_k_i", dtype_, index_selected_dims);
-    auto index_select_v_i =
-        createTensorNoPresist("index_select_v_i", dtype_, index_selected_dims);
+    auto index_select_k_i = createTensorNoPresist(
+        "index_select_k_i", kv_dtype, index_selected_dims);
+    auto index_select_v_i = createTensorNoPresist(
+        "index_select_v_i", kv_dtype, index_selected_dims);
     std::vector<synTensor> index_select_k_out;
     index_select_k_out.push_back(index_select_k_i);
     std::vector<synTensor> index_select_v_out;
     index_select_v_out.push_back(index_select_v_i);
 
-    AddNodeIndexSelect<T>(index_select_k_in,
-                          index_select_k_out,
-                          params.index_select_params,
-                          guid_ + "index_select_k_i");
-    AddNodeIndexSelect<T>(index_select_v_in,
-                          index_select_v_out,
-                          params.index_select_params,
-                          guid_ + "index_select_v_i");
-
+    if (kv_dtype == synDataType::syn_type_fp8_143) {
+      AddNodeIndexSelect<phi::dtype::float8_e4m3fn>(
+          index_select_k_in,
+          index_select_k_out,
+          params.index_select_params,
+          guid_ + "index_select_k_i_fp8");
+      AddNodeIndexSelect<phi::dtype::float8_e4m3fn>(
+          index_select_v_in,
+          index_select_v_out,
+          params.index_select_params,
+          guid_ + "index_select_v_i_fp8");
+    } else {
+      AddNodeIndexSelect<T>(index_select_k_in,
+                            index_select_k_out,
+                            params.index_select_params,
+                            guid_ + "index_select_k_i");
+      AddNodeIndexSelect<T>(index_select_v_in,
+                            index_select_v_out,
+                            params.index_select_params,
+                            guid_ + "index_select_v_i");
+    }
     std::vector<int> axis = {0, 2, 1, 3};
     synTransposeParams trans_params;
     for (size_t i = 0; i < axis.size(); i++) {
@@ -1101,7 +1477,7 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     transpose_dims.push_back(head_dim);
 
     auto transpose_k =
-        createTensorNoPresist("transpose_k", dtype_, transpose_dims);
+        createTensorNoPresist("transpose_k", kv_dtype, transpose_dims);
     std::vector<synTensor> trans_index_select_k;
     trans_index_select_k.push_back(transpose_k);
 
@@ -1111,7 +1487,7 @@ class FusedGQABlockAttention : public HpuFusedOperator {
                      guid_ + "transpose_k");
 
     auto transpose_v =
-        createTensorNoPresist("transpose_v", dtype_, transpose_dims);
+        createTensorNoPresist("transpose_v", kv_dtype, transpose_dims);
     std::vector<synTensor> trans_index_select_v;
     trans_index_select_v.push_back(transpose_v);
 
@@ -1128,7 +1504,7 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     reshape_kv_dims.push_back(head_dim);
 
     auto index_select_k =
-        createTensorNoPresist("index_select_k", dtype_, reshape_kv_dims);
+        createTensorNoPresist("index_select_k", kv_dtype, reshape_kv_dims);
     std::vector<synTensor> reshape_index_select_k;
     reshape_index_select_k.push_back(index_select_k);
 
@@ -1136,7 +1512,7 @@ class FusedGQABlockAttention : public HpuFusedOperator {
         trans_index_select_k, reshape_index_select_k, guid_ + "reshape_k");
 
     auto index_select_v =
-        createTensorNoPresist("index_select_v", dtype_, reshape_kv_dims);
+        createTensorNoPresist("index_select_v", kv_dtype, reshape_kv_dims);
     std::vector<synTensor> reshape_index_select_v;
     reshape_index_select_v.push_back(index_select_v);
 
@@ -1157,7 +1533,17 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> q_k_out;
     q_k_out.push_back(q_k);
 
-    AddNodeBatchGemm(q_k_in, q_k_out, gemm_params_f_t, guid_ + "batchgemm_q_k");
+    // Q*K^T
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_kv_cache,
+                                 ct,
+                                 q_scale_index,
+                                 k_scale_index,
+                                 0,
+                                 1,
+                                 q_k_in,
+                                 q_k_out,
+                                 gemm_params_f_t,
+                                 "q_k");
 
     /*******************************/
 
@@ -1308,8 +1694,17 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> score_v_out;
     score_v_out.push_back(score_v);
 
-    AddNodeBatchGemm(
-        score_v_in, score_v_out, gemm_params_f_f, guid_ + "batchgemm_score_v");
+    // Score*V
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_kv_cache,
+                                 ct,
+                                 a_scale_index,
+                                 v_scale_index,
+                                 0,
+                                 1,
+                                 score_v_in,
+                                 score_v_out,
+                                 gemm_params_f_f,
+                                 "a_v");
 
     auto reduceSum = createTensorNoPresist("reduceSum", dtype_, block_max_dims);
     std::vector<synTensor> reduceSum_out;
@@ -1472,8 +1867,17 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> proj_out;
     proj_out.push_back(linear_out);
 
-    AddNodeBatchGemm(
-        proj_in, proj_out, gemm_params_f_f, guid_ + "batchgemm_proj");
+    // Final Linear
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8_out_proj,
+                                 ct,
+                                 o_linear_scale_x_index,
+                                 o_linear_scale_y_index,
+                                 0,
+                                 0,
+                                 proj_in,
+                                 proj_out,
+                                 gemm_params_f_f,
+                                 "proj");
   }
 
  protected:
@@ -1496,12 +1900,23 @@ void FusedBlockAttentionKernel(
     const phi::DenseTensor& qkv_weights,
     const paddle::optional<phi::DenseTensor>& qkv_biases,
     const phi::DenseTensor& linear_weights,
+    const paddle::optional<phi::DenseTensor>& q_norm_weights,
+    const paddle::optional<phi::DenseTensor>& k_norm_weights,
+    const paddle::optional<phi::DenseTensor>& src_scale,
+    const paddle::optional<phi::DenseTensor>& qkv_weights_scale,
+    const paddle::optional<phi::DenseTensor>& q_scale,
+    const paddle::optional<phi::DenseTensor>& k_scale,
+    const paddle::optional<phi::DenseTensor>& a_scale,
+    const paddle::optional<phi::DenseTensor>& v_scale,
+    const paddle::optional<phi::DenseTensor>& o_linear_scale_x,
+    const paddle::optional<phi::DenseTensor>& o_linear_scale_y,
     phi::DenseTensor* out_linear,
     const phi::Scalar& head_dim,
     const phi::Scalar& num_head,
     const phi::Scalar& scaling_factor,
     const phi::Scalar& transpose,
-    const phi::Scalar& use_neox_style) {
+    const phi::Scalar& use_neox_style,
+    const phi::Scalar& epsilon) {
   std::vector<int64_t> src_dims = phi::vectorize<int64_t>(src.dims());
   std::vector<int64_t> qkv_weights_dims =
       phi::vectorize<int64_t>(qkv_weights.dims());
@@ -1534,9 +1949,55 @@ void FusedBlockAttentionKernel(
   ct.Add(value_cache, false);
 
   std::string guid_prefix = "fused_block_attention_";
+
+  bool use_fp8_embedding = false;
+  if (src_scale || qkv_weights_scale) {
+    if (!src_scale || !qkv_weights_scale) {
+      throw std::runtime_error(
+          "Please specify src/qkv_weights scale values for "
+          "FusedBlockAttentionKernel");
+    }
+    use_fp8_embedding = true;
+    ct.Add(src_scale.get());
+    ct.Add(qkv_weights_scale.get());
+  }
+
+  bool use_fp8_kv_cache = false;
+  if (q_scale || k_scale || a_scale || v_scale) {
+    if (!q_scale || !k_scale || !a_scale || !v_scale)
+      throw std::runtime_error(
+          "Please specify q/k/a/v scale values for FusedBlockAttentionKernel");
+
+    use_fp8_kv_cache = true;
+    ct.Add(q_scale.get());
+    ct.Add(k_scale.get());
+    ct.Add(a_scale.get());
+    ct.Add(v_scale.get());
+  }
+
+  bool use_fp8_out_proj = false;
+  if (o_linear_scale_x || o_linear_scale_y) {
+    if (!o_linear_scale_x || !o_linear_scale_y) {
+      throw std::runtime_error(
+          "Please specify o_linear_x/y scale values for "
+          "FusedBlockAttentionKernel");
+    }
+    use_fp8_out_proj = true;
+    ct.Add(o_linear_scale_x.get());
+    ct.Add(o_linear_scale_y.get());
+  }
+
   if (qkv_biases) {
     ct.Add(qkv_biases.get());
     guid_prefix += "bias_";
+  }
+
+  bool qk_rmsnorm = false;
+  if (q_norm_weights && k_norm_weights) {
+    qk_rmsnorm = true;
+    ct.Add(q_norm_weights.get());
+    ct.Add(k_norm_weights.get());
+    guid_prefix += "qk_rmsnorm_";
   }
   if (num_head_ == num_kv_head) {
     guid_prefix += "MHA_";
@@ -1560,13 +2021,21 @@ void FusedBlockAttentionKernel(
     params.index_reduce_params.mode = INDEX_REDUCE_AMAX;
     params.index_reduce_params.include_self = true;
     params.index_reduce_params.axis = 0;
+    params.rmsnorm_params.epsValid = true;
+    params.rmsnorm_params.eps = epsilon.to<float>();
     params.use_neox_style = use_neox_style_;
     params.transpose = transpose_;
     params.head_dim = head_dim_;
     params.num_head = num_head_;
     params.num_kv_head = num_kv_head;
+    params.use_fp8_embedding = use_fp8_embedding;
+    params.use_fp8_kv_cache = use_fp8_kv_cache;
+    params.use_fp8_out_proj = use_fp8_out_proj;
     if (qkv_biases) {
       params.with_qkv_biases = true;
+    }
+    if (qk_rmsnorm) {
+      params.use_qk_rmsnorm = true;
     }
 
     if (num_head_ == num_kv_head) {
@@ -1607,12 +2076,23 @@ void CallFusedBlockAttentionKernel(
     const phi::DenseTensor& qkv_weights,
     const paddle::optional<phi::DenseTensor>& qkv_biases,
     const phi::DenseTensor& linear_weights,
+    const paddle::optional<phi::DenseTensor>& q_norm_weights,
+    const paddle::optional<phi::DenseTensor>& k_norm_weights,
+    const paddle::optional<phi::DenseTensor>& src_scale,
+    const paddle::optional<phi::DenseTensor>& qkv_weights_scale,
+    const paddle::optional<phi::DenseTensor>& q_scale,
+    const paddle::optional<phi::DenseTensor>& k_scale,
+    const paddle::optional<phi::DenseTensor>& a_scale,
+    const paddle::optional<phi::DenseTensor>& v_scale,
+    const paddle::optional<phi::DenseTensor>& o_linear_scale_x,
+    const paddle::optional<phi::DenseTensor>& o_linear_scale_y,
     phi::DenseTensor* out_linear,
     const phi::Scalar& head_dim,
     const phi::Scalar& num_head,
     const phi::Scalar& scaling_factor,
     const phi::Scalar& transpose,
-    const phi::Scalar& use_neox_style) {
+    const phi::Scalar& use_neox_style,
+    const phi::Scalar& epsilon) {
   if (src.dtype() == phi::DataType::FLOAT16) {
     custom_kernel::FusedBlockAttentionKernel<phi::dtype::float16>(
         dev_ctx,
@@ -1629,12 +2109,23 @@ void CallFusedBlockAttentionKernel(
         qkv_weights,
         qkv_biases,
         linear_weights,
+        q_norm_weights,
+        k_norm_weights,
+        src_scale,
+        qkv_weights_scale,
+        q_scale,
+        k_scale,
+        a_scale,
+        v_scale,
+        o_linear_scale_x,
+        o_linear_scale_y,
         out_linear,
         head_dim,
         num_head,
         scaling_factor,
         transpose,
-        use_neox_style);
+        use_neox_style,
+        epsilon);
   } else if (src.dtype() == phi::DataType::BFLOAT16) {
     custom_kernel::FusedBlockAttentionKernel<phi::dtype::bfloat16>(
         dev_ctx,
@@ -1651,100 +2142,27 @@ void CallFusedBlockAttentionKernel(
         qkv_weights,
         qkv_biases,
         linear_weights,
+        q_norm_weights,
+        k_norm_weights,
+        src_scale,
+        qkv_weights_scale,
+        q_scale,
+        k_scale,
+        a_scale,
+        v_scale,
+        o_linear_scale_x,
+        o_linear_scale_y,
         out_linear,
         head_dim,
         num_head,
         scaling_factor,
         transpose,
-        use_neox_style);
+        use_neox_style,
+        epsilon);
   } else {
     throw std::runtime_error(
         "Unsupported data type for FusedBlockAttentionKernel");
   }
-}
-
-std::vector<paddle::Tensor> FusedBlockAttentionForward(
-    const paddle::Tensor& src,
-    const paddle::Tensor& rotary_embs,
-    const paddle::Tensor& key_cache,
-    const paddle::Tensor& value_cache,
-    const paddle::Tensor& block_groups,
-    const paddle::Tensor& block_list,
-    const paddle::Tensor& block_mapping,
-    const paddle::Tensor& block_bias,
-    const paddle::Tensor& block_indices,
-    const paddle::Tensor& block_offsets,
-    const paddle::Tensor& qkv_weights,
-    const paddle::optional<paddle::Tensor>& qkv_biases,
-    const paddle::Tensor& linear_weights,
-    int head_dim,
-    int num_head,
-    float scaling_factor,
-    bool transpose,
-    bool use_neox_style) {
-  auto dev_ctx = static_cast<const phi::CustomContext*>(
-      paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
-  auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
-  auto rotary_embs_tensor =
-      static_cast<const phi::DenseTensor*>(rotary_embs.impl().get());
-  auto key_cache_tensor =
-      static_cast<const phi::DenseTensor*>(key_cache.impl().get());
-  auto value_cache_tensor =
-      static_cast<const phi::DenseTensor*>(value_cache.impl().get());
-  auto block_groups_tensor =
-      static_cast<const phi::DenseTensor*>(block_groups.impl().get());
-  auto block_list_tensor =
-      static_cast<const phi::DenseTensor*>(block_list.impl().get());
-  auto block_mapping_tensor =
-      static_cast<const phi::DenseTensor*>(block_mapping.impl().get());
-  auto block_bias_tensor =
-      static_cast<const phi::DenseTensor*>(block_bias.impl().get());
-  auto block_indices_tensor =
-      static_cast<const phi::DenseTensor*>(block_indices.impl().get());
-  auto block_offsets_tensor =
-      static_cast<const phi::DenseTensor*>(block_offsets.impl().get());
-  auto qkv_weights_tensor =
-      static_cast<const phi::DenseTensor*>(qkv_weights.impl().get());
-  auto linear_weights_tensor =
-      static_cast<const phi::DenseTensor*>(linear_weights.impl().get());
-
-  auto qkv_biases_tensor = paddle::optional<phi::DenseTensor>();
-  if (qkv_biases) {
-    auto qkv_biases_dt =
-        static_cast<phi::DenseTensor*>(qkv_biases->impl().get());
-    qkv_biases_tensor = paddle::optional<phi::DenseTensor>(*qkv_biases_dt);
-  }
-
-  // allocate memory on device.
-  int64_t batch_size = src.dims()[0];
-  int64_t out_features = linear_weights.dims()[1];
-
-  std::shared_ptr<phi::DenseTensor> out_linear =
-      std::make_shared<phi::DenseTensor>();
-  out_linear->Resize(phi::make_ddim({batch_size, out_features}));
-  dev_ctx->Alloc(out_linear.get(), src_tensor->dtype());
-
-  CallFusedBlockAttentionKernel(*dev_ctx,
-                                *src_tensor,
-                                *rotary_embs_tensor,
-                                *key_cache_tensor,
-                                *value_cache_tensor,
-                                *block_groups_tensor,
-                                *block_list_tensor,
-                                *block_mapping_tensor,
-                                *block_bias_tensor,
-                                *block_indices_tensor,
-                                *block_offsets_tensor,
-                                *qkv_weights_tensor,
-                                qkv_biases_tensor,
-                                *linear_weights_tensor,
-                                out_linear.get(),
-                                phi::Scalar(head_dim),
-                                phi::Scalar(num_head),
-                                phi::Scalar(scaling_factor),
-                                phi::Scalar(transpose),
-                                phi::Scalar(use_neox_style));
-  return {paddle::Tensor(out_linear)};
 }
 
 std::vector<std::vector<int64_t>> FusedBlockAttentionShape(
@@ -1788,6 +2206,182 @@ std::vector<paddle::DataType> FusedBlockAttentionDtype(
   return {src_dtype};
 }
 
+std::vector<paddle::Tensor> FusedBlockAttentionForward(
+    const paddle::Tensor& src,
+    const paddle::Tensor& rotary_embs,
+    const paddle::Tensor& key_cache,
+    const paddle::Tensor& value_cache,
+    const paddle::Tensor& block_groups,
+    const paddle::Tensor& block_list,
+    const paddle::Tensor& block_mapping,
+    const paddle::Tensor& block_bias,
+    const paddle::Tensor& block_indices,
+    const paddle::Tensor& block_offsets,
+    const paddle::Tensor& qkv_weights,
+    const paddle::optional<paddle::Tensor>& qkv_biases,
+    const paddle::Tensor& linear_weights,
+    const paddle::optional<paddle::Tensor>& q_norm_weights,
+    const paddle::optional<paddle::Tensor>& k_norm_weights,
+    const paddle::optional<paddle::Tensor>& src_scale,
+    const paddle::optional<paddle::Tensor>& qkv_weights_scale,
+    const paddle::optional<paddle::Tensor>& q_scale,
+    const paddle::optional<paddle::Tensor>& k_scale,
+    const paddle::optional<paddle::Tensor>& a_scale,
+    const paddle::optional<paddle::Tensor>& v_scale,
+    const paddle::optional<paddle::Tensor>& o_linear_scale_x,
+    const paddle::optional<paddle::Tensor>& o_linear_scale_y,
+    int head_dim,
+    int num_head,
+    float scaling_factor,
+    bool transpose,
+    bool use_neox_style,
+    float epsilon) {
+  auto dev_ctx = static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
+  auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
+  auto rotary_embs_tensor =
+      static_cast<const phi::DenseTensor*>(rotary_embs.impl().get());
+  auto key_cache_tensor =
+      static_cast<const phi::DenseTensor*>(key_cache.impl().get());
+  auto value_cache_tensor =
+      static_cast<const phi::DenseTensor*>(value_cache.impl().get());
+  auto block_groups_tensor =
+      static_cast<const phi::DenseTensor*>(block_groups.impl().get());
+  auto block_list_tensor =
+      static_cast<const phi::DenseTensor*>(block_list.impl().get());
+  auto block_mapping_tensor =
+      static_cast<const phi::DenseTensor*>(block_mapping.impl().get());
+  auto block_bias_tensor =
+      static_cast<const phi::DenseTensor*>(block_bias.impl().get());
+  auto block_indices_tensor =
+      static_cast<const phi::DenseTensor*>(block_indices.impl().get());
+  auto block_offsets_tensor =
+      static_cast<const phi::DenseTensor*>(block_offsets.impl().get());
+  auto qkv_weights_tensor =
+      static_cast<const phi::DenseTensor*>(qkv_weights.impl().get());
+  auto linear_weights_tensor =
+      static_cast<const phi::DenseTensor*>(linear_weights.impl().get());
+
+  auto qkv_biases_tensor = paddle::optional<phi::DenseTensor>();
+  if (qkv_biases) {
+    auto qkv_biases_dt =
+        static_cast<phi::DenseTensor*>(qkv_biases->impl().get());
+    qkv_biases_tensor = paddle::optional<phi::DenseTensor>(*qkv_biases_dt);
+  }
+
+  auto q_norm_weights_tensor = paddle::optional<phi::DenseTensor>();
+  if (q_norm_weights) {
+    auto q_norm_weights_dt =
+        static_cast<phi::DenseTensor*>(q_norm_weights->impl().get());
+    q_norm_weights_tensor =
+        paddle::optional<phi::DenseTensor>(*q_norm_weights_dt);
+  }
+
+  auto k_norm_weights_tensor = paddle::optional<phi::DenseTensor>();
+  if (k_norm_weights) {
+    auto k_norm_weights_dt =
+        static_cast<phi::DenseTensor*>(k_norm_weights->impl().get());
+    k_norm_weights_tensor =
+        paddle::optional<phi::DenseTensor>(*k_norm_weights_dt);
+  }
+
+  auto src_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (src_scale) {
+    auto src_scale_dt = static_cast<phi::DenseTensor*>(src_scale->impl().get());
+    src_scale_tensor = paddle::optional<phi::DenseTensor>(*src_scale_dt);
+  }
+
+  auto qkv_weights_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (qkv_weights_scale) {
+    auto qkv_weights_scale_dt =
+        static_cast<phi::DenseTensor*>(qkv_weights_scale->impl().get());
+    qkv_weights_scale_tensor =
+        paddle::optional<phi::DenseTensor>(*qkv_weights_scale_dt);
+  }
+
+  auto q_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (q_scale) {
+    auto q_scale_dt = static_cast<phi::DenseTensor*>(q_scale->impl().get());
+    q_scale_tensor = paddle::optional<phi::DenseTensor>(*q_scale_dt);
+  }
+
+  auto k_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (k_scale) {
+    auto k_scale_dt = static_cast<phi::DenseTensor*>(k_scale->impl().get());
+    k_scale_tensor = paddle::optional<phi::DenseTensor>(*k_scale_dt);
+  }
+
+  auto a_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (a_scale) {
+    auto a_scale_dt = static_cast<phi::DenseTensor*>(a_scale->impl().get());
+    a_scale_tensor = paddle::optional<phi::DenseTensor>(*a_scale_dt);
+  }
+
+  auto v_scale_tensor = paddle::optional<phi::DenseTensor>();
+  if (v_scale) {
+    auto v_scale_dt = static_cast<phi::DenseTensor*>(v_scale->impl().get());
+    v_scale_tensor = paddle::optional<phi::DenseTensor>(*v_scale_dt);
+  }
+
+  auto o_linear_scale_x_tensor = paddle::optional<phi::DenseTensor>();
+  if (o_linear_scale_x) {
+    auto o_linear_scale_x_dt =
+        static_cast<phi::DenseTensor*>(o_linear_scale_x->impl().get());
+    o_linear_scale_x_tensor =
+        paddle::optional<phi::DenseTensor>(*o_linear_scale_x_dt);
+  }
+
+  auto o_linear_scale_y_tensor = paddle::optional<phi::DenseTensor>();
+  if (o_linear_scale_y) {
+    auto o_linear_scale_y_dt =
+        static_cast<phi::DenseTensor*>(o_linear_scale_y->impl().get());
+    o_linear_scale_y_tensor =
+        paddle::optional<phi::DenseTensor>(*o_linear_scale_y_dt);
+  }
+
+  // allocate memory on device.
+  int64_t batch_size = src.dims()[0];
+  int64_t out_features = linear_weights.dims()[1];
+
+  std::shared_ptr<phi::DenseTensor> out_linear =
+      std::make_shared<phi::DenseTensor>();
+  out_linear->Resize(phi::make_ddim({batch_size, out_features}));
+  dev_ctx->Alloc(out_linear.get(), src_tensor->dtype());
+
+  CallFusedBlockAttentionKernel(*dev_ctx,
+                                *src_tensor,
+                                *rotary_embs_tensor,
+                                *key_cache_tensor,
+                                *value_cache_tensor,
+                                *block_groups_tensor,
+                                *block_list_tensor,
+                                *block_mapping_tensor,
+                                *block_bias_tensor,
+                                *block_indices_tensor,
+                                *block_offsets_tensor,
+                                *qkv_weights_tensor,
+                                qkv_biases_tensor,
+                                *linear_weights_tensor,
+                                q_norm_weights_tensor,
+                                k_norm_weights_tensor,
+                                src_scale_tensor,
+                                qkv_weights_scale_tensor,
+                                q_scale_tensor,
+                                k_scale_tensor,
+                                a_scale_tensor,
+                                v_scale_tensor,
+                                o_linear_scale_x_tensor,
+                                o_linear_scale_y_tensor,
+                                out_linear.get(),
+                                phi::Scalar(head_dim),
+                                phi::Scalar(num_head),
+                                phi::Scalar(scaling_factor),
+                                phi::Scalar(transpose),
+                                phi::Scalar(use_neox_style),
+                                phi::Scalar(epsilon));
+  return {paddle::Tensor(out_linear)};
+}
+
 PD_BUILD_OP(fused_block_attention)
     .Inputs({"src",
              "rotary_embs",
@@ -1801,13 +2395,24 @@ PD_BUILD_OP(fused_block_attention)
              "block_offsets",
              "qkv_weights",
              paddle::Optional("qkv_biases"),
-             "linear_weights"})
+             "linear_weights",
+             paddle::Optional("q_norm_weights"),
+             paddle::Optional("k_norm_weights"),
+             paddle::Optional("src_scale"),
+             paddle::Optional("qkv_weights_scale"),
+             paddle::Optional("q_scale"),
+             paddle::Optional("k_scale"),
+             paddle::Optional("a_scale"),
+             paddle::Optional("v_scale"),
+             paddle::Optional("o_linear_scale_x"),
+             paddle::Optional("o_linear_scale_y")})
     .Outputs({"out_linear"})
     .Attrs({"head_dim: int",
             "num_head: int",
             "scaling_factor: float",
             "transpose: bool",
-            "use_neox_style: bool"})
+            "use_neox_style: bool",
+            "epsilon: float"})
     .SetKernelFn(PD_KERNEL(FusedBlockAttentionForward))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedBlockAttentionShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedBlockAttentionDtype));

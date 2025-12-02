@@ -23,7 +23,7 @@ limitations under the License. */
 namespace cub = hipcub;
 #endif
 
-#include "../gpudnn/softmax_gpudnn.h"
+#include "kernels/gpudnn/softmax_gpudnn.h"
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/common/amp_type_traits.h"
@@ -1412,4 +1412,5 @@ PD_REGISTER_PLUGIN_KERNEL(cross_entropy_with_softmax,
                           ALL_LAYOUT,
                           phi::CrossEntropyWithSoftmaxKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

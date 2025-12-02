@@ -114,7 +114,7 @@ class TestSdpa_Proj(unittest.TestCase):
         attention_mask = attn_mask[..., : self.seq_length, : self.kv_seq_len]
         attention_mask = attention_mask.astype(query_states.dtype)
 
-        out_fused_sdpa_proj_tensor = paddlenlp_ops.fused_sdpa_proj(
+        out_fused_sdpa_proj_tensor = paddlenlp_ops.fused_sdpa_proj_legacy(
             query_states,
             key_states,
             value_states,

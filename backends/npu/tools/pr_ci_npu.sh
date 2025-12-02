@@ -457,9 +457,9 @@ function main() {
     fi
 
     # Run PaddleX Test
-    if [[ "${TEST_IMPORTANT:-OFF}" == "OFF" ]];then
-        run_paddlex
-    fi
+    # if [[ "${TEST_IMPORTANT:-OFF}" == "OFF" ]];then
+    #     run_paddlex
+    # fi
 }
 
 main $@

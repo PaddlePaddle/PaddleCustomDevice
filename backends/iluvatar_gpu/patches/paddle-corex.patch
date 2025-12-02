@@ -954,7 +954,7 @@ diff --git a/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu b/paddle/phi/kern
 index 6f656ca7be..db87d15919 100644
 --- a/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
 +++ b/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
-@@ -296,16 +296,16 @@ __global__ void KeBilinearInterpBwShareMemory(T* in,
+@@ -305,16 +305,16 @@ __global__ void KeBilinearInterpBwShareMemory(T* in,
          &in_img_idy, &h_id, &h1lambda, &h2lambda, src_h, in_h);
  
      // top_left_index is just input_index.

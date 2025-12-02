@@ -352,6 +352,12 @@ class ConvertTensors {
     if (addr_offset % 0x80 != 0) {
       PADDLE_THROW("Tensor list offset is not algined.");
     }
+    if (dims.size() == 2 && dims[0] == 1) {
+      // [list_size][1] is padded for 0x80 alignment as
+      // [list_size][1][padded_num].
+      // now addr_offset = 0x80;
+      dims.pop_back();
+    }
 
     if (is_input) {
       for (int64_t tensor_idx = 0; tensor_idx < num_list; tensor_idx++) {

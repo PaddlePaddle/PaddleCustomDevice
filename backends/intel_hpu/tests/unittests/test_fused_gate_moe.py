@@ -601,9 +601,14 @@ class FusedGateMoE:
                         hidden_states_scale,
                         None
                         if self.intermediate_dynamic_scale
-                        else intermediate_states_scales[
-                            slice_experts_min : slice_experts_max + 1
-                        ],
+                        else paddle.stack(
+                            intermediate_states_scales[
+                                slice_experts_min : slice_experts_max + 1
+                            ],
+                            axis=0,
+                        )
+                        .unsqueeze(2)
+                        .expand([-1, -1, 64]),
                         paddle.stack(
                             weights_scales[0][
                                 slice_experts_min : slice_experts_max + 1

@@ -47,7 +47,7 @@ void InterpolateKernel(
 
   float scale_h = -1;
   float scale_w = -1;
-  std::vector<float> new_scale(scale);
+  std::vector<double> new_scale(scale);
   // Priority: size_tensor > out_size > scale_tensor > scale > out_h & out_w
   if (size_tensor && size_tensor->size() > 0) {
     auto tensors = size_tensor.get();

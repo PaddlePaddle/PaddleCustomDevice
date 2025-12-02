@@ -28,8 +28,23 @@ export PADDLE_CUSTOM_PATH=`python -c "import re, paddle; print(re.compile('__ini
 
 cd backends/gcu
 mkdir -p build && cd build
-cmake .. -DWITH_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPY_VERSION=3.10
-make -j $(nproc)
+cmake .. -DWITH_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPY_VERSION=3.10 || { 
+    echo "ERROR: CMake configuration failed"; 
+    exit 1; 
+}
 
-python -m pip install --force-reinstall -U dist/paddle_custom_gcu*.whl
-ctest -j4 --output-on-failure
+make -j $(nproc) || { 
+    echo "ERROR: Build failed"; 
+    exit 1; 
+}
+
+python -m pip install --force-reinstall -U dist/paddle_custom_gcu*.whl || { 
+    echo "ERROR: paddle_custom_gcu package installation failed"; 
+    exit 1; 
+}
+ctest -j4 --output-on-failure || { 
+    echo "ERROR: Tests failed"; 
+    exit 1; 
+}
+
+echo "All test pass!"

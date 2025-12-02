@@ -6,7 +6,7 @@ on:
     types: [opened, synchronize]
     branches: [develop, release/**]
   schedule:
-    - cron: "0 16 * * *"
+    - cron: "0 20 * * *"
 permissions: read-all
 
 defaults:
@@ -79,7 +79,7 @@ jobs:
 
         run: |
           cd backends/metax_gpu/tests
-          bash run_test.sh -j 8
+          bash run_test.sh -j 8 -b "default"
 
       - name: push whl
         env:

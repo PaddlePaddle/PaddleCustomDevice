@@ -126,7 +126,7 @@ class Test_Fused_Flatpa_Proj_OP(unittest.TestCase):
             attn_bias,
             linear_weights,
             scaling_factor=scaling_factor,
-        )
+        ).unsqueeze(1)
 
         out_linear_out = paddlenlp_ops.fused_flatpa_proj(
             query,

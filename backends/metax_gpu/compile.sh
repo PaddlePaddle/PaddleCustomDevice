@@ -35,6 +35,6 @@ make_maca -j18
 
 
 echo "install whl"
-pip install dist/paddle_metax_gpu*.whl --force-reinstall
+pip install dist/paddle_metax_gpu-${PADDLE_VERSION}*.whl --force-reinstall
 cd ..
 echo "Done!"

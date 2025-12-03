@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,18 +13,12 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/fused_layernorm_kernel.h"
+#include "paddle/phi/kernels/impl/anchor_generator_kernel_impl.h"
+#include "paddle/phi/kernels/legacy/gpu/anchor_generator_kernel.cu"  //NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(fused_bias_residual_layernorm,
+PD_CUSTOM_KERNEL_REGISTER(anchor_generator,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::fusion::FusedLayerNormKernel,
+                          phi::AnchorGeneratorOpCUDAKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->InputAt(3).SetDataType(phi::DataType::FLOAT32);
-  kernel->InputAt(4).SetDataType(phi::DataType::FLOAT32);
-  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
-  kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
-  kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
-}
+                          double) {}

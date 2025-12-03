@@ -814,6 +814,9 @@ C_Status Allocate_device(const C_Device device, void **ptr, size_t size) {
            " size=",
            size);
   *ptr = reinterpret_cast<void *>(p);
+  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+      << "allocate device mem device id = " << runtimeManager.GetDeviceID()
+      << " malloc ptr=" << *ptr << " size=" << size;
 
   // Do statistics on total device memory usage
   MemoryTracker::track_allocation(*ptr, size);

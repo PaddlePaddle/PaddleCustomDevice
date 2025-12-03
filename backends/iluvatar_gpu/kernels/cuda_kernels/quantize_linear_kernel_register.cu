@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/quantize_linear_kernel.cu"  //NOLINT
 #include "paddle/phi/kernels/impl/quantize_linear_impl.h"
 #include "paddle/phi/kernels/quantize_linear_kernel.h"
 

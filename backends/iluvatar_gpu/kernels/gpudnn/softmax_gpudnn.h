@@ -37,7 +37,6 @@ limitations under the License. */
 namespace phi {
 
 using ScopedTensorDescriptor = phi::backends::gpu::ScopedTensorDescriptor;
-using GPUDNNDataLayout = phi::backends::gpu::DataLayout;
 
 // Vectorization trait 4 * sizeof(T)
 template <typename T>
@@ -1038,7 +1037,7 @@ void SoftmaxForwardCudnnKernel(const GPUContext& dev_ctx,
                                const std::vector<int>& tensor_dims,
                                T* out_data) {
   auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
-  GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
+  DataLayout layout = DataLayout::NCHW;
   ScopedTensorDescriptor scoped_desc;
   cudnnTensorDescriptor_t desc = scoped_desc.descriptor<T>(layout, tensor_dims);
   auto mode = axis == rank - 1 ? CUDNN_SOFTMAX_MODE_INSTANCE
@@ -1091,7 +1090,7 @@ void SoftmaxBackwardCudnnKernel(const GPUContext& dev_ctx,
                                 const std::vector<int>& tensor_dims,
                                 T* dx_data) {
   auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
-  GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
+  DataLayout layout = DataLayout::NCHW;
   ScopedTensorDescriptor scoped_desc;
   cudnnTensorDescriptor_t desc = scoped_desc.descriptor<T>(layout, tensor_dims);
   auto mode = axis == rank - 1 ? CUDNN_SOFTMAX_MODE_INSTANCE

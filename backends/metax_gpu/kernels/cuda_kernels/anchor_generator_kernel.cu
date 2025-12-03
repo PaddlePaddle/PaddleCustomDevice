@@ -13,14 +13,12 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/all_reduce_kernel.h"
-#include "paddle/phi/kernels/mp_allreduce_sum_kernel.h"  //NOLINT
-PD_CUSTOM_KERNEL_REGISTER(mp_allreduce_sum,
-                          iluvatar_gpu,
+#include "paddle/phi/kernels/impl/anchor_generator_kernel_impl.h"
+#include "paddle/phi/kernels/legacy/gpu/anchor_generator_kernel.cu"  //NOLINT
+
+PD_CUSTOM_KERNEL_REGISTER(anchor_generator,
+                          metax_gpu,
                           ALL_LAYOUT,
-                          phi::MpAllReduceSumKernel,
+                          phi::AnchorGeneratorOpCUDAKernel,
                           float,
-                          double,
-                          int,
-                          int64_t,
-                          phi::dtype::float16) {}
+                          double) {}

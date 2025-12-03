@@ -6,7 +6,7 @@ on:
     types: [opened, synchronize]
     branches: [develop, release/**]
   schedule:
-    - cron: "0 16 * * *"
+    - cron: "0 20 * * *"
 permissions: read-all
 
 defaults:

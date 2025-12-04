@@ -144,6 +144,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/add_n_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/arange_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/argsort_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adadelta_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_check_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_kernel.cu

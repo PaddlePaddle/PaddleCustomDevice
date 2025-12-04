@@ -58,26 +58,26 @@ static inline bool IsVoltaOrLater(const phi::GPUContext& dev_ctx) {
 //   return CUDNN_TENSOR_NCHW;
 // }
 
-static inline void GetNCDHW(const DDim& dims,
-                            const phi::DataLayout& layout,
-                            int* N,
-                            int* C,
-                            int* D,
-                            int* H,
-                            int* W) {
-  *N = dims[0];
-  *C = layout == phi::DataLayout::kNCHW ? dims[1] : dims[dims.size() - 1];
-  int i = layout == phi::DataLayout::kNCHW ? 0 : 1;
-  if (dims.size() == 5) {
-    *D = dims[2 - i];
-    *H = dims[3 - i];
-    *W = dims[4 - i];
-  } else {
-    *D = 1;
-    *H = dims[2 - i];
-    *W = dims[3 - i];
-  }
-}
+// static inline void GetNCDHW(const DDim& dims,
+//                             const phi::DataLayout& layout,
+//                             int* N,
+//                             int* C,
+//                             int* D,
+//                             int* H,
+//                             int* W) {
+//   *N = dims[0];
+//   *C = layout == phi::DataLayout::kNCHW ? dims[1] : dims[dims.size() - 1];
+//   int i = layout == phi::DataLayout::kNCHW ? 0 : 1;
+//   if (dims.size() == 5) {
+//     *D = dims[2 - i];
+//     *H = dims[3 - i];
+//     *W = dims[4 - i];
+//   } else {
+//     *D = 1;
+//     *H = dims[2 - i];
+//     *W = dims[3 - i];
+//   }
+// }
 
 }  // namespace phi
 

@@ -35,7 +35,6 @@
 namespace phi {
 
 using ScopedTensorDescriptor = phi::backends::gpu::ScopedTensorDescriptor;
-using GPUDNNDataLayout = phi::backends::gpu::DataLayout;
 
 // Vectorization trait 4 * sizeof(T)
 template <typename T>
@@ -1035,7 +1034,7 @@ void SoftmaxForwardCudnnKernel(const GPUContext& dev_ctx,
                                T* out_data) {
   //   auto handle = dev_ctx.cudnn_handle();
   auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
-  GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
+  DataLayout layout = DataLayout::NCHW;
 
   ScopedTensorDescriptor scoped_desc;
 #ifdef PADDLE_WITH_HIP
@@ -1108,7 +1107,7 @@ void SoftmaxBackwardCudnnKernel(const GPUContext& dev_ctx,
                                 T* dx_data) {
   //   auto handle = dev_ctx.cudnn_handle();
   auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
-  GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
+  DataLayout layout = DataLayout::NCHW;
 
   ScopedTensorDescriptor scoped_desc;
 #ifdef PADDLE_WITH_HIP

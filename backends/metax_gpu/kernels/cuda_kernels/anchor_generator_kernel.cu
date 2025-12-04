@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,11 +13,12 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/deformable_conv_grad_kernel.h"
+#include "paddle/phi/kernels/impl/anchor_generator_kernel_impl.h"
+#include "paddle/phi/kernels/legacy/gpu/anchor_generator_kernel.cu"  //NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(deformable_conv_grad,
+PD_CUSTOM_KERNEL_REGISTER(anchor_generator,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::DeformableConvGradKernel,
+                          phi::AnchorGeneratorOpCUDAKernel,
                           float,
                           double) {}

@@ -14,7 +14,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/gpu/shuffle_channel.h"
-#include "paddle/phi/kernels/gpu/shuffle_channel_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/shuffle_channel_kernel.h"
 PD_CUSTOM_KERNEL_REGISTER(shuffle_channel,
                           iluvatar_gpu,
                           ALL_LAYOUT,

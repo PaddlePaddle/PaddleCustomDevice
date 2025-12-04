@@ -124,6 +124,15 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu
   # kernels/gpu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/yolo_box_head_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/stft_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/soft_relu_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/shuffle_channel_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lgamma_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lamb_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/label_smooth_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/label_smooth_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/l1_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/yolo_box_post_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/spectral_norm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/spectral_norm_kernel.cu
@@ -300,6 +309,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/broadcast_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/decayed_adagrad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/debug_tools_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/deformable_conv_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/deformable_conv_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cumprod_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cumprod_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/crop_grad_kernel.cu

@@ -951,10 +951,10 @@ index f3a2874b92..47d2c0b4d7 100644
      dim3 grid_size =
          dim3(((size + vec_size - 1) / vec_size + PREDEFINED_BLOCK_SIZE - 1) /
 diff --git a/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu b/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
-index 6f656ca7be..db87d15919 100644
+index d6c105e1b2..6d810ab0e6 100644
 --- a/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
 +++ b/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
-@@ -296,16 +296,16 @@ __global__ void KeBilinearInterpBwShareMemory(T* in,
+@@ -305,16 +305,16 @@ __global__ void KeBilinearInterpBwShareMemory(T* in,
          &in_img_idy, &h_id, &h1lambda, &h2lambda, src_h, in_h);
  
      // top_left_index is just input_index.
@@ -975,9 +975,8 @@ index 6f656ca7be..db87d15919 100644
 -    int64_t remain = nthreads - (tid & (-static_cast<int64_t>(blockDim.x)));
 +    int64_t remain = nthreads - (tid & (-blockDim.x));
      int64_t in_top_max_index =
-         phi::funcs::BlockReduceMax(top_right_index, FINAL_MASK);
+         funcs::BlockReduceMax(top_right_index, FINAL_MASK);
      int64_t in_bot_max_index =
-
 diff --git a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
 index 2645060f4c..6a38e20776 100644
 --- a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu

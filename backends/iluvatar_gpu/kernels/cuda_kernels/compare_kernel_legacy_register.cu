@@ -16,7 +16,6 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/legacy/compare_kernel.h"
-// #include "paddle/phi/kernels/legacy/kps/compare_kernel.cu"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(less_than_raw,
                           iluvatar_gpu,

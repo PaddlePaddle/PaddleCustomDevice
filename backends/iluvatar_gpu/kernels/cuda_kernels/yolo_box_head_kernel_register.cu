@@ -15,7 +15,7 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/funcs/yolo_box_util.h"
-#include "paddle/phi/kernels/gpu/yolo_box_head_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/yolo_box_head_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(
     yolo_box_head, iluvatar_gpu, ALL_LAYOUT, phi::YoloBoxHeadKernel, float) {}

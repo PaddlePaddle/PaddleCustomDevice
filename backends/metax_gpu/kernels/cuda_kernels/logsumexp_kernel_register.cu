@@ -14,8 +14,8 @@
 // limitations under the License.
 // clang-format off
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/logsumexp_kernel.cu" // NOLINT
 #include "paddle/phi/kernels/logsumexp_kernel.h"
+
 // clang-format on
 PD_CUSTOM_KERNEL_REGISTER(logsumexp,
                           metax_gpu,

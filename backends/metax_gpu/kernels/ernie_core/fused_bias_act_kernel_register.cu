@@ -14,7 +14,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_bias_act_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/fused_bias_act_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fused_bias_act,
                           metax_gpu,

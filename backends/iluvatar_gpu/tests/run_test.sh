@@ -79,6 +79,7 @@ cd ..
 # Run legacy tests only if primary tests passed
 echo "=== Running Paddle legacy tests ==="
 # Navigate to unittest_runner directory
+unset CUDA_VISIBLE_DEVICES
 cd ../../../tools/unittest_runner
 
 # Run test_runner.py with specified parameters

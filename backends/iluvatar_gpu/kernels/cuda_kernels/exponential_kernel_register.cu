@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/exponential_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/exponential_kernel.h"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(exponential,
                           iluvatar_gpu,

@@ -23,6 +23,9 @@ from paddle import base
 from paddle.nn.functional.flash_attention import (
     flash_attention,
     flash_attn_unpadded,
+)
+
+from paddle.nn.functional import (
     scaled_dot_product_attention,
 )
 

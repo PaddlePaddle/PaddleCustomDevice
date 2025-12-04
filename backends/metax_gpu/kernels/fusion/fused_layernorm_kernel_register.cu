@@ -14,11 +14,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/fused_layernorm_kernel.h"
-#include "paddle/phi/kernels/fusion/gpu/attention_layer.norm.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h"
 
-#ifndef PADDLE_WITH_HIP
-#if CUDNN_VERSION_MIN(8, 1, 0)
 PD_CUSTOM_KERNEL_REGISTER(fused_bias_residual_layernorm,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -32,32 +28,3 @@ PD_CUSTOM_KERNEL_REGISTER(fused_bias_residual_layernorm,
   kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
   kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
 }
-#else
-PD_CUSTOM_KERNEL_REGISTER(fused_bias_residual_layernorm,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::fusion::FusedLayerNormKernel,
-                          float,
-                          phi::dtype::float16) {
-  kernel->InputAt(3).SetDataType(phi::DataType::FLOAT32);
-  kernel->InputAt(4).SetDataType(phi::DataType::FLOAT32);
-  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
-  kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
-  kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
-}
-#endif  // CUDNN_VERSION_MIN
-#else
-PD_CUSTOM_KERNEL_REGISTER(fused_bias_residual_layernorm,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::fusion::FusedLayerNormKernel,
-                          float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->InputAt(3).SetDataType(phi::DataType::FLOAT32);
-  kernel->InputAt(4).SetDataType(phi::DataType::FLOAT32);
-  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
-  kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
-  kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
-}
-#endif  // PADDLE_WITH_HIP

@@ -548,3 +548,4 @@ test_linear_interp_v2_op.py
 test_nearest_interp_v2_op.py
 test_poisson_op.py
 test_rrelu_op.py
+test_tensor_cuda_static.py

@@ -272,3 +272,8 @@ PHI_DEFINE_EXPORTED_bool(enable_ixattnbkd,
                          false,
                          "Whether enable ixattnbkd for flash attention or "
                          "not, default is False.");
+
+PHI_DEFINE_EXPORTED_bool(
+    flash_attn_available,
+    true,
+    "Weather flash attention is available on the current device.");

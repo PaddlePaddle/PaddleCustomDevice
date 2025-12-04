@@ -192,7 +192,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/pool_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/put_along_axis_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/randint_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_align_kernel.cu
@@ -368,7 +367,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/partial_send_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/psroi_pool_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/quantize_linear_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/repeat_interleave_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/repeat_interleave_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rmsprop_kernel.cu

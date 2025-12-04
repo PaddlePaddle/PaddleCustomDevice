@@ -14,7 +14,6 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/reduce_kernel.cu"  // NOLINT
 #include "paddle/phi/kernels/reduce_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(reduce,

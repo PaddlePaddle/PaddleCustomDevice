@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/partial_allgather_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/partial_allgather_kernel.h"
 #include "paddle/phi/kernels/partial_concat_kernel.h"
 
 #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \

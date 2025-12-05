@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/label_smooth_grad_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/label_smooth_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(label_smooth_grad,
                           metax_gpu,

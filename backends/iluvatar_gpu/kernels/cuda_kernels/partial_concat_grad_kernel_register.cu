@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/partial_concat_grad_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/partial_concat_grad_kernel.h"
 PD_CUSTOM_KERNEL_REGISTER(partial_concat_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,

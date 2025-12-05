@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/binomial_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/binomial_kernel.h"  //NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(binomial,
                           iluvatar_gpu,

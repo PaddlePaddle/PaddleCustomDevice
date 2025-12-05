@@ -133,8 +133,3 @@ PHI_DEFINE_EXPORTED_int32(
     "Version 2 requires Ampere architecture or higher, "
     "while version 3 requires Hopper architecture.");
 #endif
-
-PHI_DEFINE_EXPORTED_bool(
-    flash_attn_available,
-    true,
-    "Weather flash attention is available on the current device.");

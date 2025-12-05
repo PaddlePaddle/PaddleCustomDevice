@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/partial_send_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/partial_send_kernel.h"
 #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
     defined(PADDLE_WITH_HIP)
 PD_CUSTOM_KERNEL_REGISTER(partial_send,

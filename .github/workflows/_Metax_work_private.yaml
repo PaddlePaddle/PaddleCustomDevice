@@ -41,21 +41,21 @@ jobs:
             paddle_branch=${{ github.base_ref || github.ref_name}}
             echo $paddle_branch
             # sleep 10000
-            change_numbers=$(git diff --name-only remotes/origin/${paddle_branch} | wc -l)
+            change_numbers=$(git --no-pager diff --name-only remotes/origin/${paddle_branch} | wc -l)
             echo $change_numbers
 
 
-            change_backend=$(git diff --name-only remotes/origin/${paddle_branch} | grep -c "backends/" || true)
+            change_backend=$(git --no-pager diff --name-only remotes/origin/${paddle_branch} | grep -c "backends/" || true)
             echo $change_backend
-            change_metax_only=$(git diff --name-only remotes/origin/${paddle_branch} | grep -c "backends/metax_gpu" || true)
+            change_metax_only=$(git --no-pager diff --name-only remotes/origin/${paddle_branch} | grep -c "backends/metax_gpu" || true)
             echo $change_metax_only
 
-            # change_backend=$(git diff --name-only remotes/origin/${paddle_branch} | grep "backends/"| wc -l)
+            # change_backend=$(git --no-pager diff --name-only remotes/origin/${paddle_branch} | grep "backends/"| wc -l)
             # echo $change_backend
-            # change_metax_only=$(git diff --name-only remotes/origin/${paddle_branch} | grep "backends/metax_gpu"| wc -l)
+            # change_metax_only=$(git --no-pager diff --name-only remotes/origin/${paddle_branch} | grep "backends/metax_gpu"| wc -l)
             # echo $change_metax_only
 
-            git diff --name-only remotes/origin/${paddle_branch}
+            git --no-pager diff --name-only remotes/origin/${paddle_branch}
 
             if [ $change_numbers -ne $change_backend ]; then
               echo "Common file changed, continue to run metax FULL CI test ..."

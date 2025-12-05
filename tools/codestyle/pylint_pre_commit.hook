@@ -14,7 +14,7 @@ if ! [[ $version == *"$VERSION"* ]]; then
 fi
 
 # The trick to remove deleted files: https://stackoverflow.com/a/2413151
-for file in $(git diff --name-status | awk '$1 != "D" {print $2}'); do
+for file in $(git --no-pager diff --name-status | awk '$1 != "D" {print $2}'); do
     # skip submodule of Paddle check
     if ! [[ $file == "Paddle" ]]; then
         pylint --disable=all --load-plugins=docstring_checker \

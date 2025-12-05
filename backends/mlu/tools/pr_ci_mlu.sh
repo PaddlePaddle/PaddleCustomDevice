@@ -101,7 +101,7 @@ function main() {
 
     # get changed ut and kernels
     set +e
-    changed_uts=$(git diff --name-only develop | grep "backends/mlu/tests/unittests")
+    changed_uts=$(git --no-pager diff --name-only develop | grep "backends/mlu/tests/unittests")
     changed_ut_list=()
     if [ ${#changed_uts[*]} -gt 0 ]; then 
         for line in ${changed_uts[@]} ;
@@ -114,7 +114,7 @@ function main() {
 
     # transform changed kernels to changed ut
     set +e
-    changed_kernels=$(git diff --name-only develop | grep "backends/mlu/kernels")
+    changed_kernels=$(git --no-pager diff --name-only develop | grep "backends/mlu/kernels")
     set +x
     all_ut_lists=$(ls "${CODE_ROOT}/tests/unittests")
     set -x

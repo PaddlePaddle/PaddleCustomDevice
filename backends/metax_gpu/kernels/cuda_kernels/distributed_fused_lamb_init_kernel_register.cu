@@ -16,7 +16,6 @@
 #include "paddle/phi/kernels/distributed_fused_lamb_init_kernel.h"
 #include "paddle/phi/kernels/funcs/algorithm.h"
 #include "paddle/phi/kernels/fusion/gpu/cast_with_ptr.h"
-#include "paddle/phi/kernels/fusion/gpu/distributed_fused_lamb_init_kernel.cu"  //NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(distributed_fused_lamb_init,
                           metax_gpu,

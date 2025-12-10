@@ -112,7 +112,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cuda_driver.cc
   # Core
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/enforce.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/mixed_vector.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cusparse.cc
   # kernels/funcs
@@ -876,7 +876,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_stack_transpose_quant_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_rope_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_swiglu_weighted_bwd_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math_function.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/log_softmax_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu

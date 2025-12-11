@@ -667,7 +667,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bernoulli_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cufft.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/box_coder_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/matrix_power_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/broadcast_tensors_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/broadcast_tensors_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/channel_shuffle_grad_kernel.cu

@@ -293,15 +293,3 @@ PHI_DEFINE_EXPORTED_bool(
 PHI_DEFINE_EXPORTED_int64(conv_workspace_size_limit,
                           1024,
                           "cuDNN convolution workspace limit in MB unit.");
-
-/**
- * Legacy gemm related FLAG
- * Name: FLAGS_use_legacy_gemm
- * Since Version: 3.3.0
- * Value Range: bool, default=false
- * Example:
- * Note: Whether use legacy gemm kernel.
- */
-PHI_DEFINE_EXPORTED_bool(use_legacy_gemm,
-                         false,
-                         "Whether use legacy gemm dispatch logics.");

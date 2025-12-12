@@ -33,8 +33,8 @@ jobs:
     container:
       image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:latest
       env:
-        LD_LIBRARY_PATH: /usr/local/corex-4.3.0/lib
-        LIBRARY_PATH: /usr/local/corex-4.3.0/lib
+        LD_LIBRARY_PATH: /usr/local/corex/lib
+        LIBRARY_PATH: /usr/local/corex/lib
     env:
       PR_ID: ${{ github.event.pull_request.number }}
       COMMIT_ID: ${{ github.event.pull_request.head.sha }}
@@ -85,7 +85,7 @@ jobs:
       - name: Build and Install paddle_iluvatar_gpu
         if: steps.check-bypass.outputs.can-skip != 'true' && steps.run-ixuca.outputs.should_skip != 'true'
         run: |
-          export PATH=/usr/local/corex-4.3.0/bin:$PATH
+          export PATH=/usr/local/corex/bin:$PATH
           mkdir -p PaddleCustomDevice/Paddle/third_party/mklml/Linux
           curl -o PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz  http://paddlepaddledeps.bj.bcebos.com/csrmm_mklml_lnx_2019.0.5.tgz
           tar xf PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz

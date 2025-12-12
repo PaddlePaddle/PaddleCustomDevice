@@ -39,8 +39,6 @@
 #include "paddle/phi/common/type_traits.h"
 #include "utils/mem_hlml.h"
 
-static std::uint64_t g_mem_usage = 0;
-
 FLAGS_DEFINE_bool(intel_hpu_runtime_debug, false, "runtime debug log");
 FLAGS_DEFINE_uint32(
     intel_hpu_profiling_type,
@@ -49,6 +47,87 @@ FLAGS_DEFINE_uint32(
 FLAGS_DEFINE_bool(intel_hpu_runtime_dualcopy,
                   true,
                   "dual copy to walkaround synapse host memory map issue");
+
+class MemoryTracker {
+ private:
+  static std::map<void *, size_t> tracked_allocations_;
+  static size_t total_memory_used_;
+  static std::mutex tracker_mutex_;
+  MemoryTracker() = default;
+  ~MemoryTracker() = default;
+
+ public:
+  static bool track_allocation(void *ptr, size_t size) {
+    if (ptr == nullptr || size == 0) {
+      LOG_IF(ERROR, FLAGS_intel_hpu_runtime_debug)
+          << "[ERROR] Cannot track NULL pointer or zero size.";
+      return false;
+    }
+
+    std::lock_guard<std::mutex> lock(tracker_mutex_);
+
+    if (tracked_allocations_.count(ptr)) {
+      LOG_IF(WARNING, FLAGS_intel_hpu_runtime_debug)
+          << "[WARNING] Address " << ptr
+          << " is already being tracked. Skipping.";
+      return false;
+    }
+    tracked_allocations_[ptr] = size;
+    total_memory_used_ += size;
+
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "[TRACK] Address: " << ptr << ", Size: " << size
+        << " bytes. Current Total: " << total_memory_used_;
+    return true;
+  }
+
+  static bool untrack_allocation(void *ptr) {
+    if (ptr == nullptr) return false;
+
+    std::lock_guard<std::mutex> lock(tracker_mutex_);
+
+    auto it = tracked_allocations_.find(ptr);
+
+    if (it != tracked_allocations_.end()) {
+      size_t size = it->second;
+
+      total_memory_used_ -= size;
+      tracked_allocations_.erase(it);
+
+      LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+          << "[UNTRACK] Address: " << ptr << ", Size: " << size
+          << " bytes. Current Total: " << total_memory_used_;
+      return true;
+    } else {
+      LOG_IF(ERROR, FLAGS_intel_hpu_runtime_debug)
+          << "[ERROR] Attempted to untrack unknown address: " << ptr;
+      return false;
+    }
+  }
+
+  static size_t getTotalUsage() {
+    std::lock_guard<std::mutex> lock(tracker_mutex_);
+    return total_memory_used_;
+  }
+
+  static void printStatus() {
+    std::lock_guard<std::mutex> lock(tracker_mutex_);
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "\n=== Memory Tracker Status ===" << std::endl;
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "Total Tracked Memory: " << total_memory_used_ << " bytes"
+        << std::endl;
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "Active Records: " << tracked_allocations_.size() << std::endl;
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "=============================\n"
+        << std::endl;
+  }
+};
+
+std::map<void *, size_t> MemoryTracker::tracked_allocations_ = {};
+size_t MemoryTracker::total_memory_used_ = 0;
+std::mutex MemoryTracker::tracker_mutex_;
 
 inline hcclDataType_t PDDataTypeToHcclDataType(C_DataType type) {
   if (type == C_DataType::FLOAT32) {
@@ -139,7 +218,7 @@ class RuntimeManager {
           << "HLML memory reporter initialized \n";
 
       std::function<std::uint64_t()> get_used_memory = []() {
-        return g_mem_usage;
+        return MemoryTracker::getTotalUsage();
       };
       m_hlml_memory_updater = std::make_shared<HlMlMemoryUpdater>(
           m_hlml_memory_reporter, get_used_memory);
@@ -729,15 +808,18 @@ C_Status Allocate_device(const C_Device device, void **ptr, size_t size) {
   uint64_t p;
   synStatus status =
       synDeviceMalloc(runtimeManager.GetDeviceID(), size, 0, 0, &p);
-  PD_CHECK(
-      status == synSuccess, "[RUNTIME] synDeviceMalloc() failed = ", status);
+  PD_CHECK(status == synSuccess,
+           "[RUNTIME] synDeviceMalloc() failed = ",
+           status,
+           " size=",
+           size);
   *ptr = reinterpret_cast<void *>(p);
   LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
       << "allocate device mem device id = " << runtimeManager.GetDeviceID()
       << " malloc ptr=" << *ptr << " size=" << size;
 
   // Do statistics on total device memory usage
-  g_mem_usage += size;
+  MemoryTracker::track_allocation(*ptr, size);
   return C_SUCCESS;
 }
 
@@ -752,7 +834,7 @@ C_Status Deallocate_device(const C_Device device, void *ptr, size_t size) {
   PD_CHECK(status == synSuccess, "[RUNTIME] synDeviceFree() failed = ", status);
 
   // Do statistics on total device memory usage
-  g_mem_usage -= size;
+  MemoryTracker::untrack_allocation(ptr);
   return C_SUCCESS;
 }
 

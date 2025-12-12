@@ -150,7 +150,7 @@ fi
 
 # Compile
 echo "Starting compilation..."
-ninja -k 0 -j$(nproc) 2>&1 | tee -a compile.log
+ninja -j$(nproc) 2>&1
 FAILED_LOG="failed_files.log"
 grep -E "FAILED: " compile.log | tee ${FAILED_LOG}
 echo "Failed files are listed in ${FAILED_LOG}"

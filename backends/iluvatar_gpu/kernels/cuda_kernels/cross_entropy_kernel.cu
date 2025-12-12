@@ -751,7 +751,7 @@ static void SoftmaxWithCrossEntropySoftLabel(const GPUContext& dev_ctx,
   } else {
     ScopedTensorDescriptor desc;
     std::vector<int> tensor_dims = {N, dim, D, 1};
-    GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
+    DataLayout layout = DataLayout::kNCHW;
     cudnnTensorDescriptor_t descp = desc.descriptor<T>(layout, tensor_dims);
 
     auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
@@ -1163,7 +1163,7 @@ static void SoftmaxWithCrossEntropyHardLabel(const GPUContext& dev_ctx,
   } else {
     ScopedTensorDescriptor desc;
     std::vector<int> tensor_dims = {N, dim, D, 1};
-    GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
+    DataLayout layout = DataLayout::kNCHW;
     cudnnTensorDescriptor_t descp = desc.descriptor<T>(layout, tensor_dims);
     auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
 

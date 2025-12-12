@@ -15,7 +15,7 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/full_kernel.h"
 #include "paddle/phi/kernels/gpu/moe_permute_utils.h"
-#include "paddle/phi/kernels/gpu/moe_unpermute_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/moe_unpermute_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(moe_unpermute,
                           iluvatar_gpu,

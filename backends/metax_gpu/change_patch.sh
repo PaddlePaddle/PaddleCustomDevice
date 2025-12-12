@@ -22,7 +22,7 @@ mv mcEigen_3.4.0_paddle_final eigen3
 cd ..
 cp -r patch/eigen3/ ../../Paddle/third_party/eigen3
 rm -r patch/eigen3
-cp patch/tmp/mixed_vector* ../../Paddle/paddle/phi/core
+# cp patch/tmp/mixed_vector* ../../Paddle/paddle/phi/core
 cd ../../Paddle/
 git apply --verbose ../backends/metax_gpu/patch/paddle.patch
 cd -

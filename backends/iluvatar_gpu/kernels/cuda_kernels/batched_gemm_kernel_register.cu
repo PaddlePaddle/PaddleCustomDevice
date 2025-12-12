@@ -1,4 +1,4 @@
-// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,13 +13,11 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/lgamma_kernel.h"
+#include "paddle/phi/kernels/legacy/gpu/batched_gemm.h"
 
-PD_CUSTOM_KERNEL_REGISTER(lgamma,
-                          metax_gpu,
+PD_CUSTOM_KERNEL_REGISTER(batched_gemm,
+                          iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::LgammaKernel,
+                          phi::BatchedGEMM,
                           float,
-                          double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::bfloat16) {}

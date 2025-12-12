@@ -15,7 +15,7 @@
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/dense_tensor.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/legacy/gpu/moe_combine_no_weight_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/legacy/gpu/moe_combine_no_weight_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(moe_combine_no_weight,
                           metax_gpu,

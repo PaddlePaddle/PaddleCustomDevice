@@ -14,7 +14,7 @@
 // clang-format off
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/uniform_random_functor.h"
-#include "paddle/phi/kernels/gpu/uniform_random_batch_size_like_kernel.cu" // NOLINT
+#include "paddle/phi/kernels/uniform_random_batch_size_like_kernel.h"
 // clang-format on
 PD_CUSTOM_KERNEL_REGISTER(uniform_random_batch_size_like,
                           iluvatar_gpu,

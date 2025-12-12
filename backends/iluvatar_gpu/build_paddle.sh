@@ -72,7 +72,7 @@ cmake -G Ninja -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DI
 -DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
 -DCMAKE_C_FLAGS="-pthread" \
 -DWITH_ARM=OFF -DWITH_DGC=OFF .. || { echo "Error: CMake configuration failed!"; exit 1; }
-ninja -k 0 -j$(nproc) || { echo "Error: Paddle-iluvatar-gpu build failed!"; exit 1; }
+ninja -j$(nproc) || { echo "Error: Paddle-iluvatar-gpu build failed!"; exit 1; }
 popd
 
 if [[ ! -d "build_pip" ]]; then

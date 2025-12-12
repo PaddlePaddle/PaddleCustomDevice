@@ -84,9 +84,9 @@ jobs:
           cd PaddleCustomDevice
           # !!!!! SKIP IF NO HPU CHANGE !!!!
           echo "=========== Checking PR Changes If HPU FULL CI Needed ==========="
-          change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
-          change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
-          change_hpu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/intel_hpu"| wc -l)
+          change_numbers=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | wc -l)
+          change_backend=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
+          change_hpu_only=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep "backends/intel_hpu"| wc -l)
           git --no-pager diff --name-only remotes/origin/${BRANCH}
           if [ $change_numbers -ne $change_backend ]; then
             echo "Common file changed, continue to run HPU FULL CI test ..."

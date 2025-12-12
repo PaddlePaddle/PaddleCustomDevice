@@ -35,8 +35,6 @@ limitations under the License. */
 
 namespace phi {
 
-using GPUDNNDataLayout = phi::backends::gpu::DataLayout;
-
 template <typename T, typename Context>
 void ConvTransposeGradRawGPUDNNKernel(const Context& dev_ctx,
                                       const DenseTensor& x,
@@ -74,16 +72,15 @@ void ConvTransposeGradRawGPUDNNKernel(const Context& dev_ctx,
   std::vector<int> paddings_ = paddings;
   std::vector<int> dilations_ =
       dilations;  // cudnn v5 does not support dilations
-  const GPUDNNDataLayout data_layout =
-      (data_format != "NHWC" ? GPUDNNDataLayout::kNCHW
-                             : GPUDNNDataLayout::kNHWC);
+  const DataLayout data_layout =
+      (data_format != "NHWC" ? DataLayout::NCHW : DataLayout::NHWC);
 
   // if channel_last, transpose to channel_first
   DenseTensor x_transpose;
   DenseTensor dout_transpose;
   std::vector<int> x_vec = common::vectorize<int>(x.dims());
   std::vector<int> out_vec = common::vectorize<int>(dout.dims());
-  if (data_layout == GPUDNNDataLayout::kNHWC) {
+  if (data_layout == DataLayout::NHWC) {
     if (strides.size() == 2U) {
       std::vector<int> axis = {0, 3, 1, 2};
       for (size_t i = 0; i < axis.size(); ++i) {
@@ -179,12 +176,12 @@ void ConvTransposeGradRawGPUDNNKernel(const Context& dev_ctx,
   CUDNN_ENFORCE_TENSOR_SIZE_SUPPORTED(x_transpose);
 #endif
 
-  GPUDNNDataLayout layout;
+  DataLayout layout;
 
   if (strides.size() == 2U) {
-    layout = GPUDNNDataLayout::kNCHW;
+    layout = DataLayout::NCHW;
   } else {
-    layout = GPUDNNDataLayout::kNCDHW;
+    layout = DataLayout::kNCDHW;
   }
 
   int iwo_groups = groups;
@@ -333,7 +330,7 @@ void ConvTransposeGradRawGPUDNNKernel(const Context& dev_ctx,
                                              false);
 #endif  // PADDLE_WITH_HIP
 
-    if (data_layout == GPUDNNDataLayout::kNHWC) {
+    if (data_layout == DataLayout::NHWC) {
       DenseTensor dx_transpose;
       DenseTensor dx_nchw;
       dx_nchw.ShareDataWith(*dx);
@@ -655,8 +652,7 @@ void Conv2dTransposeDoubleGradGPUDNNKernel(
 
   // auto handle = dev_ctx.cudnn_handle();
   auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
-  auto layout =
-      phi::backends::gpu::GetCudnnTensorFormat(GPUDNNDataLayout::kNCHW);
+  auto layout = phi::backends::gpu::GetCudnnTensorFormat(DataLayout::NCHW);
 
   ConvArgs args1{handle,
                  &transformed_ddout_channel,
@@ -667,7 +663,7 @@ void Conv2dTransposeDoubleGradGPUDNNKernel(
                  dilations_,
                  dtype,
                  groups,
-                 GPUDNNDataLayout::kNCHW};
+                 DataLayout::NCHW};
   ConvArgs args2{handle,
                  &transformed_ddout_channel,
                  &ddfilter,
@@ -677,7 +673,7 @@ void Conv2dTransposeDoubleGradGPUDNNKernel(
                  dilations_,
                  dtype,
                  groups,
-                 GPUDNNDataLayout::kNCHW};
+                 DataLayout::NCHW};
 
   ConvArgs args3{handle,
                  &transformed_dout,
@@ -688,7 +684,7 @@ void Conv2dTransposeDoubleGradGPUDNNKernel(
                  dilations_,
                  dtype,
                  groups,
-                 GPUDNNDataLayout::kNCHW};
+                 DataLayout::NCHW};
   ConvArgs args4{handle,
                  &transformed_dout,
                  &ddfilter,
@@ -698,7 +694,7 @@ void Conv2dTransposeDoubleGradGPUDNNKernel(
                  dilations_,
                  dtype,
                  groups,
-                 GPUDNNDataLayout::kNCHW};
+                 DataLayout::NCHW};
 #ifdef PADDLE_WITH_HIP
   SearchResult<miopenConvBwdDataAlgorithm_t> bwd_result1;
   SearchResult<miopenConvBwdDataAlgorithm_t> bwd_result2;
@@ -817,23 +813,12 @@ void Conv2dTransposeDoubleGradGPUDNNKernel(
   }
 
   int i_n, i_c, i_d, i_h, i_w;
-  GetNCDHW(transformed_x.dims(),
-           GPUDNNDataLayout::kNCHW,
-           &i_n,
-           &i_c,
-           &i_d,
-           &i_h,
-           &i_w);
+  GetNCDHW(
+      transformed_x.dims(), DataLayout::NCHW, &i_n, &i_c, &i_d, &i_h, &i_w);
 
   int o_n, o_c, o_d, o_h, o_w;
-  GetNCDHW(transformed_dout.dims(),
-           GPUDNNDataLayout::kNCHW,
-           &o_n,
-           &o_c,
-           &o_d,
-           &o_h,
-           &o_w);
-
+  GetNCDHW(
+      transformed_dout.dims(), DataLayout::NCHW, &o_n, &o_c, &o_d, &o_h, &o_w);
   int group_offset_in =
       transformed_x.numel() / transformed_x.dims()[0] / groups;
   int group_offset_out =

@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/kernels/gpu/bce_loss_kernel.cu"  // NOLINT
+#include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/bce_loss_kernel.h"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(bce_loss,
                           metax_gpu,

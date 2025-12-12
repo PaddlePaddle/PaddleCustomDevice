@@ -675,6 +675,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/complex_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/complex_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cum_maxmin_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/matrix_power_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cum_maxmin_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/digamma_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/digamma_grad_kernel.cu

@@ -1014,6 +1014,7 @@ target_link_libraries(
 )
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
+include_directories(BEFORE ${CMAKE_SOURCE_DIR}/headers)
 
 target_compile_definitions(
   ${TARGET_NAME}

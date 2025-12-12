@@ -672,11 +672,6 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
     return C_ERROR;
   }
 
-  // cudagraph temp code
-  // cudaStream_t stream;
-  // cudaStreamCreate(&stream);
-  // err = cudaMallocAsync(ptr, size,cudaStreamDefault);
-
   err = cudaMalloc(ptr, size);
   if (err != cudaSuccess) {
     *ptr = NULL;
@@ -1352,6 +1347,21 @@ C_Status CudaStreamCaptureInfo(const C_Device device,
   return C_SUCCESS;
 }
 
+C_Status CudaThreadExchangeStreamCaptureMode(C_StreamCaptureMode *mode) {
+  if (cudaThreadExchangeStreamCaptureMode(
+          reinterpret_cast<cudaStreamCaptureMode *>(mode)) != cudaSuccess)
+    return C_ERROR;
+  return C_SUCCESS;
+}
+
+C_Status CudaGraphDebugDotPrint(C_CudaGraph graph,
+                                const char *path,
+                                unsigned int flags) {
+  if (cudaGraphDebugDotPrint(cudaGraph_t(graph), path, flags) != cudaSuccess)
+    return C_ERROR;
+  return C_SUCCESS;
+}
+
 C_Status GetParameterSettersForExecGraph(C_CudaGraph graph,
                                          C_GraphHookManager *c_hook) {
   using parameterSetter_t =
@@ -1449,7 +1459,9 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->cuda_stream_capture_info = CudaStreamCaptureInfo;
   params->interface->get_parameter_setter_for_exec_graph =
       GetParameterSettersForExecGraph;
-
+  params->interface->cuda_thread_exchange_stream_capthure_mode =
+      CudaThreadExchangeStreamCaptureMode;
+  params->interface->cuda_graph_debug_dot_print = CudaGraphDebugDotPrint;
   params->interface->get_compute_capability = GetComputeCapability;
   params->interface->get_device_properties = GetDeviceProperties;
   params->interface->get_runtime_version = GetRuntimeVersion;

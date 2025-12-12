@@ -1035,7 +1035,11 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory
+          ${CMAKE_CURRENT_BINARY_DIR}/python/include/
+  COMMAND ${CMAKE_COMMAND} -E make_directory
           ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/headers
+          ${CMAKE_CURRENT_BINARY_DIR}/python/include/
   COMMAND
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/lib${TARGET_NAME}.so

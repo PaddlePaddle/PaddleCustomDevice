@@ -71,7 +71,7 @@ cmake -G Ninja -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DI
 -DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime -pthread' \
 -DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
 -DCMAKE_C_FLAGS="-pthread" \
--DWITH_ARM=OFF -DWITH_DGC=OFF .. || { echo "Error: CMake configuration failed!"; exit 1; }"
+-DWITH_ARM=OFF -DWITH_DGC=OFF .. || { echo "Error: CMake configuration failed!"; exit 1; }
 ninja -j$(nproc) || { echo "Error: Paddle-iluvatar-gpu build failed!"; exit 1; }
 popd
 

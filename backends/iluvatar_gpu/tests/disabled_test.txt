@@ -17,6 +17,7 @@ test_dist*
 test_download.py
 test_fleet*
 test_gpu*
+test_hapi_hub.py
 test_io_save_load.py
 test_ir_graph.py
 test_jit*

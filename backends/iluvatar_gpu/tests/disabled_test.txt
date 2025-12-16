@@ -549,6 +549,10 @@ test_linear_interp_v2_op.py
 test_nearest_interp_v2_op.py
 test_poisson_op.py
 test_rrelu_op.py
+test_einsum_op.py
+test_nansum_api.py
+test_radam_op.py
+test_rms_norm_op.py
 test_batched_gemm.py
 test_match_matrix_tensor_op.py
 test_tensor.py

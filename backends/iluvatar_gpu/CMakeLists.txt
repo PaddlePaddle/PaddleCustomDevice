@@ -110,11 +110,12 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_info.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_graph.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cuda_driver.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cusparse.cc
   # Core
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/enforce.cc
   # ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/mixed_vector.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cusparse.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/core/platform/device/gpu/gpu_info.cc
   # kernels/funcs
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu

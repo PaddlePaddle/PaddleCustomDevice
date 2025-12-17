@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/weighted_sample_neighbors_kernel.cu"  //NOLINT
 #include "paddle/phi/kernels/weighted_sample_neighbors_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(weighted_sample_neighbors,

@@ -1,6 +1,20 @@
 import os
 from setuptools import setup, Distribution
+from setuptools.command.install import install
 
+import os
+import shutil
+
+class CustomInstallCommand(install):
+    def run(self):
+        install.run(self)
+        install_dir = os.path.join(self.install_lib, 'paddle_custom_device', 'include')
+        source_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'python', 'include')
+
+        if os.path.exists(source_dir):
+            if not os.path.exists(install_dir):
+                os.makedirs(install_dir)
+            shutil.copytree(source_dir, install_dir, dirs_exist_ok=True)
 
 packages = []
 package_data = {}
@@ -108,13 +122,17 @@ def main():
     ],
     include_package_data=True,
     package_data = {
-        '': ['*.so', '*.h', '*.py', '*.hpp'],
+        'paddle_custom_device': ['*.so'],
+        '': ['*.h', '*.hpp'],
     },
     package_dir = {
         '': 'python',
     },
     zip_safe=False,
     distclass=BinaryDistribution,
+    cmdclass={
+    'install': CustomInstallCommand,
+},
     entry_points={
         'console_scripts': [
         ]

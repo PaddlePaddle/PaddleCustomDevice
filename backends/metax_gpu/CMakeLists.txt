@@ -788,6 +788,7 @@ target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmcFlashAttn.so)
 target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmcpti.so)
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
+include_directories(BEFORE ${CMAKE_SOURCE_DIR}/headers)
 
 target_compile_definitions(
   ${TARGET_NAME}
@@ -827,7 +828,11 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory
+          ${CMAKE_CURRENT_BINARY_DIR}/python/include/
+  COMMAND ${CMAKE_COMMAND} -E make_directory
           ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/headers
+          ${CMAKE_CURRENT_BINARY_DIR}/python/include/
   COMMAND
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/lib${TARGET_NAME}.so

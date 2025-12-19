@@ -17,11 +17,6 @@ on:
         default: 'true'
 
 
-defaults:
-  run:
-    shell: bash
-
-
 jobs:
 
   check-bypass:
@@ -65,10 +60,10 @@ jobs:
           # !!!!! SKIP IF NO METAX CHANGE !!!!
           echo "=========== Checking PR Changes If METAX FULL CI Needed ==========="
           change_numbers=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | wc -l)
-          # change_backend=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
-          change_backend=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep -c "backends/" || true)
-          # change_metax_only=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep "backends/metax_gpu"| wc -l)
-          change_metax_only=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep -c "backends/metax_gpu" || true)
+          change_backend=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
+          # change_backend=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep -c "backends/" || true)
+          change_metax_only=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep "backends/metax_gpu"| wc -l)
+          # change_metax_only=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep -c "backends/metax_gpu" || true)
           git --no-pager diff --name-only remotes/origin/${BRANCH}
 
           if [ $change_numbers -ne $change_backend ]; then

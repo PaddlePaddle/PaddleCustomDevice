@@ -23,7 +23,7 @@ limitations under the License. */
 PD_CUSTOM_KERNEL_REGISTER(rms_norm_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::RmsNormGradKernel,
+                          phi::RmsNormQuantGradKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

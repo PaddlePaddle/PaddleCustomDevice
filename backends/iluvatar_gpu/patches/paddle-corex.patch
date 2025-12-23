@@ -727,7 +727,7 @@ index 77e3537124..8f6022bc76 100644
  template <typename T>
  struct SumOp {
 diff --git a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
-index 9d4bb18d55..78bf0ad1b9 100644
+index a28047c624..30832164f4 100644
 --- a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
 +++ b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
 @@ -24,11 +24,7 @@ namespace fusion {
@@ -754,7 +754,7 @@ index 9d4bb18d55..78bf0ad1b9 100644
 -  __shared__ U shared_var[32];
 -#endif
  
-   phi::funcs::ReluFunctor<T> relu;
+   funcs::ReluFunctor<T> relu;
    U mean_val = 0;
 @@ -352,13 +343,8 @@ __global__ void FusedLayernormResidualDropoutBiasInfer(
  
@@ -768,7 +768,7 @@ index 9d4bb18d55..78bf0ad1b9 100644
 -  __shared__ U shared_var[32];
 -#endif
  
-   phi::funcs::ReluFunctor<T> relu;
+   funcs::ReluFunctor<T> relu;
    U mean_val = 0;
 @@ -638,9 +624,6 @@ __global__ __launch_bounds__(THREADS_PER_CTA) void fused_fast_ln_fwd_kernel(
          RandVec<VecSize>(&state, rand);
@@ -780,6 +780,7 @@ index 9d4bb18d55..78bf0ad1b9 100644
            mask_vec[it][jt] = static_cast<MaskType>(rand[jt] >= dropout_prob);
          }
        }
+
 diff --git a/paddle/phi/kernels/gpu/elementwise_grad.h b/paddle/phi/kernels/gpu/elementwise_grad.h
 index 411ee4510c..36c2f8fba7 100644
 --- a/paddle/phi/kernels/gpu/elementwise_grad.h

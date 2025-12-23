@@ -20,17 +20,16 @@ set(MAGMA_DOWNLOAD_DIR
 set(MAGMA_INSTALL_DIR ${THIRD_PARTY_PATH}/install/magma)
 set(MAGMA_LIB_DIR ${MAGMA_INSTALL_DIR}/lib)
 
-# Note(zhouwei): magma need fortran compiler which many machines don't have, so
-# use precompiled library. use magma tag v2.9.0 on 07/28/2025
+# use precompiled library magma tag v2.9.0 on 07/28/2025
 # https://github.com/icl-utk-edu/magma/tree/v2.9.0
 if(LINUX)
   set(MAGMA_FILE
-      "magma_local.tar.gz"
+      "magma_lnx_iluvatar_v2.9.0.20250728.tar.gz"
       CACHE STRING "" FORCE)
   set(MAGMA_URL
-      "file:///home/tianyu.zhou/tyzhou/magma_local.tar.gz"
+      "https://paddlepaddledeps.bj.bcebos.com/${MAGMA_FILE}"
       CACHE STRING "" FORCE)
-  set(MAGMA_URL_MD5 9715dfad9eb073e099f46feb6587232d)
+  set(MAGMA_URL_MD5 7fcca7e0140ed8df1fef511d82ae30c3)
   set(MAGMA_LIB "${MAGMA_LIB_DIR}/libmagma.so")
 elseif(WIN32)
   message("magma do not support windows yet, skip ...")

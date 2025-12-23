@@ -45,7 +45,7 @@ class TestRMSNormOp(OpTest):
     def setUp(self):
         self.python_api = layer_norm_wrapper
         self.public_python_api = layer_norm_wrapper
-        self.op_type = "rms_norm"
+        self.op_type = "fused_rms_norm_quant"
         self.set_hpu()
         self.init_dtype()
         self.init_input()

@@ -1187,7 +1187,7 @@ index 085845dfb3..defe09ec84 100644
        PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSetConvolutionMathType(
            cdesc.desc(), CUDNN_DEFAULT_MATH));
 diff --git a/paddle/phi/kernels/gpudnn/softmax_gpudnn.h b/paddle/phi/kernels/gpudnn/softmax_gpudnn.h
-index be6ee4f854..c60be671e8 100644
+index be6ee4f854..87ad910d79 100644
 --- a/paddle/phi/kernels/gpudnn/softmax_gpudnn.h
 +++ b/paddle/phi/kernels/gpudnn/softmax_gpudnn.h
 @@ -29,6 +29,9 @@ limitations under the License. */
@@ -1199,6 +1199,15 @@ index be6ee4f854..c60be671e8 100644
 +#endif
  
  COMMON_DECLARE_bool(use_accuracy_compatible_kernel);
+ 
+@@ -100,7 +103,7 @@ inline int CalcBlockSize(int vec_size, uint64_t dim_size) {
+   }
+ 
+   while (block_size < (max_block_size)) block_size *= 2;
+-  block_size = std::max(block_size, static_cast<uint64_t>(32));
++  block_size = std::max(block_size, static_cast<uint64_t>(64));
+   return block_size;
+ }
  
 @@ -132,37 +135,37 @@ __device__ __forceinline__ void WarpReduceMax(T* sum) {
  
@@ -1265,6 +1274,18 @@ index be6ee4f854..c60be671e8 100644
    IndexType first_batch =
        (static_cast<IndexType>(blockDim.y) * blockIdx.x + threadIdx.y) *
        kBatchSize;
+@@ -652,9 +655,9 @@ __global__ void WarpSoftmaxBackward(T* dst,
+                                     IndexType element_count) {
+   constexpr IndexType kVSize = sizeof(VecT) / sizeof(T);
+   constexpr IndexType kDimCeil = 1 << Log2Elements;
+-  constexpr IndexType kWarpSize = (kDimCeil < 32) ? kDimCeil : 32;
++  constexpr IndexType kWarpSize = (kDimCeil < 64) ? kDimCeil : 64;
+   constexpr IndexType kLoops = kDimCeil / kWarpSize;
+-  constexpr IndexType kBatchSize = (kDimCeil <= 128) ? 2 : 1;
++  constexpr IndexType kBatchSize = (kDimCeil <= 256) ? 2 : 1;
+   constexpr IndexType kLoopsV = (kLoops >= kVSize) ? (kLoops / kVSize) : 1;
+   IndexType element_count_v = element_count / kVSize;
+   IndexType first_batch =
 @@ -865,6 +868,10 @@ static void GetGridDim(int64_t high_dim,
    grid_x = std::min(grid_x, max_num_blocks);
    int64_t grid_y = (max_num_blocks + grid_x - 1) / grid_x;
@@ -1276,6 +1297,57 @@ index be6ee4f854..c60be671e8 100644
    grid->x = grid_x;
    grid->y = grid_y;
  }
+@@ -873,7 +880,7 @@ static void GetBlockDim(int64_t mid_dim, int64_t low_dim, dim3* block) {
+   constexpr int max_num_threads = 1024;
+   int64_t block_x = int64_t(1) << Log2Ceil(low_dim);
+   int64_t block_y = int64_t(1) << Log2Ceil(mid_dim);
+-  block->x = std::min<int64_t>(block_x, 32);
++  block->x = std::min<int64_t>(block_x, 64);
+   block->y = std::min<int64_t>(block_y, max_num_threads / block->x);
+   block->x = std::min<int64_t>(block_x, max_num_threads / block->y);
+ }
+@@ -2663,11 +2670,11 @@ void SoftmaxForwardCUDAKernelDriverImpl(const GPUContext& dev_ctx,
+         D > std::numeric_limits<int32_t>::max()) {
+       int dim_log2 = static_cast<int>(Log2Ceil(dim));
+       IndexType dim_ceil = 1 << dim_log2;
+-      int warp_size = (dim_ceil < 32) ? dim_ceil : 32;
+-      int batches_per_warp = (dim_ceil <= 32) ? 2 : 1;
++      int warp_size = (dim_ceil < 64) ? dim_ceil : 64;
++      int batches_per_warp = (dim_ceil <= 64) ? 2 : 1;
+ 
+       // use 128 threads per block to maximize gpu utilization
+-      constexpr int threads_per_block = 128;
++      constexpr int threads_per_block = 256;
+ 
+       int warps_per_block = (threads_per_block / warp_size);
+       int batches_per_block = warps_per_block * batches_per_warp;
+@@ -2802,10 +2809,10 @@ void SoftmaxBackwardCUDAKernelDriverImpl(const GPUContext& dev_ctx,
+         D > std::numeric_limits<int32_t>::max()) {
+       int dim_log2 = Log2Ceil(dim);
+       IndexType dim_ceil = 1 << dim_log2;
+-      int warp_size = (dim_ceil < 32) ? dim_ceil : 32;
+-      int batches_per_warp = (dim_ceil <= 128) ? 2 : 1;
++      int warp_size = (dim_ceil < 64) ? dim_ceil : 64;
++      int batches_per_warp = (dim_ceil <= 256) ? 2 : 1;
+ 
+-      constexpr int threads_per_block = 128;
++      constexpr int threads_per_block = 256;
+ 
+       int warps_per_block = (threads_per_block / warp_size);
+       int batches_per_block = warps_per_block * batches_per_warp;
+diff --git a/paddle/phi/kernels/gpudnn/softmax_kernel.cu b/paddle/phi/kernels/gpudnn/softmax_kernel.cu
+index 2972c2bd85..0bb78d97b5 100644
+--- a/paddle/phi/kernels/gpudnn/softmax_kernel.cu
++++ b/paddle/phi/kernels/gpudnn/softmax_kernel.cu
+@@ -50,7 +50,7 @@ PD_REGISTER_KERNEL(softmax,
+                    phi::float16,
+                    phi::bfloat16) {}
+ #else
+-#if CUDNN_VERSION_MIN(8, 1, 0)
++#if CUDNN_VERSION_MIN(8, 1, 0) || PADDLE_WITH_COREX
+ PD_REGISTER_KERNEL(softmax,
+                    GPUDNN,
+                    ALL_LAYOUT,
 diff --git a/paddle/phi/kernels/primitive/compute_primitives.h b/paddle/phi/kernels/primitive/compute_primitives.h
 index 11481a8b02..136593297e 100644
 --- a/paddle/phi/kernels/primitive/compute_primitives.h

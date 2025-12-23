@@ -1013,7 +1013,7 @@ C_Status InitDnnHandle(const C_Device device,
         reinterpret_cast<cudnnHandle_t *>(dnn_handle)));
     PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnSetStream(
         *reinterpret_cast<cudnnHandle_t *>(dnn_handle),
-        reinterpret_cast<cudaStream_t>((stream))));
+        reinterpret_cast<cudaStream_t>(stream)));
     return C_SUCCESS;
   } else {
     *dnn_handle = nullptr;

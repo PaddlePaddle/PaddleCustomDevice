@@ -367,3 +367,4 @@ test_spectral_norm_op
 test_take_along_axis_op
 test_tensor_unfold
 test_warpctc_op
+test_swiglu

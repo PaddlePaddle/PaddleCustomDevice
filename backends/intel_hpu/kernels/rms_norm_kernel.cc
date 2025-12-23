@@ -192,7 +192,7 @@ void RmsNormKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(rms_norm,
+PD_REGISTER_PLUGIN_KERNEL(fused_rms_norm_quant,
                           intel_hpu,
                           ALL_LAYOUT,
                           custom_kernel::RmsNormKernel,

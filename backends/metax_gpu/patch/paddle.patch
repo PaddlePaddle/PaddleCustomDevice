@@ -35,7 +35,7 @@ index 8d445b39ae..504e7b6293 100755
      op_library(fused_gemm_epilogue_op)
    endif()
 diff --git a/paddle/phi/backends/dynload/dynamic_loader.cc b/paddle/phi/backends/dynload/dynamic_loader.cc
-index 39f50bd95d..4d627b99b7 100644
+index 4e990175a0..5a86b15929 100644
 --- a/paddle/phi/backends/dynload/dynamic_loader.cc
 +++ b/paddle/phi/backends/dynload/dynamic_loader.cc
 @@ -18,7 +18,6 @@ limitations under the License. */
@@ -46,7 +46,7 @@ index 39f50bd95d..4d627b99b7 100644
  #include "paddle/phi/common/port.h"
  #include "paddle/phi/core/enforce.h"
  
-@@ -108,6 +107,10 @@ COMMON_DECLARE_string(win_cuda_bin_dir);
+@@ -112,6 +111,10 @@ COMMON_DECLARE_string(magma_dir);
  #define SPARSELT_LIB_NAME "libcusparseLt.so"
  #endif
  
@@ -215,10 +215,10 @@ index 024a7de73e..66b373d698 100644
    } while (0)
  #elif defined(__HIPCC__)
 diff --git a/paddle/phi/kernels/funcs/blas/blas_impl.cu.h b/paddle/phi/kernels/funcs/blas/blas_impl.cu.h
-index ae7b67de6d..9ac725314f 100644
+index fc86cc09d1..037f020d00 100644
 --- a/paddle/phi/kernels/funcs/blas/blas_impl.cu.h
 +++ b/paddle/phi/kernels/funcs/blas/blas_impl.cu.h
-@@ -218,11 +218,27 @@ struct CUBlas<float> {
+@@ -219,11 +219,27 @@ struct CUBlas<float> {
    }
  };
  
@@ -246,7 +246,7 @@ index ae7b67de6d..9ac725314f 100644
    }
  
    template <typename... ARGS>
-@@ -368,7 +384,7 @@ struct CUBlas<phi::float16> {
+@@ -369,7 +385,7 @@ struct CUBlas<phi::float16> {
                           cudaDataType_t Ctype,
                           int ldc,
                           int batchCount,
@@ -255,7 +255,7 @@ index ae7b67de6d..9ac725314f 100644
  #if CUDA_VERSION >= 8000
      cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
  #if CUDA_VERSION >= 9000
-@@ -476,7 +492,7 @@ struct CUBlas<phi::float16> {
+@@ -477,7 +493,7 @@ struct CUBlas<phi::float16> {
                        void *C,
                        cudaDataType_t Ctype,
                        int ldc,
@@ -264,7 +264,7 @@ index ae7b67de6d..9ac725314f 100644
  #if CUDA_VERSION >= 8000
      cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
  #if CUDA_VERSION >= 9000
-@@ -532,7 +548,7 @@ struct CUBlas<phi::float16> {
+@@ -533,7 +549,7 @@ struct CUBlas<phi::float16> {
                           void *C,
                           cudaDataType_t Ctype,
                           int64_t ldc,
@@ -273,7 +273,7 @@ index ae7b67de6d..9ac725314f 100644
  #if CUDA_VERSION >= 12030 && defined(__linux__)
      cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
      bool use_tensor_op_math = dev_ctx->tensor_core_available();
-@@ -759,7 +775,7 @@ struct CUBlas<phi::complex64> {
+@@ -760,7 +776,7 @@ struct CUBlas<phi::complex64> {
                        void *C,
                        cudaDataType_t Ctype,
                        int ldc,
@@ -282,7 +282,7 @@ index ae7b67de6d..9ac725314f 100644
  #if CUDA_VERSION >= 8000
      cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
  #if CUDA_VERSION >= 9000
-@@ -815,7 +831,7 @@ struct CUBlas<phi::complex64> {
+@@ -816,7 +832,7 @@ struct CUBlas<phi::complex64> {
                           void *C,
                           cudaDataType_t Ctype,
                           int64_t ldc,
@@ -291,7 +291,7 @@ index ae7b67de6d..9ac725314f 100644
  #if CUDA_VERSION >= 12030 && defined(__linux__)
      cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
      bool use_tensor_op_math = dev_ctx->tensor_core_available();
-@@ -1154,7 +1170,7 @@ struct CUBlas<phi::complex128> {
+@@ -1155,7 +1171,7 @@ struct CUBlas<phi::complex128> {
                        void *C,
                        cudaDataType_t Ctype,
                        int ldc,
@@ -300,7 +300,7 @@ index ae7b67de6d..9ac725314f 100644
  #if CUDA_VERSION >= 8000
      cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
  #if CUDA_VERSION >= 9000
-@@ -1210,7 +1226,7 @@ struct CUBlas<phi::complex128> {
+@@ -1211,7 +1227,7 @@ struct CUBlas<phi::complex128> {
                           void *C,
                           cudaDataType_t Ctype,
                           int64_t ldc,
@@ -309,7 +309,7 @@ index ae7b67de6d..9ac725314f 100644
  #if CUDA_VERSION >= 12030 && defined(__linux__)
      cublasGemmAlgo_t algo = CUBLAS_GEMM_DFALT;
      bool use_tensor_op_math = dev_ctx->tensor_core_available();
-@@ -1484,7 +1500,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -1485,7 +1501,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                       C,
                                       CUDA_R_16F,
                                       N,
@@ -318,7 +318,7 @@ index ae7b67de6d..9ac725314f 100644
  #else
      PADDLE_THROW(common::errors::Unimplemented(
          "GEMM_EX_64 is not supported on cuda < 12.3"));
-@@ -1508,7 +1524,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -1509,7 +1525,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                    C,
                                    CUDA_R_16F,
                                    static_cast<int>(N),
@@ -327,7 +327,7 @@ index ae7b67de6d..9ac725314f 100644
    }
  #else
    // CUDA 7.5 does not support cublasGemmEx, hence we fall back to use hgemm
-@@ -1694,7 +1710,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -1695,7 +1711,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                       C,
                                       CUDA_R_16F,
                                       N,
@@ -336,7 +336,7 @@ index ae7b67de6d..9ac725314f 100644
  #else
      PADDLE_THROW(common::errors::Unimplemented(
          "GEMM_EX_64 is not supported on cuda < 12.3"));
-@@ -1719,7 +1735,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -1720,7 +1736,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                    C,
                                    CUDA_R_16F,
                                    static_cast<int>(N),
@@ -345,7 +345,7 @@ index ae7b67de6d..9ac725314f 100644
  #else
      // CUDA 7.5 does not support cublasGemmEx, hence we fall back to use hgemm
      dev_ctx_.CublasCall([&](cublasHandle_t handle) {
-@@ -1831,7 +1847,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -1832,7 +1848,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                       C,
                                       CUDA_R_16BF,
                                       static_cast<int>(N),
@@ -354,7 +354,7 @@ index ae7b67de6d..9ac725314f 100644
                                       algo));
      });
    }
-@@ -1932,7 +1948,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -1933,7 +1949,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                       C,
                                       CUDA_R_16BF,
                                       static_cast<int>(N),
@@ -363,7 +363,7 @@ index ae7b67de6d..9ac725314f 100644
                                       algo));
      });
    }
-@@ -2026,7 +2042,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -2027,7 +2043,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                      C,
                                      CUDA_C_32F,
                                      static_cast<int>(N),
@@ -372,7 +372,7 @@ index ae7b67de6d..9ac725314f 100644
  
  #else
      dev_ctx_.CublasCall([&](cublasHandle_t handle) {
-@@ -2111,7 +2127,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -2112,7 +2128,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                          C,
                                          CUDA_C_64F,
                                          N,
@@ -381,7 +381,7 @@ index ae7b67de6d..9ac725314f 100644
  #else
      PADDLE_THROW(common::errors::Unimplemented(
          "GEMM_EX_64 is not supported on cuda < 12.3"));
-@@ -2136,7 +2152,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
+@@ -2137,7 +2153,7 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
                                       C,
                                       CUDA_C_64F,
                                       static_cast<int>(N),
@@ -390,7 +390,7 @@ index ae7b67de6d..9ac725314f 100644
  #else  // CUDA_VERSION >= 8000
      // CUDA 7.5 does not support cublasGemmEx, hence we fall back to use hgemm
      dev_ctx_.CublasCall([&](cublasHandle_t handle) {
-@@ -2272,7 +2288,7 @@ inline void Blas<phi::GPUContext>::GEMM(bool transA,
+@@ -2273,7 +2289,7 @@ inline void Blas<phi::GPUContext>::GEMM(bool transA,
                                                            C,
                                                            CUDA_R_16F,
                                                            ldc,
@@ -399,7 +399,7 @@ index ae7b67de6d..9ac725314f 100644
                                                            algo));
    });
  }
-@@ -2334,7 +2350,7 @@ inline void Blas<phi::GPUContext>::GEMM(bool transA,
+@@ -2335,7 +2351,7 @@ inline void Blas<phi::GPUContext>::GEMM(bool transA,
                                                            C,
                                                            CUDA_R_16BF,
                                                            ldc,
@@ -408,7 +408,7 @@ index ae7b67de6d..9ac725314f 100644
                                                            algo));
    });
  #else
-@@ -3129,7 +3145,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
+@@ -3159,7 +3175,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
                                     CUDA_R_16F,
                                     ldc,
                                     batchCount,
@@ -417,7 +417,7 @@ index ae7b67de6d..9ac725314f 100644
  }
  
  template <>
-@@ -3197,7 +3213,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
+@@ -3227,7 +3243,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
                                            CUDA_R_16BF,
                                            ldc,
                                            batchCount,
@@ -456,7 +456,7 @@ index e63b3d2f6e..95d7e6f204 100644
          for (const auto& [seed, algo] : algo_caches_) {
            outfile << seed << " ";
 diff --git a/paddle/phi/kernels/funcs/cublaslt.h b/paddle/phi/kernels/funcs/cublaslt.h
-index fbbf57c25a..f690db59e9 100644
+index dc549488b2..3dd8d0255c 100644
 --- a/paddle/phi/kernels/funcs/cublaslt.h
 +++ b/paddle/phi/kernels/funcs/cublaslt.h
 @@ -42,19 +42,11 @@ class CublasLtHelper {
@@ -494,11 +494,40 @@ index 461e6e2474..48a64ae9ce 100644
  #endif
    dim3 threads(kWarpSize, kBlockDimY);
    dim3 grids(static_cast<int>((D + kWarpSize - 1) / kWarpSize));
+diff --git a/paddle/phi/kernels/funcs/fast_ln_v2_utils.h b/paddle/phi/kernels/funcs/fast_ln_v2_utils.h
+index 6435688914..6c24493f7b 100644
+--- a/paddle/phi/kernels/funcs/fast_ln_v2_utils.h
++++ b/paddle/phi/kernels/funcs/fast_ln_v2_utils.h
+@@ -295,16 +295,15 @@ struct InterCTASync {
+   }  // The barrier for this group of CTAs.
+ 
+   inline __device__ void spin_wait_(int *barrier, int step, int expected) {
+-#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 700)
+-    asm volatile("red.release.gpu.global.add.s32 [%0], %1;" ::"l"(barrier),
+-                 "r"(step));
+-    for (int found = -1; found != expected;) {
+-      asm volatile("ld.global.acquire.gpu.b32 %0, [%1];"
+-                   : "=r"(found)
+-                   : "l"(barrier));
++// #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 700)
++    atomicAdd(barrier, step);
++    volatile int* vbarrier = reinterpret_cast<volatile int*>(barrier);
++    while (vbarrier[0] != expected) {
++        // 可选：在较新 GPU 上轻微退让，降低功耗/提升 SM 利用率
++        // 注意：__nanosleep 仅在 sm_70+ 可用，但即使不用也不影响正确性
++        // __nanosleep(0);
+     }
+-#endif
+-  }
++}
+ 
+   inline __device__ void sync() {
+     // ALL THREADS MUST ENTER!
 diff --git a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
-index 470b0d33ee..d58838d53c 100644
+index 92dccf18ce..dee56fb862 100644
 --- a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 +++ b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
-@@ -43,11 +43,11 @@ template <typename T>
+@@ -36,11 +36,11 @@ template <typename T>
  using LayerNormParamType = typename CudnnDataType<T>::BatchNormParamType;
  
  inline static int GetDesiredBlockDim(int64_t block_dim) {
@@ -556,7 +585,7 @@ index dff1033db4..0098123818 100644
  }
  
 diff --git a/paddle/phi/kernels/funcs/top_k_function_cuda.h b/paddle/phi/kernels/funcs/top_k_function_cuda.h
-index e30d440ff3..108edda7ca 100644
+index 9b69b7d0ff..a6b22261df 100644
 --- a/paddle/phi/kernels/funcs/top_k_function_cuda.h
 +++ b/paddle/phi/kernels/funcs/top_k_function_cuda.h
 @@ -30,11 +30,11 @@ limitations under the License. */
@@ -809,7 +838,7 @@ index e30d440ff3..108edda7ca 100644
  }
  
  template <typename T, bool KillDependency, class Function>
-@@ -881,7 +936,8 @@ __global__ void GatherKthValue(const T* input,
+@@ -884,7 +939,8 @@ __global__ void GatherKthValue(const T* input,
  
    // 1. Find the k-th value
    T kth_value = static_cast<T>(0);
@@ -819,7 +848,7 @@ index e30d440ff3..108edda7ca 100644
        cur_input, k, num_cols, shared_mem, &kth_value);
  
    __shared__ int64_t block_min_idx;
-@@ -1314,3 +1370,4 @@ bool SortTopk(const phi::GPUContext& dev_ctx,
+@@ -1317,3 +1373,4 @@ bool SortTopk(const phi::GPUContext& dev_ctx,
  }
  }  // namespace funcs
  }  // namespace phi
@@ -839,7 +868,7 @@ index 9d4bb18d55..80405c2b78 100644
          }
        }
 diff --git a/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu b/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
-index 6cf08a5ac7..c09018ba78 100644
+index b63ba7540c..c3583711c2 100644
 --- a/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
 @@ -15,7 +15,7 @@
@@ -852,7 +881,7 @@ index 6cf08a5ac7..c09018ba78 100644
  namespace phi {
  namespace fusion {
 diff --git a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
-index 1e7869afec..26ac439fc7 100644
+index dbbc2a2166..eb3b7224f6 100644
 --- a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
 @@ -15,7 +15,7 @@
@@ -865,7 +894,7 @@ index 1e7869afec..26ac439fc7 100644
  namespace phi {
  namespace fusion {
 diff --git a/paddle/phi/kernels/gpu/depthwise_conv.h b/paddle/phi/kernels/gpu/depthwise_conv.h
-index 1be18a24cb..b83e094d31 100644
+index 3ba1fa8c2d..b1c4f8d3a9 100644
 --- a/paddle/phi/kernels/gpu/depthwise_conv.h
 +++ b/paddle/phi/kernels/gpu/depthwise_conv.h
 @@ -21,8 +21,8 @@ limitations under the License. */
@@ -905,7 +934,7 @@ index 29fa252e96..4ae72b0935 100644
  }
  
 diff --git a/paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu b/paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu
-index 11efd87965..679db14c24 100644
+index 4e7ca17d99..60056efce8 100644
 --- a/paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu
 +++ b/paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu
 @@ -17,7 +17,7 @@
@@ -918,7 +947,7 @@ index 11efd87965..679db14c24 100644
  namespace phi {
  
 diff --git a/paddle/phi/kernels/gpu/log_softmax_kernel.cu b/paddle/phi/kernels/gpu/log_softmax_kernel.cu
-index 63c35dd4ee..15da9aea45 100644
+index 41125bf29e..df299eb412 100644
 --- a/paddle/phi/kernels/gpu/log_softmax_kernel.cu
 +++ b/paddle/phi/kernels/gpu/log_softmax_kernel.cu
 @@ -17,7 +17,7 @@
@@ -931,7 +960,7 @@ index 63c35dd4ee..15da9aea45 100644
  namespace phi {
  
 diff --git a/paddle/phi/kernels/gpu/lstsq_kernel.cu b/paddle/phi/kernels/gpu/lstsq_kernel.cu
-index c7f27b2924..4cf6204ac7 100644
+index 504bf7e4eb..cbc1b17289 100644
 --- a/paddle/phi/kernels/gpu/lstsq_kernel.cu
 +++ b/paddle/phi/kernels/gpu/lstsq_kernel.cu
 @@ -21,7 +21,7 @@

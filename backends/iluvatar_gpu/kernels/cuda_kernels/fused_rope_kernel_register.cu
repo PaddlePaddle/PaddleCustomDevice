@@ -13,21 +13,12 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/masked_select_kernel.h"
+#include "paddle/phi/kernels/fusion/gpu/fused_rope_kernel.cu"  //NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(masked_select,
+PD_CUSTOM_KERNEL_REGISTER(fused_rotary_position_embedding,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::MaskedSelectKernel,
-                          bool,
+                          phi::fusion::FusedRopeKernel,
                           float,
-                          int,
-                          int8_t,
-                          int64_t,
-                          int16_t,
-                          uint8_t,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>) {
-  kernel->InputAt(1).SetDataType(phi::DataType::BOOL);
-}
+                          phi::dtype::bfloat16){};

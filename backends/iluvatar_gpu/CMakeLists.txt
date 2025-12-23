@@ -111,11 +111,12 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_info.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_graph.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cuda_driver.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cusparse.cc
   # Core
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/enforce.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/mixed_vector.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cusparse.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/core/platform/device/gpu/gpu_info.cc
   # kernels/funcs
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu
@@ -128,6 +129,11 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cufft.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/magma.cc
   # kernels/gpu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/expand_modality_expert_id_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/cal_aux_loss_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/cal_aux_loss_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/batched_gemm.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/yolo_box_post_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/spectral_norm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/spectral_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_grad_kernel.cu
@@ -224,6 +230,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/uniform_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unique_consecutive_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/where_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
   # kernels/selected_rows
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/adamw_kernel.cu
   # kernels/kps
@@ -325,7 +332,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cvm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_with_scaled_gradient_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/exponential_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/flip_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gather_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gelu_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/global_gather_kernel.cu
@@ -355,6 +361,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_unpermute_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/momentum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mp_allreduce_sum_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multiclass_nms3_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multiplex_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/nonzero_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/pad3d_kernel.cu
@@ -670,7 +677,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/logsumexp_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moving_average_abs_max_scale_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/masked_select_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/solve_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/radam_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/random_routing_kernel.cu
@@ -875,7 +881,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_stack_transpose_quant_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_rope_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_swiglu_weighted_bwd_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math_function.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/log_softmax_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu
@@ -898,7 +904,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/eigh_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/eigvalsh_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/exponential_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/flip_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gather_tree_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/graph_reindex_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/graph_sample_neighbors_kernel.cu
@@ -1014,6 +1019,7 @@ target_link_libraries(
           magma)
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
+include_directories(BEFORE ${CMAKE_SOURCE_DIR}/headers)
 
 target_compile_definitions(
   ${TARGET_NAME}
@@ -1035,7 +1041,11 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory
+          ${CMAKE_CURRENT_BINARY_DIR}/python/include/
+  COMMAND ${CMAKE_COMMAND} -E make_directory
           ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/headers
+          ${CMAKE_CURRENT_BINARY_DIR}/python/include/
   COMMAND
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/lib${TARGET_NAME}.so

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/bmm_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/bmm_kernel.h"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(bmm,
                           iluvatar_gpu,

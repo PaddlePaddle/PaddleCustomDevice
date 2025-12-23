@@ -14,7 +14,6 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/log_softmax_grad_kernel.h"
-// #include "paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu"
 
 PD_CUSTOM_KERNEL_REGISTER(log_softmax_grad,
                           metax_gpu,

@@ -14,7 +14,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/all_reduce_kernel.h"
-#include "paddle/phi/kernels/gpu/mp_allreduce_sum_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/mp_allreduce_sum_kernel.h"  //NOLINT
 PD_CUSTOM_KERNEL_REGISTER(mp_allreduce_sum,
                           iluvatar_gpu,
                           ALL_LAYOUT,

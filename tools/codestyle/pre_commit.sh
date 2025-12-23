@@ -29,19 +29,19 @@ if ! [[ $(python -V 2>&1 | awk '{print $2}' | awk -F '.' '{print $1$2}') -ge 36 
     exit 1
 fi
 
-diff_files=$(git diff --numstat develop ':(exclude)Paddle' | awk '{print $NF}')
+diff_files=$(git --no-pager diff --numstat develop ':(exclude)Paddle' | awk '{print $NF}')
 num_diff_files=$(echo "$diff_files" | wc -l)
 echo -e "diff files between pr and develop:\n${diff_files}"
 
 echo "Checking code style by pre-commit ..."
 pre-commit run --files ${diff_files};check_error=$?
 
-if test ! -z "$(git diff)"; then
+if test ! -z "$(git --no-pager diff)"; then
     echo -e '\n************************************************************************************'
     echo -e "These files have been formatted by code format hook. You should use pre-commit to \
 format them before git push."
     echo -e '************************************************************************************\n'
-    git diff 2>&1
+    git --no-pager diff 2>&1
 fi
 
 echo -e '\n************************************************************************************'

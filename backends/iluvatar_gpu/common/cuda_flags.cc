@@ -272,3 +272,24 @@ PHI_DEFINE_EXPORTED_bool(enable_ixattnbkd,
                          false,
                          "Whether enable ixattnbkd for flash attention or "
                          "not, default is False.");
+
+PHI_DEFINE_EXPORTED_bool(
+    flash_attn_available,
+    true,
+    "Weather flash attention is available on the current device.");
+
+/**
+ * CUDNN related FLAG
+ * Name: FLAGS_conv_workspace_size_limit
+ * Since Version: 0.13.0
+ * Value Range: uint64, default=512 (MB)
+ * Example:
+ * Note: The internal function of cuDNN obtains the fastest matching algorithm
+ *       within this memory limit. Usually, faster algorithms can be chosen in
+ *       larger workspaces, but memory space can also be significantly
+ * increased.
+ *       Users need to balance memory and speed.
+ */
+PHI_DEFINE_EXPORTED_int64(conv_workspace_size_limit,
+                          1024,
+                          "cuDNN convolution workspace limit in MB unit.");

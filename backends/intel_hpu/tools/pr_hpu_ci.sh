@@ -22,12 +22,6 @@ python -c "import paddle; print(paddle.__version__)"
 python -c "import paddle; print(paddle.version.commit)"
 python -m pip install lxml numpy==1.26.4
 
-echo "PaddleNLP install"
-cd ${WORKSPACE}
-git clone --depth=1 https://github.com/PaddlePaddle/PaddleNLP.git
-cd PaddleNLP
-pip install -e .
-
 echo "custom_ops install"
 cd ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu/custom_ops
 python setup.py install

@@ -436,13 +436,7 @@ C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,
                    size_t size) {
-  cudaError_t cudaErr = cudaSetDevice(device->id);
-
-  if (cudaErr != cudaSuccess) {
-    VLOG(4) << "Failed to set device: " << device->id
-            << ", Error: " << cudaGetErrorString(cudaErr);
-    return C_ERROR;
-  }
+  cudaError_t cudaErr;
   cudaErr = cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice);
   if (cudaErr != cudaSuccess) {
     VLOG(4) << "cudaMemcpy failed: " << cudaGetErrorString(cudaErr);
@@ -457,11 +451,6 @@ C_Status MemCpyD2D(const C_Device device,
                    const void *src,
                    size_t size) {
   cudaError_t err;
-
-  err = cudaSetDevice(device->id);
-  if (err != cudaSuccess) {
-    return C_ERROR;
-  }
 
   err = cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice);
 
@@ -481,11 +470,6 @@ C_Status MemCpyD2H(const C_Device device,
   }
 
   cudaError_t cudaErr;
-
-  cudaErr = cudaSetDevice(device->id);
-  if (cudaErr != cudaSuccess) {
-    return C_ERROR;
-  }
 
   cudaErr = cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost);
 
@@ -516,10 +500,7 @@ C_Status AsyncMemCpyH2D(const C_Device device,
     return C_ERROR;
   }
 
-  cudaError_t cudaErr = cudaSetDevice(device->id);
-  if (cudaErr != cudaSuccess) {
-    return C_ERROR;
-  }
+  cudaError_t cudaErr;
 
   cudaErr = cudaMemcpyAsync(dst,
                             src,
@@ -546,10 +527,7 @@ C_Status AsyncMemCpyD2H(const C_Device device,
     return C_ERROR;
   }
 
-  cudaError_t cudaErr = cudaSetDevice(device->id);
-  if (cudaErr != cudaSuccess) {
-    return C_ERROR;
-  }
+  cudaError_t cudaErr;
 
   cudaErr = cudaMemcpyAsync(dst,
                             src,
@@ -576,10 +554,7 @@ C_Status AsyncMemCpyD2D(const C_Device device,
     return C_ERROR;
   }
 
-  cudaError_t cudaErr = cudaSetDevice(device->id);
-  if (cudaErr != cudaSuccess) {
-    return C_ERROR;
-  }
+  cudaError_t cudaErr;
 
   cudaErr = cudaMemcpyAsync(dst,
                             src,
@@ -614,10 +589,6 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   cudaError_t err;
   *ptr = NULL;
 
-  err = cudaSetDevice(device->id);
-  if (err != cudaSuccess) {
-    return C_ERROR;
-  }
   err = cudaMalloc(ptr, size);
   if (err != cudaSuccess) {
     *ptr = NULL;
@@ -635,11 +606,6 @@ C_Status AllocateHost(const C_Device device, void **ptr, size_t size) {
   cudaError_t err;
   *ptr = NULL;
 
-  err = cudaSetDevice(device->id);
-  if (err != cudaSuccess) {
-    return C_ERROR;
-  }
-
   err = cudaMallocHost(ptr, size);
   if (err != cudaSuccess) {
     *ptr = NULL;
@@ -650,13 +616,11 @@ C_Status AllocateHost(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  cudaSetDevice(device->id);
   cudaFree(ptr);
   return C_SUCCESS;
 }
 
 C_Status DeallocateHost(const C_Device device, void *ptr, size_t size) {
-  cudaSetDevice(device->id);
   cudaFreeHost(ptr);
   return C_SUCCESS;
 }
@@ -664,11 +628,6 @@ C_Status DeallocateHost(const C_Device device, void *ptr, size_t size) {
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
   cudaError_t err;
   cudaStream_t cuda_stream = NULL;
-
-  err = cudaSetDevice(device->id);
-  if (err != cudaSuccess) {
-    return C_ERROR;
-  }
 
   err = cudaStreamCreate(&cuda_stream);
   if (err != cudaSuccess) {
@@ -682,11 +641,6 @@ C_Status CreateStream(const C_Device device, C_Stream *stream) {
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
   cudaError_t err;
   cudaStream_t cuda_stream = (cudaStream_t)stream;
-
-  err = cudaSetDevice(device->id);
-  if (err != cudaSuccess) {
-    return C_ERROR;
-  }
 
   err = cudaStreamDestroy(cuda_stream);
 
@@ -702,22 +656,15 @@ C_Status CreateEvent(const C_Device device, C_Event *event) {
     return C_ERROR;
   }
 
-  *event = (C_Event)0x1;
+  cudaError_t cuda_status;
 
-  // cudaError_t cuda_status;
+  cudaEvent_t evt;
+  cuda_status = cudaEventCreate(&evt);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
 
-  // cuda_status = cudaSetDevice(device->id);
-  // if (cuda_status != cudaSuccess) {
-  //   return C_ERROR;
-  // }
-
-  // cudaEvent_t evt;
-  // cuda_status = cudaEventCreate(&evt);
-  // if (cuda_status != cudaSuccess) {
-  //   return C_ERROR;
-  // }
-
-  // *event = (C_Event)evt;
+  *event = (C_Event)evt;
   return C_SUCCESS;
 }
 
@@ -728,13 +675,15 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
 
   cudaError_t cuda_status;
 
-  cuda_status = cudaSetDevice(device->id);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
+  cudaError_t query_status = cudaEventQuery(cudaEvent_t(event));
+  if (query_status == cudaErrorNotReady) {
+    cuda_status = cudaEventSynchronize(cudaEvent_t(event));
+    if (cuda_status != cudaSuccess) {
+      return C_ERROR;
+    }
   }
 
-  cuda_status = cudaStreamSynchronize(cudaStream_t(stream));
-  // cuda_status = cudaEventRecord(cudaEvent_t(event), cudaStream_t(stream));
+  cuda_status = cudaEventRecord(cudaEvent_t(event), cudaStream_t(stream));
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }
@@ -743,32 +692,22 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
 }
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
-  // if (device == NULL || event == NULL) {
-  //   return C_ERROR;
-  // }
+  if (device == NULL || event == NULL) {
+    return C_ERROR;
+  }
 
-  // cudaError_t cuda_status;
+  cudaError_t cuda_status;
 
-  // cuda_status = cudaSetDevice(device->id);
-  // if (cuda_status != cudaSuccess) {
-  //   return C_ERROR;
-  // }
-
-  // cuda_status = cudaEventDestroy(cudaEvent_t(event));
-  // if (cuda_status != cudaSuccess) {
-  //   return C_ERROR;
-  // }
+  cuda_status = cudaEventDestroy(cudaEvent_t(event));
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
 
   return C_SUCCESS;
 }
 
 C_Status SyncDevice(const C_Device device) {
   cudaError_t err;
-
-  err = cudaSetDevice(device->id);
-  if (err != cudaSuccess) {
-    return C_ERROR;
-  }
 
   err = cudaDeviceSynchronize();
   cudaError_t sync_err = err;
@@ -783,11 +722,6 @@ C_Status SyncDevice(const C_Device device) {
 C_Status SyncStream(const C_Device device, C_Stream stream) {
   cudaError_t err;
   cudaStream_t cuda_stream = (cudaStream_t)stream;
-
-  err = cudaSetDevice(device->id);
-  if (err != cudaSuccess) {
-    return C_ERROR;
-  }
 
   err = cudaStreamSynchronize(cuda_stream);
 
@@ -805,11 +739,7 @@ C_Status SyncEvent(const C_Device device, C_Event event) {
 
   cudaError_t cuda_status;
 
-  cuda_status = cudaSetDevice(device->id);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
-  cuda_status = cudaDeviceSynchronize();
+  cuda_status = cudaEventSynchronize(cudaEvent_t(event));
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }
@@ -826,12 +756,8 @@ C_Status StreamWaitEvent(const C_Device device,
 
   cudaError_t cuda_status;
 
-  cuda_status = cudaSetDevice(device->id);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
-
-  cuda_status = cudaStreamSynchronize(cudaStream_t(stream));
+  cuda_status =
+      cudaStreamWaitEvent(cudaStream_t(stream), cudaEvent_t(event), 0);
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }

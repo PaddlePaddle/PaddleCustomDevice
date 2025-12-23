@@ -83,9 +83,9 @@ jobs:
           docker exec -t ${{ env.container_name }}  /bin/bash -c '
           # !!!!! SKIP IF NO MLU CHANGE !!!!
           echo "=========== Checking PR Changes If MLU FULL CI Needed ==========="
-          change_numbers=$(git diff --name-only remotes/origin/${BRANCH} | wc -l)
-          change_backend=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
-          change_mlu_only=$(git diff --name-only remotes/origin/${BRANCH} | grep "backends/mlu"| wc -l)
+          change_numbers=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | wc -l)
+          change_backend=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep "backends/"| wc -l)
+          change_mlu_only=$(git --no-pager diff --name-only remotes/origin/${BRANCH} | grep "backends/mlu"| wc -l)
           git --no-pager diff --name-only remotes/origin/${BRANCH}
 
           if [ $change_numbers -ne $change_backend ]; then

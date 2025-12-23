@@ -31,10 +31,10 @@ fi
 echo "make_maca"
 cd build
 cmake_maca .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON
-make_maca -j18
+make_maca -j18 VERBOSE=1
 
 
 echo "install whl"
-pip install dist/paddle_metax_gpu*.whl --force-reinstall
+pip install dist/paddle_metax_gpu-${PADDLE_VERSION}*.whl --force-reinstall
 cd ..
 echo "Done!"

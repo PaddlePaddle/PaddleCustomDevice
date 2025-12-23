@@ -265,7 +265,7 @@ function main() {
     pip install dist/*.whl
     # get changed ut and kernels
     set +e
-    changed_uts=$(git diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/tests/unittests")
+    changed_uts=$(git --no-pager diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/tests/unittests")
     changed_ut_list=()
     if [ ${#changed_uts[*]} -gt 0 ]; then 
         for line in ${changed_uts[@]} ;
@@ -278,7 +278,7 @@ function main() {
 
     # transform changed kernels to changed ut
     set +e
-    changed_kernels=$(git diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/kernels")
+    changed_kernels=$(git --no-pager diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/kernels")
     set +x
     all_ut_lists=$(ls "${CODE_ROOT}/tests/unittests")
     if [ ${#changed_kernels[*]} -gt 0 ]; then 

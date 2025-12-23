@@ -190,7 +190,22 @@ inline cudnnTensorFormat_t GetCudnnTensorFormat(
   }
   return CUDNN_TENSOR_NCHW;
 }
-
+inline cudnnTensorFormat_t GetCudnnTensorFormat(const phi::DataLayout& order) {
+  switch (order) {
+    case phi::DataLayout::NHWC:
+      return CUDNN_TENSOR_NHWC;
+    case phi::DataLayout::NCHW:
+      return CUDNN_TENSOR_NCHW;
+    case phi::DataLayout::NCDHW:
+      return CUDNN_TENSOR_NCHW;  // NOTE: cudnn treat NdTensor as the same
+    case phi::DataLayout::NDHWC:
+      return CUDNN_TENSOR_NHWC;
+    default:
+      PADDLE_THROW(common::errors::Unimplemented(
+          "CUDNN has no equivalent dataLayout for input order."));
+  }
+  return CUDNN_TENSOR_NCHW;
+}
 class ScopedTensorDescriptor {
  public:
   ScopedTensorDescriptor() {

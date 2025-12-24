@@ -20,16 +20,16 @@ set(MAGMA_DOWNLOAD_DIR
 set(MAGMA_INSTALL_DIR ${THIRD_PARTY_PATH}/install/magma)
 set(MAGMA_LIB_DIR ${MAGMA_INSTALL_DIR}/lib)
 
-# use precompiled library magma tag v2.9.0 on 07/28/2025
+# use precompiled library. use magma tag v2.9.0 on 07/28/2025
 # https://github.com/icl-utk-edu/magma/tree/v2.9.0
 if(LINUX)
   set(MAGMA_FILE
-      "magma_lnx_iluvatar_v2.9.0.20250728.tar.gz"
+      "magma_lnx_metax_v2.9.0.20250728.tar.gz"
       CACHE STRING "" FORCE)
   set(MAGMA_URL
       "https://paddlepaddledeps.bj.bcebos.com/${MAGMA_FILE}"
       CACHE STRING "" FORCE)
-  set(MAGMA_URL_MD5 7fcca7e0140ed8df1fef511d82ae30c3)
+  set(MAGMA_URL_MD5 3aa4106aa11ba0aeb0036b450a53e972)
   set(MAGMA_LIB "${MAGMA_LIB_DIR}/libmagma.so")
 elseif(WIN32)
   message("magma do not support windows yet, skip ...")
@@ -86,3 +86,9 @@ ExternalProject_Add(
   BUILD_BYPRODUCTS ${MAGMA_LIB})
 
 add_definitions(-DPADDLE_WITH_MAGMA)
+
+add_library(magma SHARED IMPORTED GLOBAL)
+
+set_target_properties(magma PROPERTIES IMPORTED_LOCATION ${MAGMA_LIB})
+
+add_dependencies(magma extern_magma)

@@ -39,6 +39,9 @@ include(cutlass)
 include(dgc)
 include(warpctc)
 include(warprnnt)
+if(WITH_MAGMA)
+  include(external/magma)
+endif()
 
 set(PLUGIN_VERSION ${PADDLE_VERSION})
 
@@ -123,6 +126,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/magma/magma_function.cc
   # kernels/gpu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/partial_send_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/partial_recv_kernel.cu
@@ -667,6 +671,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/binomial_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bernoulli_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cufft.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/magma.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/box_coder_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/broadcast_tensors_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/broadcast_tensors_grad_kernel.cu
@@ -779,6 +784,7 @@ target_link_libraries(
   protobuf
   external_error_proto
   dgc
+  magma
   ${WARPCTC_LIBRARIES}
   ${WARPRNNT_LIBRARIES}
   ${PADDLE_CORE_LIB})

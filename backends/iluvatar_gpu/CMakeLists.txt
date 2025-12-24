@@ -34,7 +34,6 @@ include(version)
 include(generic)
 include(cblas)
 include(external/eigen)
-include(external/magma)
 include(external/xxhash)
 include(external/zlib)
 include(external/protobuf)
@@ -121,13 +120,11 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/magma/magma_function.cc
   # cudnn/cublas
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cudnn.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublas.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublasLt.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cufft.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/magma.cc
   # kernels/gpu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/expand_modality_expert_id_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/cal_aux_loss_kernel.cu
@@ -198,8 +195,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/put_along_axis_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/randint_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/fused_rms_norm_quant_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/fused_rms_norm_quant_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_align_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_align_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scale_kernel.cu
@@ -1016,7 +1013,7 @@ target_link_libraries(
           ixattnbkd
           nccl
           # change nccl to ${FLAGCX_LIB} if compiling with FlagCX ${FLAGCX_LIB}
-          magma)
+)
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 include_directories(BEFORE ${CMAKE_SOURCE_DIR}/headers)

@@ -77,11 +77,6 @@ class DnnWorkspaceHandle {
 namespace {  // NOLINT
 inline cudnnHandle_t dnn_handle_ = nullptr;
 inline std::once_flag flag_dnn_;
-
-inline cusolverDnHandle_t solver_handle_ = nullptr;
-inline std::function<cusolverDnHandle_t()> solver_handle_creator_{nullptr};
-inline std::once_flag flag_solver_;
-
 inline void InitDnnHandle(cudnnHandle_t* handle,
                           gpuStream_t stream,
                           Place place) {
@@ -119,29 +114,6 @@ inline DnnWorkspaceHandle GetDnnWorkspace(Allocator* alloactor,
                                           const gpuStream_t& stream) {
   return DnnWorkspaceHandle(alloactor, stream);
 }
-
-inline void InitSolverHandle(cusolverDnHandle_t* handle, gpuStream_t stream) {
-  PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cusolverDnCreate(handle));
-  PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cusolverDnSetStream(*handle, stream));
-}
-
-inline cusolverDnHandle_t GetSolverHandle(gpuStream_t stream) {
-  std::call_once(flag_solver_, [&]() {
-    if (!solver_handle_) {
-      if (!solver_handle_creator_) {
-        InitSolverHandle(&solver_handle_, stream);
-      } else {
-        solver_handle_ = solver_handle_creator_();
-      }
-    }
-  });
-  PADDLE_ENFORCE_NOT_NULL(
-      solver_handle_,
-      common::errors::InvalidArgument(
-          "The GPU solver handle is nullptr. It must not be null."));
-  return solver_handle_;
-}
-
 }  // namespace phi
 
 namespace iluvatar {

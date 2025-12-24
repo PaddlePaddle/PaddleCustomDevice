@@ -37,10 +37,10 @@ limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/rms_norm_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(fused_rms_norm_quant,
+PD_CUSTOM_KERNEL_REGISTER(rms_norm,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::RmsNormQuantKernel,
+                          phi::RmsNormKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

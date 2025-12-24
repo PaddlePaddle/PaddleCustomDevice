@@ -494,35 +494,6 @@ index 461e6e2474..48a64ae9ce 100644
  #endif
    dim3 threads(kWarpSize, kBlockDimY);
    dim3 grids(static_cast<int>((D + kWarpSize - 1) / kWarpSize));
-diff --git a/paddle/phi/kernels/funcs/fast_ln_v2_utils.h b/paddle/phi/kernels/funcs/fast_ln_v2_utils.h
-index 6435688914..6c24493f7b 100644
---- a/paddle/phi/kernels/funcs/fast_ln_v2_utils.h
-+++ b/paddle/phi/kernels/funcs/fast_ln_v2_utils.h
-@@ -295,16 +295,15 @@ struct InterCTASync {
-   }  // The barrier for this group of CTAs.
- 
-   inline __device__ void spin_wait_(int *barrier, int step, int expected) {
--#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 700)
--    asm volatile("red.release.gpu.global.add.s32 [%0], %1;" ::"l"(barrier),
--                 "r"(step));
--    for (int found = -1; found != expected;) {
--      asm volatile("ld.global.acquire.gpu.b32 %0, [%1];"
--                   : "=r"(found)
--                   : "l"(barrier));
-+// #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 700)
-+    atomicAdd(barrier, step);
-+    volatile int* vbarrier = reinterpret_cast<volatile int*>(barrier);
-+    while (vbarrier[0] != expected) {
-+        // 可选：在较新 GPU 上轻微退让，降低功耗/提升 SM 利用率
-+        // 注意：__nanosleep 仅在 sm_70+ 可用，但即使不用也不影响正确性
-+        // __nanosleep(0);
-     }
--#endif
--  }
-+}
- 
-   inline __device__ void sync() {
-     // ALL THREADS MUST ENTER!
 diff --git a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 index 92dccf18ce..dee56fb862 100644
 --- a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
@@ -1011,3 +982,17 @@ index 410fb3c560..7d173d46f5 100644
  
    if (x == T{0.0}) {
      T inf = std::numeric_limits<T>::infinity();
+diff --git a/paddle/phi/kernels/funcs/fft.cu b/paddle/phi/kernels/funcs/fft.cu
+index 5133e702d7..e8b574967d 100644
+--- a/paddle/phi/kernels/funcs/fft.cu
++++ b/paddle/phi/kernels/funcs/fft.cu
+@@ -172,7 +172,7 @@ void exec_fft(const phi::GPUContext& dev_ctx,
+   int64_t device_id = dev_ctx.GetPlace().GetDeviceId();
+   FFTConfig* config = nullptr;
+   std::unique_ptr<FFTConfig> config_ = nullptr;
+-  bool using_cache = use_cache(key.sizes_);
++  bool using_cache = false;//use_cache(key.sizes_);
+ 
+   if (using_cache) {
+     FFTConfigCache& plan_cache = get_fft_plan_cache(device_id);
+     

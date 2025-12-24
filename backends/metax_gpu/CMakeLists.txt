@@ -121,6 +121,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cusparse.cc
   # kernels/Funcs
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/*.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/dense_tensor_iterator.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu
   # kernels/gpu

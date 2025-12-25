@@ -165,10 +165,10 @@ index 189e97534e..8f805afe8c 100644
  
    void set(const phi::DenseTensor& tensor, const cudnnTensorFormat_t format) {
 diff --git a/paddle/phi/backends/gpu/cuda/cudnn_helper.h b/paddle/phi/backends/gpu/cuda/cudnn_helper.h
-index 8b293d3007..35245dddb0 100644
+index 9a8a3b7605..3186f37c20 100644
 --- a/paddle/phi/backends/gpu/cuda/cudnn_helper.h
 +++ b/paddle/phi/backends/gpu/cuda/cudnn_helper.h
-@@ -124,7 +124,7 @@ class CudnnDataType<phi::dtype::float8_e4m3fn> {
+@@ -117,7 +117,7 @@ class CudnnDataType<phi::dtype::float8_e4m3fn> {
  #endif
  
  // CUDNN_DATA_BFLOAT16 is not valid before cudnn8.1
@@ -392,7 +392,7 @@ index 9c9ab5dff9..ecf4e8f5e8 100644
  template <typename T>
  struct CudaLogFunctor : public BaseActivationFunctor<T> {
 diff --git a/paddle/phi/kernels/funcs/affine_grid_utils.h b/paddle/phi/kernels/funcs/affine_grid_utils.h
-index 70abf63a3d..af6f2136c5 100644
+index 149b5f3d76..eac6f4b942 100644
 --- a/paddle/phi/kernels/funcs/affine_grid_utils.h
 +++ b/paddle/phi/kernels/funcs/affine_grid_utils.h
 @@ -16,7 +16,9 @@
@@ -644,10 +644,10 @@ index df4f214e66..e31b8eb1f6 100644
  }  // namespace detail
  }  // namespace funcs
 diff --git a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
-index 92dccf18ce..5cc9937d7a 100644
+index 274dc1fc5f..60251f0edd 100644
 --- a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 +++ b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
-@@ -37,11 +37,7 @@ using LayerNormParamType = typename CudnnDataType<T>::BatchNormParamType;
+@@ -36,11 +36,7 @@ using LayerNormParamType = typename CudnnDataType<T>::BatchNormParamType;
  
  inline static int GetDesiredBlockDim(int64_t block_dim) {
    const int kMaxBlockDim = 512;
@@ -660,7 +660,7 @@ index 92dccf18ce..5cc9937d7a 100644
  }
  
 diff --git a/paddle/phi/kernels/funcs/reduce_function.h b/paddle/phi/kernels/funcs/reduce_function.h
-index e89969e9dc..65e744f37d 100644
+index 1d863f875e..0268bef9b2 100644
 --- a/paddle/phi/kernels/funcs/reduce_function.h
 +++ b/paddle/phi/kernels/funcs/reduce_function.h
 @@ -1131,7 +1131,7 @@ void ReduceKernel(const KPDevice& dev_ctx,
@@ -711,7 +711,7 @@ index 9f12293c0f..4e897bb433 100644
  namespace phi {
  namespace funcs {
 diff --git a/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu b/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
-index 77e3537124..8f6022bc76 100644
+index d2545742f9..e1ecc5ef54 100644
 --- a/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
 @@ -58,11 +58,7 @@ namespace fusion {
@@ -727,7 +727,7 @@ index 77e3537124..8f6022bc76 100644
  template <typename T>
  struct SumOp {
 diff --git a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
-index a28047c624..30832164f4 100644
+index 25c9fa597e..bb531b681f 100644
 --- a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
 +++ b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
 @@ -24,11 +24,7 @@ namespace fusion {
@@ -780,7 +780,6 @@ index a28047c624..30832164f4 100644
            mask_vec[it][jt] = static_cast<MaskType>(rand[jt] >= dropout_prob);
          }
        }
-
 diff --git a/paddle/phi/kernels/gpu/elementwise_grad.h b/paddle/phi/kernels/gpu/elementwise_grad.h
 index 411ee4510c..36c2f8fba7 100644
 --- a/paddle/phi/kernels/gpu/elementwise_grad.h
@@ -797,6 +796,19 @@ index 411ee4510c..36c2f8fba7 100644
      dim3 block_size = dim3(PREDEFINED_BLOCK_SIZE, 1);
      dim3 grid_size =
          dim3(((size + vec_size - 1) / vec_size + PREDEFINED_BLOCK_SIZE - 1) /
+diff --git a/paddle/phi/kernels/gpu/fused_rms_norm_quant_grad_kernel.cu b/paddle/phi/kernels/gpu/fused_rms_norm_quant_grad_kernel.cu
+index 6e336a7ec4..d377494b50 100644
+--- a/paddle/phi/kernels/gpu/fused_rms_norm_quant_grad_kernel.cu
++++ b/paddle/phi/kernels/gpu/fused_rms_norm_quant_grad_kernel.cu
+@@ -212,7 +212,7 @@ PD_REGISTER_KERNEL(fused_rms_norm_quant_grad,
+                    float,
+                    phi::float16) {}
+ 
+-#elif CUDNN_VERSION_MIN(8, 1, 0)
++#elif defined(PADDLE_WITH_COREX)
+ 
+ PD_REGISTER_KERNEL(fused_rms_norm_quant_grad,
+                    GPU,
 diff --git a/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu b/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
 index 701c19a56f..b5d3ba7846 100644
 --- a/paddle/phi/kernels/gpu/interpolate_grad_kernel.cu
@@ -825,10 +837,10 @@ index 701c19a56f..b5d3ba7846 100644
          funcs::BlockReduceMax(top_right_index, FINAL_MASK);
      int64_t in_bot_max_index =
 diff --git a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
-index 8280e95065..dd50aa08bf 100644
+index f921cd75fe..141d65bc6e 100644
 --- a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
 +++ b/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
-@@ -232,7 +232,7 @@ PD_REGISTER_KERNEL(layer_norm_grad,
+@@ -149,7 +149,7 @@ PD_REGISTER_KERNEL(layer_norm_grad,
      kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
    }
  }
@@ -838,10 +850,10 @@ index 8280e95065..dd50aa08bf 100644
                     GPU,
                     ALL_LAYOUT,
 diff --git a/paddle/phi/kernels/gpu/layer_norm_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
-index 892525493c..854f13a239 100644
+index 259f24b0d2..da48ec561c 100644
 --- a/paddle/phi/kernels/gpu/layer_norm_kernel.cu
 +++ b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
-@@ -765,7 +765,7 @@ PD_REGISTER_KERNEL(
+@@ -707,7 +707,7 @@ PD_REGISTER_KERNEL(
    kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
    kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
  }

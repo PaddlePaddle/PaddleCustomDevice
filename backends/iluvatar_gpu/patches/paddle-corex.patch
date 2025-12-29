@@ -785,7 +785,7 @@ index 411ee4510c..36c2f8fba7 100644
 --- a/paddle/phi/kernels/gpu/elementwise_grad.h
 +++ b/paddle/phi/kernels/gpu/elementwise_grad.h
 @@ -352,7 +352,11 @@ void ElementwiseAddGrad(const GPUContext &dev_ctx,
-     phi::Copy(dev_ctx, dout, dev_ctx.GetPlace(), false, dx);
+     Copy(dev_ctx, dout, dev_ctx.GetPlace(), false, dx);
    } else if (dx_data != dout_data && dy_data != dout_data) {
      auto size = x.numel();
 +#ifdef PADDLE_WITH_COREX

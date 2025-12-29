@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Exit immediately if a command exits with a non-zero status
+set -e
+
 PYTHON_VERSION=${PYTHON_VERSION:-$(python3 -V 2>&1|awk '{print $2}')}
 COREX_VERSION=${COREX_VERSION:-latest}
 if [[ "${COREX_VERSION}" == "latest" ]]; then
@@ -36,7 +39,7 @@ else
     WITH_FLAGCX="OFF"
 fi
 
-bash clean_paddle.sh
+bash clean_paddle.sh || { echo "Error: Failed to clean paddle!"; exit 1; }
 
 pushd "${CURRENT_DIR}/../.."
 git submodule update --init --recursive --force
@@ -49,13 +52,13 @@ if ! git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/nu
   fi
   echo "Patch applied successfully!"
 fi
-cp -r ${CURRENT_DIR}/patches/eigen/Core ../../Paddle/third_party/eigen3/Eigen/Core
-cp -r ${CURRENT_DIR}/patches/eigen/Tensor ../../Paddle/third_party/eigen3/unsupported/Eigen/CXX11/Tensor
-cp -r ${CURRENT_DIR}/patches/eigen/TensorAssign.h ../../Paddle/third_party/eigen3/unsupported/Eigen/CXX11/src/Tensor/TensorAssign.h
+cp -r ${CURRENT_DIR}/patches/eigen/Core ../../Paddle/third_party/eigen3/Eigen/Core || { echo "Error: Failed to copy eigen Core!"; exit 1; }
+cp -r ${CURRENT_DIR}/patches/eigen/Tensor ../../Paddle/third_party/eigen3/unsupported/Eigen/CXX11/Tensor || { echo "Error: Failed to copy eigen Tensor!"; exit 1; }
+cp -r ${CURRENT_DIR}/patches/eigen/TensorAssign.h ../../Paddle/third_party/eigen3/unsupported/Eigen/CXX11/src/Tensor/TensorAssign.h || { echo "Error: Failed to copy eigen TensorAssign.h!"; exit 1; }
 
 pushd ${PADDLE_SOURCE_DIR}/paddle/phi/core
 if [[ ! -f "external_error.pb.cc" || ! -f "external_error.pb.h" ]]; then
-  protoc --cpp_out=. external_error.proto
+  protoc --cpp_out=. external_error.proto || { echo "Error: Failed to generate protobuf files!"; exit 1; }
 fi
 popd
 
@@ -78,15 +81,17 @@ popd
 if [[ ! -d "build_pip" ]]; then
   mkdir build_pip
 fi
-cp build/dist/* build_pip
+cp build/dist/* build_pip || { echo "Error: Failed to copy build artifacts!"; exit 1; }
 
 if git -C "$PADDLE_SOURCE_DIR" apply --reverse --check "$PATCH_FILE" > /dev/null 2>&1; then
-  git -C "$PADDLE_SOURCE_DIR" apply --reverse "$PATCH_FILE"
+  git -C "$PADDLE_SOURCE_DIR" apply --reverse "$PATCH_FILE" || { echo "Error: Failed to revert patch!"; exit 1; }
   echo "Patch successfully reverted!"
 fi
 
 pushd ${PADDLE_SOURCE_DIR}/third_party/eigen3
-git reset --hard
+git reset --hard || { echo "Error: Failed to reset eigen repository!"; exit 1; }
 popd
 
-exit 0
+# Script will exit with the status of the last command
+# If all commands succeeded, it will exit with 0
+# If any command failed, it will have already exited with 1

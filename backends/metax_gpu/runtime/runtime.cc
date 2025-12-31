@@ -392,6 +392,16 @@ C_Status GetMaxThreadsPerBlock(const C_Device device,
   *threads_per_block = count;
   return C_SUCCESS;
 }
+  
+C_Status GetMaxBlocksPerMultiProcessor(const C_Device device,
+                               size_t *blocks_per_mp) {
+  int id = device->id;
+  int count = 0;
+  cudaError_t status =
+      cudaDeviceGetAttribute(&count, cudaDevAttrMaxBlocksPerMultiprocessor, id);
+  *blocks_per_mp = count;
+  return C_SUCCESS;
+}
 
 C_Status GetMaxGridDimSize(const C_Device device,
                            std::array<unsigned int, 3> *grid_dim_size) {
@@ -406,6 +416,22 @@ C_Status GetMaxGridDimSize(const C_Device device,
   ret[2] = size;
 
   *grid_dim_size = ret;
+  return C_SUCCESS;
+}
+
+C_Status GetMaxBlockDimSize(const C_Device device,
+                           std::array<unsigned int, 3> *block_dim_size) {
+  int id = device->id;
+  std::array<unsigned int, 3> ret = {};
+  int size;
+  auto error_code_x = cudaDeviceGetAttribute(&size, cudaDevAttrMaxBlockDimX, id);
+  ret[0] = size;
+  auto error_code_y = cudaDeviceGetAttribute(&size, cudaDevAttrMaxBlockDimY, id);
+  ret[1] = size;
+  auto error_code_z = cudaDeviceGetAttribute(&size, cudaDevAttrMaxBlockDimZ, id);
+  ret[2] = size;
+
+  *block_dim_size = ret;
   return C_SUCCESS;
 }
 
@@ -1467,7 +1493,10 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->get_multi_process = GetMultiProcessors;
   params->interface->get_max_threads_per_mp = GetMaxThreadsPerMultiProcessor;
   params->interface->get_max_threads_per_block = GetMaxThreadsPerBlock;
+  params->interface->get_max_shared_mem_per_block = GetMaxSharedMemPerBlock;
+  params->interface->get_max_blocks_per_mp = GetMaxBlocksPerMultiProcessor;
   params->interface->get_max_grid_dim_size = GetMaxGridDimSize;
+  params->interface->get_max_block_dim_size = GetMaxBlockDimSize;
 
   params->interface->init_device = InitDevice;
   params->interface->set_device = SetDevice;

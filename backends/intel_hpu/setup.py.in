@@ -1,5 +1,6 @@
 import os
 from setuptools import setup, Distribution
+import shutil
 
 packages = []
 package_data = {}
@@ -31,15 +32,31 @@ for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
 ''')
         f.write('\n\n'.join(api_content))
 
-def write_version_py(filename='python/paddle_custom_device/intel_hpu/__init__.py'):
+def write_version_py(filename='python/paddle_custom_device/intel_hpu/__init__.py', source_path='python/paddle_custom_device/intel_hpu'):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
+
+    # to get all the .py file under source_path (exclude __init__.py file)
+    py_files = []
+    if os.path.exists(source_path):
+        for file in os.listdir(source_path):
+            if file.endswith('.py') and file != '__init__.py':
+                py_files.append(file[:-3])  # to remove the .py
+
+    # generate the import line
+    import_statements = []
+    for module in sorted(py_files):  # to do sort
+        import_statements.append(f"from .{module} import *")
+
     cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
 #
-from .ops import *
-
-full_version  = '@PADDLE_VERSION@'
+'''
+    #to add all import lines
+    cnt += '\n'.join(import_statements) + '\n\n'
+    
+    #to add version info and function
+    cnt += '''full_version  = '@PADDLE_VERSION@'
 synapse_version  = @SYNAPSE_VERSION@
 git_commit_id = '@GIT_HASH@'
 custom_op_git_commit_id = '@CUSTOM_OP_GIT_HASH@'
@@ -74,11 +91,15 @@ def version():
     with open(filename, 'w') as f:
         f.write(cnt)
 
+    print(f"Generated {filename} with imports from {len(py_files)} modules: {py_files}")
+
 def write_init_py(filename='python/paddle_custom_device/__init__.py'):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
+    cnt = '''
+#
+# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
 #
 from . import intel_hpu # noqa: F401
 
@@ -87,9 +108,56 @@ __all__ = [  # noqa
 ]
 
 '''
-    with open(filename, 'w') as f:
+    with open(filename, 'a+') as f:
         f.write(cnt)
 
+def copy_paddlenlp_ops_files(source_path='../custom_ops/python/paddlenlp_ops', target_path='python/paddle_custom_device/intel_hpu'):
+    if not os.path.exists(source_path):
+        print(f"Source path {source_path} does not exist")
+        return
+
+    try:
+        os.makedirs(target_path, exist_ok=True)
+        # to check whether the dir can be accessed
+        if not os.access(source_path, os.R_OK):
+            print(f"Cannot read source directory: {source_path}")
+            return
+
+        for file in os.listdir(source_path):
+            if file.endswith('.py') and file != '__init__.py':
+                source_file = os.path.join(source_path, file)
+
+                #to check file can be read
+                if not os.access(source_file, os.R_OK):
+                    print(f"Cannot read file: {source_file}")
+                    continue
+
+                target_file = os.path.join(target_path, file)
+
+                try:
+                    # to open and read source file
+                    with open(source_file, 'r') as f:
+                        content = f.read()
+
+                    # to do modify
+                    modified_content = content.replace('import paddlenlp_ops', 'import paddle_custom_device.intel_hpu as paddlenlp_ops')
+                    modified_content = modified_content.replace('from paddlenlp_ops import', 'from paddle_custom_device.intel_hpu import')
+
+                    # write to the target file
+                    with open(target_file, 'w') as f:
+                        f.write(modified_content)
+
+                    print(f"Processed {file}")
+
+                except PermissionError:
+                    print(f"Permission denied when accessing {source_file}")
+                except Exception as e:
+                    print(f"Error processing {file}: {e}")
+
+    except Exception as e:
+        print(f"General error: {e}")
+
+copy_paddlenlp_ops_files()
 write_custom_op_api_py()
 write_version_py()
 write_init_py()

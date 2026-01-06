@@ -85,7 +85,3 @@ fi
 pushd ${PADDLE_SOURCE_DIR}/third_party/eigen3
 git reset --hard || { echo "Error: Failed to reset eigen repository!"; exit 1; }
 popd
-
-# Script will exit with the status of the last command
-# If all commands succeeded, it will exit with 0
-# If any command failed, it will have already exited with 1

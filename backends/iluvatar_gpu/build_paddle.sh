@@ -56,12 +56,6 @@ cp -r ${CURRENT_DIR}/patches/eigen/Core ../../Paddle/third_party/eigen3/Eigen/Co
 cp -r ${CURRENT_DIR}/patches/eigen/Tensor ../../Paddle/third_party/eigen3/unsupported/Eigen/CXX11/Tensor || { echo "Error: Failed to copy eigen Tensor!"; exit 1; }
 cp -r ${CURRENT_DIR}/patches/eigen/TensorAssign.h ../../Paddle/third_party/eigen3/unsupported/Eigen/CXX11/src/Tensor/TensorAssign.h || { echo "Error: Failed to copy eigen TensorAssign.h!"; exit 1; }
 
-pushd ${PADDLE_SOURCE_DIR}/paddle/phi/core
-if [[ ! -f "external_error.pb.cc" || ! -f "external_error.pb.h" ]]; then
-  protoc --cpp_out=. external_error.proto || { echo "Error: Failed to generate protobuf files!"; exit 1; }
-fi
-popd
-
 if [[ ! -d "build" ]]; then
   mkdir build
 fi

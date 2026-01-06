@@ -556,3 +556,4 @@ test_rms_norm_op.py
 test_batched_gemm.py
 test_match_matrix_tensor_op.py
 test_tensor.py
+test_rms_norm.py

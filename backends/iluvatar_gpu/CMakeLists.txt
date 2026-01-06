@@ -118,6 +118,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/platform/device/gpu/gpu_info.cc
   # kernels/funcs
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/*.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/dense_tensor_iterator.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu
   # cudnn/cublas

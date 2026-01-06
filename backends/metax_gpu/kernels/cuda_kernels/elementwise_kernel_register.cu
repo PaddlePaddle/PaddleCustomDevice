@@ -45,7 +45,8 @@ PD_CUSTOM_KERNEL_REGISTER(remainder,
                           int,
                           int64_t,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>) {}
 PD_CUSTOM_KERNEL_REGISTER(floor_divide,
                           metax_gpu,
                           ALL_LAYOUT,

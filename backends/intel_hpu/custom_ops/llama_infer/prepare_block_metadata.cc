@@ -58,10 +58,12 @@ std::tuple<int, int, int, std::vector<int>> get_max_and_where_nonzero(
 }
 
 // return: where(>0)
-std::vector<int> where_nonzero(int* seq_lens_decoder, int elem_cnt) {
+std::vector<int> where_nonzero(int* seq_lens_encoder,
+                               int* seq_lens_decoder,
+                               int elem_cnt) {
   std::vector<int> valid_batch;
   for (int i = 0; i < elem_cnt; ++i) {
-    if (seq_lens_decoder[i] > 0) {
+    if (seq_lens_decoder[i] > 0 && seq_lens_encoder[i] == 0) {
       valid_batch.push_back(i);
     }
   }
@@ -217,7 +219,8 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
     const paddle::Tensor& seq_lens_decoder,
     int block_size,
     std::string dtype,
-    int max_num_batched_tokens) {
+    int max_num_batched_tokens,
+    bool mixed_schedule) {
   auto hpu_place = rope_emb.place();
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(hpu_place));
@@ -257,13 +260,16 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
           block_size);
   int enc_count = valid_batches_enc.size();
 
-  auto valid_batches_dec = where_nonzero(
-      const_cast<int*>(seq_lens_decoder_cpu.data<int>()), max_batches_in);
+  auto valid_batches_dec =
+      where_nonzero(const_cast<int*>(seq_lens_encoder_cpu.data<int>()),
+                    const_cast<int*>(seq_lens_decoder_cpu.data<int>()),
+                    max_batches_in);
   int dec_count = valid_batches_dec.size();
 
   auto dummy_tensor =
       paddle::full({1}, 0, phi::DataType::FLOAT32, paddle::CPUPlace());
 
+  std::vector<paddle::Tensor> mixed_ret;
   if (enc_count > 0) {
     int total_batch = enc_count;
     auto valid_batches_tensor =
@@ -364,22 +370,33 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
     auto total_batch_cpu_tensor = paddle::full(
         {1}, total_batch, paddle::DataType::INT32, paddle::CPUPlace());
 
-    auto is_prompt_cpu_tensor =
-        paddle::full({1}, 1, paddle::DataType::INT32, paddle::CPUPlace());
+    auto encoder_ret = {src_padded,
+                        rope_emb_seg,
+                        dummy_tensor,
+                        block_list_hpu,
+                        blk_padded_hpu,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        batch_ids,
+                        total_batch_cpu_tensor};
 
-    return {src_padded,
-            rope_emb_seg,
-            dummy_tensor,
-            block_list_hpu,
-            blk_padded_hpu,
-            dummy_tensor,
-            dummy_tensor,
-            dummy_tensor,
-            batch_ids,
-            total_batch_cpu_tensor,
-            is_prompt_cpu_tensor};
+    mixed_ret.insert(mixed_ret.end(), encoder_ret.begin(), encoder_ret.end());
 
-  } else if (dec_count > 0) {
+  } else {
+    auto encoder_ret = {dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor};
+    mixed_ret.insert(mixed_ret.end(), encoder_ret.begin(), encoder_ret.end());
+  }
+  if (dec_count > 0 && (enc_count == 0 || mixed_schedule)) {
     int total_batch = find_bucket(dec_count, batch_step_decode, max_batches_in);
 
     auto input_ids_column_0 =
@@ -530,33 +547,33 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
 
     auto total_batch_cpu_tensor = paddle::full(
         {1}, total_batch, paddle::DataType::INT32, paddle::CPUPlace());
-    auto is_prompt_cpu_tensor =
-        paddle::full({1}, 2, paddle::DataType::INT32, paddle::CPUPlace());
+    auto decoder_ret = {src_padded,
+                        rope_emb_seg,
+                        block_groups_hpu,
+                        block_list_hpu,
+                        block_indices_hpu,
+                        block_offset_hpu,
+                        block_mapping_hpu,
+                        attention_mask_hpu,
+                        batch_ids,
+                        total_batch_cpu_tensor};
 
-    return {src_padded,
-            rope_emb_seg,
-            block_groups_hpu,
-            block_list_hpu,
-            block_indices_hpu,
-            block_offset_hpu,
-            block_mapping_hpu,
-            attention_mask_hpu,
-            batch_ids,
-            total_batch_cpu_tensor,
-            is_prompt_cpu_tensor};
+    mixed_ret.insert(mixed_ret.end(), decoder_ret.begin(), decoder_ret.end());
+  } else {
+    auto decoder_ret = {dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor,
+                        dummy_tensor};
+    mixed_ret.insert(mixed_ret.end(), decoder_ret.begin(), decoder_ret.end());
   }
 
-  return {dummy_tensor,
-          dummy_tensor,
-          dummy_tensor,
-          dummy_tensor,
-          dummy_tensor,
-          dummy_tensor,
-          dummy_tensor,
-          dummy_tensor,
-          dummy_tensor,
-          dummy_tensor,
-          dummy_tensor};
+  return mixed_ret;
 }
 
 std::vector<std::vector<int64_t>> PrepareBlockMetadataShape(
@@ -565,7 +582,8 @@ std::vector<std::vector<int64_t>> PrepareBlockMetadataShape(
     const std::vector<int64_t>& block_tables_shape,
     const std::vector<int64_t>& seq_lens_encoder_shape,
     const std::vector<int64_t>& seq_lens_decoder_shape) {
-  return {{-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {1}};
+  return {{-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1},
+          {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}};
 }
 
 std::vector<paddle::DataType> PrepareBlockMetadataDtype(
@@ -576,7 +594,8 @@ std::vector<paddle::DataType> PrepareBlockMetadataDtype(
     const paddle::DataType& seq_lens_decoder_dtype,
     int block_size,
     std::string dtype,
-    int max_num_batched_tokens) {
+    int max_num_batched_tokens,
+    bool mixed_schedule) {
   return {input_ids_dtype,
           phi::StringToDataType(dtype),
           phi::DataType::INT32,
@@ -587,6 +606,15 @@ std::vector<paddle::DataType> PrepareBlockMetadataDtype(
           phi::StringToDataType(dtype),
           phi::DataType::INT32,
           phi::DataType::INT32,
+          input_ids_dtype,
+          phi::StringToDataType(dtype),
+          phi::DataType::INT32,
+          phi::DataType::INT32,
+          phi::DataType::INT32,
+          phi::DataType::INT32,
+          phi::StringToDataType(dtype),
+          phi::StringToDataType(dtype),
+          phi::DataType::INT32,
           phi::DataType::INT32};
 }
 
@@ -596,20 +624,20 @@ PD_BUILD_OP(prepare_block_metadata)
              "block_tables",
              "seq_lens_encoder",
              "seq_lens_decoder"})
-    .Outputs({"ids_remove_padding",
-              "rotary_embs",
-              "block_groups",
-              "block_list",
-              "block_indices",
-              "block_offsets",
-              "block_mapping",
-              "attention_mask",
-              "batch_ids",
-              "total_batch",
-              "is_prompt"})
+    .Outputs({"ids_remove_padding_encoder", "rotary_embs_encoder",
+              "block_groups_encoder",       "block_list_encoder",
+              "block_indices_encoder",      "block_offsets_encoder",
+              "block_mapping_encoder",      "attention_mask_encoder",
+              "batch_ids_encoder",          "total_batch_encoder",
+              "ids_remove_padding_decoder", "rotary_embs_decoder",
+              "block_groups_decoder",       "block_list_decoder",
+              "block_indices_decoder",      "block_offsets_decoder",
+              "block_mapping_decoder",      "attention_mask_decoder",
+              "batch_ids_decoder",          "total_batch_decoder"})
     .Attrs({"block_size: int",
             "device_dtype: std::string",
-            "max_num_batched_tokens: int"})
+            "max_num_batched_tokens: int",
+            "mixed_schedule: bool"})
     .SetKernelFn(PD_KERNEL(PrepareBlockMetadata))
     .SetInferShapeFn(PD_INFER_SHAPE(PrepareBlockMetadataShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(PrepareBlockMetadataDtype));

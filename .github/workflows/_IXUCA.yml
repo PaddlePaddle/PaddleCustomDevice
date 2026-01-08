@@ -89,6 +89,7 @@ jobs:
           mkdir -p PaddleCustomDevice/Paddle/third_party/mklml/Linux
           curl -o PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz  http://paddlepaddledeps.bj.bcebos.com/csrmm_mklml_lnx_2019.0.5.tgz
           tar xf PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz
+          pip uninstall -y paddlepaddle
           python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
           pip show paddlepaddle
           python3 -m pip install parameterized

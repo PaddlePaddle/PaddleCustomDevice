@@ -20,10 +20,10 @@ limitations under the License. */
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/rms_norm_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(rms_norm_grad,
+PD_CUSTOM_KERNEL_REGISTER(fused_rms_norm_quant_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::RmsNormGradKernel,
+                          phi::RmsNormQuantGradKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

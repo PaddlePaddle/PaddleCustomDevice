@@ -17,8 +17,8 @@
 
 rm -r ../../Paddle/third_party/eigen3
 cd patch
-unzip mcEigen_3.4.0_paddle_final.zip
-mv mcEigen_3.4.0_paddle_final eigen3
+unzip Eigen_3.4.0_paddle.zip
+mv Eigen_3.4.0_paddle eigen3
 cd ..
 cp -r patch/eigen3/ ../../Paddle/third_party/eigen3
 rm -r patch/eigen3

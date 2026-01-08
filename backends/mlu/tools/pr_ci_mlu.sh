@@ -264,7 +264,8 @@ function main() {
     unset MLU_VISIBLE_DEVICES
     echo "Start Download"
     git clone --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
-    pip install pymupdf pypdfium2
+    pip install --upgrade setuptools pip
+    pip install pymupdf pypdfium2 ruamel.yaml
     cd PaddleX
     pip install -e .
     paddlex --install PaddleClas

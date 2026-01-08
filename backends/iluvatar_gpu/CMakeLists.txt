@@ -110,13 +110,15 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_info.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_graph.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cuda_driver.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cusparse.cc
   # Core
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/enforce.cc
   # ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/mixed_vector.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cusparse.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/core/platform/device/gpu/gpu_info.cc
   # kernels/funcs
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/*.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/dense_tensor_iterator.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/*.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu
   # cudnn/cublas
@@ -194,8 +196,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/put_along_axis_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/randint_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/fused_rms_norm_quant_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/fused_rms_norm_quant_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_align_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/roi_align_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scale_kernel.cu

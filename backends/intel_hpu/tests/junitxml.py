@@ -18,6 +18,7 @@ from lxml import etree as et
 from enum import Enum
 import subprocess
 import platform
+import re
 
 
 class jResult(Enum):
@@ -26,6 +27,19 @@ class jResult(Enum):
     SKIP = 2
     ERROR = 3
     DISABLE = 4
+
+
+def remove_invalidel_xml_characters(src, output, start=10):
+    # "invalid XML character" will return ""
+    numerical = int(src, start)
+    if (
+        numerical in (0xB, 0xC, 0xFFFE, 0xFFFF)
+        or 0x0 <= numerical <= 0x8
+        or 0xE <= numerical <= 0x1F
+        or 0xD800 <= numerical <= 0xDFFF
+    ):
+        return ""
+    return output
 
 
 class jXMLBase:
@@ -42,11 +56,29 @@ class jXMLBase:
         for k, v in self._attr_dict.items():
             elem.set(k, str(v))
         if len(self._text) > 0:
+            # to deal all non-ascii characters for XML
+            self._text = re.sub(
+                r"&#(\d+);?",
+                lambda ch: remove_invalidel_xml_characters(ch.group(1), ch.group(0)),
+                self._text,
+            )
+            self._text = re.sub(
+                r"&#[xX]([0-9a-fA-F]+);?",
+                lambda ch: remove_invalidel_xml_characters(
+                    ch.group(1), ch.group(0), start=16
+                ),
+                self._text,
+            )
+            self._text = re.compile(
+                r"[\x00-\x08\x0b\x0c\x0e-\x1F\uD800-\uDFFF\uFFFE\uFFFF]"
+            ).sub("", self._text)
             elem.text = self._text
         return elem
 
     def toString(self, pretty_print=False):
-        return et.tostring(self.covertET(), pretty_print=pretty_print).decode()
+        return et.tostring(
+            self.covertET(), encoding="utf-8", pretty_print=pretty_print
+        ).decode()
 
 
 class jTestCase(jXMLBase):

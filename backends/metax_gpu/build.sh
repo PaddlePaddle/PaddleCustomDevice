@@ -58,6 +58,6 @@ cmake_maca .. -DCMAKE_BUILD_TYPE=Release -DPython3_EXECUTABLE=$(which python3) -
 make_maca -j60
 
 echo "install whl"
-pip install dist/paddle_metax_gpu-${PADDLE_VERSION}+maca${MACA_AI_VERSION}*.whl --force-reinstall
+pip install dist/paddle_metax_gpu*.whl --force-reinstall
 cd ..
 echo "Done!"

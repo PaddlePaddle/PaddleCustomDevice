@@ -797,8 +797,13 @@ target_compile_definitions(
   ${TARGET_NAME}
   PUBLIC PADDLE_WITH_CUDA=1
          PADDLE_WITH_CUSTOM_DEVICE=1
-         mcblasContext=cublasContext
+         cublasContext=mcblasContext
          cublasLtContext=mcblasLtContext
+         cublasLtMatmulDescOpaque_t=mcblasLtMatmulDescOpaque_t
+         cublasLtMatrixLayoutOpaque_t=mcblasLtMatrixLayoutOpaque_t
+         cublasLtMatmulPreferenceOpaque_t=mcblasLtMatmulPreferenceOpaque_t
+         cublasLtMatmulAlgoOpaque_t=mcblasLtMatmulAlgoOpaque_t
+         cublasStatus_t=mcblasStatus_t
          GPUContext=CustomContext
          KPSContext=CustomContext
          STREAM_TYPE=cudaStream_t

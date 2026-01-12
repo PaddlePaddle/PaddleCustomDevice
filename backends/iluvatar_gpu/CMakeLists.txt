@@ -1014,7 +1014,7 @@ target_link_libraries(
           ixattnbkd
           nccl
           # change nccl to ${FLAGCX_LIB} if compiling with FlagCX ${FLAGCX_LIB}
-)
+          cupti)
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 include_directories(BEFORE ${CMAKE_SOURCE_DIR}/headers)

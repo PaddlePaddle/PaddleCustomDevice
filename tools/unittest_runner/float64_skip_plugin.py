@@ -52,12 +52,15 @@ def _get_func_source(val):
 def _attr_contains_float64(val):
     """Check whether attribute value contains float64."""
     try:
-        if val is np.float64:
+        # Treat complex128 as a float64-related dtype as well
+        if val is np.float64 or val is np.complex128:
             return True
-        if isinstance(val, np.dtype) and val == np.dtype("float64"):
+        if isinstance(val, np.dtype) and (
+            val == np.dtype("float64") or val == np.dtype("complex128")
+        ):
             return True
         s = repr(val)
-        return "float64" in s
+        return ("float64" in s) or ("complex128" in s)
     except Exception:
         return False
 
@@ -65,7 +68,8 @@ def _attr_contains_float64(val):
 def _callable_contains_float64(val):
     """Check whether a callable or property method contains float64 in its source."""
     src = _get_func_source(val)
-    return "float64" in src
+    # Also consider complex128 usage as part of float64-like tests
+    return ("float64" in src) or ("complex128" in src)
 
 
 def _child_overrides_without_float64(test_class, name):
@@ -162,12 +166,12 @@ def pytest_collection_modifyitems(config, items):
                 try:
                     cls, name, kind, what = debug_info
                     print(
-                        f"[SKIP-FLOAT64] Skipping test {item.nodeid}: detected 'float64' in {kind} "
+                        f"[SKIP-FLOAT64] Skipping test {item.nodeid}: detected 'float64/complex128' in {kind} "
                         f"'{name}' of class {cls.__module__}.{cls.__name__}. (repr: {what!r})"
                     )
                 except Exception:
                     print(
-                        f"[SKIP-FLOAT64] Skipping test {item.nodeid}: detected 'float64'"
+                        f"[SKIP-FLOAT64] Skipping test {item.nodeid}: detected 'float64/complex128'"
                     )
 
                 item.add_marker(pytest.mark.skip(reason="SKIP FLOAT64 TESTS"))

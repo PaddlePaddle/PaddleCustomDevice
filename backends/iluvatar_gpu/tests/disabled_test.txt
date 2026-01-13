@@ -558,3 +558,4 @@ test_match_matrix_tensor_op.py
 test_tensor.py
 test_rms_norm.py
 test_api_compatibility.py
+test_celu_op.py

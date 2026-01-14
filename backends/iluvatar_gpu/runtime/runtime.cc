@@ -674,13 +674,9 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
   }
 
   cudaError_t cuda_status;
-
-  cudaError_t query_status = cudaEventQuery(cudaEvent_t(event));
-  if (query_status == cudaErrorNotReady) {
-    cuda_status = cudaEventSynchronize(cudaEvent_t(event));
-    if (cuda_status != cudaSuccess) {
-      return C_ERROR;
-    }
+  cuda_status = cudaStreamSynchronize(cudaStream_t(stream));
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
   }
 
   cuda_status = cudaEventRecord(cudaEvent_t(event), cudaStream_t(stream));

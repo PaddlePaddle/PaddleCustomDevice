@@ -125,16 +125,16 @@ index dfd3945e9a..08eda4978c 100644
      return CUDA_R_16BF;
  #endif
 diff --git a/paddle/phi/backends/gpu/cuda/cudnn_desc.h b/paddle/phi/backends/gpu/cuda/cudnn_desc.h
-index 189e97534e..8f805afe8c 100644
+index ce038ecec9..c78e2e999f 100644
 --- a/paddle/phi/backends/gpu/cuda/cudnn_desc.h
 +++ b/paddle/phi/backends/gpu/cuda/cudnn_desc.h
-@@ -77,7 +77,7 @@ inline cudnnDataType_t ToCudnnDataType(const phi::DataType& t) {
+@@ -77,7 +77,7 @@ inline cudnnDataType_t ToCudnnDataType(const DataType& t) {
        type = CUDNN_DATA_FP8_E5M2;
        break;
  #endif
 -#if CUDNN_VERSION_MIN(8, 1, 0)
 +#if CUDNN_VERSION_MIN(8, 1, 0) || defined(PADDLE_WITH_COREX)
-     case phi::DataType::BFLOAT16:
+     case DataType::BFLOAT16:
        type = CUDNN_DATA_BFLOAT16;
        break;
 @@ -167,12 +167,26 @@ class TensorDescriptor {
@@ -160,10 +160,10 @@ index 189e97534e..8f805afe8c 100644
                                                     dtype,
                                                     transformed_dims.size(),
                                                     transformed_dims.data()));
-+#endif
++#endif-
    }
  
-   void set(const phi::DenseTensor& tensor, const cudnnTensorFormat_t format) {
+   void set(const DenseTensor& tensor, const cudnnTensorFormat_t format) {
 diff --git a/paddle/phi/backends/gpu/cuda/cudnn_helper.h b/paddle/phi/backends/gpu/cuda/cudnn_helper.h
 index 9a8a3b7605..3186f37c20 100644
 --- a/paddle/phi/backends/gpu/cuda/cudnn_helper.h
@@ -1022,3 +1022,18 @@ index ffdf995ece..4a7e03f4ad 100644
  #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
  PD_REGISTER_KERNEL(unsqueeze,
                     GPU,
+diff --git a/paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu b/paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu
+index 1b3393ceab..6bbf4f661b 100644
+--- a/paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu
++++ b/paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu
+@@ -671,8 +671,8 @@ void FP8QuantBlockWiseKernelImpl(const Context &dev_ctx,
+     const int sm_count = phi::backends::gpu::GetGPUMultiProcessors(device_id);
+     const size_t min_grid_x = sm_count * 8;
+     const size_t min_block_x = 1024;
+-    const size_t gridx = min(min_grid_x, src_rows);
+-    const size_t blockx = min(min_block_x, src_cols / 128 * 32);
++    const size_t gridx = std::min(min_grid_x, src_rows);
++    const size_t blockx = std::min(min_block_x, src_cols / 128 * 32);
+ 
+     bool use_finegrained_range = false;
+     char *env_var = getenv("PER_TOKEN_QUANT_FP8_USE_FINEGRAINED_RANGE");

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/conv_transpose_kernel_impl.h"
 #include "paddle/common/ddim.h"
 #include "paddle/common/layout.h"
 #include "paddle/phi/core/kernel_registry.h"
@@ -20,6 +19,7 @@
 #include "paddle/phi/kernels/cpu/conv_util.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/gpu/depthwise_conv.h"
+#include "paddle/phi/kernels/impl/conv_transpose_kernel_impl.h"
 
 namespace phi {
 
@@ -70,7 +70,7 @@ void DepthwiseConv2dTransposeKernel(const Context& dev_ctx,
   auto filter_dims = filter_.dims();
 
   DDim in_data_dims;
-  if (data_layout != DataLayout::kNHWC) {
+  if (data_layout != DataLayout::NHWC) {
     in_data_dims = slice_ddim(x_dims, 2, x_dims.size());
   } else {
     in_data_dims = slice_ddim(x_dims, 1, x_dims.size() - 1);

@@ -1,4 +1,5 @@
 import os
+import re
 from setuptools import setup, Distribution
 import shutil
 
@@ -32,31 +33,10 @@ for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
 ''')
         f.write('\n\n'.join(api_content))
 
-def write_version_py(filename='python/paddle_custom_device/intel_hpu/__init__.py', source_path='python/paddle_custom_device/intel_hpu'):
-    dirname = os.path.dirname(filename)
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
 
-    # to get all the .py file under source_path (exclude __init__.py file)
-    py_files = []
-    if os.path.exists(source_path):
-        for file in os.listdir(source_path):
-            if file.endswith('.py') and file != '__init__.py':
-                py_files.append(file[:-3])  # to remove the .py
-
-    # generate the import line
-    import_statements = []
-    for module in sorted(py_files):  # to do sort
-        import_statements.append(f"from .{module} import *")
-
-    cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
-#
-'''
-    #to add all import lines
-    cnt += '\n'.join(import_statements) + '\n\n'
-    
-    #to add version info and function
-    cnt += '''full_version  = '@PADDLE_VERSION@'
+# Common version information template
+VERSION_TEMPLATE = '''
+full_version  = '@PADDLE_VERSION@'
 synapse_version  = @SYNAPSE_VERSION@
 git_commit_id = '@GIT_HASH@'
 custom_op_git_commit_id = '@CUSTOM_OP_GIT_HASH@'
@@ -88,10 +68,90 @@ def version():
     return {'version': full_version, 'commit': git_commit_id, 'custom_op commit': custom_op_git_commit_id, 'synapse': synapse_version}
 '''
 
+# Common header template
+HEADER_TEMPLATE = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
+#
+from .ops import *
+'''
+def write_default_version_py(filename='python/paddle_custom_device/intel_hpu/__init__.py'):
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    cnt = HEADER_TEMPLATE + VERSION_TEMPLATE
+
     with open(filename, 'w') as f:
         f.write(cnt)
+    print(f"Generated default version file: {filename}")
 
-    print(f"Generated {filename} with imports from {len(py_files)} modules: {py_files}")
+def write_version_py(filename='python/paddle_custom_device/intel_hpu/__init__.py'):
+    """
+    Rewrite __init__.py file with the following modifications:
+    1. Remove lines containing 'paddle_custom_device.intel_hpu.ops import'
+    2. Insert generated header before the first 'from xxx import' statement
+    3. Add version information and functions at the end of the file
+    """
+
+    if not os.path.exists(filename):
+        print(f"File {filename} does not exist, to use defual write_version")
+        write_default_version_py()
+        return
+
+    # Read original file content
+    with open(filename, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    # Filter out lines containing paddle_custom_device.intel_hpu.ops import
+    filtered_lines = []
+    for line in lines:
+        if 'paddle_custom_device.intel_hpu.ops import' not in line:
+            filtered_lines.append(line)
+
+    # Find the position of the first 'from xxx import' statement
+    first_import_index = -1
+    for i, line in enumerate(filtered_lines):
+        stripped_line = line.strip()
+        # Match patterns like 'from .xxx import *' or 'from xxx import *'
+        if re.match(r'^from\s+(\.\w+|\w+)\s+import\s+\*', stripped_line):
+            first_import_index = i
+            break
+
+    # Prepare header to be inserted
+    header = HEADER_TEMPLATE
+
+    # Build new file content
+    new_content = []
+
+    # Add copyright header and other content before the first import statement
+    if first_import_index != -1:
+        # Add all lines from beginning to just before the first import
+        new_content.extend(filtered_lines[:first_import_index])
+        # Insert generated header before the first import
+        new_content.append(header)
+        # Add remaining lines (including the first import)
+        new_content.extend(filtered_lines[first_import_index:])
+    else:
+        # If no import statements found, add all filtered lines and append header at the end
+        new_content.extend(filtered_lines)
+        new_content.append('\n' + header)
+
+    # Add version information at the end of file
+    footer = VERSION_TEMPLATE
+
+    new_content.append(footer)
+
+    # Write modified content back to file
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.writelines(new_content)
+
+    print(f"Successfully rewritten {filename}")
+
+    # Display processing results
+    print("\nProcessed content preview:")
+    with open(filename, 'r', encoding='utf-8') as f:
+        content = f.read()
+        print(content)
+
+    print(f"Generated {filename} done")
 
 def write_init_py(filename='python/paddle_custom_device/__init__.py'):
     dirname = os.path.dirname(filename)
@@ -124,7 +184,8 @@ def copy_paddlenlp_ops_files(source_path='../custom_ops/python/paddlenlp_ops', t
             return
 
         for file in os.listdir(source_path):
-            if file.endswith('.py') and file != '__init__.py':
+            #all .py file including the '__init__.py' file will be copied into target_path
+            if file.endswith('.py'):
                 source_file = os.path.join(source_path, file)
 
                 #to check file can be read

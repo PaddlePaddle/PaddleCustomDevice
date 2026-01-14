@@ -190,12 +190,54 @@ void RmsNormKernel(const Context& dev_ctx,
   runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
+template <typename T, typename Context>
+void FusedRmsNormQuantKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& x,
+    const paddle::optional<phi::DenseTensor>& bias,
+    const paddle::optional<phi::DenseTensor>& residual,
+    const phi::DenseTensor& norm_weight,
+    const paddle::optional<phi::DenseTensor>& norm_bias,
+    const float epsilon,
+    const int begin_norm_axis,
+    const float quant_scale,
+    const int quant_round_type,
+    const float quant_max_bound,
+    const float quant_min_bound,
+    phi::DenseTensor* out,
+    phi::DenseTensor* residual_out,
+    phi::DenseTensor* inv_var) {
+  custom_kernel::RmsNormKernel<T, Context>(dev_ctx,
+                                           x,
+                                           bias,
+                                           residual,
+                                           norm_weight,
+                                           norm_bias,
+                                           epsilon,
+                                           begin_norm_axis,
+                                           quant_scale,
+                                           quant_round_type,
+                                           quant_max_bound,
+                                           quant_min_bound,
+                                           out,
+                                           residual_out,
+                                           inv_var);
+}
 }  // namespace custom_kernel
+
+// Add the original kernel name rms_norm for compatibility with Paddle 3.2.2
+PD_REGISTER_PLUGIN_KERNEL(rms_norm,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::RmsNormKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(fused_rms_norm_quant,
                           intel_hpu,
                           ALL_LAYOUT,
-                          custom_kernel::RmsNormKernel,
+                          custom_kernel::FusedRmsNormQuantKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

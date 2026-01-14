@@ -24,6 +24,6 @@ cp -r patch/eigen3/ ../../Paddle/third_party/eigen3
 rm -r patch/eigen3
 # cp patch/tmp/mixed_vector* ../../Paddle/paddle/phi/core
 cd ../../Paddle/
-git apply --verbose ../backends/metax_gpu/patch/paddle.patch
+git apply --verbose /home/sw/Baidu-xuyuhan/PaddleCustomDevice/backends/metax_gpu/patch/paddle.patch
 cd -
 # cp -r patch/intrinsics.cuh ../../Paddle/third_party/warpctc/include/contrib/moderngpu/include/device/

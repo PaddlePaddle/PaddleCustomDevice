@@ -111,6 +111,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_graph.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cuda_driver.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cusparse.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/nvtx.cc
   # Core
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/enforce.cc
   # ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc

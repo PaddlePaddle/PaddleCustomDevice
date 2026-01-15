@@ -39,6 +39,7 @@
 #include "paddle/phi/backends/device_base.h"
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/backends/dynload/cublasLt.h"
+#include "paddle/phi/backends/dynload/nvtx.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/allocator.h"
 #include "paddle/phi/core/enforce.h"
@@ -1014,6 +1015,26 @@ C_Status IsDNNSupported(const C_Device device, bool *supported) {
   return C_SUCCESS;
 }
 
+// nvtx
+C_Status CudaNvtxRangePush(const std::string &name,
+                           const C_NvtxRangeColor color) {
+  nvtxEventAttributes_t eventAttrib;
+  eventAttrib.version = NVTX_VERSION;
+  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+  eventAttrib.colorType = NVTX_COLOR_ARGB;
+  eventAttrib.color = static_cast<uint32_t>(color);
+  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+  eventAttrib.message.ascii = name.c_str();
+
+  phi::dynload::nvtxRangePushEx(&eventAttrib);
+  return C_SUCCESS;
+}
+
+C_Status CudaNvtxRangePop() {
+  phi::dynload::nvtxRangePop();
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = const_cast<char *>(DeviceType);
@@ -1124,4 +1145,8 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->destroy_blas_handle = DestroyBlasHandle;
   params->interface->destroy_blaslt_handle = DestroyBlasLtHandle;
   params->interface->blas_set_math_mode = BlasSetMathMode;
+
+  // nvtx
+  params->interface->cudanvtxrangepush = CudaNvtxRangePush;
+  params->interface->cudanvtxrangepop = CudaNvtxRangePop;
 }

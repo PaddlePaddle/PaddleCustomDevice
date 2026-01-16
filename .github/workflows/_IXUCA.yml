@@ -125,6 +125,7 @@ jobs:
           export FLAG_SKIP_FLOAT64=1
           cd PaddleCustomDevice/backends/iluvatar_gpu/tests
           # Run tests
+          ixsmi
           bash run_test.sh
 
       - name: Terminate and delete the container

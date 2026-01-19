@@ -97,4 +97,4 @@ cmake .. -DTEST_LIST_FILE=$TEST_LIST_FILE -DLOG_OUTPUT_DIR=$TEST_LOG_OUTPUT_DIR 
 
 cmake --build .
 
-ctest -R "python_test_abs_metax" -j$TEST_PARALLEL_NUM --output-on-failure
+GLOG_v=3 FLAGS_print_ir=1 ctest -R "python_test_abs_metax" -j$TEST_PARALLEL_NUM --output-on-failure

@@ -17,6 +17,8 @@ project(${PROJ_NAME} CXX C CUDA)
 
 set(TARGET_NAME ${PROJ_NAME})
 
+option(WITH_CINN "Compile with CINN support" ON)
+
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(PY_VERSION ${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
 message(STATUS "Python version detected: ${PY_VERSION}")
@@ -44,6 +46,7 @@ include(paddle)
 # 【修改点 1】: 添加 CINN 子目录编译
 if(WITH_CINN)
     message(STATUS "[MetaX] CINN enabled, adding subdirectory: cinn")
+    add_definitions(-DWITH_CINN)
     add_subdirectory(cinn)
 endif()
 

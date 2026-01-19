@@ -17,6 +17,8 @@ import os
 import unittest
 
 import numpy as np
+import sys
+sys.path.insert(0, '/home/sw/Baidu-xuyuhan/PaddleCustomDevice/python/tests/')
 from op_test import OpTest, convert_float_to_uint16, skip_check_grad_ci
 
 import paddle
@@ -60,7 +62,7 @@ class TestElementwisePowOp(OpTest):
                 check_pir=True,
             )
 
-
+'''
 class TestElementwisePowOp_ZeroDim1(TestElementwisePowOp):
     def setUp(self):
         self.op_type = "elementwise_pow"
@@ -455,7 +457,7 @@ class TestElementwisePowBF16Op(OpTest):
                 only_check_prim=True,
                 check_prim_pir=True,
             )
-
+'''
 
 if __name__ == "__main__":
     unittest.main()

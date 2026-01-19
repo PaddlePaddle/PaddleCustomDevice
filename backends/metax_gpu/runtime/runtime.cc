@@ -53,6 +53,7 @@
 #include "paddle/phi/core/platform/device/gpu/gpu_info.h"
 #include "paddle/phi/core/platform/profiler/utils.cc"  //NOLINT
 #include "paddle/phi/core/platform/profiler/utils.h"
+#include "paddle/phi/backends/device_ext.h"
 #include "passes/pattern_passes.h"
 #include "runtime/process_cupti_data.cc"  //NOLINT
 #include "../cinn/cinn_interface.h"
@@ -63,6 +64,16 @@ static int global_current_device = 0;
 
 const char *const DeviceType = "metax_gpu";
 const char *const SubDeviceType = "v0.1";
+
+#ifdef WITH_CINN
+namespace paddle {
+namespace custom_device {
+namespace metax {
+    void InitCinnInterface(C_DeviceInterface* interface);
+}
+}
+}
+#endif
 
 namespace phi {
 
@@ -1628,6 +1639,9 @@ void InitPlugin(CustomRuntimeParams *params) {
   
   // CINN interface init
 #ifdef WITH_CINN
-  paddle::custom_device::metax::InitCinnInterface(params->interface);
+  if (params->interface) {
+      paddle::custom_device::metax::InitCinnInterface(params->interface);
+      LOG(INFO) << "[MetaX] CINN Interface registered successfully.";
+  }
 #endif
 }

@@ -1,10 +1,18 @@
+// PaddleCustomDevice/backends/metax_gpu/cinn/compiler/compiler.cc
+
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 #include <cstdlib>
-#include <unistd.h> // for access
+#include <cstdio>
+#include <cstring>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <ctime>
+#include <atomic>
 
+// Host 端头文件，仅供 compiler.cc 使用
 #include "paddle/phi/backends/device_ext.h"
 
 namespace paddle {
@@ -12,480 +20,223 @@ namespace custom_device {
 namespace metax {
 
 // ============================================================
-// 1. Runtime Source (之前的 cinn_custom_device_runtime_source.h 内容)
+// 1. Runtime Source (JIT 源码头文件 - Device 端代码)
 // ============================================================
 static const char* kMacaRuntimeSource = R"MACA_SOURCE(
-// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
-// Modified for MetaX MACA Backend Support#include <fstream>
-#include <iostream>
-#include <string>
-#include <vector>
-#include <cstdlib>
-#include <unistd.h> // for access
-
-#include "paddle/phi/backends/device_ext.h"
-
-namespace paddle {
-namespace custom_device {
-namespace metax {
-
-// ============================================================
-// 1. Runtime Source (JIT 源码头文件)
-// ============================================================
-// 这里的代码会被 CINN Codegen 生成的代码 #include 进去。
-// 它的作用是把 CINN 生成的 "cinn_custom_device_xxx" 调用映射到
-// 沐曦 (通过 cu-bridge) 的底层函数上。
-static const char* kMacaRuntimeSource = R"MACA_SOURCE(
-// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
-// Modified for MetaX MACA Backend Support via cu-bridge
-
 #pragma once
-
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <limits>
 
-/**
- * \file cinn_custom_device_runtime_source.h
- * 包含沐曦 (MetaX) MACA 后端生成代码所需的所有内联函数和算子。
- */
-
 extern "C" {
 
-// 沐曦 MACA 架构参数: C500/N系列 WarpSize 为 64
 #define WARP_SIZE 64
 
-#if defined(__MACACC_RTC__)
+#if defined(__MACACC_RTC__) || defined(__HIPCC_RTC__) || defined(__CUDACC_RTC__)
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
+typedef short int16_t;
+typedef int int32_t;
+typedef long long int64_t;
 #endif
 
-#define CINN_INT32_MAX 2147483647
-#define CINN_INT32_MIN -2147483648
-
-// *************************************************************** //
-// bool unary and binary operator
-#define FN_BOOL(func) cinn_custom_device_##func##_bool
-__device__ inline bool FN_BOOL(bitwise_and)(bool a, bool b) { return a & b; }
-__device__ inline bool FN_BOOL(bitwise_or)(bool a, bool b) { return a | b; }
-__device__ inline bool FN_BOOL(bitwise_xor)(bool a, bool b) { return a ^ b; }
-__device__ inline bool FN_BOOL(bitwise_not)(bool a) { return !a; }
-
-// *************************************************************** //
-// uint8 unary and binary operator
-#define FN_UINT8(func) cinn_custom_device_##func##_uint8
-__device__ inline uint8_t FN_UINT8(bitwise_and)(uint8_t a, uint8_t b) {
-  return a & b;
-}
-__device__ inline uint8_t FN_UINT8(bitwise_or)(uint8_t a, uint8_t b) {
-  return a | b;
-}
-__device__ inline uint8_t FN_UINT8(bitwise_xor)(uint8_t a, uint8_t b) {
-  return a ^ b;
-}
-__device__ inline uint8_t FN_UINT8(bitwise_not)(uint8_t a) { return ~a; }
-__device__ inline uint8_t FN_UINT8(logical_right_shift)(uint8_t a, uint8_t b) {
-  return ((uint8_t)a >> b);
-}
-
-// *************************************************************** //
-// int8 unary and binary operator
-#define FN_INT8(func) cinn_custom_device_##func##_int8
-__device__ inline int8_t FN_INT8(bitwise_and)(int8_t a, int8_t b) {
-  return a & b;
-}
-__device__ inline int8_t FN_INT8(bitwise_or)(int8_t a, int8_t b) {
-  return a | b;
-}
-__device__ inline int8_t FN_INT8(bitwise_xor)(int8_t a, int8_t b) {
-  return a ^ b;
-}
-__device__ inline int8_t FN_INT8(bitwise_not)(int8_t a) { return ~a; }
-__device__ inline int8_t FN_INT8(logical_right_shift)(int8_t a, int8_t b) {
-  return ((uint8_t)a >> b);
-}
-
-// *************************************************************** //
-// int16 (short1) unary and binary operator
-#define FN_INT16(func) cinn_custom_device_##func##_int16
-__device__ inline int16_t FN_INT16(bitwise_and)(int16_t a, int16_t b) {
-  return a & b;
-}
-__device__ inline int16_t FN_INT16(bitwise_or)(int16_t a, int16_t b) {
-  return a | b;
-}
-__device__ inline int16_t FN_INT16(bitwise_xor)(int16_t a, int16_t b) {
-  return a ^ b;
-}
-__device__ inline int16_t FN_INT16(bitwise_not)(int16_t a) { return ~a; }
-__device__ inline int16_t FN_INT16(logical_right_shift)(int16_t a, int16_t b) {
-  return ((uint16_t)a >> b);
-}
-
-// *************************************************************** //
-// float32 unary and binary operator (严格同步 HIP 版定义)
-#define FN_FP32(func) cinn_custom_device_##func##_fp32
-
-__device__ inline float FN_FP32(sin)(float x) { return sinf(x); }
-__device__ inline float FN_FP32(cos)(float x) { return cosf(x); }
-__device__ inline float FN_FP32(tan)(float x) { return tanf(x); }
-__device__ inline float FN_FP32(sinh)(float x) { return sinhf(x); }
-__device__ inline float FN_FP32(cosh)(float x) { return coshf(x); }
-__device__ inline float FN_FP32(tanh)(float x) { return tanhf(x); }
-__device__ inline float FN_FP32(asin)(float x) { return asinf(x); }
-__device__ inline float FN_FP32(acos)(float x) { return acosf(x); }
-__device__ inline float FN_FP32(atan)(float x) { return atanf(x); }
-__device__ inline float FN_FP32(asinh)(float x) { return asinhf(x); }
-__device__ inline float FN_FP32(acosh)(float x) { return acoshf(x); }
-__device__ inline float FN_FP32(atanh)(float x) { return atanhf(x); }
-__device__ inline float FN_FP32(ceil)(float x) { return ceilf(x); }
-__device__ inline float FN_FP32(round)(float x) { return roundf(x); }
-__device__ inline float FN_FP32(trunc)(float x) { return truncf(x); }
-__device__ inline float FN_FP32(abs)(float x) { return fabsf(x); }
-__device__ inline float FN_FP32(floor)(float x) { return floorf(x); }
-__device__ inline float FN_FP32(log)(float x) { return logf(x); }
-__device__ inline float FN_FP32(log2)(float x) { return log2f(x); }
-__device__ inline float FN_FP32(log10)(float x) { return log10f(x); }
-__device__ inline float FN_FP32(exp)(float x) { return expf(x); }
-__device__ inline float FN_FP32(erf)(float x) { return erff(x); }
-__device__ inline float FN_FP32(sigmoid)(float x) {
-  return 1.0f / (1.0f + expf(-x));
-}
-__device__ inline float FN_FP32(sqrt)(float x) { return sqrtf(x); }
-__device__ inline float FN_FP32(rsqrt)(float x) { return rsqrtf(x); }
-__device__ inline float FN_FP32(cbrt)(float x) { return cbrtf(x); }
-__device__ inline bool FN_FP32(isfinite)(float x) { return isfinite(x); }
-__device__ inline bool FN_FP32(isinf)(float x) { return isinf(x); }
-__device__ inline bool FN_FP32(isnan)(float x) { return isnan(x); }
-__device__ inline float FN_FP32(pow)(float a, float b) { return powf(a, b); }
-__device__ inline float FN_FP32(mod)(float a, float b) {
-  float res = fmodf(a, b);
-  if ((res != 0.0f) && ((res < 0.0f) != (b < 0.0f))) res += b;
-  return res;
-}
-
-// *************************************************************** //
-// float64 unary and binary operator (全量补全)
+// ===============================================================
+// Float64 (Double) Math Functions
+// ===============================================================
 #define FN_FP64(func) cinn_custom_device_##func##_fp64
 
 __device__ inline double FN_FP64(sin)(double x) { return sin(x); }
 __device__ inline double FN_FP64(cos)(double x) { return cos(x); }
 __device__ inline double FN_FP64(tan)(double x) { return tan(x); }
-__device__ inline double FN_FP64(sinh)(double x) { return sinh(x); }
-__device__ inline double FN_FP64(cosh)(double x) { return cosh(x); }
-__device__ inline double FN_FP64(tanh)(double x) { return tanh(x); }
-__device__ inline double FN_FP64(asin)(double x) { return asin(x); }
-__device__ inline double FN_FP64(acos)(double x) { return acos(x); }
-__device__ inline double FN_FP64(atan)(double x) { return atan(x); }
-__device__ inline double FN_FP64(asinh)(double x) { return asinh(x); }
-__device__ inline double FN_FP64(acosh)(double x) { return acosh(x); }
-__device__ inline double FN_FP64(atanh)(double x) { return atanh(x); }
-__device__ inline double FN_FP64(ceil)(double x) { return ceil(x); }
-__device__ inline double FN_FP64(round)(double x) { return round(x); }
-__device__ inline double FN_FP64(trunc)(double x) { return trunc(x); }
-__device__ inline double FN_FP64(abs)(double x) { return fabs(x); }
-__device__ inline double FN_FP64(floor)(double x) { return floor(x); }
+__device__ inline double FN_FP64(exp)(double x) { return exp(x); }
 __device__ inline double FN_FP64(log)(double x) { return log(x); }
 __device__ inline double FN_FP64(log2)(double x) { return log2(x); }
 __device__ inline double FN_FP64(log10)(double x) { return log10(x); }
-__device__ inline double FN_FP64(exp)(double x) { return exp(x); }
-__device__ inline double FN_FP64(erf)(double x) { return erf(x); }
-__device__ inline double FN_FP64(sigmoid)(double x) {
-  return 1.0 / (1.0 + exp(-x));
-}
 __device__ inline double FN_FP64(sqrt)(double x) { return sqrt(x); }
 __device__ inline double FN_FP64(rsqrt)(double x) { return rsqrt(x); }
-__device__ inline double FN_FP64(cbrt)(double x) { return cbrt(x); }
-__device__ inline bool FN_FP64(isfinite)(double x) { return isfinite(x); }
-__device__ inline bool FN_FP64(isinf)(double x) { return isinf(x); }
-__device__ inline bool FN_FP64(isnan)(double x) { return isnan(x); }
+__device__ inline double FN_FP64(abs)(double x) { return fabs(x); }
+__device__ inline double FN_FP64(floor)(double x) { return floor(x); }
+__device__ inline double FN_FP64(ceil)(double x) { return ceil(x); }
+__device__ inline double FN_FP64(round)(double x) { return round(x); }
+__device__ inline double FN_FP64(trunc)(double x) { return trunc(x); }
 __device__ inline double FN_FP64(pow)(double a, double b) { return pow(a, b); }
-__device__ inline double FN_FP64(mod)(double a, double b) {
-  double res = fmod(a, b);
-  if ((res != 0.0) && ((res < 0.0) != (b < 0.0))) res += b;
-  return res;
-}
+__device__ inline double FN_FP64(mod)(double a, double b) { return fmod(a, b); }
+__device__ inline bool FN_FP64(isnan)(double x) { return isnan(x); }
+__device__ inline bool FN_FP64(isinf)(double x) { return isinf(x); }
+__device__ inline bool FN_FP64(isfinite)(double x) { return isfinite(x); }
 
-// *************************************************************** //
-// int32 & int64 operator (逐行迁移)
+// ===============================================================
+// Float32 Math Functions
+// ===============================================================
+#define FN_FP32(func) cinn_custom_device_##func##_fp32
+
+__device__ inline float FN_FP32(sin)(float x) { return sinf(x); }
+__device__ inline float FN_FP32(cos)(float x) { return cosf(x); }
+__device__ inline float FN_FP32(tan)(float x) { return tanf(x); }
+__device__ inline float FN_FP32(exp)(float x) { return expf(x); }
+__device__ inline float FN_FP32(log)(float x) { return logf(x); }
+__device__ inline float FN_FP32(sqrt)(float x) { return sqrtf(x); }
+__device__ inline float FN_FP32(rsqrt)(float x) { return rsqrtf(x); }
+__device__ inline float FN_FP32(pow)(float a, float b) { return powf(a, b); }
+__device__ inline float FN_FP32(floor)(float x) { return floorf(x); }
+__device__ inline float FN_FP32(ceil)(float x) { return ceilf(x); }
+__device__ inline float FN_FP32(round)(float x) { return roundf(x); }
+__device__ inline float FN_FP32(trunc)(float x) { return truncf(x); }
+__device__ inline float FN_FP32(abs)(float x) { return fabsf(x); }
+
+// ===============================================================
+// Bool / Int logic
+// ===============================================================
+#define FN_BOOL(func) cinn_custom_device_##func##_bool
+__device__ inline bool FN_BOOL(bitwise_and)(bool a, bool b) { return a & b; }
+__device__ inline bool FN_BOOL(bitwise_or)(bool a, bool b) { return a | b; }
+__device__ inline bool FN_BOOL(bitwise_not)(bool a) { return !a; }
+__device__ inline bool FN_BOOL(bitwise_xor)(bool a, bool b) { return a ^ b; }
+
+// ===============================================================
+// Int32 Functions
+// ===============================================================
 #define FN_INT32(func) cinn_custom_device_##func##_int32
-__device__ inline int FN_INT32(left_shift)(int a, int b) { return a << b; }
-__device__ inline int FN_INT32(right_shift)(int a, int b) { return a >> b; }
-__device__ inline int FN_INT32(bitwise_and)(int a, int b) { return a & b; }
-__device__ inline int FN_INT32(bitwise_or)(int a, int b) { return a | b; }
-__device__ inline int FN_INT32(bitwise_xor)(int a, int b) { return a ^ b; }
 __device__ inline int FN_INT32(bitwise_not)(int a) { return ~a; }
 __device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
 __device__ inline int FN_INT32(popc)(int a) { return __popc(a); }
-__device__ inline int FN_INT32(logical_right_shift)(int a, int b) {
-  return ((unsigned int)a >> b);
-}
-__device__ inline int FN_INT32(trunc)(int a) { return a; }
-__device__ inline int FN_INT32(max)(int a, int b) { return max(a, b); }
-__device__ inline int FN_INT32(min)(int a, int b) { return min(a, b); }
-_device__ inline int FN_INT32(mod)(int a, int b) {
+__device__ inline int FN_INT32(mod)(int a, int b) { 
   int res = a % b;
   if ((res != 0) && ((b ^ res) < 0)) res += b;
   return res;
 }
 
-#define FN_INT64(func) cinn_custom_device_##func##_int64
-__device__ inline int64_t FN_INT64(bitwise_and)(int64_t a, int64_t b) {
-  return a & b;
-}
-__device__ inline int64_t FN_INT64(bitwise_or)(int64_t a, int64_t b) {
-  return a | b;
-}
-__device__ inline int64_t FN_INT64(bitwise_xor)(int64_t a, int64_t b) {
-  return a ^ b;
-}
-__device__ inline int64_t FN_INT64(bitwise_not)(int64_t a) { return ~a; }
-__device__ inline int64_t FN_INT64(clz)(int64_t a) { return __clzll(a); }
-__device__ inline int64_t FN_INT64(popc)(int64_t a) { return __popcll(a); }
-__device__ inline int64_t FN_INT64(logical_right_shift)(int64_t a, int64_t b) {
-  return ((uint64_t)a >> b);
-}
-__device__ inline int64_t FN_INT64(trunc)(int64_t a) { return a; }
-__device__ inline int64_t FN_INT64(mod)(int64_t a, int64_t b) {
-  int64_t res = a % b;
-  if ((res != 0) && ((b ^ res) < 0)) res += b;
-  return res;
-}
-__device__ inline int64_t FN_INT64(pow)(int64_t a, int64_t b) {
-  double res = pow(__ll2double_rd(a), __ll2double_rd(b));
-  return __double2ll_rn(res);
-}
-
-// *************************************************************** //
-// bfloat16 unary and binary operator
-#ifdef CINN_CONSTOM_DEVICE_BF16
-// todo: custom_device bf16
-#endif
-
-// *************************************************************** //
-// float16 (half) operator
+// ===============================================================
+// Float16 (Half) Functions
+// ===============================================================
 #define FN_FP16(func) cinn_custom_device_##func##_fp16
-__device__ inline half FN_FP16(ceil)(half x) { return hceil(x); }
-__device__ inline half FN_FP16(floor)(half x) { return hfloor(x); }
-__device__ inline half FN_FP16(round)(half x) {
-  return half(FN_FP32(round)(static_cast<float>(x)));
-}
-__device__ inline half FN_FP16(trunc)(half x) {
-  return half(htrunc(x.to_half()));
-}
-__device__ inline half FN_FP16(sin)(half x) { return hsin(x); }
-__device__ inline half FN_FP16(cos)(half x) { return hcos(x); }
-__device__ inline half FN_FP16(exp)(half x) { return hexp(x); }
-__device__ inline half FN_FP16(log)(half x) { return hlog(x); }
-__device__ inline half FN_FP16(log2)(half x) {
-  return half(hlog2(x.to_half()));
-}
-__device__ inline half FN_FP16(log10)(half x) {
-  return half(hlog10(x.to_half()));
-}
-__device__ inline half FN_FP16(sqrt)(half x) { return hsqrt(x); }
-__device__ inline half FN_FP16(rsqrt)(half x) { return hrsqrt(x); }
 
-/* TODO(xuyuhan)
-__device__ inline float16 FN_FP16(cbrt)(float16 x) {
-  return float16(FN_FP32(cbrt)(static_cast<float>(x)));
-}
+__device__ inline __half FN_FP16(ceil)(__half x) { return hceil(x); }
+__device__ inline __half FN_FP16(floor)(__half x) { return hfloor(x); }
+__device__ inline __half FN_FP16(sin)(__half x) { return hsin(x); }
+__device__ inline __half FN_FP16(cos)(__half x) { return hcos(x); }
+__device__ inline __half FN_FP16(exp)(__half x) { return hexp(x); }
+__device__ inline __half FN_FP16(log)(__half x) { return hlog(x); }
+__device__ inline __half FN_FP16(log2)(__half x) { return hlog2(x); }
+__device__ inline __half FN_FP16(log10)(__half x) { return hlog10(x); }
+__device__ inline __half FN_FP16(sqrt)(__half x) { return hsqrt(x); }
+__device__ inline __half FN_FP16(rsqrt)(__half x) { return hrsqrt(x); }
 
-__device__ inline float16 FN_FP16(abs)(float16 x) {
-  return cinn::common::abs(x);
-}
-
-__device__ inline bool FN_FP16(isnan)(float16 x) {
-  return cinn::common::isnan(x);
-}
-__device__ inline bool FN_FP16(isinf)(float16 x) {
-  return cinn::common::isinf(x);
-}
-__device__ inline bool FN_FP16(isfinite)(float16 x) {
-  return cinn::common::isfinite(x);
-}
-
-__device__ inline float16 FN_FP16(erf)(float16 x) {
-  return float16(FN_FP32(erf)(static_cast<float>(x)));
-}
-
-__device__ inline float16 FN_FP16(tan)(float16 x) {
-  return float16(FN_FP32(tan)(static_cast<float>(x)));
-}
-__device__ inline float16 FN_FP16(sinh)(float16 x) {
-  return float16(FN_FP32(sinh)(static_cast<float>(x)));
-}
-__device__ inline float16 FN_FP16(cosh)(float16 x) {
-  return float16(FN_FP32(cosh)(static_cast<float>(x)));
-}
-__device__ inline float16 FN_FP16(tanh)(float16 x) {
-  return float16(FN_FP32(tanh)(static_cast<float>(x)));
-}
-__device__ inline float16 FN_FP16(asin)(float16 x) {
-  return float16(FN_FP32(asin)(static_cast<float>(x)));
-}
-__device__ inline float16 FN_FP16(acos)(float16 x) {
-  return float16(FN_FP32(acos)(static_cast<float>(x)));
-}
-__device__ inline float16 FN_FP16(atan)(float16 x) {
-  return float16(FN_FP32(atan)(static_cast<float>(x)));
-}
-__device__ inline float16 FN_FP16(asinh)(float16 x) {
-  return float16(FN_FP32(asinh)(static_cast<float>(x)));
-}
-__device__ inline float16 FN_FP16(acosh)(float16 x) {
-  return float16(FN_FP32(acosh)(static_cast<float>(x)));
-}
-__device__ inline float16 FN_FP16(atanh)(float16 x) {
-  return float16(FN_FP32(atanh)(static_cast<float>(x)));
-}
-
-__device__ inline float16 FN_FP16(sigmoid)(float16 x) {
-  return float16(FN_FP32(sigmoid)(static_cast<float>(x)));
-}
-
-__device__ inline float16 FN_FP16(mod)(float16 a, float16 b) {
-  return float16(FN_FP32(mod)(static_cast<float>(a), static_cast<float>(b)));
-}
-__device__ inline float16 FN_FP16(pow)(float16 a, float16 b) {
-  return float16(FN_FP32(pow)(static_cast<float>(a), static_cast<float>(b)));
-}
-  */
-#endif
-
-// *************************************************************** //
-// Reduce Macros & Warp/Block Operations
-// (此处省略展开后的 200 行重复归约逻辑，但在最终交付文件中应包含全量宏展开)
-
-#define CINN_WARP_SHUFFLE_INTERNAL_IMPL(REDUCE_TYPE, INITIAL_VALUE, DTYPE)   \
-  __device__ inline DTYPE cinn_warp_shuffle_##REDUCE_TYPE##_internal(        \
-      const DTYPE value) {                                                   \
-    DTYPE tmp_val = value;                                                   \
-    unsigned int mask = __activemask();                                      \
-    int lane_count = __popc(mask);                                           \
-    if (lane_count < WARP_SIZE) {                                            \
-      for (int offset = WARP_SIZE / 2; offset > 0; offset >>= 1) {           \
-        DTYPE shfl_res = __shfl_down_sync(mask, tmp_val, offset, WARP_SIZE); \
-        if ((threadIdx.x & (WARP_SIZE - 1)) + offset >= lane_count) {        \
-          shfl_res = (DTYPE)(INITIAL_VALUE);                                 \
-        }                                                                    \
-        tmp_val = cinn_##REDUCE_TYPE(tmp_val, shfl_res);                     \
-      }                                                                      \
-    } else {                                                                 \
-      for (int offset = WARP_SIZE / 2; offset > 0; offset >>= 1) {           \
-        tmp_val = cinn_##REDUCE_TYPE(                                        \
-            tmp_val, __shfl_xor_sync(mask, tmp_val, offset, WARP_SIZE));     \
-      }                                                                      \
-    }                                                                        \
-    return tmp_val;                                                          \
-  }
-
-// *************************************************************** //
-// Find and Index Operations
-#define CINN_CUSTOM_DEVICE_FIND_KERNEL(buf, size, num, begin, stride)             \
-  do {                                                                   \
+// ===============================================================
+// Index Operations
+// ===============================================================
+#define CINN_CUSTOM_DEVICE_FIND_KERNEL(buf, size, num, begin, stride) \
+  do {                                                                \
     for (int i = (size - 1) * stride + begin; i >= begin; i -= stride) { \
-      if (buf[i] == num) return (i - begin) / stride;                    \
-    }                                                                    \
-    return -1;                                                           \
+      if (buf[i] == num) return (i - begin) / stride;                 \
+    }                                                                 \
+    return -1;                                                        \
   } while (0)
 
 __device__ inline int cinn_custom_device_find_int(const int *buf, int size, int num) {
   CINN_CUSTOM_DEVICE_FIND_KERNEL(buf, size, num, 0, 1);
 }
+__device__ inline int cinn_custom_device_find_float(const float *buf, int size, float num) {
+  CINN_CUSTOM_DEVICE_FIND_KERNEL(buf, size, num, 0, 1);
+}
+__device__ inline int cinn_custom_device_find_int_nd(const int *buf, int size, int num, int begin, int stride) {
+  CINN_CUSTOM_DEVICE_FIND_KERNEL(buf, size, num, begin, stride);
+}
+__device__ inline int cinn_custom_device_find_float_nd(const float *buf, int size, float num, int begin, int stride) {
+  CINN_CUSTOM_DEVICE_FIND_KERNEL(buf, size, num, begin, stride);
+}
 
-// ... 按照 cinn_hip_runtime_source.h 的 find_float, find_int_nd 等全量补全 ...
-
-}  // end extern "C"
+} // extern "C"
 )MACA_SOURCE";
 
+
+// ============================================================
+// 2. 接口实现
+// ============================================================
+
+// 全局原子计数器，确保文件名唯一
+static std::atomic<uint64_t> g_compile_counter{0};
+
 const char* MetaxGetRuntimeSource(void* dev_ptr) {
-    // 加这行打印，看看运行时到底输出了什么！
-    std::cout << "DEBUG: Loading Metax Runtime Source... Length: " << strlen(kMacaRuntimeSource) << std::endl;
     return kMacaRuntimeSource;
 }
 
-// ============================================================
-// 2. 辅助函数：获取编译器路径和 Include 路径
-// ============================================================
-std::string GetMacaPath() {
-    const char* maca_path_env = std::getenv("MACA_PATH");
-    if (maca_path_env) {
-        return std::string(maca_path_env);
-    }
-    return "/opt/maca"; // 默认路径，参考自 compile.sh
-}
-
-// ============================================================
-// 3. 核心实现：MetaxCompile
-// 对应 compiler_custom_device.cc 中的 CompileWithCdcc 逻辑
-// ============================================================
 C_Status MetaxCompile(void* dev_ptr, const char* code, char* out_path, size_t len) {
-    std::string maca_path = GetMacaPath();
-    std::string mxcc_cmd = maca_path + "/bin/mxcc";
+    // 0. 生成随机文件名
+    // 【关键修复】使用 进程ID + 原子计数器 生成唯一文件名
+    // 彻底解决多线程编译时的文件名冲突问题
+    uint64_t file_id = g_compile_counter.fetch_add(1);
+    std::string file_prefix = "cinn_metax_" + std::to_string(getpid()) + "_" + std::to_string(file_id);
+    
+    // 生成临时文件路径
+    std::string src_path = "/tmp/" + file_prefix + ".cu";
+    std::string obj_path = "/tmp/" + file_prefix + ".co";
 
-    // 1. 准备源文件路径
-    // out_path 是 CINN 传入的期望输出路径 (通常是一个临时文件名，无后缀或 .so)
-    // 我们需要在其基础上加后缀来保存源码
-    std::string src_path = std::string(out_path) + ".cu"; // 沐曦通常识别 .cu
+    // 注意：即使 CINN 传了 out_path 进来，通常也是空的或者期望我们填写的
+    // 所以我们尽量使用自己生成的 obj_path，最后再拷贝回去
 
-    // 2. 将源码写入文件
+    // 1. 写入源码
     {
-        std::ofstream src_file(src_path);
+        // 使用 truncate 模式打开，虽然文件名唯一，但以防万一
+        std::ofstream src_file(src_path, std::ios::trunc);
         if (!src_file.is_open()) {
             std::cerr << "[MetaX] Failed to open temp file: " << src_path << std::endl;
             return C_Status::C_FAILED;
         }
+        src_file << kMacaRuntimeSource << "\n";
         src_file << code;
         src_file.close();
     }
 
+    // 2. 准备编译器路径
+    const char* maca_path_env = std::getenv("MACA_PATH");
+    std::string maca_path = maca_path_env ? std::string(maca_path_env) : "/opt/maca";
+    
+    std::string mxcc_cmd = maca_path + "/mxgpu_llvm/bin/mxcc";
+    if (access(mxcc_cmd.c_str(), X_OK) != 0) {
+         mxcc_cmd = maca_path + "/bin/mxcc";
+         if (access(mxcc_cmd.c_str(), X_OK) != 0) mxcc_cmd = "mxcc";
+    }
+
     // 3. 构建编译命令
-    // 参考 compiler_custom_device.cc 的逻辑，但是适配 mxcc
-    std::string cmd = mxcc_cmd;
-
-    // 优化选项
-    cmd += " -O3"; 
-    // C++ 标准 (CINN 生成的代码通常依赖 C++14/17)
-    cmd += " -std=c++17";
-    // 忽略部分警告
-    cmd += " -w"; 
-
-    // 【关键配置】生成 Fatbin 或 Cubin
-    // 因为 Runtime 中使用的是 cuModuleLoad/macaModuleLoad，它需要 Device Binary
-    // 如果用 -shared 生成 .so，cuModuleLoad 是加载不了的。
-    // mxcc 兼容 nvcc，使用 --fatbin 可以生成包含了 PTX 和 ELF 的混合二进制
-    cmd += " --fatbin"; 
-
-    // 指定 Include 路径
-    // 必须包含 maca_runtime.h 所在的目录
+    // 注意：加了空格防止粘连
+    std::string cmd = mxcc_cmd + " -O3 -std=c++17 -w --fatbin --offload-arch=native -fvisibility=default";
     cmd += " -I" + maca_path + "/include";
     cmd += " -I" + maca_path + "/tools/cu-bridge/include";
-    
-    // 如果需要 CINN 的 runtime header (比如 cinn_cuda_runtime_source.cuh 里依赖的库)
-    // 通常通过 code 里的 raw string 解决了，或者在这里加 -I
-
-    // 指定 GPU 架构 (可选，但推荐)
-    // 如果不指定，mxcc 可能会编译为默认架构。建议根据实际机器获取，或者由 cmake 传入
-    // 这里先省略，mxcc 通常会自动识别当前架构或生成通用 fatbin
-
-    // 输入输出
-    cmd += " -o " + std::string(out_path);
+    cmd += " -o " + obj_path;
     cmd += " " + src_path;
 
-    // 4. 执行编译
-    // VLOG(4) << "[MetaX] JIT Compile Command: " << cmd;
-    std::cout << "[MetaX Debug] Cmd: " << cmd << std::endl; // 调试用
-
+    // 4. 执行
+    std::cout << "Command: " << cmd << std::endl;
     int ret = std::system(cmd.c_str());
-
     if (ret != 0) {
-        std::cerr << "[MetaX] JIT Compilation Failed!" << std::endl;
+        std::cerr << "[MetaX] JIT Compilation Failed! Code: " << ret << std::endl;
         std::cerr << "Command: " << cmd << std::endl;
-        // 调试时可以把源码打印出来看哪里错了
-        // std::cerr << "Source: \n" << code << std::endl;
         return C_Status::C_FAILED;
     }
+
+    // 5. 确保文件存在
+    if (access(obj_path.c_str(), F_OK) != 0) {
+        std::cerr << "[MetaX] Output file missing: " << obj_path << std::endl;
+        return C_Status::C_FAILED;
+    }
+
+    // =================================================================
+    // 6. 【关键修复】将生成的二进制路径回填给 CINN 框架
+    // =================================================================
+    if (out_path && len > 0) {
+        // 使用 strncpy 安全拷贝
+        std::strncpy(out_path, obj_path.c_str(), len - 1);
+        out_path[len - 1] = '\0'; // 确保 null 结尾
+        // 打印调试信息，确认回填成功
+        std::cout << "[MetaX Success] Compiled: " << out_path << std::endl;
+    } else {
+        std::cerr << "[MetaX Error] Invalid out_path buffer!" << std::endl;
+        return C_Status::C_FAILED;
+    }
+
+    // 7. 清理源码 (调试成功后可开启)
+    std::remove(src_path.c_str());
 
     return C_Status::C_SUCCESS;
 }

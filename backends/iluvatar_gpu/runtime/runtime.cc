@@ -36,12 +36,21 @@
 #include <unordered_map>
 
 #include "glog/logging.h"
+#include "paddle/fluid/platform/profiler/cuda_tracer.h"
+#include "paddle/fluid/platform/profiler/cupti_data_process.h"
+#include "paddle/phi/api/profiler/trace_event_collector.h"
 #include "paddle/phi/backends/device_base.h"
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/backends/dynload/cublasLt.h"
+#include "paddle/phi/backends/dynload/cupti.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/allocator.h"
 #include "paddle/phi/core/enforce.h"
+#include "paddle/phi/core/os_info.cc"  //NOLINT
+#include "paddle/phi/core/os_info.h"
+#include "paddle/phi/core/platform/profiler/utils.cc"  //NOLINT
+#include "paddle/phi/core/platform/profiler/utils.h"
+#include "runtime/process_cupti_data.cc"  //NOLINT
 #include "unsupported/Eigen/CXX11/Tensor"
 
 #define MEMORY_FRACTION 0.5f
@@ -1014,6 +1023,99 @@ C_Status IsDNNSupported(const C_Device device, bool *supported) {
   return C_SUCCESS;
 }
 
+void BufferRequestedCallback(uint8_t **buffer,
+                             size_t *size,
+                             size_t *max_num_records) {
+  Tracer::Instance().AllocateBuffer(buffer, size);
+  *max_num_records = 0;
+}
+
+void BufferCompletedCallback(CUcontext ctx,
+                             uint32_t stream_id,
+                             uint8_t *buffer,
+                             size_t size,
+                             size_t valid_size) {
+  Tracer::Instance().ProduceBuffer(buffer, valid_size);
+  size_t dropped = 0;
+  CUPTI_CALL(cuptiActivityGetNumDroppedRecords(ctx, stream_id, &dropped));
+  if (dropped != 0) {
+    LOG(WARNING) << "Stream " << stream_id << " Dropped " << dropped
+                 << " activity records";
+  }
+}
+
+int ProcessCuptiActivity(C_Profiler prof, uint64_t tracing_start_ns_) {
+  int record_cnt = 0;
+  CUPTI_CALL(cuptiActivityFlushAll(CUPTI_ACTIVITY_FLAG_FLUSH_FORCED));
+  auto mapping = details::CreateThreadIdMapping();
+  std::vector<ActivityBuffer> buffers = Tracer::Instance().ConsumeBuffers();
+  for (auto &buffer : buffers) {
+    if (buffer.addr == nullptr || buffer.valid_size == 0) {
+      continue;
+    }
+    CUpti_Activity *record = nullptr;
+    while (true) {
+      CUptiResult status =
+          cuptiActivityGetNextRecord(buffer.addr, buffer.valid_size, &record);
+      if (status == CUPTI_SUCCESS) {
+        ProcessCuptiActivityRecord(record, tracing_start_ns_, mapping, prof);
+        ++record_cnt;
+      } else if (status == CUPTI_ERROR_MAX_LIMIT_REACHED) {
+        break;
+      } else {
+        CUPTI_CALL(status);
+      }
+    }
+
+    Tracer::Instance().ReleaseBuffer(buffer.addr);
+    // ReleaseBuffer(buffer.addr);
+  }
+  return record_cnt;
+}
+
+C_Status ProfilerCollectData(C_Profiler prof,
+                             uint64_t tracing_start_ns_,
+                             void *user_data) {
+  ProcessCuptiActivity(prof, tracing_start_ns_);
+  return C_SUCCESS;
+}
+
+C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
+  return C_SUCCESS;
+}
+
+C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
+  // CUPTI_CALL(cuptiRelease());
+  return C_SUCCESS;
+}
+
+C_Status ProfilerStart(C_Profiler prof, void *user_data) {
+  Tracer::Instance().ConsumeBuffers();
+  return C_SUCCESS;
+}
+
+C_Status ProfilerStop(C_Profiler prof, void *user_data) {
+  CUPTI_CALL(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_KERNEL));
+  CUPTI_CALL(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_MEMCPY));
+  CUPTI_CALL(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_DRIVER));
+  CUPTI_CALL(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_MEMSET));
+  CUPTI_CALL(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_RUNTIME));
+  VLOG(3) << "disable cupti activity";
+  return C_SUCCESS;
+}
+
+C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
+  CUPTI_CALL(cuptiActivityRegisterCallbacks(BufferRequestedCallback,
+                                            BufferCompletedCallback));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMCPY));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_KERNEL));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_DRIVER));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_RUNTIME));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMSET));
+  VLOG(3) << "enable cupti activity";
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = const_cast<char *>(DeviceType);
@@ -1124,4 +1226,12 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->destroy_blas_handle = DestroyBlasHandle;
   params->interface->destroy_blaslt_handle = DestroyBlasLtHandle;
   params->interface->blas_set_math_mode = BlasSetMathMode;
+
+  // profiler
+  params->interface->profiler_collect_trace_data = ProfilerCollectData;
+  params->interface->profiler_initialize = ProfilerInitialize;
+  params->interface->profiler_finalize = ProfilerFinalize;
+  params->interface->profiler_start_tracing = ProfilerStart;
+  params->interface->profiler_stop_tracing = ProfilerStop;
+  params->interface->profiler_prepare_tracing = ProfilerPrepare;
 }

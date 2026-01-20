@@ -88,7 +88,6 @@ class TestElementwisePowOp_ZeroDim2(TestElementwisePowOp):
         }
         self.outputs = {"Out": np.power(self.inputs["X"], self.inputs["Y"])}
 
-'''
 class TestElementwisePowOp_ZeroDim3(TestElementwisePowOp):
     def setUp(self):
         self.op_type = "elementwise_pow"
@@ -455,7 +454,6 @@ class TestElementwisePowBF16Op(OpTest):
                 only_check_prim=True,
                 check_prim_pir=True,
             )
-'''
 
 if __name__ == "__main__":
     unittest.main()

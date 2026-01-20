@@ -1023,10 +1023,10 @@ index ffdf995ece..4a7e03f4ad 100644
  PD_REGISTER_KERNEL(unsqueeze,
                     GPU,
 diff --git a/paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu b/paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu
-index 1b3393ceab..6bbf4f661b 100644
+index 486eabf5fa..b81b9f4320 100644
 --- a/paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu
 +++ b/paddle/phi/kernels/legacy/gpu/fp8_quant_blockwise_kernel.cu
-@@ -671,8 +671,8 @@ void FP8QuantBlockWiseKernelImpl(const Context &dev_ctx,
+@@ -749,8 +749,8 @@ void FP8QuantBlockWiseKernelImpl(const Context &dev_ctx,
      const int sm_count = phi::backends::gpu::GetGPUMultiProcessors(device_id);
      const size_t min_grid_x = sm_count * 8;
      const size_t min_block_x = 1024;
@@ -1035,5 +1035,5 @@ index 1b3393ceab..6bbf4f661b 100644
 +    const size_t gridx = std::min(min_grid_x, src_rows);
 +    const size_t blockx = std::min(min_block_x, src_cols / 128 * 32);
  
-     bool use_finegrained_range = false;
-     char *env_var = getenv("PER_TOKEN_QUANT_FP8_USE_FINEGRAINED_RANGE");
+     quant_per_token_per_block_padding<NvType,
+                                       ScaleT,

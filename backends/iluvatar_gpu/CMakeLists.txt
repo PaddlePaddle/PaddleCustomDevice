@@ -167,10 +167,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_kernel.cc
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/*.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/fc_functor.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/gather_scatter_functor.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math_function.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/repeat_tensor2index_tensor.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/dense_tensor_iterator.cc
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/*.cu

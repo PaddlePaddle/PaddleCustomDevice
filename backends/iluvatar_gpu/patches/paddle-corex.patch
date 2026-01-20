@@ -875,7 +875,7 @@ index 7a452d401e..36d1e25b2a 100644
 +#define double float
 +#endif
 +
- template <typename T, phi::DataLayout layout>
+ template <typename T, DataLayout layout>
  static __global__ void BNForwardInference(const T *x,
                                            const BatchNormParamType<T> *mean,
 @@ -535,6 +539,9 @@ static __global__ void BNForwardTraining2DWriteRes(
@@ -914,8 +914,8 @@ index 85615d0dd3..a48ac51308 100644
                                            DenseTensor* logits_grad) {
    PADDLE_ENFORCE_EQ(
        dev_ctx.GetPlace().GetType(),
--      phi::AllocationType::GPU,
-+      phi::AllocationType::CUSTOM,
+-      AllocationType::GPU,
++      AllocationType::CUSTOM,
        common::errors::Unavailable("softmax_with_cross_entropy operator's "
                                    "CUDA kernel only runs on GPU device."));
    const T* loss_grad_data = loss_grad.data<T>();
@@ -1076,19 +1076,6 @@ index eb48fc1dff..c9b5cb296d 100644
  PD_REGISTER_KERNEL(layer_norm,
                     GPU,
                     ALL_LAYOUT,
-diff --git a/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu b/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
-index a1a6dc09e2..3f9a2906f7 100644
---- a/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
-+++ b/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
-@@ -212,7 +212,7 @@ PD_REGISTER_KERNEL(rms_norm_grad,
-                    float,
-                    phi::float16) {}
- 
--#elif CUDNN_VERSION_MIN(8, 1, 0)
-+#elif CUDNN_VERSION_MIN(8, 1, 0) || defined(PADDLE_WITH_COREX)
- 
- PD_REGISTER_KERNEL(rms_norm_grad,
-                    GPU,
 diff --git a/paddle/phi/kernels/gpudnn/conv_cudnn_v7.h b/paddle/phi/kernels/gpudnn/conv_cudnn_v7.h
 index 085845dfb3..defe09ec84 100644
 --- a/paddle/phi/kernels/gpudnn/conv_cudnn_v7.h

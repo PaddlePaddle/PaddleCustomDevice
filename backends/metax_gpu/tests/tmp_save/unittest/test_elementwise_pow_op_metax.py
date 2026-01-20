@@ -31,7 +31,6 @@ def pow_grad(x, y, dout):
     dy = dout * np.log(x) * np.power(x, y)
     return dx, dy
 
-
 class TestElementwisePowOp(OpTest):
     def setUp(self):
         self.op_type = "elementwise_pow"
@@ -62,7 +61,6 @@ class TestElementwisePowOp(OpTest):
                 check_pir=True,
             )
 
-'''
 class TestElementwisePowOp_ZeroDim1(TestElementwisePowOp):
     def setUp(self):
         self.op_type = "elementwise_pow"
@@ -90,7 +88,7 @@ class TestElementwisePowOp_ZeroDim2(TestElementwisePowOp):
         }
         self.outputs = {"Out": np.power(self.inputs["X"], self.inputs["Y"])}
 
-
+'''
 class TestElementwisePowOp_ZeroDim3(TestElementwisePowOp):
     def setUp(self):
         self.op_type = "elementwise_pow"

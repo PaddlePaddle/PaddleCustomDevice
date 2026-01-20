@@ -1,4 +1,4 @@
-// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,12 +13,17 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_conv2d_add_act_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/instance_norm_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(fused_conv2d_add_act,  // cuda_only
+PD_CUSTOM_KERNEL_REGISTER(instance_norm,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::fusion::FusedConv2dAddActKernel,
+                          phi::InstanceNormKernel,
                           float,
-                          double,
-                          phi::dtype::float16) {}
+                          phi::float16) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16 ||
+      kernel_key.dtype() == phi::DataType::BFLOAT16) {
+    kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->InputAt(2).SetDataType(phi::DataType::FLOAT32);
+  }
+}

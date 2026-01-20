@@ -12,37 +12,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "kernels/gpudnn/softmax_gpudnn.h"
-#include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/funcs/math_function.h"
-#include "paddle/phi/kernels/softmax_kernel.h"
+#include "paddle/phi/kernels/cross_entropy_grad_kernel.h"
 
-namespace phi {
-
-template <typename T, typename Context>
-void SoftmaxGPUDNNKernel(const Context& dev_ctx,
-                         const DenseTensor& x,
-                         int axis,
-                         DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-
-  const int rank = x.dims().size();
-  // For 0D Tensor
-  if (rank == 0) {
-    phi::funcs::set_constant(dev_ctx, out, static_cast<T>(1.0));
-    return;
-  }
-
-  SoftmaxForwardCUDAKernelDriver<T>(dev_ctx, x, axis, out);
-}
-
-}  // namespace phi
-
-PD_REGISTER_PLUGIN_KERNEL(softmax,
+PD_CUSTOM_KERNEL_REGISTER(cross_entropy_with_softmax_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::SoftmaxGPUDNNKernel,
+                          phi::CrossEntropyWithSoftmaxGradKernel,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

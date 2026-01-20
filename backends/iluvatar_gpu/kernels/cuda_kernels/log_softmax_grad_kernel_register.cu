@@ -12,35 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/gpudnn/softmax_gpudnn.h"
-#include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/log_softmax_grad_kernel.h"
 
-namespace phi {
-
-template <typename T, typename Context>
-void LogSoftmaxGradKernel(const Context &dev_ctx,
-                          const DenseTensor &out,
-                          const DenseTensor &out_grad,
-                          int axis,
-                          DenseTensor *x_grad) {
-  dev_ctx.template Alloc<T>(x_grad);
-  const int rank = out.dims().size();
-  // For 0D Tensor
-  if (rank == 0) {
-    phi::funcs::set_constant(dev_ctx, x_grad, static_cast<T>(0.0));
-    return;
-  }
-  if (out.numel() == 0) return;
-  phi::SoftmaxBackwardCUDAKernelDriver<T, true>(
-      dev_ctx, out, out_grad, axis, x_grad);
-}
-
-}  // namespace phi
-
-PD_REGISTER_PLUGIN_KERNEL(log_softmax_grad,
+PD_CUSTOM_KERNEL_REGISTER(log_softmax_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LogSoftmaxGradKernel,

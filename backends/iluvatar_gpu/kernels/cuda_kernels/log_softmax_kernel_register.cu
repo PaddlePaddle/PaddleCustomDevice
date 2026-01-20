@@ -1,4 +1,4 @@
-// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,12 +13,12 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_conv2d_add_act_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/log_softmax_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(fused_conv2d_add_act,  // cuda_only
+PD_CUSTOM_KERNEL_REGISTER(log_softmax,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::fusion::FusedConv2dAddActKernel,
+                          phi::LogSoftmaxKernel,
                           float,
-                          double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

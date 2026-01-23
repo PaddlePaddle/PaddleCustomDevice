@@ -264,14 +264,14 @@ PHI_DEFINE_EXPORTED_int32(
     ", default is 0.");
 
 PHI_DEFINE_EXPORTED_bool(enable_ixdnn_attn,
-                         true,
+                         false,
                          "Whether enable ixdnn for flash attention or "
-                         "not, default is True.");
+                         "not, default is False.");
 
 PHI_DEFINE_EXPORTED_bool(enable_ixattnbkd,
-                         false,
+                         true,
                          "Whether enable ixattnbkd for flash attention or "
-                         "not, default is False.");
+                         "not, default is True.");
 
 PHI_DEFINE_EXPORTED_bool(
     flash_attn_available,

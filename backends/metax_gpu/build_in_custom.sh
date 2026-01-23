@@ -36,7 +36,7 @@ export CUDA_PATH=/root/cu-bridge/CUDA_DIR/
 export PATH=${CUDA_PATH}/bin:${PATH}
 export CUCC_PATH=${MACA_PATH}/tools/cu-bridge
 export PATH=${PATH}:${CUCC_PATH}/tools:${CUCC_PATH}/bin
-export PATH=${MACA_PATH}/bin:${PATH}bushi 
+export PATH=${MACA_PATH}/bin:${PATH}
 export LD_LIBRARY_PATH=${MACA_PATH}/lib:${MACA_PATH}/mxgpu_llvm/lib:${LD_LIBRARY_PATH}
 
 if [ ! -d build ]; then

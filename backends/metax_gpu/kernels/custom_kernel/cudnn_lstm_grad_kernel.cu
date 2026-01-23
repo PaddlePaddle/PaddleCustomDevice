@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/metax_kernel/metax_context.h"  //NOLINT
+#include "kernels/custom_kernel/custom_context.h"  //NOLINT
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/cudnn_lstm_grad_kernel.h"
 #include "paddle/phi/kernels/gpu/cudnn_lstm_utils.h"

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "glog/logging.h"
-#include "kernels/metax_kernel/metax_context.h"
+#include "kernels/custom_kernel/custom_context.h"
 #include "paddle/phi/backends/dynload/cudnn.h"
 #include "paddle/phi/backends/gpu/gpu_info.h"
 #include "paddle/phi/backends/gpu/gpu_launch_config.h"

@@ -49,7 +49,7 @@ foreach(test_name ${TEST_PROGRAMS})
     continue()
   endif()
 
-  string(FIND "${test_name}" "metax" METAX_SUFFIX_POS)
+  string(FIND "${test_name}" "custom" METAX_SUFFIX_POS)
   if(NOT METAX_SUFFIX_POS EQUAL -1)
     set(CURRENT_TEST_PROGRAM ${METAX_UNIT_TEST_PATH}/${test_name}.py)
   else()

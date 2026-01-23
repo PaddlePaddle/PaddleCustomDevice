@@ -21,6 +21,7 @@ import numpy as np
 import os
 
 intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 4)
+paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
 
 paddle.seed(2025)
 

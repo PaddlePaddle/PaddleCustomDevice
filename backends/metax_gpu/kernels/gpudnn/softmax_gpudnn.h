@@ -25,7 +25,7 @@
 #include "paddle/phi/kernels/primitive/kernel_primitives.h"
 
 // See Note [ Why still include the fluid headers? ]
-#include "kernels/metax_kernel/metax_context.h"  //NOLINT
+#include "kernels/custom_kernel/custom_context.h"  //NOLINT
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 

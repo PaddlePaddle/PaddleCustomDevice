@@ -18,7 +18,7 @@
 #include "paddle/phi/backends/dynload/cusolver.h"
 #endif
 
-#include "kernels/metax_kernel/metax_context.h"
+#include "kernels/custom_kernel/custom_context.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/memory_utils.h"
 #include "paddle/phi/core/enforce.h"

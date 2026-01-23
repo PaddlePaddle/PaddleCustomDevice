@@ -31,7 +31,7 @@ jobs:
     if:  ${{ needs.check-bypass.outputs.can-skip != 'true' && github.repository_owner == 'PaddlePaddle' }}
     runs-on: iluvatar-gpu-2
     container:
-      image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:latest
+      image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:3.3.0
       env:
         LD_LIBRARY_PATH: /usr/local/corex/lib
         LIBRARY_PATH: /usr/local/corex/lib
@@ -90,7 +90,24 @@ jobs:
           curl -o PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz  http://paddlepaddledeps.bj.bcebos.com/csrmm_mklml_lnx_2019.0.5.tgz
           tar xf PaddleCustomDevice/Paddle/third_party/mklml/Linux/csrmm_mklml_lnx_2019.0.5.tgz
           pip uninstall -y paddlepaddle
-          python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
+          # Retry paddlepaddle installation up to 3 times with delays
+          retry_count=0
+          max_retries=3
+          while [ $retry_count -lt $max_retries ]; do
+            if python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/; then
+              echo "PaddlePaddle installation successful"
+              break
+            else
+              retry_count=$((retry_count + 1))
+              if [ $retry_count -lt $max_retries ]; then
+                echo "PaddlePaddle installation failed, retrying in 60 seconds... (Attempt $retry_count/$max_retries)"
+                sleep 60
+              else
+                echo "PaddlePaddle installation failed after $max_retries attempts, Please try rerun this job."
+                exit 1
+              fi
+            fi
+          done
           pip show paddlepaddle
           python3 -m pip install parameterized
           export PADDLE_VERSION=0.0.0
@@ -108,6 +125,7 @@ jobs:
           export FLAG_SKIP_FLOAT64=1
           cd PaddleCustomDevice/backends/iluvatar_gpu/tests
           # Run tests
+          ixsmi
           bash run_test.sh
 
       - name: Terminate and delete the container

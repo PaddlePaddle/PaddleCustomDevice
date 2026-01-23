@@ -13,11 +13,13 @@
 // limitations under the License.
 
 #include "common/utils.h"
+#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <stdio.h>
 
 #include "glog/logging.h"
 #include "paddle/phi/backends/context_pool.h"
 #include "paddle/phi/backends/custom/custom_context.h"
-
 namespace phi {
 namespace {
 C_Status AsyncMemCpyH2D(const C_Device device,
@@ -295,3 +297,14 @@ std::ostream& operator<<(std::ostream& os, const phi::DenseTensor& t) {
 #undef FOR_EACH_DATA_TYPE_TO_PRINT
 #undef CALL_PRINT_TENSOR
 }  // namespace phi
+
+// lock_mcruntime.c
+
+__attribute__((constructor)) void lock_mcruntime() {
+  void* handle =
+      dlopen("/opt/maca/lib/libmcruntime.so", RTLD_LAZY | RTLD_NODELETE);
+  if (!handle) {
+    fprintf(stderr, "Failed to lock libmcruntime.so: %s\n", dlerror());
+  } else {
+  }
+}

@@ -17,7 +17,7 @@
 #include <cmath>
 #include <random>
 
-#include "kernels/metax_kernel/elementwise.h"
+#include "kernels/custom_kernel/elementwise.h"
 #include "paddle/phi/backends/cpu/cpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/amp_type_traits.h"

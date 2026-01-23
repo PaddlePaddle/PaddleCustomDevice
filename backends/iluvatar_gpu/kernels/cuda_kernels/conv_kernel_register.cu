@@ -15,14 +15,8 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/gpudnn/conv_kernel.cu"  // NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(conv2d,
-                          iluvatar_gpu,
-                          ALL_LAYOUT,
-                          phi::ConvKernel,
-                          float) {}
+PD_CUSTOM_KERNEL_REGISTER(
+    conv2d, iluvatar_gpu, ALL_LAYOUT, phi::ConvKernel, float) {}
 
-PD_CUSTOM_KERNEL_REGISTER(conv3d,
-                          iluvatar_gpu,
-                          ALL_LAYOUT,
-                          phi::Conv3DKernel,
-                          float) {}
+PD_CUSTOM_KERNEL_REGISTER(
+    conv3d, iluvatar_gpu, ALL_LAYOUT, phi::Conv3DKernel, float) {}

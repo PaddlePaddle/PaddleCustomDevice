@@ -15,17 +15,11 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/conv_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(conv2d_grad,
-                          iluvatar_gpu,
-                          ALL_LAYOUT,
-                          phi::ConvGradKernel,
-                          float) {}
+PD_CUSTOM_KERNEL_REGISTER(
+    conv2d_grad, iluvatar_gpu, ALL_LAYOUT, phi::ConvGradKernel, float) {}
 
-PD_CUSTOM_KERNEL_REGISTER(conv3d_grad,
-                          iluvatar_gpu,
-                          ALL_LAYOUT,
-                          phi::Conv3DGradKernel,
-                          float) {}
+PD_CUSTOM_KERNEL_REGISTER(
+    conv3d_grad, iluvatar_gpu, ALL_LAYOUT, phi::Conv3DGradKernel, float) {}
 
 PD_CUSTOM_KERNEL_REGISTER(conv2d_double_grad,
                           iluvatar_gpu,

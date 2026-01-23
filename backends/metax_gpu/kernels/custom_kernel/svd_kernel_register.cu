@@ -15,7 +15,7 @@
 #ifndef PADDLE_WITH_HIP
 // HIP not support cusolver
 
-#include "kernels/metax_kernel/metax_context.h"
+#include "kernels/custom_kernel/custom_context.h"
 #include "paddle/phi/backends/dynload/cusolver.h"
 #include "paddle/phi/common/memory_utils.h"
 #include "paddle/phi/core/kernel_registry.h"

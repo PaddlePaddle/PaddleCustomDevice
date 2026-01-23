@@ -11,8 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifndef BACKENDS_METAX_GPU_KERNELS_METAX_KERNEL_METAX_CONTEXT_H_
-#define BACKENDS_METAX_GPU_KERNELS_METAX_KERNEL_METAX_CONTEXT_H_
+#ifndef BACKENDS_METAX_GPU_KERNELS_CUSTOM_KERNEL_CUSTOM_CONTEXT_H_
+#define BACKENDS_METAX_GPU_KERNELS_CUSTOM_KERNEL_CUSTOM_CONTEXT_H_
 #include <array>
 #include <functional>
 #include <mutex>
@@ -156,4 +156,4 @@ inline DnnWorkspaceHandle GetDnnWorkspace(Allocator* alloactor,
   return DnnWorkspaceHandle(alloactor, stream);
 }
 }  // namespace phi
-#endif  // BACKENDS_METAX_GPU_KERNELS_METAX_KERNEL_METAX_CONTEXT_H_
+#endif  // BACKENDS_METAX_GPU_KERNELS_CUSTOM_KERNEL_CUSTOM_CONTEXT_H_

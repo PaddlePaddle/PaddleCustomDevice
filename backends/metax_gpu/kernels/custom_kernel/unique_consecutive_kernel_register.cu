@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "kernels/metax_kernel/unique_consecutive_functor.h"  //NOLINT
+#include "kernels/custom_kernel/unique_consecutive_functor.h"  //NOLINT
 #include "paddle/common/errors.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"

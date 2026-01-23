@@ -1,5 +1,5 @@
 [default]
-test_matmul_op_metax
+test_matmul_op_custom
 test_sum_op
 test_elementwise_add_op
 test_gather_op

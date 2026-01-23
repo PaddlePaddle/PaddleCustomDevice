@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "glog/logging.h"
-#include "kernels/metax_kernel/metax_context.h"  //NOLINT
+#include "kernels/custom_kernel/custom_context.h"  //NOLINT
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/cudnn_lstm_kernel.h"
 #include "paddle/phi/kernels/gpu/cudnn_lstm_utils.h"

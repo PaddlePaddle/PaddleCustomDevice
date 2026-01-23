@@ -1,9 +1,10 @@
 import os
+import shutil
+import subprocess
+
 from setuptools import setup, Distribution
 from setuptools.command.install import install
 
-import os
-import shutil
 
 class CustomInstallCommand(install):
     def run(self):
@@ -15,9 +16,42 @@ class CustomInstallCommand(install):
             if not os.path.exists(install_dir):
                 os.makedirs(install_dir)
             shutil.copytree(source_dir, install_dir, dirs_exist_ok=True)
+        
+        custom_install_dir = os.path.join(self.install_lib, 'paddle_custom_device')
+        custom_device_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        custom_commit = git_commit(custom_device_dir)
 
-packages = []
-package_data = {}
+        write_init_py(filename=os.path.join(custom_install_dir, '__init__.py'))
+        write_version_py(
+            filename=os.path.join(custom_install_dir, 'metax_gpu', '__init__.py'),
+            custom_commit=custom_commit)
+        write_custom_op_api_py(
+            filename=os.path.join(custom_install_dir, 'metax_gpu‘, ’ops.py'),
+            libname=os.path.join(custom_install_dir, 'libpaddle-metax-gpu.so'))
+        
+
+class BinaryDistribution(Distribution):
+    def has_ext_modules(self):
+        return True
+
+
+def git_commit(device_dir) -> str:
+    try:
+        cmd = ['git', 'rev-parse', 'HEAD']
+        git_commit = (
+            subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                cwd=device_dir,
+            )
+            .communicate()[0]
+            .strip()
+        )
+    except:
+        git_commit = 'Unknown'
+    git_commit = git_commit.decode('utf-8')
+    return str(git_commit)
+
 
 def write_custom_op_api_py(filename='python/paddle_custom_device/metax_gpu/ops.py', libname='python/paddle_custom_device/libpaddle-metax-gpu.so'):
     import os
@@ -43,7 +77,7 @@ for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
         f.write('\n\n'.join(api_content))
 
 
-def write_version_py(filename='python/paddle_custom_device/meatx_gpu/__init__.py'):
+def write_version_py(filename='python/paddle_custom_device/metax_gpu/__init__.py',custom_commit='Unknown'):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
@@ -52,8 +86,7 @@ def write_version_py(filename='python/paddle_custom_device/meatx_gpu/__init__.py
 from .ops import *
 
 full_version  = '@PADDLE_VERSION@'
-git_commit_id = '@GIT_HASH@'
-custom_op_git_commit_id = '@CUSTOM_OP_GIT_HASH@'
+custom_op_git_commit_id = '%(custom_commit)s'
 
 __all__ = ['version']
 
@@ -71,7 +104,7 @@ def version():
 '''
 
     with open(filename, 'w') as f:
-        f.write(cnt)
+        f.write(cnt % {'custom_commit': custom_commit, })
 
 
 def write_init_py(filename='python/paddle_custom_device/__init__.py'):
@@ -80,10 +113,10 @@ def write_init_py(filename='python/paddle_custom_device/__init__.py'):
         os.makedirs(dirname)
     cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
 #
-from . import meatx_gpu # noqa: F401
+from . import metax_gpu # noqa: F401
 
 __all__ = [  # noqa
-    'meatx_gpu',
+    'metax_gpu',
 ]
 
 '''
@@ -91,9 +124,8 @@ __all__ = [  # noqa
         f.write(cnt)
 
 
-class BinaryDistribution(Distribution):
-    def has_ext_modules(self):
-        return True
+packages = []
+package_data = {}
 
 # maca ai version
 maca_ai_version = os.getenv('MACA_AI_VERSION')
@@ -102,10 +134,6 @@ if not maca_ai_version:
 
 
 def main():
-    write_custom_op_api_py()
-    write_version_py()
-    write_init_py()
-
     setup(
     name = '@CMAKE_PROJECT_NAME@',
     version='@PLUGIN_VERSION@' + "+maca" + maca_ai_version,

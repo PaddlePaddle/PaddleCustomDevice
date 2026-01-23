@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/metax_kernel/block_attn.h"
-#include "kernels/metax_kernel/flash_attn_utils.h"
+#include "kernels/custom_kernel/block_attn.h"
+#include "kernels/custom_kernel/flash_attn_utils.h"
 #include "paddle/phi/backends/context_pool.h"
 #include "paddle/phi/core/dense_tensor.h"
 #include "paddle/phi/core/kernel_registry.h"

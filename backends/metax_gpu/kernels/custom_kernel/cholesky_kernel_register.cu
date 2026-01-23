@@ -20,7 +20,7 @@ limitations under the License. */
 #include <algorithm>
 #include <vector>
 
-#include "kernels/metax_kernel/metax_context.h"
+#include "kernels/custom_kernel/custom_context.h"
 #include "paddle/phi/backends/dynload/cusolver.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/memory_utils.h"

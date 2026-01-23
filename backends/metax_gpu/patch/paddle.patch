@@ -35,7 +35,7 @@ index 8d445b39ae..504e7b6293 100755
      op_library(fused_gemm_epilogue_op)
    endif()
 diff --git a/paddle/phi/backends/dynload/dynamic_loader.cc b/paddle/phi/backends/dynload/dynamic_loader.cc
-index 4e990175a0..5a86b15929 100644
+index 37ee00b591..f497472ad9 100644
 --- a/paddle/phi/backends/dynload/dynamic_loader.cc
 +++ b/paddle/phi/backends/dynload/dynamic_loader.cc
 @@ -18,7 +18,6 @@ limitations under the License. */
@@ -427,7 +427,7 @@ index fc86cc09d1..037f020d00 100644
    });
  #else
 diff --git a/paddle/phi/kernels/funcs/blas/blaslt_gemm_search.h b/paddle/phi/kernels/funcs/blas/blaslt_gemm_search.h
-index e63b3d2f6e..95d7e6f204 100644
+index aab18dd414..683c323f53 100644
 --- a/paddle/phi/kernels/funcs/blas/blaslt_gemm_search.h
 +++ b/paddle/phi/kernels/funcs/blas/blaslt_gemm_search.h
 @@ -628,7 +628,13 @@ class CublasLtAlgoCache {
@@ -456,7 +456,7 @@ index e63b3d2f6e..95d7e6f204 100644
          for (const auto& [seed, algo] : algo_caches_) {
            outfile << seed << " ";
 diff --git a/paddle/phi/kernels/funcs/cublaslt.h b/paddle/phi/kernels/funcs/cublaslt.h
-index dc549488b2..3dd8d0255c 100644
+index 71514d9c4d..a46a713e0c 100644
 --- a/paddle/phi/kernels/funcs/cublaslt.h
 +++ b/paddle/phi/kernels/funcs/cublaslt.h
 @@ -42,19 +42,11 @@ class CublasLtHelper {
@@ -494,8 +494,41 @@ index 461e6e2474..48a64ae9ce 100644
  #endif
    dim3 threads(kWarpSize, kBlockDimY);
    dim3 grids(static_cast<int>((D + kWarpSize - 1) / kWarpSize));
+diff --git a/paddle/phi/kernels/funcs/fast_ln_v2_utils.h b/paddle/phi/kernels/funcs/fast_ln_v2_utils.h
+index 6435688914..f81f5246af 100644
+--- a/paddle/phi/kernels/funcs/fast_ln_v2_utils.h
++++ b/paddle/phi/kernels/funcs/fast_ln_v2_utils.h
+@@ -296,12 +296,9 @@ struct InterCTASync {
+ 
+   inline __device__ void spin_wait_(int *barrier, int step, int expected) {
+ #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 700)
+-    asm volatile("red.release.gpu.global.add.s32 [%0], %1;" ::"l"(barrier),
+-                 "r"(step));
+-    for (int found = -1; found != expected;) {
+-      asm volatile("ld.global.acquire.gpu.b32 %0, [%1];"
+-                   : "=r"(found)
+-                   : "l"(barrier));
++    atomicAdd(barrier, step);
++    volatile int* vbarrier = reinterpret_cast<volatile int*>(barrier);
++    while (vbarrier[0] != expected) {
+     }
+ #endif
+   }
+diff --git a/paddle/phi/kernels/funcs/fft.cu b/paddle/phi/kernels/funcs/fft.cu
+index da92193d10..ae3b84f9be 100644
+--- a/paddle/phi/kernels/funcs/fft.cu
++++ b/paddle/phi/kernels/funcs/fft.cu
+@@ -172,7 +172,7 @@ void exec_fft(const phi::GPUContext& dev_ctx,
+   int64_t device_id = dev_ctx.GetPlace().GetDeviceId();
+   FFTConfig* config = nullptr;
+   std::unique_ptr<FFTConfig> config_ = nullptr;
+-  bool using_cache = use_cache(key.sizes_);
++  bool using_cache = false;//use_cache(key.sizes_);
+ 
+   if (using_cache) {
+     FFTConfigCache& plan_cache = get_fft_plan_cache(device_id);
 diff --git a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
-index 92dccf18ce..dee56fb862 100644
+index 93540f1df6..5fa8d3ae4a 100644
 --- a/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 +++ b/paddle/phi/kernels/funcs/layer_norm_impl.cu.h
 @@ -36,11 +36,11 @@ template <typename T>
@@ -556,7 +589,7 @@ index dff1033db4..0098123818 100644
  }
  
 diff --git a/paddle/phi/kernels/funcs/top_k_function_cuda.h b/paddle/phi/kernels/funcs/top_k_function_cuda.h
-index 9b69b7d0ff..a6b22261df 100644
+index 13670ffc90..f47ee23d31 100644
 --- a/paddle/phi/kernels/funcs/top_k_function_cuda.h
 +++ b/paddle/phi/kernels/funcs/top_k_function_cuda.h
 @@ -30,11 +30,11 @@ limitations under the License. */
@@ -825,7 +858,7 @@ index 9b69b7d0ff..a6b22261df 100644
  }  // namespace phi
 +//
 diff --git a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
-index 9d4bb18d55..80405c2b78 100644
+index 25c9fa597e..e98d833943 100644
 --- a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
 +++ b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
 @@ -638,9 +638,6 @@ __global__ __launch_bounds__(THREADS_PER_CTA) void fused_fast_ln_fwd_kernel(
@@ -839,7 +872,7 @@ index 9d4bb18d55..80405c2b78 100644
          }
        }
 diff --git a/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu b/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
-index b63ba7540c..c3583711c2 100644
+index e6f66c92f1..b294f7a476 100644
 --- a/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
 @@ -15,7 +15,7 @@
@@ -847,12 +880,12 @@ index b63ba7540c..c3583711c2 100644
  #include "paddle/phi/core/kernel_registry.h"
  #include "paddle/phi/kernels/funcs/aligned_vector.h"
 -#include "paddle/phi/kernels/fusion/gpu/mmha_util.cu.h"
-+#include "kernels/metax_kernel/mmha_util.cu.h"
++#include "kernels/custom_kernel/mmha_util.cu.h"
  
  namespace phi {
  namespace fusion {
 diff --git a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
-index dbbc2a2166..eb3b7224f6 100644
+index d947eb1a32..06d0efef4c 100644
 --- a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
 +++ b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
 @@ -15,7 +15,7 @@
@@ -860,12 +893,12 @@ index dbbc2a2166..eb3b7224f6 100644
  #include "paddle/phi/core/kernel_registry.h"
  #include "paddle/phi/kernels/funcs/aligned_vector.h"
 -#include "paddle/phi/kernels/fusion/gpu/mmha_util.cu.h"
-+#include "kernels/metax_kernel/mmha_util.cu.h"
++#include "kernels/custom_kernel/mmha_util.cu.h"
  
  namespace phi {
  namespace fusion {
 diff --git a/paddle/phi/kernels/gpu/depthwise_conv.h b/paddle/phi/kernels/gpu/depthwise_conv.h
-index 3ba1fa8c2d..b1c4f8d3a9 100644
+index 983eb6c0ca..7dc2331073 100644
 --- a/paddle/phi/kernels/gpu/depthwise_conv.h
 +++ b/paddle/phi/kernels/gpu/depthwise_conv.h
 @@ -21,8 +21,8 @@ limitations under the License. */
@@ -931,7 +964,7 @@ index 41125bf29e..df299eb412 100644
  namespace phi {
  
 diff --git a/paddle/phi/kernels/gpu/lstsq_kernel.cu b/paddle/phi/kernels/gpu/lstsq_kernel.cu
-index 504bf7e4eb..cbc1b17289 100644
+index 75a8f71d8c..cb21e9e301 100644
 --- a/paddle/phi/kernels/gpu/lstsq_kernel.cu
 +++ b/paddle/phi/kernels/gpu/lstsq_kernel.cu
 @@ -21,7 +21,7 @@
@@ -944,7 +977,7 @@ index 504bf7e4eb..cbc1b17289 100644
  #include "paddle/phi/kernels/impl/tril_triu_kernel_impl.h"
  #include "paddle/phi/kernels/lstsq_kernel.h"
 diff --git a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h b/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
-index e6b3960f6d..564125f1f6 100644
+index 4a28600c38..d96495b7aa 100644
 --- a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
 +++ b/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
 @@ -56,8 +56,8 @@ HOSTDEVICE T igam(const T a, const T x) {
@@ -959,7 +992,7 @@ index e6b3960f6d..564125f1f6 100644
    if ((x <= T{0}) || (a <= T{0})) return (T{1.0});
  
 diff --git a/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h b/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
-index 410fb3c560..7d173d46f5 100644
+index c627cc1264..b3941570ee 100644
 --- a/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
 +++ b/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
 @@ -20,8 +20,8 @@
@@ -982,17 +1015,3 @@ index 410fb3c560..7d173d46f5 100644
  
    if (x == T{0.0}) {
      T inf = std::numeric_limits<T>::infinity();
-diff --git a/paddle/phi/kernels/funcs/fft.cu b/paddle/phi/kernels/funcs/fft.cu
-index 5133e702d7..e8b574967d 100644
---- a/paddle/phi/kernels/funcs/fft.cu
-+++ b/paddle/phi/kernels/funcs/fft.cu
-@@ -172,7 +172,7 @@ void exec_fft(const phi::GPUContext& dev_ctx,
-   int64_t device_id = dev_ctx.GetPlace().GetDeviceId();
-   FFTConfig* config = nullptr;
-   std::unique_ptr<FFTConfig> config_ = nullptr;
--  bool using_cache = use_cache(key.sizes_);
-+  bool using_cache = false;//use_cache(key.sizes_);
- 
-   if (using_cache) {
-     FFTConfigCache& plan_cache = get_fft_plan_cache(device_id);
-     

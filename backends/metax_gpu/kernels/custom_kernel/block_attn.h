@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "kernels/metax_kernel/mmha_util.cu.h"
+#include "kernels/custom_kernel/mmha_util.cu.h"
 #include "paddle/common/flags.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/memory_utils.h"

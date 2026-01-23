@@ -416,8 +416,7 @@ void FusedGateMoeKernel(
     const phi::DenseTensor& gate_up_weights,
     const phi::DenseTensor& down_weights,
     const paddle::optional<phi::DenseTensor>& hidden_states_scales,
-    const paddle::optional<std::vector<phi::DenseTensor>>&
-        intermediate_hidden_states_scales,
+    const paddle::optional<phi::DenseTensor>& intermediate_hidden_states_scales,
     const paddle::optional<phi::DenseTensor>& gate_up_weights_scales,
     const paddle::optional<phi::DenseTensor>& down_weights_scales,
     phi::DenseTensor* final_hidden_states,
@@ -468,9 +467,7 @@ void FusedGateMoeKernel(
   ct.AddN(down_weights);
 
   if (intermediate_hidden_states_scales) {
-    for (const auto& t : intermediate_hidden_states_scales.get()) {
-      ct.Add(t);
-    }
+    ct.AddN(intermediate_hidden_states_scales.get());
   }
   if (gate_up_weights_scales) {
     ct.AddN(gate_up_weights_scales.get());
@@ -514,8 +511,7 @@ void CallFusedGateMoeKernel(
     const phi::DenseTensor& gate_up_weights,
     const phi::DenseTensor& down_weights,
     const paddle::optional<phi::DenseTensor>& hidden_states_scales,
-    const paddle::optional<std::vector<phi::DenseTensor>>&
-        intermediate_hidden_states_scales,
+    const paddle::optional<phi::DenseTensor>& intermediate_hidden_states_scales,
     const paddle::optional<phi::DenseTensor>& gate_up_weights_scales,
     const paddle::optional<phi::DenseTensor>& down_weights_scales,
     phi::DenseTensor* final_hidden_states,
@@ -634,7 +630,7 @@ std::vector<paddle::Tensor> FusedGateMoeForward(
       *gate_up_weights_tensor,
       *down_weights_tensor,
       paddle::optional<phi::DenseTensor>(), /* hidden_states_scale */
-      paddle::optional<std::vector<phi::DenseTensor>>(), /* intermediate */
+      paddle::optional<phi::DenseTensor>(), /* intermediate */
       paddle::optional<phi::DenseTensor>(), /* gate_up_weights_scales */
       paddle::optional<phi::DenseTensor>(), /* down_weights_scales */
       final_hidden_states.get(),
@@ -660,8 +656,7 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
     const paddle::Tensor& gate_up_weights,
     const paddle::Tensor& down_weights,
     const paddle::optional<paddle::Tensor>& hidden_states_scales,
-    const paddle::optional<std::vector<paddle::Tensor>>&
-        intermediate_hidden_states_scales,
+    const paddle::optional<paddle::Tensor>& intermediate_hidden_states_scales,
     const paddle::Tensor& gate_up_weights_scales,
     const paddle::Tensor& down_weights_scales,
     const int top_k,
@@ -701,14 +696,16 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
         paddle::optional<phi::DenseTensor>(*hidden_states_scales_dt);
   }
 
+  auto intermediate_hidden_states_scales_tensor =
+      paddle::optional<phi::DenseTensor>();
   bool dynamic_scale = true;
-  std::vector<phi::DenseTensor> scales_vec;
   if (intermediate_hidden_states_scales) {
     dynamic_scale = false;
-    for (const auto& t : intermediate_hidden_states_scales.get()) {
-      scales_vec.push_back(
-          *static_cast<const phi::DenseTensor*>(t.impl().get()));
-    }
+    auto intermediate_hidden_states_scales_dt = static_cast<phi::DenseTensor*>(
+        intermediate_hidden_states_scales->impl().get());
+    intermediate_hidden_states_scales_tensor =
+        paddle::optional<phi::DenseTensor>(
+            *intermediate_hidden_states_scales_dt);
   }
   auto gate_up_weights_scales_tensor = paddle::optional<phi::DenseTensor>();
   auto gate_up_weights_scales_dt =
@@ -735,7 +732,7 @@ std::vector<paddle::Tensor> FusedGateMoeFP8Forward(
       *gate_up_weights_tensor,
       *down_weights_tensor,
       hidden_states_scales_tensor,
-      scales_vec,
+      intermediate_hidden_states_scales_tensor,
       gate_up_weights_scales_tensor,
       down_weights_scales_tensor,
       final_hidden_states.get(),
@@ -816,7 +813,7 @@ std::vector<paddle::Tensor> FusedGateMoeBlockWiseFP8Forward(
       *gate_up_weights_tensor,
       *down_weights_tensor,
       paddle::optional<phi::DenseTensor>(), /* hidden_states_scale */
-      paddle::optional<std::vector<phi::DenseTensor>>(), /* intermediate */
+      paddle::optional<phi::DenseTensor>(), /* intermediate */
       gate_up_weights_scales_tensor,
       down_weights_scales_tensor,
       final_hidden_states.get(),
@@ -887,7 +884,7 @@ PD_BUILD_OP(fused_gate_moe_fp8)
              "gate_up_weights",
              "down_weights",
              paddle::Optional("hidden_states_scales"),
-             paddle::Optional(paddle::Vec("intermediate_hidden_states_scales")),
+             paddle::Optional("intermediate_hidden_states_scales"),
              "gate_up_weights_scales",
              "down_weights_scales"})
     .Outputs({"final_hidden_states"})

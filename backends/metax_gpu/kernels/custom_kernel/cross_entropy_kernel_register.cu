@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #include "glog/logging.h"
-#include "kernels/metax_kernel/metax_context.h"
+#include "kernels/custom_kernel/custom_context.h"
 #include "paddle/phi/kernels/cross_entropy_kernel.h"
 #include "paddle/phi/kernels/full_kernel.h"
 

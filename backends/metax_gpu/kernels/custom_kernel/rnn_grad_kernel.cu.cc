@@ -14,7 +14,7 @@
 
 #include "paddle/phi/kernels/rnn_grad_kernel.h"
 
-#include "kernels/metax_kernel/metax_context.h"  //NOLINT
+#include "kernels/custom_kernel/custom_context.h"  //NOLINT
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/core/tensor_utils.h"

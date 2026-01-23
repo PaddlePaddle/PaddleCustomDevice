@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/metax_kernel/flash_attn_utils.h"
+#include "kernels/custom_kernel/flash_attn_utils.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/calc_reduced_attn_kernel.h"
 

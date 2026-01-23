@@ -559,3 +559,4 @@ test_tensor.py
 test_rms_norm.py
 test_api_compatibility.py
 test_celu_op.py
+test_fused_rms_norm_op.py

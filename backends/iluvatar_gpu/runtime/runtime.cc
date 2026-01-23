@@ -36,6 +36,7 @@
 #include <unordered_map>
 
 #include "glog/logging.h"
+#include "paddle/phi/backends/custom/cuda_graph.h"
 #include "paddle/phi/backends/device_base.h"
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/backends/dynload/cublasLt.h"
@@ -1014,6 +1015,178 @@ C_Status IsDNNSupported(const C_Device device, bool *supported) {
   return C_SUCCESS;
 }
 
+C_Status CudaStreamBeginCapture(const C_Device device,
+                                C_Stream stream,
+                                C_StreamCaptureMode mode) {
+  if (cudaStreamBeginCapture(cudaStream_t(stream),
+                             cudaStreamCaptureMode(mode)) != cudaSuccess)
+    return C_ERROR;
+  return C_SUCCESS;
+}
+
+C_Status CudaStreamEndCaptrue(const C_Device device,
+                              C_Stream stream,
+                              C_CudaGraph *pGraph) {
+  if (cudaStreamEndCapture(cudaStream_t(stream),
+                           reinterpret_cast<cudaGraph_t *>(pGraph)) !=
+      cudaSuccess)
+    return C_ERROR;
+  return C_SUCCESS;
+}
+
+C_Status CudaGraphGetNodes(C_CudaGraph graph,
+                           C_CudaGraphNode *pNode,
+                           size_t *numNodes) {
+  if (cudaGraphGetNodes(cudaGraph_t(graph), nullptr, numNodes) != cudaSuccess)
+    return C_ERROR;
+  return C_SUCCESS;
+}
+
+C_Status CudaGraphLaunch(const C_Device device,
+                         C_GraphExec exec,
+                         C_Stream stream) {
+  cudaError_t result =
+      cudaGraphLaunch(cudaGraphExec_t(exec), cudaStream_t(stream));
+  if (result != cudaSuccess) {
+    return C_ERROR;
+  }
+  return C_SUCCESS;
+}
+
+C_Status CudaGraphDestroy(C_CudaGraph graph) {
+  if (cudaGraphDestroy(cudaGraph_t(graph)) != cudaSuccess) return C_ERROR;
+  return C_SUCCESS;
+}
+
+C_Status CudaGraphExecDestroy(C_GraphExec exec) {
+  if (cudaGraphExecDestroy(cudaGraphExec_t(exec)) != cudaSuccess)
+    return C_ERROR;
+  return C_SUCCESS;
+}
+
+C_Status CudaGraphInstantiate(C_GraphExec *pExec,
+                              C_CudaGraph *pGraph,
+                              void **pErrorNode,
+                              char *pLogBuffer,
+                              size_t bufferSize) {
+  if (cudaGraphInstantiate(reinterpret_cast<cudaGraphExec_t *>(pExec),
+                           *(reinterpret_cast<cudaGraph_t *>(pGraph)),
+                           reinterpret_cast<cudaGraphNode_t *>(pErrorNode),
+                           pLogBuffer,
+                           bufferSize) != cudaSuccess)
+    return C_ERROR;
+  return C_SUCCESS;
+}
+
+C_Status CudaStreamCaptureInfo(const C_Device device,
+                               C_Stream stream,
+                               C_StreamCaptureStatus *captureStatus_out,
+                               unsigned long long *id_out,  // NOLINT
+                               C_CudaGraph *graph_out,
+                               C_CudaGraphNode *dependencies_out,
+                               void **edgeData_out,
+                               size_t *numDependencies_out) {
+  if (cudaStreamGetCaptureInfo(
+          cudaStream_t(stream),
+          reinterpret_cast<cudaStreamCaptureStatus *>(captureStatus_out),
+          id_out) != cudaSuccess)
+    return C_ERROR;
+  return C_SUCCESS;
+}
+
+C_Status CudaThreadExchangeStreamCaptureMode(C_StreamCaptureMode *mode) {
+  if (cudaThreadExchangeStreamCaptureMode(
+          reinterpret_cast<cudaStreamCaptureMode *>(mode)) != cudaSuccess)
+    return C_ERROR;
+  return C_SUCCESS;
+}
+
+C_Status CudaGraphDebugDotPrint(C_CudaGraph graph,
+                                const char *path,
+                                unsigned int flags) {
+  if (cudaGraphDebugDotPrint(cudaGraph_t(graph), path, flags) != cudaSuccess)
+    return C_ERROR;
+  return C_SUCCESS;
+}
+
+C_Status GetParameterSettersForExecGraph(C_CudaGraph graph,
+                                         C_GraphHookManager *c_hook) {
+  using parameterSetter_t =
+      std::function<void(phi::backends::gpu::gpuKernelParams &)>;
+  struct SetKernelParamsCtx {
+    parameterSetter_t setter_func;
+    cudaGraphNode_t node;
+    cudaKernelNodeParams params;
+  };
+
+  size_t num_nodes;
+  PADDLE_ENFORCE_GPU_SUCCESS(
+      cudaGraphGetNodes(cudaGraph_t(graph), nullptr, &num_nodes));
+  std::vector<cudaGraphNode_t> nodes(num_nodes);
+  PADDLE_ENFORCE_GPU_SUCCESS(
+      cudaGraphGetNodes(cudaGraph_t(graph), nodes.data(), &num_nodes));
+
+  std::vector<SetKernelParamsCtx *> cts_all;
+  std::vector<C_GraphExecuterSetter> hooks;
+  for (auto node : nodes) {
+    cudaGraphNodeType pType;
+    cudaError_t result = cudaGraphNodeGetType(node, &pType);
+    assert(result == CUDA_SUCCESS);
+    if (pType == cudaGraphNodeTypeKernel) {
+      cudaKernelNodeParams params = {};
+      result = cudaGraphKernelNodeGetParams(node, &params);
+      assert(result == CUDA_SUCCESS);
+      phi::backends::gpu::gpuKernelParams kernel_params(params.kernelParams);
+      auto kernel =
+          phi::backends::gpu::CUDAGraphNodeLauncher::Instance()
+              .parameterSetters.find(static_cast<cudaFunction_t>(params.func));
+      if (kernel != phi::backends::gpu::CUDAGraphNodeLauncher::Instance()
+                        .parameterSetters.end()) {
+        auto launchSequence = kernel->second;
+        unsigned int id = kernel_params.As<int>(0);
+        auto parameterSetter = launchSequence.find(id);
+        if (parameterSetter != launchSequence.end()) {
+          auto setter = parameterSetter->second;
+          SetKernelParamsCtx *ctx = new SetKernelParamsCtx;
+          ctx->node = node;
+          ctx->params = params;
+          ctx->setter_func = setter;
+          cts_all.emplace_back(ctx);
+          hooks.emplace_back([](C_GraphExec exec_graph, void *userdate) {
+            SetKernelParamsCtx *tmp =
+                reinterpret_cast<SetKernelParamsCtx *>(userdate);
+            phi::backends::gpu::gpuKernelParams kernel_params(
+                tmp->params.kernelParams);
+            tmp->setter_func(kernel_params);
+            cudaGraphExecKernelNodeSetParams(
+                reinterpret_cast<cudaGraphExec_t>(exec_graph),
+                tmp->node,
+                &tmp->params);
+          });
+        } else {
+          PADDLE_THROW(common::errors::InvalidArgument(
+              "Error: does not find launch id"));
+        }
+      }
+    }
+  }
+
+  c_hook->size = cts_all.size();
+  if (cts_all.size() != 0) {
+    c_hook->size = cts_all.size();
+    c_hook->hooks = reinterpret_cast<C_GraphExecuterSetter *>(
+        malloc(sizeof(C_GraphExecuterSetter) * cts_all.size()));
+    c_hook->user_data =
+        reinterpret_cast<void **>(malloc(sizeof(void *) * cts_all.size()));
+    std::memcpy(c_hook->hooks,
+                hooks.data(),
+                cts_all.size() * sizeof(C_GraphExecuterSetter));
+    std::memcpy(
+        c_hook->user_data, cts_all.data(), cts_all.size() * sizeof(void *));
+  }
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = const_cast<char *>(DeviceType);
@@ -1026,6 +1199,20 @@ void InitPlugin(CustomRuntimeParams *params) {
 #if defined(PADDLE_WITH_FLAGCX)
   flagcxHandleInit(&flagcx_handler);
 #endif
+  params->interface->cuda_stream_begin_capture = CudaStreamBeginCapture;
+  params->interface->cuda_stream_end_captrue = CudaStreamEndCaptrue;
+  params->interface->cuda_graph_launch = CudaGraphLaunch;
+  params->interface->cuda_graph_destroy = CudaGraphDestroy;
+  params->interface->cuda_graph_exec_destroy = CudaGraphExecDestroy;
+  params->interface->cuda_graph_instantiate = CudaGraphInstantiate;
+  params->interface->cuda_graph_get_nodes = CudaGraphGetNodes;
+  params->interface->cuda_stream_capture_info = CudaStreamCaptureInfo;
+  params->interface->get_parameter_setter_for_exec_graph =
+      GetParameterSettersForExecGraph;
+  params->interface->cuda_thread_exchange_stream_capthure_mode =
+      CudaThreadExchangeStreamCaptureMode;
+  params->interface->cuda_graph_debug_dot_print = CudaGraphDebugDotPrint;
+
   params->interface->get_compute_capability = GetComputeCapability;
   params->interface->get_device_properties = GetDeviceProperties;
   params->interface->get_runtime_version = GetRuntimeVersion;

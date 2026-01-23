@@ -31,7 +31,7 @@ jobs:
     if:  ${{ needs.check-bypass.outputs.can-skip != 'true' && github.repository_owner == 'PaddlePaddle' }}
     runs-on: iluvatar-gpu-2
     container:
-      image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:latest
+      image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:3.3.0
       env:
         LD_LIBRARY_PATH: /usr/local/corex/lib
         LIBRARY_PATH: /usr/local/corex/lib
@@ -125,6 +125,7 @@ jobs:
           export FLAG_SKIP_FLOAT64=1
           cd PaddleCustomDevice/backends/iluvatar_gpu/tests
           # Run tests
+          ixsmi
           bash run_test.sh
 
       - name: Terminate and delete the container

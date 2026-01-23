@@ -17,6 +17,8 @@ project(${PROJ_NAME} CXX C CUDA)
 
 set(TARGET_NAME ${PROJ_NAME})
 
+option(WITH_CINN "Compile with CINN support" ON)
+
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
@@ -27,6 +29,14 @@ set(CMAKE_INSTALL_RPATH "")
 set(WITH_MKLML ON)
 
 include(paddle)
+
+# 【修改点 1】: 添加 CINN 子目录编译
+if(WITH_CINN)
+  message(STATUS "[Iluvatar] CINN enabled, adding subdirectory: cinn")
+  add_definitions(-DWITH_CINN)
+  add_subdirectory(cinn)
+endif()
+
 set(THIRD_PARTY_PATH
     "${PADDLE_SOURCE_DIR}/build/third_party"
     CACHE PATH "Third party libraries directory.")
@@ -843,6 +853,13 @@ set_source_files_properties(${CUSTOM_DEVICE_SRCS} PROPERTIES LANGUAGE CUDA)
 add_library(${TARGET_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
 add_dependencies(${TARGET_NAME} external_deps)
 
+# 【修改点 2】: 添加 CINN 接口的头文件搜索路径 这样 runtime/runtime.cc 里的 #include
+# "../cinn/cinn_interface.h" 才能生效
+if(WITH_CINN)
+  target_include_directories(${TARGET_NAME}
+                             PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/cinn")
+endif()
+
 target_include_directories(
   ${TARGET_NAME} PRIVATE ${PADDLE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}
                          ${CMAKE_SOURCE_DIR}/kernels ${CUDA_INCLUDE_DIRS})
@@ -862,6 +879,13 @@ target_link_libraries(
           nccl
           # change nccl to ${FLAGCX_LIB} if compiling with FlagCX ${FLAGCX_LIB}
 )
+
+# 【修改点 3】: 将 CINN 编译出的对象文件链接进最终的 .so 只有这样，Plugin 加载时才能找到 InitCinnInterface 等符号
+if(WITH_CINN)
+  message(STATUS "[Iluvatar] Linking CINN object library")
+  target_link_libraries(${TARGET_NAME}
+                        PRIVATE $<TARGET_OBJECTS:iluvatar_cinn_obj>)
+endif()
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 include_directories(BEFORE ${CMAKE_SOURCE_DIR}/headers)

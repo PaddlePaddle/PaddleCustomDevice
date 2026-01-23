@@ -13,22 +13,20 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/conv_grad_kernel.h"
+#include "paddle/phi/kernels/gpudnn/conv_kernel.cu"  // NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(conv2d_grad,
-                          iluvatar_gpu,
+PD_CUSTOM_KERNEL_REGISTER(conv2d,
+                          GPUDNN,
                           ALL_LAYOUT,
-                          phi::ConvGradKernel,
-                          float) {}
+                          phi::ConvCudnnKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
-PD_CUSTOM_KERNEL_REGISTER(conv3d_grad,
-                          iluvatar_gpu,
+PD_CUSTOM_KERNEL_REGISTER(conv3d,
+                          GPUDNN,
                           ALL_LAYOUT,
-                          phi::Conv3DGradKernel,
-                          float) {}
-
-PD_CUSTOM_KERNEL_REGISTER(conv2d_double_grad,
-                          iluvatar_gpu,
-                          ALL_LAYOUT,
-                          phi::ConvGradGradKernel,
-                          float) {}
+                          phi::Conv3DCudnnKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

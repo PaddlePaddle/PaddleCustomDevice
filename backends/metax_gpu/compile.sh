@@ -34,8 +34,20 @@ fi
 
 echo "make_maca"
 cd build
-cmake_maca .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON -DCUDA_ARCH_NAME=Manual -DCUDA_ARCH_BIN="80"
-make_maca -j18 VERBOSE=1
+arch=$(uname -m)
+echo ${arch}
+if [ "${arch}" = "x86_64" ]; then
+    echo 系统架构是：${arch}
+    cmake_maca .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON -DCUDA_ARCH_NAME=Manual -DCUDA_ARCH_BIN="80"
+    make_maca -j18 VERBOSE=1
+elif [ "${arch}" = "aarch64" ] || [ "${arch}" = "arm64" ]; then
+    echo "arm64"
+    cmake_maca .. -DWITH_ARM=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON -DCUDA_ARCH_NAME=Manual -DCUDA_ARCH_BIN="80"
+    make_maca TARGET=ARMV8 -j18 VERBOSE=1
+else
+    echo "unknown"
+    exit 1
+fi
 
 
 echo "install whl"

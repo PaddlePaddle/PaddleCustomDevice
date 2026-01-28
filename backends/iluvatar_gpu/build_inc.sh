@@ -32,6 +32,7 @@ STATE_FILE="${CURRENT_DIR}/.build_state"
 # set BUILD_WITH_FLAGCX to 1 if we want to use flagcx as communication backend
 BUILD_WITH_FLAGCX=0
 FLAGCX_ROOT="/workspace/FlagCX"
+PLATFORM_ID=$(uname -i)
 
 if [ "$BUILD_WITH_FLAGCX" == "1" ]; then
     WITH_FLAGCX="ON"
@@ -136,21 +137,36 @@ pushd "$BUILD_DIR" > /dev/null
 rm -f compile.log
 if [[ ! -f "Makefile" && ! -f "build.ninja" ]]; then
     echo "Running cmake for first time build..."
-    cmake -G Ninja -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DIR=${PADDLE_SOURCE_DIR} \
-    -DWITH_DISTRIBUTE=ON -DWITH_NCCL=ON -DWITH_FLAGCX=${WITH_FLAGCX} -DWITH_RCCL=OFF -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DON_INFER=ON -DCOREX_VERSION=${COREX_VERSION} -DCOREX_ARCH=${COREX_ARCH} \
-    -DFLAGCX_ROOT=${FLAGCX_ROOT} \
-    -DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime -pthread' \
-    -DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
-    -DCMAKE_C_FLAGS="-pthread" \
-    -DWITH_ARM=OFF -DWITH_DGC=OFF .. 2>&1 | tee compile.log
+    if [[ "${PLATFORM_ID}" == "aarch64" ]]; then
+        cmake -G Ninja -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DIR=${PADDLE_SOURCE_DIR} \
+        -DWITH_DISTRIBUTE=ON -DWITH_NCCL=ON -DWITH_FLAGCX=${WITH_FLAGCX} -DWITH_RCCL=OFF -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DON_INFER=ON -DCOREX_VERSION=${COREX_VERSION} -DCOREX_ARCH=${COREX_ARCH} \
+        -DFLAGCX_ROOT=${FLAGCX_ROOT} \
+        -DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime -pthread' \
+        -DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
+        -DCMAKE_C_FLAGS="-pthread" \
+        -DWITH_ARM=ON -DWITH_DGC=OFF .. 2>&1 | tee compile.log
+    else
+        cmake -G Ninja -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DIR=${PADDLE_SOURCE_DIR} \
+        -DWITH_DISTRIBUTE=ON -DWITH_NCCL=ON -DWITH_FLAGCX=${WITH_FLAGCX} -DWITH_RCCL=OFF -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DON_INFER=ON -DCOREX_VERSION=${COREX_VERSION} -DCOREX_ARCH=${COREX_ARCH} \
+        -DFLAGCX_ROOT=${FLAGCX_ROOT} \
+        -DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime -pthread' \
+        -DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
+        -DCMAKE_C_FLAGS="-pthread" \
+        -DWITH_ARM=OFF -DWITH_DGC=OFF .. 2>&1 | tee compile.log
+    fi
 else
     echo "Cmake configuration already exists, skipping..."
 fi
 
 # Compile
 echo "Starting compilation..."
-ninja -j$(nproc) 2>&1
+if [[ "${PLATFORM_ID}" == "aarch64" ]]; then
+    env TARGET=ARMV8 ninja -j$(nproc) 2>&1
+else
+    ninja -j$(nproc) 2>&1
+fi
 FAILED_LOG="failed_files.log"
 grep -E "FAILED: " compile.log | tee ${FAILED_LOG}
 echo "Failed files are listed in ${FAILED_LOG}"

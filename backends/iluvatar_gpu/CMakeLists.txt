@@ -86,6 +86,10 @@ if(WITH_COREX)
   add_definitions(-DEIGEN_USE_GPU)
 endif()
 
+if(WITH_ARM)
+  add_definitions(-DPADDLE_WITH_ARM)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${PADDLE_SOURCE_DIR}/cmake"
      "${PADDLE_SOURCE_DIR}/cmake/external")
 

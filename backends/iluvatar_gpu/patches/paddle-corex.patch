@@ -229,7 +229,7 @@ index a7df8a4023..d4ff45d8d5 100644
  
 +__device__ int device_mutex = 1;
 +static inline __device__ unsigned long long int atomicAdd64(  // NOLINT
-+    unsigned long long int *address,                          // NOLINT
++    volatile unsigned long long int *address,                 // NOLINT
 +    unsigned long long int val) {                             // NOLINT
 +  unsigned long long int old = *address;                      // NOLINT
 +

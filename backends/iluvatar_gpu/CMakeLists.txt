@@ -249,7 +249,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/beam_search_decode_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/beam_search_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bernoulli_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/binomial_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bmm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bmm_kernel.cu

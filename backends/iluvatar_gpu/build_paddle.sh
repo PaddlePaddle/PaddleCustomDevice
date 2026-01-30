@@ -32,6 +32,7 @@ PATCH_FILE="${CURRENT_DIR}/patches/paddle-corex.patch"
 # set BUILD_WITH_FLAGCX to 1 if we want to use flagcx as communication backend
 BUILD_WITH_FLAGCX=0
 FLAGCX_ROOT="/workspace/FlagCX"
+PLATFORM_ID=$(uname -i)
 
 if [ "$BUILD_WITH_FLAGCX" == "1" ]; then
     WITH_FLAGCX="ON"
@@ -61,15 +62,27 @@ if [[ ! -d "build" ]]; then
 fi
 pushd build
 
-cmake -G Ninja -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DIR=${PADDLE_SOURCE_DIR} \
--DWITH_DISTRIBUTE=ON -DWITH_NCCL=ON -DWITH_FLAGCX=${WITH_FLAGCX} -DWITH_RCCL=OFF -DCMAKE_BUILD_TYPE=Release \
--DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DON_INFER=ON -DCOREX_VERSION=${COREX_VERSION} -DCOREX_ARCH=${COREX_ARCH} \
--DFLAGCX_ROOT=${FLAGCX_ROOT} \
--DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime -pthread' \
--DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
--DCMAKE_C_FLAGS="-pthread" \
--DWITH_ARM=OFF -DWITH_DGC=OFF .. || { echo "Error: CMake configuration failed!"; exit 1; }
-ninja -j$(nproc) || { echo "Error: Paddle-iluvatar-gpu build failed!"; exit 1; }
+if [[ "${PLATFORM_ID}" == "aarch64" ]]; then
+  cmake -G Ninja -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DIR=${PADDLE_SOURCE_DIR} \
+  -DWITH_DISTRIBUTE=ON -DWITH_NCCL=ON -DWITH_FLAGCX=${WITH_FLAGCX} -DWITH_RCCL=OFF -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DON_INFER=ON -DCOREX_VERSION=${COREX_VERSION} -DCOREX_ARCH=${COREX_ARCH} \
+  -DFLAGCX_ROOT=${FLAGCX_ROOT} \
+  -DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime -pthread' \
+  -DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
+  -DCMAKE_C_FLAGS="-pthread" \
+  -DWITH_ARM=ON -DWITH_DGC=OFF .. || { echo "Error: CMake configuration failed!"; exit 1; }
+  env TARGET=ARMV8 ninja -j$(nproc) || { echo "Error: Paddle-iluvatar-gpu build failed!"; exit 1; }
+else
+  cmake -G Ninja -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DIR=${PADDLE_SOURCE_DIR} \
+  -DWITH_DISTRIBUTE=ON -DWITH_NCCL=ON -DWITH_FLAGCX=${WITH_FLAGCX} -DWITH_RCCL=OFF -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DON_INFER=ON -DCOREX_VERSION=${COREX_VERSION} -DCOREX_ARCH=${COREX_ARCH} \
+  -DFLAGCX_ROOT=${FLAGCX_ROOT} \
+  -DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime -pthread' \
+  -DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
+  -DCMAKE_C_FLAGS="-pthread" \
+  -DWITH_ARM=OFF -DWITH_DGC=OFF .. || { echo "Error: CMake configuration failed!"; exit 1; }
+  ninja -j$(nproc) || { echo "Error: Paddle-iluvatar-gpu build failed!"; exit 1; }
+fi
 popd
 
 if [[ ! -d "build_pip" ]]; then

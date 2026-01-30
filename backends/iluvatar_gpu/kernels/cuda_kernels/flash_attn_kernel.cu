@@ -319,7 +319,7 @@ void FlashAttnUnpaddedBaseKernel(
       dataType = CUDNN_DATA_FLOAT;
     }
 
-    cudnnHandle_t cudnn = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
+    cudnnHandle_t cudnn = dev_ctx.cudnn_handle();
     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnCreate(&cudnn));
 
     cudnnFlashAttnDescriptor_t flashAttnDesc;
@@ -847,7 +847,7 @@ void FlashAttnBaseKernel(
       dataType = CUDNN_DATA_FLOAT;
     }
 
-    cudnnHandle_t cudnn = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
+    cudnnHandle_t cudnn = dev_ctx.cudnn_handle();
     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnCreate(&cudnn));
 
     cudnnFlashAttnDescriptor_t flashAttnDesc;

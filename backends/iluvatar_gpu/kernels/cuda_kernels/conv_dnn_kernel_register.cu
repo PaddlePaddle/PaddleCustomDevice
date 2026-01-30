@@ -1,4 +1,4 @@
-// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,12 +13,20 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/fusion/gpu/fused_conv2d_add_act_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/gpudnn/conv_kernel.cu"  // NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(fused_conv2d_add_act,  // cuda_only
-                          iluvatar_gpu,
+PD_CUSTOM_KERNEL_REGISTER(conv2d,
+                          GPUDNN,
                           ALL_LAYOUT,
-                          phi::fusion::FusedConv2dAddActKernel,
+                          phi::ConvCudnnKernel,
                           float,
-                          double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_CUSTOM_KERNEL_REGISTER(conv3d,
+                          GPUDNN,
+                          ALL_LAYOUT,
+                          phi::Conv3DCudnnKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

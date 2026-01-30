@@ -30,3 +30,17 @@ PD_CUSTOM_KERNEL_REGISTER(batch_norm_coo_grad,
     kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // bias_grad
   }
 }
+
+PD_CUSTOM_KERNEL_REGISTER(batch_norm_grad,
+                          iluvatar_gpu,
+                          ALL_LAYOUT,
+                          phi::BatchNormGradKernel,
+                          float,
+                          phi::dtype::bfloat16,
+                          phi::dtype::float16) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16 ||
+      kernel_key.dtype() == phi::DataType::BFLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // scale_grad
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // bias_grad
+  }
+}

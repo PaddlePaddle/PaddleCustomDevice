@@ -13,12 +13,13 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/cross_entropy_kernel.h"
-PD_CUSTOM_KERNEL_REGISTER(cross_entropy_with_softmax,
+#include "paddle/phi/kernels/softmax_grad_kernel.h"
+
+PD_CUSTOM_KERNEL_REGISTER(softmax_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::CrossEntropyWithSoftmaxKernel,
+                          phi::SoftmaxGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

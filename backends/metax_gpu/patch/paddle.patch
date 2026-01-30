@@ -897,21 +897,6 @@ index d947eb1a32..06d0efef4c 100644
  
  namespace phi {
  namespace fusion {
-diff --git a/paddle/phi/kernels/gpu/depthwise_conv.h b/paddle/phi/kernels/gpu/depthwise_conv.h
-index 983eb6c0ca..7dc2331073 100644
---- a/paddle/phi/kernels/gpu/depthwise_conv.h
-+++ b/paddle/phi/kernels/gpu/depthwise_conv.h
-@@ -21,8 +21,8 @@ limitations under the License. */
- #include "paddle/phi/backends/gpu/gpu_primitives.h"
- #include "paddle/phi/kernels/funcs/cub.h"
- #include "paddle/phi/kernels/funcs/math_function.h"
--#include "paddle/phi/kernels/gpudnn/conv_gpudnn.h"
--#include "paddle/phi/kernels/impl/conv_cudnn_impl.h"
-+#include "kernels/gpudnn/conv_gpudnn.h"
-+#include "kernels/impl/conv_cudnn_impl.h"
- 
- namespace phi {
- // To determine use cudnn or not.
 diff --git a/paddle/phi/kernels/gpu/gelu_funcs.h b/paddle/phi/kernels/gpu/gelu_funcs.h
 index 29fa252e96..4ae72b0935 100644
 --- a/paddle/phi/kernels/gpu/gelu_funcs.h
@@ -936,32 +921,6 @@ index 29fa252e96..4ae72b0935 100644
 +// #endif
    return tanhf(x);
  }
- 
-diff --git a/paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu b/paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu
-index 4e7ca17d99..60056efce8 100644
---- a/paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu
-+++ b/paddle/phi/kernels/gpu/log_softmax_grad_kernel.cu
-@@ -17,7 +17,7 @@
- #include "paddle/phi/backends/gpu/gpu_context.h"
- #include "paddle/phi/core/kernel_registry.h"
- #include "paddle/phi/kernels/funcs/math_function.h"
--#include "paddle/phi/kernels/gpudnn/softmax_gpudnn.h"
-+#include "kernels/gpudnn/softmax_gpudnn.h"
- 
- namespace phi {
- 
-diff --git a/paddle/phi/kernels/gpu/log_softmax_kernel.cu b/paddle/phi/kernels/gpu/log_softmax_kernel.cu
-index 41125bf29e..df299eb412 100644
---- a/paddle/phi/kernels/gpu/log_softmax_kernel.cu
-+++ b/paddle/phi/kernels/gpu/log_softmax_kernel.cu
-@@ -17,7 +17,7 @@
- #include "paddle/phi/backends/gpu/gpu_context.h"
- #include "paddle/phi/core/kernel_registry.h"
- #include "paddle/phi/kernels/funcs/math_function.h"
--#include "paddle/phi/kernels/gpudnn/softmax_gpudnn.h"
-+#include "kernels/gpudnn/softmax_gpudnn.h"
- 
- namespace phi {
  
 diff --git a/paddle/phi/kernels/gpu/lstsq_kernel.cu b/paddle/phi/kernels/gpu/lstsq_kernel.cu
 index 75a8f71d8c..cb21e9e301 100644
@@ -1015,3 +974,117 @@ index c627cc1264..b3941570ee 100644
  
    if (x == T{0.0}) {
      T inf = std::numeric_limits<T>::infinity();
+
+diff --git a/paddle/phi/kernels/gpudnn/softmax_gpudnn.h b/paddle/phi/kernels/gpudnn/softmax_gpudnn.h
+index be6ee4f854..1f507c99f4 100644
+--- a/paddle/phi/kernels/gpudnn/softmax_gpudnn.h
++++ b/paddle/phi/kernels/gpudnn/softmax_gpudnn.h
+@@ -111,7 +111,7 @@ __device__ __forceinline__ void WarpReduceSum(T* sum) {
+ #pragma unroll
+     for (int i = 0; i < BatchSize; ++i) {
+       T sum_val =
+-          phi::backends::gpu::CudaShuffleXorSync(0xFFFFFFFF, sum[i], offset);
++          phi::backends::gpu::CudaShuffleXorSync(0xFFFFFFFFFFFFFFFFULL, sum[i], offset);
+       sum[i] = sum[i] + sum_val;
+     }
+   }
+@@ -124,7 +124,7 @@ __device__ __forceinline__ void WarpReduceMax(T* sum) {
+ #pragma unroll
+     for (int i = 0; i < BatchSize; ++i) {
+       T max_val =
+-          phi::backends::gpu::CudaShuffleXorSync(0xFFFFFFFF, sum[i], offset);
++          phi::backends::gpu::CudaShuffleXorSync(0xFFFFFFFFFFFFFFFFULL, sum[i], offset);
+       sum[i] = max(sum[i], max_val);
+     }
+   }
+@@ -2678,27 +2678,7 @@ void SoftmaxForwardCUDAKernelDriverImpl(const GPUContext& dev_ctx,
+       using T4 = typename VecT4<T>::Type;
+       using T2 = typename VecT2<T>::Type;
+ 
+-      if (dim % 4 == 0) {
+-        SwitchWarpSoftmaxForward<T, T4, IndexType, LogMode>(blocks,
+-                                                            threads,
+-                                                            dev_ctx,
+-                                                            out_data,
+-                                                            x.data<T>(),
+-                                                            N,
+-                                                            dim,
+-                                                            dim,
+-                                                            dim_log2);
+-      } else if (dim % 2 == 0) {
+-        SwitchWarpSoftmaxForward<T, T2, IndexType, LogMode>(blocks,
+-                                                            threads,
+-                                                            dev_ctx,
+-                                                            out_data,
+-                                                            x.data<T>(),
+-                                                            N,
+-                                                            dim,
+-                                                            dim,
+-                                                            dim_log2);
+-      } else {
++      if (std::is_same<T, float>::value) {
+         SwitchWarpSoftmaxForward<T, T, IndexType, LogMode>(blocks,
+                                                            threads,
+                                                            dev_ctx,
+@@ -2708,14 +2688,41 @@ void SoftmaxForwardCUDAKernelDriverImpl(const GPUContext& dev_ctx,
+                                                            dim,
+                                                            dim,
+                                                            dim_log2);
+-      }
+-    } else {
+-      if (dim >= MATRIX_SOFTMAX_THRESHOLD) {
+-        LaunchKeMatrixSoftmaxForwardKernel<T, IndexType, LogMode>(
+-            dev_ctx, out_data, x.data<T>(), N, dim);
+       } else {
+-        LaunchSoftmaxForwardCudnnKernel<T>(dev_ctx, x, axis, LogMode, out);
++        if (dim % 4 == 0) {
++          SwitchWarpSoftmaxForward<T, T4, IndexType, LogMode>(blocks,
++                                                              threads,
++                                                              dev_ctx,
++                                                              out_data,
++                                                              x.data<T>(),
++                                                              N,
++                                                              dim,
++                                                              dim,
++                                                              dim_log2);
++        } else if (dim % 2 == 0) {
++          SwitchWarpSoftmaxForward<T, T2, IndexType, LogMode>(blocks,
++                                                              threads,
++                                                              dev_ctx,
++                                                              out_data,
++                                                              x.data<T>(),
++                                                              N,
++                                                              dim,
++                                                              dim,
++                                                              dim_log2);
++        } else {
++          SwitchWarpSoftmaxForward<T, T, IndexType, LogMode>(blocks,
++                                                             threads,
++                                                             dev_ctx,
++                                                             out_data,
++                                                             x.data<T>(),
++                                                             N,
++                                                             dim,
++                                                             dim,
++                                                             dim_log2);
++        }
+       }
++    } else {
++      LaunchSoftmaxForwardCudnnKernel<T>(dev_ctx, x, axis, LogMode, out);
+     }
+   } else {
+     LaunchNormalSoftmaxForward<T, IndexType, LogMode>(
+
+diff --git a/paddle/phi/kernels/gpu/cross_entropy_grad_kernel.cu b/paddle/phi/kernels/gpu/cross_entropy_grad_kernel.cu
+index 0a415200df..b0732e28f3 100644
+--- a/paddle/phi/kernels/gpu/cross_entropy_grad_kernel.cu
++++ b/paddle/phi/kernels/gpu/cross_entropy_grad_kernel.cu
+@@ -147,7 +147,7 @@ void CrossEntropyWithSoftmaxGradGPUKernel(const GPUContext& dev_ctx,
+                                           DenseTensor* logits_grad) {
+   PADDLE_ENFORCE_EQ(
+       dev_ctx.GetPlace().GetType(),
+-      AllocationType::GPU,
++      AllocationType::CUSTOM,
+       common::errors::Unavailable("softmax_with_cross_entropy operator's "
+                                   "CUDA kernel only runs on GPU device."));
+   const T* loss_grad_data = loss_grad.data<T>();

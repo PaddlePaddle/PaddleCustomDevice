@@ -1242,6 +1242,31 @@ C_Status IsDNNSupported(const C_Device device, bool *supported) {
   return C_SUCCESS;
 }
 
+C_Status InitDnnHandle(const C_Device device,
+                       C_DNNHandle *dnn_handle,
+                       C_Stream stream) {
+  if (phi::dynload::HasCUDNN()) {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnCreate(
+        reinterpret_cast<cudnnHandle_t *>(dnn_handle)));
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnSetStream(
+        *reinterpret_cast<cudnnHandle_t *>(dnn_handle),
+        reinterpret_cast<cudaStream_t>(stream)));
+    return C_SUCCESS;
+  } else {
+    *dnn_handle = nullptr;
+    LOG(WARNING) << "cudnn library not found! setting dnn_handle to nullptr.";
+    return C_SUCCESS;
+  }
+}
+
+C_Status DestroyDnnHandle(const C_Device device, C_DNNHandle dnn_handle) {
+  if (dnn_handle != nullptr) {
+    phi::dynload::cudnnDestroy(reinterpret_cast<cudnnHandle_t>(dnn_handle));
+    dnn_handle = nullptr;
+  }
+  return C_SUCCESS;
+}
+
 C_Status CudaStreamBeginCapture(const C_Device device,
                                 C_Stream stream,
                                 C_StreamCaptureMode mode) {
@@ -1497,6 +1522,8 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->destroy_blas_handle = DestroyBlasHandle;
   params->interface->destroy_blaslt_handle = DestroyBlasLtHandle;
   params->interface->blas_set_math_mode = BlasSetMathMode;
+  params->interface->init_dnn_handle = InitDnnHandle;
+  params->interface->destroy_dnn_handle = DestroyDnnHandle;
 
   params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;

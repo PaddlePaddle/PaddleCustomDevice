@@ -1,4 +1,4 @@
-// Copyright (c) 2026 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,12 +13,17 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/cross_entropy_kernel.h"
-PD_CUSTOM_KERNEL_REGISTER(cross_entropy_with_softmax,
+#include "paddle/phi/kernels/cudnn_lstm_grad_kernel.h"
+#include "paddle/phi/kernels/gpu/cudnn_lstm_utils.h"
+
+#ifdef PADDLE_WITH_HIP
+PD_CUSTOM_KERNEL_REGISTER(
+    cudnn_lstm_grad, metax_gpu, ALL_LAYOUT, phi::CudnnLSTMGradKernel, float) {}
+#else
+PD_CUSTOM_KERNEL_REGISTER(cudnn_lstm_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::CrossEntropyWithSoftmaxKernel,
+                          phi::CudnnLSTMGradKernel,
                           float,
-                          double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          double) {}
+#endif

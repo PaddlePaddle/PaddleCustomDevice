@@ -13,8 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 #include <vector>
 
-#include "glog/logging.h"
-#include "kernels/custom_kernel/custom_context.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
@@ -66,16 +64,16 @@ void SoftmaxCUDNNFunctor<T, DeviceContext>::operator()(
       xDesc.descriptor<T>(layout, cudnn_tensor_dims);
   cudnnTensorDescriptor_t cudnn_y_desc =
       xDesc.descriptor<T>(layout, cudnn_tensor_dims);
-  PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSoftmaxForward(
-      GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace()),
-      CUDNN_SOFTMAX_ACCURATE,
-      CUDNN_SOFTMAX_MODE_INSTANCE,
-      CudnnDataType<T>::kOne(),
-      cudnn_x_desc,
-      X->data<T>(),
-      CudnnDataType<T>::kZero(),
-      cudnn_y_desc,
-      dev_ctx.template Alloc<T>(Y)));
+  PADDLE_ENFORCE_GPU_SUCCESS(
+      phi::dynload::cudnnSoftmaxForward(dev_ctx.cudnn_handle(),
+                                        CUDNN_SOFTMAX_ACCURATE,
+                                        CUDNN_SOFTMAX_MODE_INSTANCE,
+                                        CudnnDataType<T>::kOne(),
+                                        cudnn_x_desc,
+                                        X->data<T>(),
+                                        CudnnDataType<T>::kZero(),
+                                        cudnn_y_desc,
+                                        dev_ctx.template Alloc<T>(Y)));
 #endif
 }
 
@@ -125,18 +123,18 @@ void SoftmaxGradCUDNNFunctor<T, DeviceContext>::operator()(
       dxDesc.descriptor<T>(layout, cudnn_tensor_dims);
   cudnnTensorDescriptor_t cudnn_ygrad_desc =
       dyDesc.descriptor<T>(layout, cudnn_tensor_dims);
-  PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSoftmaxBackward(
-      GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace()),
-      CUDNN_SOFTMAX_ACCURATE,
-      CUDNN_SOFTMAX_MODE_INSTANCE,
-      CudnnDataType<T>::kOne(),
-      cudnn_y_desc,
-      Y->data<T>(),
-      cudnn_ygrad_desc,
-      YGrad->data<T>(),
-      CudnnDataType<T>::kZero(),
-      cudnn_xgrad_desc,
-      dev_ctx.template Alloc<T>(XGrad)));
+  PADDLE_ENFORCE_GPU_SUCCESS(
+      phi::dynload::cudnnSoftmaxBackward(dev_ctx.cudnn_handle(),
+                                         CUDNN_SOFTMAX_ACCURATE,
+                                         CUDNN_SOFTMAX_MODE_INSTANCE,
+                                         CudnnDataType<T>::kOne(),
+                                         cudnn_y_desc,
+                                         Y->data<T>(),
+                                         cudnn_ygrad_desc,
+                                         YGrad->data<T>(),
+                                         CudnnDataType<T>::kZero(),
+                                         cudnn_xgrad_desc,
+                                         dev_ctx.template Alloc<T>(XGrad)));
 #endif
 }
 

@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #include "gpudnn/pool_gpudnn.h"
-#include "kernels/custom_kernel/custom_context.h"  //NOLINT
+#include "paddle/phi/backends/custom/custom_context.h"  //NOLINT
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/full_kernel.h"
@@ -203,7 +203,7 @@ void PoolRawGPUDNNKernel(const Context& dev_ctx,
 #endif
 
   // ------------------- cudnn pool algorithm ---------------------
-  auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
+  auto handle = dev_ctx.cudnn_handle();
   ScalingParamType<T> alpha = 1.0f, beta = 0.0f;
 
 #ifdef PADDLE_WITH_HIP

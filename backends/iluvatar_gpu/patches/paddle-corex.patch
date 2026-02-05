@@ -680,8 +680,8 @@ index 7cf02c184e..7c86fe946a 100644
  
  #ifdef PADDLE_WITH_HIP
  #define WARP_SIZE 64
-++#elif defined(PADDLE_WITH_COREX)
-++#define WARP_SIZE 64
++#elif defined(PADDLE_WITH_COREX)
++#define WARP_SIZE 64
  #else
  #define WARP_SIZE 32
  #endif
@@ -695,7 +695,7 @@ index 7cf02c184e..7c86fe946a 100644
                                 const DenseTensorIterator& iter,
                                 const ReduceOp& reducer,
 @@ -1400,33 +1402,33 @@ void ReduceGpuKernel(const KPDevice& dev_ctx,
-   }();-
+   }();
  
    // Initialize ident value.
 -  Tx ident = []() {
@@ -706,7 +706,7 @@ index 7cf02c184e..7c86fe946a 100644
                                   kps::AbsMaxOps<Tx, MPType, Ty>>) {
 -      return std::numeric_limits<Tx>::lowest();
 +      return std::numeric_limits<MPType>::lowest();
-     }--
+     }
  
      if constexpr (std::is_same_v<ReduceOp<Tx, MPType, Ty>,
                                   kps::MinOps<Tx, MPType, Ty>> ||
@@ -714,24 +714,24 @@ index 7cf02c184e..7c86fe946a 100644
                                   kps::AbsMinOps<Tx, MPType, Ty>>) {
 -      return std::numeric_limits<Tx>::max();
 +      return std::numeric_limits<MPType>::max();
-     }--
+     }
  
      if constexpr (std::is_same_v<ReduceOp<Tx, MPType, Ty>,
                                   kps::LogicalAndOps<Tx, MPType, Ty>>) {
 -      return Tx{1};
 +      return MPType{1};
-     }--
+     }
  
      if constexpr (std::is_same_v<ReduceOp<Tx, MPType, Ty>,
                                   kps::ProdOps<Tx, MPType, Ty>>) {
 -      return Tx{1};
 +      return MPType{1};
-     }--
+     }
  
      // SumOps, MeanOps, LogicalOrOps and others
 -    return Tx{0};
 +    return MPType{0};
-   }();-
+   }();
  
    GPUReduceScheduler<Tx, Ty, kVecSize, kInputVecSize, ReduceOp<Tx, MPType, Ty>>(
 diff --git a/paddle/phi/kernels/funcs/segmented_array.h b/paddle/phi/kernels/funcs/segmented_array.h

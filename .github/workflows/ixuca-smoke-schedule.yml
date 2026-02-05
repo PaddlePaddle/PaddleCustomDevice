@@ -1,0 +1,54 @@
+name: IXUCA-Smoke-Schedule
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions: read-all
+
+concurrency:
+  group: ixuca-smoke-schedule
+  cancel-in-progress: true
+
+jobs:
+  smoke-check:
+    name: Smoke Check (run_check)
+    runs-on: iluvatar-gpu-2
+    timeout-minutes: 20
+    container:
+      image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:3.3.0
+      env:
+        LD_LIBRARY_PATH: /usr/local/corex/lib
+        LIBRARY_PATH: /usr/local/corex/lib
+        no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
+    steps:
+      - name: Install paddle nightly
+        run: |
+          set -e
+          pip uninstall -y paddlepaddle || true
+          retry_count=0
+          max_retries=3
+          while [ $retry_count -lt $max_retries ]; do
+            if python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/; then
+              echo "Paddle install success"
+              break
+            fi
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+              echo "Install failed, retrying in 30 seconds... ($retry_count/$max_retries)"
+              sleep 30
+            else
+              echo "Install failed after $max_retries attempts."
+              exit 1
+            fi
+          done
+          pip show paddlepaddle
+
+      - name: Run paddle.utils.run_check
+        run: |
+          python3 - <<'PY'
+          import paddle
+          paddle.utils.run_check()
+          print("run_check passed")
+          PY

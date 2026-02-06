@@ -61,14 +61,14 @@ jobs:
               shouldAlert = true;
               alertType = "SCHEDULING_ISSUE";
               alertText =
-                `IXUCA-Smoke-Schedule 调度异常：最近两次已完成运行均为 cancelled。\n` +
+                `调度异常：最近两次已完成运行均为 cancelled。\n` +
                 `latest: ${latest.html_url}\n` +
                 `previous: ${previous.html_url}`;
             } else if (smokeFailed) {
               shouldAlert = true;
-              alertType = "SMOKE_FAILED";
+              alertType = "DOCKER_CHECK_FAILED";
               alertText =
-                `IXUCA-Smoke-Schedule 冒烟失败：最近一次运行 conclusion=failure。\n` +
+                `容器检查失败：最近一次运行为 failure。\n` +
                 `run_url: ${latest.html_url}`;
             } else {
               alertText =

@@ -27,6 +27,7 @@ jobs:
         run: |
           set -e
           pip uninstall -y paddlepaddle || true
+          pip uninstall -y paddle-iluvatar-gpu || true
           retry_count=0
           max_retries=3
           while [ $retry_count -lt $max_retries ]; do
@@ -44,9 +45,41 @@ jobs:
             fi
           done
           pip show paddlepaddle
+          retry_count=0
+          while [ $retry_count -lt $max_retries ]; do
+            if python3 -m pip install --pre paddle-iluvatar-gpu -i https://www.paddlepaddle.org.cn/packages/nightly/ixuca/; then
+              echo "paddle-iluvatar-gpu install success"
+              break
+            fi
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+              echo "paddle-iluvatar-gpu install failed, retrying in 30 seconds... ($retry_count/$max_retries)"
+              sleep 30
+            else
+              echo "paddle-iluvatar-gpu install failed after $max_retries attempts."
+              exit 1
+            fi
+          done
+          pip show paddle-iluvatar-gpu
 
-      - name: Run paddle.utils.run_check
+      - name: Run Check
         run: |
+          set -e
+          ixsmi
+          gpu_count=$(ixsmi --query-gpu=name --format=csv,noheader | wc -l)
+          echo "Detected GPU count: ${gpu_count}"
+          if [ "${gpu_count}" -le 1 ]; then
+            echo "GPU count is <= 1, card status is abnormal."
+            exit 1
+          fi
+          toolbox_bin=$(ls -d /usr/local/corex/corex-toolbox-*/bin 2>/dev/null | head -n 1)
+          if [ -z "${toolbox_bin}" ]; then
+            echo "Cannot find /usr/local/corex/corex-toolbox-*/bin"
+            exit 1
+          fi
+          cd "${toolbox_bin}"
+          mpirun --allow-run-as-root --report-bindings -tag-output --prefix /usr/local -np 2 --bind-to none --map-by node -mca btl ^openib ./all_reduce_perf -b 8 -e 1G -f 2 -g 1
+          cd -
           python3 - <<'PY'
           import paddle
           paddle.utils.run_check()

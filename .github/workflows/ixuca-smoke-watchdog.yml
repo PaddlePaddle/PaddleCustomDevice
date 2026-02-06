@@ -174,11 +174,17 @@ jobs:
                 }
               }
             } else if (prevState.status && prevState.status !== "OK") {
-              shouldAlert = true;
-              alertType = "RECOVERED";
-              alertText =
-                `问题已修复：previous=${prevState.status}，latest=${latest.conclusion}。\n` +
-                `run_url: ${latest.html_url}`;
+              if (latest.conclusion === "success") {
+                shouldAlert = true;
+                alertType = "RECOVERED";
+                alertText =
+                  `问题已修复：previous=${prevState.status}，latest=${latest.conclusion}。\n` +
+                  `run_url: ${latest.html_url}`;
+              } else {
+                alertText =
+                  `问题尚未修复：previous=${prevState.status}，latest=${latest.conclusion}。\n` +
+                  `run_url: ${latest.html_url}`;
+              }
             } else {
               alertText =
                 `IXUCA-Smoke-Schedule 正常：latest=${latest.conclusion}, previous=${previous.conclusion}`;

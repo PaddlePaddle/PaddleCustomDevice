@@ -6,7 +6,7 @@ on:
     - cron: "*/10 * * * *"
 
 permissions:
-  actions: read
+  actions: write
   contents: read
 
 concurrency:
@@ -18,6 +18,68 @@ jobs:
     name: Check IXUCA smoke status and alert
     runs-on: ubuntu-latest
     steps:
+      - name: Fetch previous watchdog state artifact
+        id: fetch_state
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const artifactsResp = await github.rest.actions.listArtifactsForRepo({
+              owner,
+              repo,
+              per_page: 100
+            });
+
+            const artifacts = artifactsResp.data.artifacts || [];
+            const candidates = artifacts
+              .filter(a => a.name === "ixuca-smoke-watchdog-state" && !a.expired)
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            if (candidates.length > 0) {
+              core.setOutput("artifact_id", String(candidates[0].id));
+              core.info(`Found previous state artifact: ${candidates[0].id}`);
+            } else {
+              core.info("No previous state artifact found.");
+            }
+
+      - name: Download previous watchdog state
+        if: steps.fetch_state.outputs.artifact_id != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_ID: ${{ steps.fetch_state.outputs.artifact_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import io
+          import os
+          import zipfile
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          artifact_id = os.environ["ARTIFACT_ID"]
+
+          url = f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact_id}/zip"
+          req = urllib.request.Request(
+              url,
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Accept": "application/vnd.github+json",
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as resp:
+            data = resp.read()
+
+          with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            if "state.json" not in zf.namelist():
+              raise SystemExit("state.json not found in artifact")
+            with zf.open("state.json") as src, open("prev_state.json", "wb") as dst:
+              dst.write(src.read())
+          print("Downloaded previous state to prev_state.json")
+          PY
+
       - name: Evaluate recent smoke runs
         id: evaluate
         uses: actions/github-script@v7
@@ -26,6 +88,23 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const workflow_id = "ixuca-smoke-schedule.yml";
+            const fs = require("fs");
+
+            const now = new Date();
+            const oneDayMs = 24 * 60 * 60 * 1000;
+            let prevState = {
+              status: "UNKNOWN",
+              last_alerted_at: null,
+              last_alert_type: ""
+            };
+
+            if (fs.existsSync("prev_state.json")) {
+              try {
+                prevState = JSON.parse(fs.readFileSync("prev_state.json", "utf8"));
+              } catch (err) {
+                core.warning(`Failed to parse prev_state.json: ${err.message}`);
+              }
+            }
 
             const runsResp = await github.rest.actions.listWorkflowRuns({
               owner,
@@ -56,19 +135,51 @@ jobs:
             let shouldAlert = false;
             let alertType = "";
             let alertText = "";
+            let status = "OK";
 
             if (schedulingIssue) {
-              shouldAlert = true;
-              alertType = "SCHEDULING_ISSUE";
-              alertText =
-                `调度异常：最近两次已完成运行均为 cancelled。\n` +
-                `latest: ${latest.html_url}\n` +
-                `previous: ${previous.html_url}`;
+              status = "SCHEDULING_ISSUE";
             } else if (smokeFailed) {
+              status = "DOCKER_CHECK_FAILED";
+            }
+
+            const prevAlertAt = prevState.last_alerted_at
+              ? new Date(prevState.last_alerted_at)
+              : null;
+            const sameIssue = prevState.status === status && status !== "OK";
+            const canRepeat = prevAlertAt && now - prevAlertAt >= oneDayMs;
+
+            if (status !== "OK") {
+              if (sameIssue && prevAlertAt && !canRepeat) {
+                shouldAlert = false;
+                alertText =
+                  `已告警且状态未变化，暂不重复告警：status=${status}。\n` +
+                  `latest: ${latest.html_url}\n` +
+                  `previous: ${previous.html_url}`;
+              } else {
+                shouldAlert = true;
+                alertType = status;
+                if (status === "SCHEDULING_ISSUE") {
+                  alertText =
+                    `调度异常：最近两次已完成运行均为 cancelled。\n` +
+                    `latest: ${latest.html_url}\n` +
+                    `previous: ${previous.html_url}`;
+                } else {
+                  alertText =
+                    `容器检查失败：最近一次运行为 failure。\n` +
+                    `run_url: ${latest.html_url}`;
+                }
+                if (sameIssue && canRepeat) {
+                  alertText =
+                    `持续未修复超过1天，重复告警。\n` +
+                    alertText;
+                }
+              }
+            } else if (prevState.status && prevState.status !== "OK") {
               shouldAlert = true;
-              alertType = "DOCKER_CHECK_FAILED";
+              alertType = "RECOVERED";
               alertText =
-                `容器检查失败：最近一次运行为 failure。\n` +
+                `问题已修复：previous=${prevState.status}，latest=${latest.conclusion}。\n` +
                 `run_url: ${latest.html_url}`;
             } else {
               alertText =
@@ -79,6 +190,23 @@ jobs:
             core.setOutput("should_alert", shouldAlert ? "true" : "false");
             core.setOutput("alert_type", alertType);
             core.setOutput("alert_text", alertText);
+
+            const nextState = {
+              status,
+              updated_at: now.toISOString(),
+              last_alerted_at: prevState.last_alerted_at || null,
+              last_alert_type: prevState.last_alert_type || ""
+            };
+
+            if (status === "OK") {
+              nextState.last_alerted_at = null;
+              nextState.last_alert_type = "";
+            } else if (shouldAlert && alertType !== "RECOVERED") {
+              nextState.last_alerted_at = now.toISOString();
+              nextState.last_alert_type = alertType;
+            }
+
+            fs.writeFileSync("state.json", JSON.stringify(nextState, null, 2));
 
       - name: Send alert to Baidu IM robot
         if: steps.evaluate.outputs.should_alert == 'true'
@@ -128,3 +256,11 @@ jobs:
           with urllib.request.urlopen(req, timeout=20) as resp:
               print(f"alert sent, status={resp.status}")
           PY
+
+      - name: Upload watchdog state
+        if: steps.evaluate.conclusion == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ixuca-smoke-watchdog-state
+          path: state.json
+          retention-days: 7

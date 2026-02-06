@@ -1,0 +1,134 @@
+name: IXUCA-Smoke-Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ixuca-smoke-watchdog
+  cancel-in-progress: true
+
+jobs:
+  check-and-alert:
+    name: Check IXUCA smoke status and alert
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate recent smoke runs
+        id: evaluate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const workflow_id = "ixuca-smoke-schedule.yml";
+
+            const runsResp = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id,
+              status: "completed",
+              per_page: 10
+            });
+
+            const runs = runsResp.data.workflow_runs || [];
+            const recent = runs.slice(0, 2);
+
+            if (recent.length < 2) {
+              core.info("Not enough completed runs to evaluate. Need at least 2.");
+              core.setOutput("should_alert", "false");
+              return;
+            }
+
+            const latest = recent[0];
+            const previous = recent[1];
+
+            const schedulingIssue =
+              latest.conclusion === "cancelled" &&
+              previous.conclusion === "cancelled";
+
+            const smokeFailed = latest.conclusion === "failure";
+
+            let shouldAlert = false;
+            let alertType = "";
+            let alertText = "";
+
+            if (schedulingIssue) {
+              shouldAlert = true;
+              alertType = "SCHEDULING_ISSUE";
+              alertText =
+                `IXUCA-Smoke-Schedule 调度异常：最近两次已完成运行均为 cancelled。\n` +
+                `latest: ${latest.html_url}\n` +
+                `previous: ${previous.html_url}`;
+            } else if (smokeFailed) {
+              shouldAlert = true;
+              alertType = "SMOKE_FAILED";
+              alertText =
+                `IXUCA-Smoke-Schedule 冒烟失败：最近一次运行 conclusion=failure。\n` +
+                `run_url: ${latest.html_url}`;
+            } else {
+              alertText =
+                `IXUCA-Smoke-Schedule 正常：latest=${latest.conclusion}, previous=${previous.conclusion}`;
+            }
+
+            core.info(alertText);
+            core.setOutput("should_alert", shouldAlert ? "true" : "false");
+            core.setOutput("alert_type", alertType);
+            core.setOutput("alert_text", alertText);
+
+      - name: Send alert to Baidu IM robot
+        if: steps.evaluate.outputs.should_alert == 'true' && secrets.BAIDU_IM_WEBHOOK_URL != ''
+        env:
+          WEBHOOK_URL: ${{ secrets.BAIDU_IM_WEBHOOK_URL }}
+          ALERT_TEXT: ${{ steps.evaluate.outputs.alert_text }}
+          ALERT_TYPE: ${{ steps.evaluate.outputs.alert_type }}
+          TO_ID: "11992367"
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          webhook_url = os.environ["WEBHOOK_URL"]
+          alert_text = os.environ["ALERT_TEXT"]
+          alert_type = os.environ["ALERT_TYPE"]
+          to_id = int(os.environ.get("TO_ID", "11992367"))
+
+          payload = {
+              "message": {
+                  "header": {
+                      "toid": to_id,
+                      "totype": "GROUP",
+                      "msgtype": "TEXT",
+                      "clientmsgid": int(time.time() * 1000),
+                      "role": "robot"
+                  },
+                  "body": [
+                      {
+                          "content": f"[{alert_type}] {alert_text}",
+                          "type": "TEXT"
+                      }
+                  ]
+              }
+          }
+
+          req = urllib.request.Request(
+              webhook_url,
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=20) as resp:
+              print(f"alert sent, status={resp.status}")
+          PY
+
+      - name: Webhook is missing
+        if: steps.evaluate.outputs.should_alert == 'true' && secrets.BAIDU_IM_WEBHOOK_URL == ''
+        run: |
+          echo "Need secret BAIDU_IM_WEBHOOK_URL for alerting."
+          exit 1

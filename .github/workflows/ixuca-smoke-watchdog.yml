@@ -81,7 +81,7 @@ jobs:
             core.setOutput("alert_text", alertText);
 
       - name: Send alert to Baidu IM robot
-        if: steps.evaluate.outputs.should_alert == 'true' && secrets.BAIDU_IM_WEBHOOK_URL != ''
+        if: steps.evaluate.outputs.should_alert == 'true'
         env:
           WEBHOOK_URL: ${{ secrets.BAIDU_IM_WEBHOOK_URL }}
           ALERT_TEXT: ${{ steps.evaluate.outputs.alert_text }}
@@ -94,7 +94,9 @@ jobs:
           import time
           import urllib.request
 
-          webhook_url = os.environ["WEBHOOK_URL"]
+          webhook_url = os.environ.get("WEBHOOK_URL", "").strip()
+          if not webhook_url:
+            raise SystemExit("Need secret BAIDU_IM_WEBHOOK_URL for alerting.")
           alert_text = os.environ["ALERT_TEXT"]
           alert_type = os.environ["ALERT_TYPE"]
           to_id = int(os.environ.get("TO_ID", "11992367"))
@@ -126,9 +128,3 @@ jobs:
           with urllib.request.urlopen(req, timeout=20) as resp:
               print(f"alert sent, status={resp.status}")
           PY
-
-      - name: Webhook is missing
-        if: steps.evaluate.outputs.should_alert == 'true' && secrets.BAIDU_IM_WEBHOOK_URL == ''
-        run: |
-          echo "Need secret BAIDU_IM_WEBHOOK_URL for alerting."
-          exit 1

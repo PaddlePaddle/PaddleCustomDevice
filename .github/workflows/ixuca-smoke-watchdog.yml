@@ -3,7 +3,7 @@ name: IXUCA-Smoke-Watchdog
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/15 * * * *"
 
 permissions:
   actions: write

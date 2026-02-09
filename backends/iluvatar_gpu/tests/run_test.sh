@@ -16,9 +16,9 @@
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
-export PATH=/usr/local/corex/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/corex/lib
-export LIBRARY_PATH=/usr/local/corex/lib
+# export PATH=/usr/local/corex/bin:$PATH
+# export LD_LIBRARY_PATH=/usr/local/corex/lib
+# export LIBRARY_PATH=/usr/local/corex/lib
 export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}"
 
 python -m pip install parameterized
@@ -40,7 +40,7 @@ LAST_GPU=$((NUM_GPUS - 1))
 echo "Using last GPU: $LAST_GPU"
 export CUDA_VISIBLE_DEVICES=$LAST_GPU
 
-export LD_PRELOAD="${LD_LIBRARY_PATH}/libcuda.so.1"
+# export LD_PRELOAD="${LD_LIBRARY_PATH}/libcuda.so.1"
 export FLAG_SKIP_FLOAT64=1
 
 CURRENT_DIR=$(pwd)

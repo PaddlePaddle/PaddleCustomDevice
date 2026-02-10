@@ -49,6 +49,10 @@ typedef __half float16;
 #define cinn_max(a, b) ((a) > (b) ? (a) : (b))
 #define cinn_min(a, b) ((a) < (b) ? (a) : (b))
 
+#define CINN_ENTAIL_LOOP_CONDITION(__loop_var, __cond, __stride) \
+  }                                                              \
+  for (decltype(__stride) __loop_var = 0; __cond; __loop_var += __stride) {
+
 // ===============================================================
 // 1. Bool / Int8 / UInt8 / Int16 Operations
 // ===============================================================

@@ -23,9 +23,9 @@ echo ""
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
 
-# export PATH=/usr/local/corex/bin:$PATH
-# export LD_LIBRARY_PATH=/usr/local/corex/lib
-# export LIBRARY_PATH=/usr/local/corex/lib
+export PATH=/usr/local/corex/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/corex/lib
+export LIBRARY_PATH=/usr/local/corex/lib
 export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}"
 
 python -m pip install parameterized

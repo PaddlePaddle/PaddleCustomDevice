@@ -32,9 +32,6 @@ jobs:
     runs-on: iluvatar-gpu-2
     container:
       image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:3.3.0
-      env:
-        LD_LIBRARY_PATH: /usr/local/corex/lib
-        LIBRARY_PATH: /usr/local/corex/lib
     env:
       PR_ID: ${{ github.event.pull_request.number }}
       COMMIT_ID: ${{ github.event.pull_request.head.sha }}

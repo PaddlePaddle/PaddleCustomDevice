@@ -29,6 +29,7 @@
 #include "paddle/phi/core/device_context.h"
 
 namespace phi {
+
 // class DnnWorkspaceHandle {
 //  public:
 //   inline DnnWorkspaceHandle(Allocator* allocator, gpuStream_t stream)
@@ -100,6 +101,7 @@ namespace phi {
 // }
 // }  // namespace
 
+
 namespace dynload {
 
 inline bool HasCUSOLVER() {
@@ -156,5 +158,6 @@ inline cusolverDnHandle_t GetCusolverDnHandle(gpuStream_t stream, Place place) {
 //                                           const gpuStream_t& stream) {
 //   return DnnWorkspaceHandle(alloactor, stream);
 // }
+
 }  // namespace phi
 #endif  // BACKENDS_METAX_GPU_KERNELS_CUSTOM_KERNEL_CUSTOM_CONTEXT_H_

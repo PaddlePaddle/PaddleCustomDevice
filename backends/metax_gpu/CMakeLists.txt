@@ -853,7 +853,7 @@ target_compile_definitions(
   ${TARGET_NAME}
   PUBLIC PADDLE_WITH_CUDA=1
          PADDLE_WITH_CUSTOM_DEVICE=1
-         cublasContext=mcblasContext
+         mcblasContext=cublasContext
          cublasLtContext=mcblasLtContext
          cudnnContext==mcdnnContex
          GPUContext=CustomContext

@@ -18,12 +18,13 @@
 set -e
 
 # install requirement.txt
-pip install -r requirement.txt -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+# pip install -r requirement.txt -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 
 # uninstall paddle
-pip  uninstall paddlepaddle -y
+# pip  uninstall paddlepaddle -y
 
-python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
+
+# python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 
 
 # apply patch

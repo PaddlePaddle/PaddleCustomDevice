@@ -411,7 +411,7 @@ C_Status GetMaxSharedMemPerBlock(const C_Device device,
   int count = 0;
   cudaError_t status =
       cudaDeviceGetAttribute(&count, cudaDevAttrMaxSharedMemoryPerBlock, id);
-  *shared_mem_per_block = count;
+  *shared_mem_per_block = 5000;
   return C_SUCCESS;
 }
 
@@ -1546,7 +1546,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->get_multi_process = GetMultiProcessors;
   params->interface->get_max_threads_per_mp = GetMaxThreadsPerMultiProcessor;
   params->interface->get_max_threads_per_block = GetMaxThreadsPerBlock;
-  params->interface->get_max_registers_per_mp = GetMaxSharedMemPerBlock;
+  params->interface->get_max_shared_mem_per_block = GetMaxSharedMemPerBlock;
   params->interface->get_max_blocks_per_mp = GetMaxBlocksPerMultiProcessor;
   params->interface->get_warp_size = GetWarpSize;
   params->interface->get_max_registers_per_mp = GetMaxRegistersPerMultiProcessor;

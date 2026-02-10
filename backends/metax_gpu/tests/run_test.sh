@@ -33,7 +33,7 @@ FLAGS_use_cinn=true
 FLAGS_enable_cinn_compile_cache=false
 # 打印log，调试时用
 FLAGS_print_ir=true
-GLOG_v=4
+GLOG_v=1
 
 # export
 # sleep 1000000
@@ -97,4 +97,4 @@ cmake .. -DTEST_LIST_FILE=$TEST_LIST_FILE -DLOG_OUTPUT_DIR=$TEST_LOG_OUTPUT_DIR 
 
 cmake --build .
 
-GLOG_v=3 FLAGS_print_ir=1 ctest -R "python_test_abs_metax" -j$TEST_PARALLEL_NUM --output-on-failure
+GLOG_v=1 FLAGS_print_ir=1 ctest -j$TEST_PARALLEL_NUM --output-on-failure

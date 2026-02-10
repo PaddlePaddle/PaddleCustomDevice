@@ -14,8 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Print all environment variables at the start of the script
+echo "=== Environment Variables ==="
+env | sort
+echo "============================="
+echo ""
+
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
+
 # export PATH=/usr/local/corex/bin:$PATH
 # export LD_LIBRARY_PATH=/usr/local/corex/lib
 # export LIBRARY_PATH=/usr/local/corex/lib

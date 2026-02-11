@@ -673,10 +673,10 @@ index a93425183b..b02fe696cb 100644
      CubTensorReduce<Tx, Ty, ReduceOp, TransformOp, IsMean>::apply(
          x_data, y_data, transform, config.reduce_num, dev_ctx, stream);
 diff --git a/paddle/phi/kernels/funcs/reduce_gpu_kernel.h b/paddle/phi/kernels/funcs/reduce_gpu_kernel.h
-index 75862df1b3..7626b26ce2 100644
+index 7cf02c184e..7c86fe946a 100644
 --- a/paddle/phi/kernels/funcs/reduce_gpu_kernel.h
 +++ b/paddle/phi/kernels/funcs/reduce_gpu_kernel.h
-@@ -41,6 +41,8 @@
+@@ -42,6 +42,8 @@
  
  #ifdef PADDLE_WITH_HIP
  #define WARP_SIZE 64
@@ -685,7 +685,7 @@ index 75862df1b3..7626b26ce2 100644
  #else
  #define WARP_SIZE 32
  #endif
-@@ -1225,7 +1227,7 @@ template <typename Tx,
+@@ -1228,7 +1230,7 @@ template <typename Tx,
            int kVecSize = 4,
            int kInputVecSize = kVecSize,
            typename ReduceOp,
@@ -694,20 +694,24 @@ index 75862df1b3..7626b26ce2 100644
  inline void GPUReduceScheduler(const KPDevice& dev_ctx,
                                 const DenseTensorIterator& iter,
                                 const ReduceOp& reducer,
-@@ -1387,29 +1389,29 @@ void ReduceGpuKernel(const KPDevice& dev_ctx,
+@@ -1400,33 +1402,33 @@ void ReduceGpuKernel(const KPDevice& dev_ctx,
    }();
  
    // Initialize ident value.
 -  Tx ident = []() {
 +  MPType ident = []() {
      if constexpr (std::is_same_v<ReduceOp<Tx, MPType, Ty>,
-                                  kps::MaxOps<Tx, MPType, Ty>>) {
+                                  kps::MaxOps<Tx, MPType, Ty>> ||
+                   std::is_same_v<ReduceOp<Tx, MPType, Ty>,
+                                  kps::AbsMaxOps<Tx, MPType, Ty>>) {
 -      return std::numeric_limits<Tx>::lowest();
 +      return std::numeric_limits<MPType>::lowest();
      }
  
      if constexpr (std::is_same_v<ReduceOp<Tx, MPType, Ty>,
-                                  kps::MinOps<Tx, MPType, Ty>>) {
+                                  kps::MinOps<Tx, MPType, Ty>> ||
+                   std::is_same_v<ReduceOp<Tx, MPType, Ty>,
+                                  kps::AbsMinOps<Tx, MPType, Ty>>) {
 -      return std::numeric_limits<Tx>::max();
 +      return std::numeric_limits<MPType>::max();
      }

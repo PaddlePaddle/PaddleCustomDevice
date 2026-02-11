@@ -14,22 +14,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Print all environment variables at the start of the script
+echo "=== Environment Variables ==="
+env | sort
+echo "============================="
+echo ""
+
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
-export PATH=/usr/local/corex/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/corex/lib
-export LIBRARY_PATH=/usr/local/corex/lib
+
+# export PATH=/usr/local/corex/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/corex/lib:${LD_LIBRARY_PATH}
+# export LIBRARY_PATH=/usr/local/corex/lib
 export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}"
 
 python -m pip install parameterized
 
-if [[ -z "${LD_LIBRARY_PATH:-}" ]]; then
-    echo "ERROR: LD_LIBRARY_PATH is not set!" >&2
-    exit 1
-elif [[ ! -f "${LD_LIBRARY_PATH}/libcuda.so.1" ]]; then
-    echo "ERROR: libcuda.so.1 not found in LD_LIBRARY_PATH!" >&2
-    exit 1
-fi
+# if [[ -z "${LD_LIBRARY_PATH:-}" ]]; then
+#     echo "ERROR: LD_LIBRARY_PATH is not set!" >&2
+#     exit 1
+# elif [[ ! -f "${LD_LIBRARY_PATH}/libcuda.so.1" ]]; then
+#     echo "ERROR: libcuda.so.1 not found in LD_LIBRARY_PATH!" >&2
+#     exit 1
+# fi
 
 NUM_GPUS=$(ixsmi --query-gpu=name --format=csv,noheader | wc -l)
 if [ "$NUM_GPUS" -eq 0 ]; then
@@ -40,7 +47,7 @@ LAST_GPU=$((NUM_GPUS - 1))
 echo "Using last GPU: $LAST_GPU"
 export CUDA_VISIBLE_DEVICES=$LAST_GPU
 
-export LD_PRELOAD="${LD_LIBRARY_PATH}/libcuda.so.1"
+# export LD_PRELOAD="${LD_LIBRARY_PATH}/libcuda.so.1"
 export FLAG_SKIP_FLOAT64=1
 
 CURRENT_DIR=$(pwd)

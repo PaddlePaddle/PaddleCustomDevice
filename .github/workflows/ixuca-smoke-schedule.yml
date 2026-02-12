@@ -2,14 +2,23 @@ name: IXUCA-Smoke-Schedule
 
 on:
   workflow_dispatch:
+    inputs:
+      check_type:
+        description: "Type of check: scheduled or double_check"
+        required: false
+        default: "scheduled"
+        type: choice
+        options:
+          - scheduled
+          - double_check
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 * * * *"
 
 permissions: read-all
 
 concurrency:
   group: ixuca-smoke-schedule
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   smoke-check:

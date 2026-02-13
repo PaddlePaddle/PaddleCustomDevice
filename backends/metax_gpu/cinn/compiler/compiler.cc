@@ -43,8 +43,20 @@ typedef long long int64_t;
 // 兼容 CINN 生成代码中对 __half 的引用
 typedef __half float16;
 
+#define CINN_UINT8_MIN 0
+#define CINN_UINT8_MAX 255
+#define CINN_INT16_MIN -32768
+#define CINN_INT16_MAX 32767
 #define CINN_INT32_MAX 2147483647
 #define CINN_INT32_MIN -2147483648
+#define CINN_INT64_MAX 0x7fffffffffffffffLL
+#define CINN_INT64_MIN -CINN_INT64_MAX - 1
+#define CINN_FP32_MAX 3.40282347e+38F
+#define CINN_FP32_MIN -3.402823466e+38f
+#define CINN_FP64_MAX 1.79769313486231571e+308
+#define CINN_FP64_MIN -1.7976931348623157e+308
+#define CINN_FP16_MIN (float16) __ushort_as_half(0xfbff)
+#define CINN_FP16_MAX (float16) __ushort_as_half(0x7bff)
 
 #define cinn_max(a, b) ((a) > (b) ? (a) : (b))
 #define cinn_min(a, b) ((a) < (b) ? (a) : (b))
@@ -453,8 +465,10 @@ __device__ inline int FN_INT32(bitwise_xor)(int a, int b) { return a ^ b; }
 __device__ inline int FN_INT32(logical_right_shift)(int a, int b) { return (unsigned int)a >> b; }
 __device__ inline int FN_INT32(trunc)(int a) { return a; }
 __device__ inline int FN_INT32(pow)(int a, int b) {
-  if (a == 0 && b < 0) return -1;
-  float res = powf(__int2float_rd(a), __int2float_rd(b));
+  if (a == 0 && b < 0) {
+    return 0;
+  }
+  float res = pow(__int2float_rd(a), __int2float_rd(b));
   return __float2int_rn(res);
 }
 __device__ inline int FN_INT32(arithmetic_right_shift)(int a, int b) { return a >> b; }
@@ -788,8 +802,171 @@ __device__ int cinn_custom_device_resize_bicubic(const int *buf,
 
   return value;
 }
-
 } // extern "C"
+ 
+// ===============================================================
+// 8. ArgMin/ArgMax Support (ArgIdx Structures & Shuffles)
+// ===============================================================
+// --- C++ Scope Start ---
+
+// arg reduce arg index struct
+// 【核心】不定义 operator<，强制走 std::max 重载
+#define ARGIDX_STRUCT_MACRO(TYPENAME, DTYPE, ITYPE, IINIT)                    \
+  struct TYPENAME {                                                           \
+    DTYPE value;                                                              \
+    ITYPE index;                                                              \
+    __device__ TYPENAME() {}                                                  \
+    __device__ explicit TYPENAME(DTYPE value) : value(value), index(IINIT) {} \
+    __device__ TYPENAME(DTYPE value, ITYPE index)                             \
+        : value(value), index(index) {}                                       \
+    __device__ explicit operator ITYPE() { return index; }                    \
+    /* 赋值运算符支持 */                                                      \
+    __device__ inline TYPENAME& operator=(const TYPENAME& other) {            \
+        value = other.value;                                                  \
+        index = other.index;                                                  \
+        return *this;                                                         \
+    }                                                                         \
+    __device__ inline volatile TYPENAME& operator=(const volatile TYPENAME& other) volatile { \
+        value = other.value;                                                  \
+        index = other.index;                                                  \
+        return *this;                                                         \
+    } \
+  };
+
+// 实例化结构体
+#ifdef CINN_CUDA_FP16
+ARGIDX_STRUCT_MACRO(argidx_fp16_i64, float16, int64_t, 0LL)
+#endif
+ARGIDX_STRUCT_MACRO(argidx_fp32_i64, float, int64_t, 0LL)
+ARGIDX_STRUCT_MACRO(argidx_fp64_i64, double, int64_t, 0LL)
+ARGIDX_STRUCT_MACRO(argidx_i16_i64, int16_t, int64_t, 0LL)
+ARGIDX_STRUCT_MACRO(argidx_i32_i64, int, int64_t, 0LL)
+ARGIDX_STRUCT_MACRO(argidx_i64_i64, int64_t, int64_t, 0LL)
+ARGIDX_STRUCT_MACRO(argidx_u8_i64, uint8_t, int64_t, 0LL)
+
+ARGIDX_STRUCT_MACRO(argidx_fp32_i32, float, int, 0)
+ARGIDX_STRUCT_MACRO(argidx_i32_i32, int, int, 0)
+
+// 手写 std::max 重载
+namespace std { 
+  // ArgMax 实现
+  template <typename T> 
+  __device__ __forceinline__ T max_argidx_impl(const T& a, const T& b) {
+    if (a.value > b.value) return a;
+    if (a.value < b.value) return b;
+    return a.index < b.index ? a : b;
+  }
+  
+  template <typename T> 
+  __device__ __forceinline__ T min_argidx_impl(const T& a, const T& b) {
+    if (a.value < b.value) return a;
+    if (a.value > b.value) return b;
+    return a.index < b.index ? a : b;
+  }
+
+  // Volatile 重载
+  template <typename T> 
+  __device__ __forceinline__ T max_argidx_volatile_impl(const volatile T& a, const volatile T& b) {
+    T va, vb;
+    va.value = a.value; va.index = a.index;
+    vb.value = b.value; vb.index = b.index;
+    return max_argidx_impl(va, vb);
+  }
+  
+  template <typename T> 
+  __device__ __forceinline__ T min_argidx_volatile_impl(const volatile T& a, const volatile T& b) {
+    T va, vb;
+    va.value = a.value; va.index = a.index;
+    vb.value = b.value; vb.index = b.index;
+    return min_argidx_impl(va, vb);
+  }
+
+  // 显式展开
+  __device__ __forceinline__ argidx_fp32_i64 max(const argidx_fp32_i64& a, const argidx_fp32_i64& b) { return max_argidx_impl(a, b); }
+  __device__ __forceinline__ argidx_fp32_i64 min(const argidx_fp32_i64& a, const argidx_fp32_i64& b) { return min_argidx_impl(a, b); }
+  
+  __device__ __forceinline__ argidx_fp32_i64 max(const volatile argidx_fp32_i64& a, const volatile argidx_fp32_i64& b) { return max_argidx_volatile_impl(a, b); }
+  __device__ __forceinline__ argidx_fp32_i64 min(const volatile argidx_fp32_i64& a, const volatile argidx_fp32_i64& b) { return min_argidx_volatile_impl(a, b); }
+
+  __device__ __forceinline__ argidx_fp32_i32 max(const argidx_fp32_i32& a, const argidx_fp32_i32& b) { return max_argidx_impl(a, b); }
+  __device__ __forceinline__ argidx_fp32_i32 min(const argidx_fp32_i32& a, const argidx_fp32_i32& b) { return min_argidx_impl(a, b); }
+}
+
+// =============================================================== 
+// 9. ArgMin/ArgMax Block Reduce Instantiation 
+// ===============================================================
+
+// 【终极修正】支持 2D Block 的行级归约 (Row-wise Reduction)
+template <typename T, typename Func>
+__device__ inline T cinn_block_reduce_shm_impl(T value, T* shm_discard, Func reduce_func) {
+    // 获取 2D 维度信息
+    unsigned int tx = threadIdx.x;
+    unsigned int ty = threadIdx.y;
+    unsigned int bdx = blockDim.x;
+
+    // 计算扁平化索引：确保不同行的数据落在 Shared Memory 的不同区域
+    // 这样 threadIdx.y=0 和 threadIdx.y=1 就不会打架了
+    unsigned int idx = ty * bdx + tx;
+
+    // 分配足够大的静态 Shared Memory (1024 够 32x32 的 block 使用)
+    // 如果你的 block 很大，需要增加这里。但 CINN argmax 通常 block 不大。
+    __shared__ T internal_shm[1024]; 
+
+    // 1. 写入 (带边界检查)
+    if (idx < 1024) {
+        internal_shm[idx] = value;
+    }
+    __syncthreads();
+
+    // 2. 树状归约 (只在 tx 维度归约)
+    // 每一行 (ty) 独立进行归约，互不干扰
+    for (unsigned int s = bdx / 2; s > 0; s >>= 1) {
+        if (tx < s && (idx + s) < 1024) {
+            internal_shm[idx] = reduce_func(internal_shm[idx], internal_shm[idx + s]);
+        }
+        __syncthreads();
+    }
+
+    // 3. 返回结果
+    // 每一行的结果存储在该行的首位 (ty * bdx)
+    // 广播给该行的所有线程
+    return internal_shm[ty * bdx];
+}
+
+// Max/Min Functors
+struct ArgIdxMaxOp {
+    template <typename T>
+    __device__ inline T operator()(const T& a, const T& b) const { return std::max(a, b); }
+    template <typename T>
+    __device__ inline T operator()(const volatile T& a, const volatile T& b) const { return std::max(a, b); }
+};
+
+struct ArgIdxMinOp {
+    template <typename T>
+    __device__ inline T operator()(const T& a, const T& b) const { return std::min(a, b); }
+    template <typename T>
+    __device__ inline T operator()(const volatile T& a, const volatile T& b) const { return std::min(a, b); }
+};
+
+extern "C" {
+
+__device__ inline argidx_fp32_i64 cinn_block_reduce_max(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) { 
+    return cinn_block_reduce_shm_impl(value, shm, ArgIdxMaxOp());
+}
+
+__device__ inline argidx_fp32_i64 cinn_block_reduce_min(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) { 
+    return cinn_block_reduce_shm_impl(value, shm, ArgIdxMinOp());
+}
+
+__device__ inline argidx_fp32_i64 cinn_block_reduce_min_argidx_fp32_i64(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) { 
+    return cinn_block_reduce_min(value, shm, return_warp); 
+}
+
+__device__ inline argidx_fp32_i64 cinn_block_reduce_max_argidx_fp32_i64(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) { 
+    return cinn_block_reduce_max(value, shm, return_warp); 
+}
+
+} // extern "C" 
 )MACA_SOURCE";
 
 

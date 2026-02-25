@@ -96,267 +96,6 @@ __device__ inline int16_t FN_INT16(bitwise_not)(int16_t a) { return ~a; }
 __device__ inline int16_t FN_INT16(logical_right_shift)(int16_t a, int16_t b) { return ((uint16_t)a >> b); }
 
 // ===============================================================
-// 2. Reduce Binary Operations (CINN CodeGen Requirement)
-// ===============================================================
-
-// --- FP64 (Double) ---
-__device__ inline double cinn_sum_fp64(const double left, const double right) { return left + right; }
-__device__ inline double cinn_prod_fp64(const double left, const double right) { return left * right; }
-__device__ inline double cinn_max_fp64(const double left, const double right) { return max(left, right); }
-__device__ inline double cinn_min_fp64(const double left, const double right) { return min(left, right); }
-
-// --- FP32 (Float) ---
-__device__ inline float cinn_sum_fp32(const float left, const float right) { return left + right; }
-__device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
-__device__ inline float cinn_max_fp32(const float left, const float right) { return max(left, right); }
-__device__ inline float cinn_min_fp32(const float left, const float right) { return min(left, right); }
-
-// --- Int32 ---
-__device__ inline int cinn_sum_int32(const int left, const int right) { return left + right; }
-__device__ inline int cinn_prod_int32(const int left, const int right) { return left * right; }
-__device__ inline int cinn_max_int32(const int left, const int right) { return max(left, right); }
-__device__ inline int cinn_min_int32(const int left, const int right) { return min(left, right); }
-
-// --- Int64 ---
-__device__ inline int64_t cinn_sum_int64(const int64_t left, const int64_t right) { return left + right; }
-__device__ inline int64_t cinn_prod_int64(const int64_t left, const int64_t right) { return left * right; }
-__device__ inline int64_t cinn_max_int64(const int64_t left, const int64_t right) { return max(left, right); }
-__device__ inline int64_t cinn_min_int64(const int64_t left, const int64_t right) { return min(left, right); }
-
-// --- Bool ---
-__device__ inline bool cinn_all_bool(const bool left, const bool right) { return left && right; }
-__device__ inline bool cinn_any_bool(const bool left, const bool right) { return left || right; }
-__device__ inline bool cinn_all(const bool left, const bool right) { return left && right; }
-__device__ inline bool cinn_any(const bool left, const bool right) { return left || right; }
-
-// --- FP16 (Half) ---
-// 注意：必须使用 __hadd 等 intrinsics，不能直接用 +
-__device__ inline float16 cinn_sum_fp16(const float16 left, const float16 right) { return __hadd(left, right); }
-__device__ inline float16 cinn_prod_fp16(const float16 left, const float16 right) { return __hmul(left, right); }
-__device__ inline float16 cinn_max_fp16(const float16 left, const float16 right) { return __hgt(left, right) ? left : right; }
-__device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return __hlt(left, right) ? left : right; }
-
-// --- BF16 (BFloat16) ---
-// 【注意】如果 mxcc 不支持 __nv_bfloat16，这部分需要注释掉或报错
-#if defined(__MACACC__) || defined(__CUDACC__) // 假设支持
-// 暂时留空，如果报错请注释掉 BF16 部分
-// __device__ inline __nv_bfloat16 cinn_sum_bf16(...) ...
-#endif
-
-// ===============================================================
-// 3. Reduce Initialization Macros
-// ===============================================================
-
-#define EXPAND_REDUCE_FP64_MACRO(MACRO, ...)            \
-  MACRO(sum_fp64, 0.0, double, ##__VA_ARGS__)           \
-  MACRO(prod_fp64, 1.0, double, ##__VA_ARGS__)          \
-  MACRO(max_fp64, -1.79769e+308, double, ##__VA_ARGS__) \
-  MACRO(min_fp64, 1.79769e+308, double, ##__VA_ARGS__)
-
-#define EXPAND_REDUCE_FP32_MACRO(MACRO, ...)      \
-  MACRO(sum_fp32, 0.0f, float, ##__VA_ARGS__)     \
-  MACRO(prod_fp32, 1.0f, float, ##__VA_ARGS__)    \
-  MACRO(max_fp32, -3.40282e+38f, float, ##__VA_ARGS__) \
-  MACRO(min_fp32, 3.40282e+38f, float, ##__VA_ARGS__)
-
-#define EXPAND_REDUCE_INT32_MACRO(MACRO, ...)       \
-  MACRO(sum_int32, 0, int, ##__VA_ARGS__)           \
-  MACRO(prod_int32, 1, int, ##__VA_ARGS__)          \
-  MACRO(max_int32, -2147483648, int, ##__VA_ARGS__) \
-  MACRO(min_int32, 2147483647, int, ##__VA_ARGS__)
-
-#define EXPAND_REDUCE_INT64_MACRO(MACRO, ...)                 \
-  MACRO(sum_int64, 0, int64_t, ##__VA_ARGS__)                 \
-  MACRO(prod_int64, 1, int64_t, ##__VA_ARGS__)                \
-  MACRO(max_int64, -9223372036854775807LL - 1, int64_t, ##__VA_ARGS__) \
-  MACRO(min_int64, 9223372036854775807LL, int64_t, ##__VA_ARGS__)
-
-#define EXPAND_REDUCE_BOOL_MACRO(MACRO, ...)    \
-  MACRO(all, true, bool, ##__VA_ARGS__)         \
-  MACRO(any, false, bool, ##__VA_ARGS__)
-
-// FP16 初始值 (使用 hex 转换)
-#define EXPAND_REDUCE_FP16_MACRO(MACRO, ...)              \
-  MACRO(sum_fp16, 0.0, float16, ##__VA_ARGS__)            \
-  MACRO(prod_fp16, 1.0, float16, ##__VA_ARGS__)           \
-  MACRO(max_fp16, -65504.0, float16, ##__VA_ARGS__)       \
-  MACRO(min_fp16, 65504.0, float16, ##__VA_ARGS__)
-
-
-// ===============================================================
-// 4. Warp Shuffle Wrappers (Using Legacy API & Full Down Strategy)
-// ===============================================================
-
-// 【核心修复】Warp Reduce 逻辑重写
-// 1. 弃用 XOR 模式：因为在 64-thread warp 下，跨 32 边界的 XOR 可能存在未定义行为或硬件 bug。
-// 2. 统一使用 DOWN 模式：__shfl_down 是单向规约，Lane 0 总是能收集到数据的，更加稳健。
-// 3. 严格的边界检查：确保 fetch 的来源线程在 Block 范围内，否则使用 INIT_VAL 填充。
-
-#define CINN_WARP_SHUFFLE_INTERNAL_IMPL(REDUCE_TYPE, INIT_VAL, DTYPE)         \
-  __device__ inline DTYPE cinn_warp_shuffle_##REDUCE_TYPE##_internal(         \
-      const DTYPE value) {                                                    \
-    DTYPE tmp_val = value;                                                    \
-    unsigned int thread_id = threadIdx.x;                                     \
-    unsigned int block_dim = blockDim.x;                                      \
-    /* 始终使用 Down Shuffle 进行规约 (Log2 复杂度) */                          \
-    for (unsigned int offset = WARP_SIZE / 2; offset >= 1; offset /= 2) {     \
-        DTYPE shfl_res = cinn_warp_shuffle_down_##DTYPE##_wrapper(tmp_val, offset); \
-        /* 检查数据来源是否有效：当前线程+offset 必须还在 Block 范围内 */             \
-        /* 如果 Block 大小不是 WARP_SIZE 的倍数，这一步至关重要 */                  \
-        DTYPE neighbor = (thread_id + offset < block_dim) ? shfl_res : (DTYPE)(INIT_VAL); \
-        tmp_val = cinn_##REDUCE_TYPE(tmp_val, neighbor);                      \
-    }                                                                         \
-    /* 广播：虽然 Down Shuffle 只有 Lane 0 结果正确，但这里为了兼容 XOR 语义 */    \
-    /* 我们用 shfl 0 把 Lane 0 的结果广播给所有人 (CINN Block Reduce 需要) */     \
-    return __shfl(tmp_val, 0);                                                \
-  }
-
-// --- Warp Shuffle Primitives (Legacy API without mask) ---
-
-__device__ inline float cinn_warp_shuffle_down_float_wrapper(float v, int factor) { return __shfl_down(v, factor); }
-__device__ inline int cinn_warp_shuffle_down_int_wrapper(int v, int factor) { return __shfl_down(v, factor); }
-__device__ inline bool cinn_warp_shuffle_down_bool_wrapper(bool v, int factor) { return __shfl_down(v, factor); }
-
-__device__ inline double cinn_warp_shuffle_down_double_wrapper(double v, int factor) {
-  unsigned long long int val_u64 = *(unsigned long long int*)&v;
-  int lo = (int)val_u64; int hi = (int)(val_u64 >> 32);
-  lo = __shfl_down(lo, factor);
-  hi = __shfl_down(hi, factor);
-  unsigned long long int res_u64 = ((unsigned long long int)hi << 32) | (unsigned int)lo;
-  return *(double*)&res_u64;
-}
-
-__device__ inline int64_t cinn_warp_shuffle_down_int64_t_wrapper(int64_t v, int factor) {
-  int lo = (int)v; int hi = (int)(v >> 32);
-  lo = __shfl_down(lo, factor);
-  hi = __shfl_down(hi, factor);
-  return ((int64_t)hi << 32) | (unsigned int)lo;
-}
-
-__device__ inline float16 cinn_warp_shuffle_down_float16_wrapper(float16 v, int factor) {
-  unsigned short val = __half_as_ushort(v);
-  unsigned short res = (unsigned short)__shfl_down((int)val, factor);
-  return __ushort_as_half(res);
-}
-
-// Expand Warp Shuffle
-EXPAND_REDUCE_INT32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
-EXPAND_REDUCE_INT64_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
-EXPAND_REDUCE_FP32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
-EXPAND_REDUCE_FP64_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
-EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
-EXPAND_REDUCE_FP16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
-
-// ===============================================================
-// 5. Block Reduce & Discrete Reduce & Grid Reduce
-// ===============================================================
-
-// Block Reduce Implementation
-// 1. Warp Reduce -> SHM
-// 2. Warp 0 reads SHM and Pads with Identity
-// 3. Warp 0 Reduce
-// 4. Broadcast
-#define CINN_BLOCK_REDUCE_IMPL(DTYPE, INIT_VAL, cinn_warp_shuffle_internal)       \
-  /* 1. Warp Reduce */                                                            \
-  DTYPE tmp_val = cinn_warp_shuffle_internal(value);                              \
-  if (return_warp || blockDim.x <= WARP_SIZE) {                                   \
-    return tmp_val;                                                               \
-  }                                                                               \
-  __syncthreads();                                                                \
-  /* 2. Write Warp results to SHM (Lane 0 only) */                                \
-  if (threadIdx.x % WARP_SIZE == 0) {                                             \
-    shm[threadIdx.x / WARP_SIZE] = tmp_val;                                       \
-  }                                                                               \
-  __syncthreads();                                                                \
-  /* 3. Inter-Warp Reduce (Warp 0 only) */                                        \
-  if (threadIdx.x < WARP_SIZE) {                                                  \
-    int num_warps = (blockDim.x + WARP_SIZE - 1) / WARP_SIZE;                     \
-    /* Pad with Identity value for idle threads in Warp 0 */                        \
-    DTYPE reduce_val = (DTYPE)(INIT_VAL);                                         \
-    if (threadIdx.x < num_warps) {                                                \
-      reduce_val = shm[threadIdx.x];                                              \
-    }                                                                             \
-    /* Reduce across all threads in Warp 0 */                                     \
-    reduce_val = cinn_warp_shuffle_internal(reduce_val);                          \
-    if (threadIdx.x == 0) {                                                       \
-      shm[0] = reduce_val;                                                        \
-    }                                                                             \
-  }                                                                               \
-  __syncthreads();                                                                \
-  return shm[0];
-
-#define CINN_BLOCK_REDUCE_MACRO(REDUCE_TYPE, INIT_VAL, DTYPE)                  \
-  __device__ inline DTYPE cinn_block_reduce_##REDUCE_TYPE(                     \
-      const DTYPE value, DTYPE *shm, bool return_warp = false) {               \
-    CINN_BLOCK_REDUCE_IMPL(DTYPE, INIT_VAL, cinn_warp_shuffle_##REDUCE_TYPE##_internal); \
-  }
-
-EXPAND_REDUCE_INT32_MACRO(CINN_BLOCK_REDUCE_MACRO)
-EXPAND_REDUCE_INT64_MACRO(CINN_BLOCK_REDUCE_MACRO)
-EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_MACRO)
-EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_MACRO)
-EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_MACRO)
-EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_MACRO)
-
-#define CINN_DISCRETE_REDUCE_IMPL(REDUCE_TYPE, value)                          \
-  int tid = threadIdx.y * blockDim.x + threadIdx.x;                            \
-  __syncthreads();                                                             \
-  shm[tid] = value;                                                            \
-  __syncthreads();                                                             \
-  for (int offset = blockDim.y / 2; offset > 0; offset >>= 1) {                \
-    if (threadIdx.y < offset) {                                                \
-      shm[tid] = cinn_##REDUCE_TYPE(shm[tid], shm[tid + offset * blockDim.x]); \
-    }                                                                          \
-    __syncthreads();                                                           \
-  }                                                                            \
-  return shm[threadIdx.x];
-
-#define CINN_DISCRETE_REDUCE_MACRO(REDUCE_TYPE, INIT_VAL, DTYPE)      \
-  __device__ inline DTYPE cinn_discrete_reduce_##REDUCE_TYPE(         \
-      const DTYPE value, DTYPE *shm) {                                \
-    CINN_DISCRETE_REDUCE_IMPL(REDUCE_TYPE, value);                    \
-  }
-
-EXPAND_REDUCE_INT32_MACRO(CINN_DISCRETE_REDUCE_MACRO)
-EXPAND_REDUCE_INT64_MACRO(CINN_DISCRETE_REDUCE_MACRO)
-EXPAND_REDUCE_FP32_MACRO(CINN_DISCRETE_REDUCE_MACRO)
-EXPAND_REDUCE_FP64_MACRO(CINN_DISCRETE_REDUCE_MACRO)
-EXPAND_REDUCE_BOOL_MACRO(CINN_DISCRETE_REDUCE_MACRO)
-EXPAND_REDUCE_FP16_MACRO(CINN_DISCRETE_REDUCE_MACRO)
-
-#define CINN_GRID_REDUCE_IMPL(REDUCE_TYPE, init_value, DTYPE)               \
-  DTYPE tmp_val = init_value;                                               \
-  for (int y = 0; y < gridDim.y; y++) {                                     \
-    tmp_val =                                                               \
-        cinn_##REDUCE_TYPE(tmp_val, mem[y * spatial_size + spatial_index]); \
-  }                                                                         \
-  return tmp_val;
-
-#define CINN_GRID_REDUCE_MACRO(REDUCE_TYPE, INIT_VAL, DTYPE)           \
-  __device__ inline DTYPE cinn_grid_reduce_##REDUCE_TYPE(              \
-      const DTYPE *mem, int spatial_size, int spatial_index) {         \
-    CINN_GRID_REDUCE_IMPL(REDUCE_TYPE, (DTYPE)(INIT_VAL), DTYPE);      \
-  }
-
-EXPAND_REDUCE_INT32_MACRO(CINN_GRID_REDUCE_MACRO)
-EXPAND_REDUCE_INT64_MACRO(CINN_GRID_REDUCE_MACRO)
-EXPAND_REDUCE_FP32_MACRO(CINN_GRID_REDUCE_MACRO)
-EXPAND_REDUCE_FP64_MACRO(CINN_GRID_REDUCE_MACRO)
-EXPAND_REDUCE_BOOL_MACRO(CINN_GRID_REDUCE_MACRO)
-EXPAND_REDUCE_FP16_MACRO(CINN_GRID_REDUCE_MACRO)
-
-__device__ inline bool cinn_grid_reduce_update_semaphore(int *semaphores) {
-  __shared__ bool done;
-  __threadfence();
-  __syncthreads();
-  if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
-    int old = atomicAdd(&semaphores[blockIdx.x], 1);
-    done = (old == (gridDim.y - 1));
-  }
-  __syncthreads();
-  return done;
-}
-// ===============================================================
 // 6. Standard Math Functions 
 // ===============================================================
 // ===============================================================
@@ -379,7 +118,6 @@ __device__ inline double FN_FP64(ceil)(double x) { return ceil(x); }
 __device__ inline double FN_FP64(round)(double x) { return round(x); }
 __device__ inline double FN_FP64(trunc)(double x) { return trunc(x); }
 __device__ inline double FN_FP64(pow)(double a, double b) { return pow(a, b); }
-__device__ inline double FN_FP64(mod)(double a, double b) { return fmod(a, b); }
 __device__ inline double FN_FP64(fma)(double a, double b, double c) { return fma(a, b, c); }
 __device__ inline bool FN_FP64(isnan)(double x) { return isnan(x); }
 __device__ inline bool FN_FP64(isinf)(double x) { return isinf(x); }
@@ -397,6 +135,14 @@ __device__ inline double FN_FP64(log1p)(double x) { return log1p(x); }
 __device__ inline double FN_FP64(sigmoid)(double x) { return 1.0 / (1.0 + exp(-x)); }
 __device__ inline double FN_FP64(sinh)(double x) { return sinh(x); }
 __device__ inline double FN_FP64(tanh)(double x) { return tanh(x); }
+__device__ inline double FN_FP64(mod)(double a, double b) {
+  double res = fmod(a, b);
+  if ((res != 0.0) && ((res < 0.0) != (b < 0.0))) res += b;
+  return res;
+}
+__device__ inline double FN_FP64(rcp)(double x) {
+  return 1.0 / x;
+}
 
 // ===============================================================
 // Float32 Math Functions
@@ -416,7 +162,6 @@ __device__ inline float FN_FP32(ceil)(float x) { return ceilf(x); }
 __device__ inline float FN_FP32(round)(float x) { return roundf(x); }
 __device__ inline float FN_FP32(trunc)(float x) { return truncf(x); }
 __device__ inline float FN_FP32(abs)(float x) { return fabsf(x); }
-__device__ inline float FN_FP32(mod)(float a, float b) { return fmodf(a, b); }
 __device__ inline float FN_FP32(fma)(float a, float b, float c) { return fmaf(a, b, c); }
 __device__ inline bool FN_FP32(isnan)(float x) { return isnan(x); }
 __device__ inline bool FN_FP32(isinf)(float x) { return isinf(x); }
@@ -441,6 +186,17 @@ __device__ inline float FN_FP32(left_shift)(float a, float b) {
 }
 __device__ inline float FN_FP32(right_shift)(float a, float b) {
   return (float)((int)a >> (int)b);
+}
+__device__ inline float FN_FP32(mod)(float a, float b) {
+  float res = fmodf(a, b);
+  if ((res != 0.0f) && ((res < 0.0f) != (b < 0.0f))) res += b;
+  return res;
+}
+__device__ inline float FN_FP32(rcp)(float x) {
+  return 1.0f / x;
+}
+__device__ inline float FN_FP32(tanh_approx)(float x) {
+  return tanhf(x);
 }
 
 // ===============================================================
@@ -574,6 +330,386 @@ __device__ inline __half FN_SHUFFLE(warp_shuffle_down_fp16)(__half v, int factor
   unsigned short val = __half_as_ushort(v);
   unsigned short res = (unsigned short)__shfl_down_sync(0xffffffff, (int)val, factor);
   return __ushort_as_half(res);
+}
+} // extern "C"
+
+// ===============================================================
+// 2. Reduce Binary Operations (CINN CodeGen Requirement)
+// ===============================================================
+// *************************************************************** //
+// welford struct and operators
+
+#define WELFORD_STRUCT_MACRO(TYPENAME, DTYPE)                          \
+  struct TYPENAME {                                                    \
+    DTYPE mean;                                                        \
+    DTYPE m2;                                                          \
+    DTYPE weight;                                                      \
+    __device__ TYPENAME(){};                                           \
+    __device__ explicit TYPENAME(DTYPE value)                          \
+        : mean(value), m2(0), weight(1) {}                             \
+    __device__ TYPENAME(DTYPE mean, DTYPE m2, DTYPE weight)            \
+        : mean(mean), m2(m2), weight(weight) {}                        \
+    __device__ explicit operator DTYPE() const { return m2 / weight; } \
+  };
+
+#define WELFORD_COMBINE_MACRO(TYPENAME, DTYPE, RCP_FUNC)                       \
+  __device__ inline TYPENAME operator+(const TYPENAME &a, const TYPENAME &b) { \
+    DTYPE delta = b.mean - a.mean;                                             \
+    DTYPE weight = a.weight + b.weight;                                        \
+    DTYPE mean = a.mean + delta * RCP_FUNC(weight);                            \
+    DTYPE m2 = a.m2 + delta * (b.mean - mean);                                 \
+    return {mean, m2, weight};                                                 \
+  }
+
+#define WELFORD_SHFL_SYNC_MACRO(TYPENAME, DTYPE, SHFL_FUNC, ARG2_TYPE, ARG2) \
+  __device__ inline TYPENAME SHFL_FUNC(                                      \
+      unsigned mask, const TYPENAME &var, ARG2_TYPE ARG2, int width = 32) {  \
+    DTYPE mean = SHFL_FUNC(mask, var.mean, ARG2, width);                     \
+    DTYPE m2 = SHFL_FUNC(mask, var.m2, ARG2, width);                         \
+    DTYPE weight = SHFL_FUNC(mask, var.weight, ARG2, width);                 \
+    return {mean, m2, weight};                                               \
+  }
+
+#define EXPAND_WELFORD_MACRO(TYPE_SUFFIX, DTYPE)                       \
+  WELFORD_STRUCT_MACRO(welford_##TYPE_SUFFIX, DTYPE)                   \
+  WELFORD_COMBINE_MACRO(                                               \
+      welford_##TYPE_SUFFIX, DTYPE, cinn_custom_device_rcp_##TYPE_SUFFIX)      \
+  WELFORD_SHFL_SYNC_MACRO(                                             \
+      welford_##TYPE_SUFFIX, DTYPE, __shfl_down_sync, unsigned, delta) \
+  WELFORD_SHFL_SYNC_MACRO(                                             \
+      welford_##TYPE_SUFFIX, DTYPE, __shfl_xor_sync, int, laneMask)
+
+EXPAND_WELFORD_MACRO(fp32, float)
+EXPAND_WELFORD_MACRO(fp64, double)
+
+#undef WELFORD_STRUCT_MACRO
+#undef WELFORD_COMBINE_MACRO
+#undef WELFORD_SHFL_SYNC_MACRO
+#undef EXPAND_WELFORD_MACRO
+
+extern "C" {
+// parallel reduction template for welford variance type reduction
+#define WELFORD_PARALLEL_COMBINE_MACRO(DTYPE, TYPE_SUFFIX)                \
+  __device__ inline welford_##TYPE_SUFFIX cinn_sum_welford_##TYPE_SUFFIX( \
+      welford_##TYPE_SUFFIX a, welford_##TYPE_SUFFIX b) {                 \
+    DTYPE delta = b.mean - a.mean;                                        \
+    DTYPE weight = a.weight + b.weight;                                   \
+    DTYPE w2_over_w = b.weight * cinn_custom_device_rcp_##TYPE_SUFFIX(weight);    \
+    w2_over_w = weight == 0 ? (DTYPE)0 : w2_over_w;                       \
+    DTYPE mean = a.mean + delta * w2_over_w;                              \
+    DTYPE m2 = a.m2 + b.m2 + delta * delta * a.weight * w2_over_w;        \
+    return {mean, m2, weight};                                            \
+  }
+
+// --- FP64 (Double) ---
+__device__ inline double cinn_sum_fp64(const double left, const double right) { return left + right; }
+__device__ inline double cinn_prod_fp64(const double left, const double right) { return left * right; }
+__device__ inline double cinn_max_fp64(const double left, const double right) { return max(left, right); }
+__device__ inline double cinn_min_fp64(const double left, const double right) { return min(left, right); }
+WELFORD_PARALLEL_COMBINE_MACRO(double, fp64)
+
+// --- FP32 (Float) ---
+__device__ inline float cinn_sum_fp32(const float left, const float right) { return left + right; }
+__device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
+__device__ inline float cinn_max_fp32(const float left, const float right) { return max(left, right); }
+__device__ inline float cinn_min_fp32(const float left, const float right) { return min(left, right); }
+WELFORD_PARALLEL_COMBINE_MACRO(float, fp32)
+#undef WELFORD_PARALLEL_COMBINE_MACRO
+
+// --- Int32 ---
+__device__ inline int cinn_sum_int32(const int left, const int right) { return left + right; }
+__device__ inline int cinn_prod_int32(const int left, const int right) { return left * right; }
+__device__ inline int cinn_max_int32(const int left, const int right) { return max(left, right); }
+__device__ inline int cinn_min_int32(const int left, const int right) { return min(left, right); }
+
+// --- Int64 ---
+__device__ inline int64_t cinn_sum_int64(const int64_t left, const int64_t right) { return left + right; }
+__device__ inline int64_t cinn_prod_int64(const int64_t left, const int64_t right) { return left * right; }
+__device__ inline int64_t cinn_max_int64(const int64_t left, const int64_t right) { return max(left, right); }
+__device__ inline int64_t cinn_min_int64(const int64_t left, const int64_t right) { return min(left, right); }
+
+// --- Bool ---
+__device__ inline bool cinn_all_bool(const bool left, const bool right) { return left && right; }
+__device__ inline bool cinn_any_bool(const bool left, const bool right) { return left || right; }
+__device__ inline bool cinn_all(const bool left, const bool right) { return left && right; }
+__device__ inline bool cinn_any(const bool left, const bool right) { return left || right; }
+
+// --- FP16 (Half) ---
+// 注意：必须使用 __hadd 等 intrinsics，不能直接用 +
+__device__ inline float16 cinn_sum_fp16(const float16 left, const float16 right) { return __hadd(left, right); }
+__device__ inline float16 cinn_prod_fp16(const float16 left, const float16 right) { return __hmul(left, right); }
+__device__ inline float16 cinn_max_fp16(const float16 left, const float16 right) { return __hgt(left, right) ? left : right; }
+__device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return __hlt(left, right) ? left : right; }
+
+// --- BF16 (BFloat16) ---
+// 【注意】如果 mxcc 不支持 __nv_bfloat16，这部分需要注释掉或报错
+#if defined(__MACACC__) || defined(__CUDACC__) // 假设支持
+// 暂时留空，如果报错请注释掉 BF16 部分
+// __device__ inline __nv_bfloat16 cinn_sum_bf16(...) ...
+#endif
+
+// ===============================================================
+// 3. Reduce Initialization Macros
+// ===============================================================
+
+#define EXPAND_REDUCE_FP64_MACRO(MACRO, ...)            \
+  MACRO(sum_fp64, 0.0, double, ##__VA_ARGS__)           \
+  MACRO(prod_fp64, 1.0, double, ##__VA_ARGS__)          \
+  MACRO(max_fp64, -1.79769e+308, double, ##__VA_ARGS__) \
+  MACRO(min_fp64, 1.79769e+308, double, ##__VA_ARGS__)  \
+  MACRO(sum_welford_fp64,                                \
+        welford_fp64(0.0, 0.0, 0.0),                     \
+        welford_fp64,                                    \
+        ##__VA_ARGS__)
+
+#define EXPAND_REDUCE_FP32_MACRO(MACRO, ...)      \
+  MACRO(sum_fp32, 0.0f, float, ##__VA_ARGS__)     \
+  MACRO(prod_fp32, 1.0f, float, ##__VA_ARGS__)    \
+  MACRO(max_fp32, -3.40282e+38f, float, ##__VA_ARGS__) \
+  MACRO(min_fp32, 3.40282e+38f, float, ##__VA_ARGS__)  \
+  MACRO(sum_welford_fp32,                               \
+        welford_fp32(0.0f, 0.0f, 0.0f),                 \
+        welford_fp32,                                   \
+        ##__VA_ARGS__)
+
+#define EXPAND_REDUCE_INT32_MACRO(MACRO, ...)       \
+  MACRO(sum_int32, 0, int, ##__VA_ARGS__)           \
+  MACRO(prod_int32, 1, int, ##__VA_ARGS__)          \
+  MACRO(max_int32, -2147483648, int, ##__VA_ARGS__) \
+  MACRO(min_int32, 2147483647, int, ##__VA_ARGS__)
+
+#define EXPAND_REDUCE_INT64_MACRO(MACRO, ...)                 \
+  MACRO(sum_int64, 0, int64_t, ##__VA_ARGS__)                 \
+  MACRO(prod_int64, 1, int64_t, ##__VA_ARGS__)                \
+  MACRO(max_int64, -9223372036854775807LL - 1, int64_t, ##__VA_ARGS__) \
+  MACRO(min_int64, 9223372036854775807LL, int64_t, ##__VA_ARGS__)
+
+#define EXPAND_REDUCE_BOOL_MACRO(MACRO, ...)    \
+  MACRO(all, true, bool, ##__VA_ARGS__)         \
+  MACRO(any, false, bool, ##__VA_ARGS__)
+
+// FP16 初始值 (使用 hex 转换)
+#define EXPAND_REDUCE_FP16_MACRO(MACRO, ...)              \
+  MACRO(sum_fp16, 0.0, float16, ##__VA_ARGS__)            \
+  MACRO(prod_fp16, 1.0, float16, ##__VA_ARGS__)           \
+  MACRO(max_fp16, -65504.0, float16, ##__VA_ARGS__)       \
+  MACRO(min_fp16, 65504.0, float16, ##__VA_ARGS__)
+
+
+// ===============================================================
+// 4. Warp Shuffle Wrappers (Using Legacy API & Full Down Strategy)
+// ===============================================================
+
+// 【核心修复】Warp Reduce 逻辑重写
+// 1. 弃用 XOR 模式：因为在 64-thread warp 下，跨 32 边界的 XOR 可能存在未定义行为或硬件 bug。
+// 2. 统一使用 DOWN 模式：__shfl_down 是单向规约，Lane 0 总是能收集到数据的，更加稳健。
+// 3. 严格的边界检查：确保 fetch 的来源线程在 Block 范围内，否则使用 INIT_VAL 填充。
+
+#define CINN_WARP_SHUFFLE_INTERNAL_IMPL(REDUCE_TYPE, INIT_VAL, DTYPE)         \
+  __device__ inline DTYPE cinn_warp_shuffle_##REDUCE_TYPE##_internal(         \
+      const DTYPE value) {                                                    \
+    DTYPE tmp_val = value;                                                    \
+    unsigned int thread_id = threadIdx.x;                                     \
+    unsigned int block_dim = blockDim.x;                                      \
+    /* 始终使用 Down Shuffle 进行规约 (Log2 复杂度) */                          \
+    for (unsigned int offset = WARP_SIZE / 2; offset >= 1; offset /= 2) {     \
+        DTYPE shfl_res = cinn_warp_shuffle_down_##DTYPE##_wrapper(tmp_val, offset); \
+        /* 检查数据来源是否有效：当前线程+offset 必须还在 Block 范围内 */             \
+        /* 如果 Block 大小不是 WARP_SIZE 的倍数，这一步至关重要 */                  \
+        DTYPE neighbor = (thread_id + offset < block_dim) ? shfl_res : (DTYPE)(INIT_VAL); \
+        tmp_val = cinn_##REDUCE_TYPE(tmp_val, neighbor);                      \
+    }                                                                         \
+    /* 广播：虽然 Down Shuffle 只有 Lane 0 结果正确，但这里为了兼容 XOR 语义 */    \
+    /* 我们用 shfl 0 把 Lane 0 的结果广播给所有人 (CINN Block Reduce 需要) */     \
+    return cinn_warp_shuffle_idx_##DTYPE##_wrapper(tmp_val, 0);              \
+  }
+
+// --- Warp Shuffle Primitives (Legacy API without mask) ---
+
+__device__ inline float cinn_warp_shuffle_down_float_wrapper(float v, int factor) { return __shfl_down(v, factor); }
+__device__ inline int cinn_warp_shuffle_down_int_wrapper(int v, int factor) { return __shfl_down(v, factor); }
+__device__ inline bool cinn_warp_shuffle_down_bool_wrapper(bool v, int factor) { return __shfl_down(v, factor); }
+
+__device__ inline double cinn_warp_shuffle_down_double_wrapper(double v, int factor) {
+  unsigned long long int val_u64 = *(unsigned long long int*)&v;
+  int lo = (int)val_u64; int hi = (int)(val_u64 >> 32);
+  lo = __shfl_down(lo, factor);
+  hi = __shfl_down(hi, factor);
+  unsigned long long int res_u64 = ((unsigned long long int)hi << 32) | (unsigned int)lo;
+  return *(double*)&res_u64;
+}
+
+__device__ inline int64_t cinn_warp_shuffle_down_int64_t_wrapper(int64_t v, int factor) {
+  int lo = (int)v; int hi = (int)(v >> 32);
+  lo = __shfl_down(lo, factor);
+  hi = __shfl_down(hi, factor);
+  return ((int64_t)hi << 32) | (unsigned int)lo;
+}
+
+__device__ inline float16 cinn_warp_shuffle_down_float16_wrapper(float16 v, int factor) {
+  unsigned short val = __half_as_ushort(v);
+  unsigned short res = (unsigned short)__shfl_down((int)val, factor);
+  return __ushort_as_half(res);
+}
+
+__device__ inline welford_fp32 cinn_warp_shuffle_down_welford_fp32_wrapper(welford_fp32 v, int factor) {
+    return __shfl_down_sync(0xffffffff, v, factor); 
+}
+__device__ inline welford_fp64 cinn_warp_shuffle_down_welford_fp64_wrapper(welford_fp64 v, int factor) {
+    return __shfl_down_sync(0xffffffff, v, factor);
+}
+
+// 广播类型的 Idx 包装函数 (最后返回阶段使用 shfl_sync(var, 0))
+__device__ inline float cinn_warp_shuffle_idx_float_wrapper(float v, int lane) { return __shfl_sync(0xffffffff, v, lane); }
+__device__ inline int cinn_warp_shuffle_idx_int_wrapper(int v, int lane) { return __shfl_sync(0xffffffff, v, lane); }
+__device__ inline bool cinn_warp_shuffle_idx_bool_wrapper(bool v, int lane) { return __shfl_sync(0xffffffff, v, lane); }
+__device__ inline float16 cinn_warp_shuffle_idx_float16_wrapper(float16 v, int lane) {
+  unsigned short val = __half_as_ushort(v);
+  return __ushort_as_half((unsigned short)__shfl_sync(0xffffffff, (int)val, lane));
+}
+__device__ inline double cinn_warp_shuffle_idx_double_wrapper(double v, int lane) {
+  unsigned long long int val_u64 = *(unsigned long long int*)&v;
+  int lo = __shfl_sync(0xffffffff, (int)val_u64, lane);
+  int hi = __shfl_sync(0xffffffff, (int)(val_u64 >> 32), lane);
+  unsigned long long int res = ((unsigned long long int)hi << 32) | (unsigned int)lo;
+  return *(double*)&res;
+}
+__device__ inline int64_t cinn_warp_shuffle_idx_int64_t_wrapper(int64_t v, int lane) {
+  int lo = __shfl_sync(0xffffffff, (int)v, lane);
+  int hi = __shfl_sync(0xffffffff, (int)(v >> 32), lane);
+  return ((int64_t)hi << 32) | (unsigned int)lo;
+}
+
+// === 新增：Welford 的 Idx (广播) 包装函数 ===
+__device__ inline welford_fp32 cinn_warp_shuffle_idx_welford_fp32_wrapper(welford_fp32 v, int lane) {
+    float m = __shfl_sync(0xffffffff, v.mean, lane);
+    float m2 = __shfl_sync(0xffffffff, v.m2, lane);
+    float w = __shfl_sync(0xffffffff, v.weight, lane);
+    return welford_fp32(m, m2, w);
+}
+__device__ inline welford_fp64 cinn_warp_shuffle_idx_welford_fp64_wrapper(welford_fp64 v, int lane) {
+    double m = __shfl_sync(0xffffffff, v.mean, lane);
+    double m2 = __shfl_sync(0xffffffff, v.m2, lane);
+    double w = __shfl_sync(0xffffffff, v.weight, lane);
+    return welford_fp64(m, m2, w);
+}
+
+// Expand Warp Shuffle
+EXPAND_REDUCE_INT32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_INT64_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_FP32_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_FP64_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_BOOL_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+EXPAND_REDUCE_FP16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
+
+// ===============================================================
+// 5. Block Reduce & Discrete Reduce & Grid Reduce
+// ===============================================================
+
+// Block Reduce Implementation
+// 1. Warp Reduce -> SHM
+// 2. Warp 0 reads SHM and Pads with Identity
+// 3. Warp 0 Reduce
+// 4. Broadcast
+#define CINN_BLOCK_REDUCE_IMPL(DTYPE, INIT_VAL, cinn_warp_shuffle_internal)       \
+  /* 1. Warp Reduce */                                                            \
+  DTYPE tmp_val = cinn_warp_shuffle_internal(value);                              \
+  if (return_warp || blockDim.x <= WARP_SIZE) {                                   \
+    return tmp_val;                                                               \
+  }                                                                               \
+  __syncthreads();                                                                \
+  /* 2. Write Warp results to SHM (Lane 0 only) */                                \
+  if (threadIdx.x % WARP_SIZE == 0) {                                             \
+    shm[threadIdx.x / WARP_SIZE] = tmp_val;                                       \
+  }                                                                               \
+  __syncthreads();                                                                \
+  /* 3. Inter-Warp Reduce (Warp 0 only) */                                        \
+  if (threadIdx.x < WARP_SIZE) {                                                  \
+    int num_warps = (blockDim.x + WARP_SIZE - 1) / WARP_SIZE;                     \
+    /* Pad with Identity value for idle threads in Warp 0 */                        \
+    DTYPE reduce_val = (DTYPE)(INIT_VAL);                                         \
+    if (threadIdx.x < num_warps) {                                                \
+      reduce_val = shm[threadIdx.x];                                              \
+    }                                                                             \
+    /* Reduce across all threads in Warp 0 */                                     \
+    reduce_val = cinn_warp_shuffle_internal(reduce_val);                          \
+    if (threadIdx.x == 0) {                                                       \
+      shm[0] = reduce_val;                                                        \
+    }                                                                             \
+  }                                                                               \
+  __syncthreads();                                                                \
+  return shm[0];
+
+#define CINN_BLOCK_REDUCE_MACRO(REDUCE_TYPE, INIT_VAL, DTYPE)                  \
+  __device__ inline DTYPE cinn_block_reduce_##REDUCE_TYPE(                     \
+      const DTYPE value, DTYPE *shm, bool return_warp = false) {               \
+    CINN_BLOCK_REDUCE_IMPL(DTYPE, INIT_VAL, cinn_warp_shuffle_##REDUCE_TYPE##_internal); \
+  }
+
+EXPAND_REDUCE_INT32_MACRO(CINN_BLOCK_REDUCE_MACRO)
+EXPAND_REDUCE_INT64_MACRO(CINN_BLOCK_REDUCE_MACRO)
+EXPAND_REDUCE_FP32_MACRO(CINN_BLOCK_REDUCE_MACRO)
+EXPAND_REDUCE_FP64_MACRO(CINN_BLOCK_REDUCE_MACRO)
+EXPAND_REDUCE_BOOL_MACRO(CINN_BLOCK_REDUCE_MACRO)
+EXPAND_REDUCE_FP16_MACRO(CINN_BLOCK_REDUCE_MACRO)
+
+#define CINN_DISCRETE_REDUCE_IMPL(REDUCE_TYPE, value)                          \
+  int tid = threadIdx.y * blockDim.x + threadIdx.x;                            \
+  __syncthreads();                                                             \
+  shm[tid] = value;                                                            \
+  __syncthreads();                                                             \
+  for (int offset = blockDim.y / 2; offset > 0; offset >>= 1) {                \
+    if (threadIdx.y < offset) {                                                \
+      shm[tid] = cinn_##REDUCE_TYPE(shm[tid], shm[tid + offset * blockDim.x]); \
+    }                                                                          \
+    __syncthreads();                                                           \
+  }                                                                            \
+  return shm[threadIdx.x];
+
+#define CINN_DISCRETE_REDUCE_MACRO(REDUCE_TYPE, INIT_VAL, DTYPE)      \
+  __device__ inline DTYPE cinn_discrete_reduce_##REDUCE_TYPE(         \
+      const DTYPE value, DTYPE *shm) {                                \
+    CINN_DISCRETE_REDUCE_IMPL(REDUCE_TYPE, value);                    \
+  }
+
+EXPAND_REDUCE_INT32_MACRO(CINN_DISCRETE_REDUCE_MACRO)
+EXPAND_REDUCE_INT64_MACRO(CINN_DISCRETE_REDUCE_MACRO)
+EXPAND_REDUCE_FP32_MACRO(CINN_DISCRETE_REDUCE_MACRO)
+EXPAND_REDUCE_FP64_MACRO(CINN_DISCRETE_REDUCE_MACRO)
+EXPAND_REDUCE_BOOL_MACRO(CINN_DISCRETE_REDUCE_MACRO)
+EXPAND_REDUCE_FP16_MACRO(CINN_DISCRETE_REDUCE_MACRO)
+
+#define CINN_GRID_REDUCE_IMPL(REDUCE_TYPE, init_value, DTYPE)               \
+  DTYPE tmp_val = init_value;                                               \
+  for (int y = 0; y < gridDim.y; y++) {                                     \
+    tmp_val =                                                               \
+        cinn_##REDUCE_TYPE(tmp_val, mem[y * spatial_size + spatial_index]); \
+  }                                                                         \
+  return tmp_val;
+
+#define CINN_GRID_REDUCE_MACRO(REDUCE_TYPE, INIT_VAL, DTYPE)           \
+  __device__ inline DTYPE cinn_grid_reduce_##REDUCE_TYPE(              \
+      const DTYPE *mem, int spatial_size, int spatial_index) {         \
+    CINN_GRID_REDUCE_IMPL(REDUCE_TYPE, (DTYPE)(INIT_VAL), DTYPE);      \
+  }
+
+EXPAND_REDUCE_INT32_MACRO(CINN_GRID_REDUCE_MACRO)
+EXPAND_REDUCE_INT64_MACRO(CINN_GRID_REDUCE_MACRO)
+EXPAND_REDUCE_FP32_MACRO(CINN_GRID_REDUCE_MACRO)
+EXPAND_REDUCE_FP64_MACRO(CINN_GRID_REDUCE_MACRO)
+EXPAND_REDUCE_BOOL_MACRO(CINN_GRID_REDUCE_MACRO)
+EXPAND_REDUCE_FP16_MACRO(CINN_GRID_REDUCE_MACRO)
+
+__device__ inline bool cinn_grid_reduce_update_semaphore(int *semaphores) {
+  __shared__ bool done;
+  __threadfence();
+  __syncthreads();
+  if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+    int old = atomicAdd(&semaphores[blockIdx.x], 1);
+    done = (old == (gridDim.y - 1));
+  }
+  __syncthreads();
+  return done;
 }
 
 // ===============================================================

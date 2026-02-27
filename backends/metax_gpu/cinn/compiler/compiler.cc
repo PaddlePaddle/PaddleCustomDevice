@@ -294,41 +294,40 @@ __device__ inline float16 FN_FP16(min)(float16 a, float16 b) { return __hlt(a, b
 // Warp Shuffle Functions (用于 Reduce 算子)
 // ===============================================================
 #define FN_SHUFFLE(func) cinn_custom_device_##func
-
 __device__ inline float FN_SHUFFLE(warp_shuffle_xor_fp32)(float v, int factor) {
-  return __shfl_xor_sync(0xffffffff, v, factor);
+  return __shfl_xor(v, factor);
 }
 __device__ inline float FN_SHUFFLE(warp_shuffle_up_fp32)(float v, int factor) {
-  return __shfl_up_sync(0xffffffff, v, factor);
+  return __shfl_up(v, factor);
 }
 __device__ inline float FN_SHUFFLE(warp_shuffle_down_fp32)(float v, int factor) {
-  return __shfl_down_sync(0xffffffff, v, factor);
+  return __shfl_down(v, factor);
 }
 
 __device__ inline int FN_SHUFFLE(warp_shuffle_xor_int32)(int v, int factor) {
-  return __shfl_xor_sync(0xffffffff, v, factor);
+  return __shfl_xor(v, factor);
 }
 __device__ inline int FN_SHUFFLE(warp_shuffle_up_int32)(int v, int factor) {
-  return __shfl_up_sync(0xffffffff, v, factor);
+  return __shfl_up(v, factor);
 }
 __device__ inline int FN_SHUFFLE(warp_shuffle_down_int32)(int v, int factor) {
-  return __shfl_down_sync(0xffffffff, v, factor);
+  return __shfl_down(v, factor);
 }
 
 // MACA/CUDA 的 shfl 指令通常只支持 32位，__half 需要强转或使用 intrinsics
 __device__ inline __half FN_SHUFFLE(warp_shuffle_xor_fp16)(__half v, int factor) {
   unsigned short val = __half_as_ushort(v);
-  unsigned short res = (unsigned short)__shfl_xor_sync(0xffffffff, (int)val, factor);
+  unsigned short res = (unsigned short)__shfl_xor((int)val, factor);
   return __ushort_as_half(res);
 }
 __device__ inline __half FN_SHUFFLE(warp_shuffle_up_fp16)(__half v, int factor) {
   unsigned short val = __half_as_ushort(v);
-  unsigned short res = (unsigned short)__shfl_up_sync(0xffffffff, (int)val, factor);
+  unsigned short res = (unsigned short)__shfl_up((int)val, factor);
   return __ushort_as_half(res);
 }
 __device__ inline __half FN_SHUFFLE(warp_shuffle_down_fp16)(__half v, int factor) {
   unsigned short val = __half_as_ushort(v);
-  unsigned short res = (unsigned short)__shfl_down_sync(0xffffffff, (int)val, factor);
+  unsigned short res = (unsigned short)__shfl_down((int)val, factor);
   return __ushort_as_half(res);
 }
 } // extern "C"
@@ -510,13 +509,16 @@ __device__ inline float16 cinn_min_fp16(const float16 left, const float16 right)
       const DTYPE value) {                                                    \
     DTYPE tmp_val = value;                                                    \
     unsigned int thread_id = threadIdx.x;                                     \
+    unsigned int lane_id = thread_id % WARP_SIZE; /* 获取在当前 Warp 内的局部 ID */ \
     unsigned int block_dim = blockDim.x;                                      \
     /* 始终使用 Down Shuffle 进行规约 (Log2 复杂度) */                          \
     for (unsigned int offset = WARP_SIZE / 2; offset >= 1; offset /= 2) {     \
         DTYPE shfl_res = cinn_warp_shuffle_down_##DTYPE##_wrapper(tmp_val, offset); \
         /* 检查数据来源是否有效：当前线程+offset 必须还在 Block 范围内 */             \
         /* 如果 Block 大小不是 WARP_SIZE 的倍数，这一步至关重要 */                  \
-        DTYPE neighbor = (thread_id + offset < block_dim) ? shfl_res : (DTYPE)(INIT_VAL); \
+        /* 【核心修复】不仅不能超出 block，且目标 Lane 也不能超出 WARP_SIZE */        \
+        bool is_valid = (lane_id + offset < WARP_SIZE) && (thread_id + offset < block_dim); \
+        DTYPE neighbor = is_valid ? shfl_res : (DTYPE)(INIT_VAL);             \
         tmp_val = cinn_##REDUCE_TYPE(tmp_val, neighbor);                      \
     }                                                                         \
     /* 广播：虽然 Down Shuffle 只有 Lane 0 结果正确，但这里为了兼容 XOR 语义 */    \
@@ -532,65 +534,71 @@ __device__ inline bool cinn_warp_shuffle_down_bool_wrapper(bool v, int factor) {
 
 __device__ inline double cinn_warp_shuffle_down_double_wrapper(double v, int factor) {
   unsigned long long int val_u64 = *(unsigned long long int*)&v;
-  int lo = (int)val_u64; int hi = (int)(val_u64 >> 32);
-  lo = __shfl_down(lo, factor);
-  hi = __shfl_down(hi, factor);
-  unsigned long long int res_u64 = ((unsigned long long int)hi << 32) | (unsigned int)lo;
-  return *(double*)&res_u64;
+  int lo = __shfl_down((int)val_u64, factor);
+  int hi = __shfl_down((int)(val_u64 >> 32), factor);
+  unsigned long long int res = ((unsigned long long int)hi << 32) | (unsigned int)lo;
+  return *(double*)&res;
 }
 
 __device__ inline int64_t cinn_warp_shuffle_down_int64_t_wrapper(int64_t v, int factor) {
-  int lo = (int)v; int hi = (int)(v >> 32);
-  lo = __shfl_down(lo, factor);
-  hi = __shfl_down(hi, factor);
+  int lo = __shfl_down((int)v, factor);
+  int hi = __shfl_down((int)(v >> 32), factor);
   return ((int64_t)hi << 32) | (unsigned int)lo;
 }
 
 __device__ inline float16 cinn_warp_shuffle_down_float16_wrapper(float16 v, int factor) {
   unsigned short val = __half_as_ushort(v);
-  unsigned short res = (unsigned short)__shfl_down((int)val, factor);
-  return __ushort_as_half(res);
+  return __ushort_as_half((unsigned short)__shfl_down((int)val, factor));
 }
 
 __device__ inline welford_fp32 cinn_warp_shuffle_down_welford_fp32_wrapper(welford_fp32 v, int factor) {
-    return __shfl_down_sync(0xffffffff, v, factor); 
+    float m = __shfl_down(v.mean, factor);
+    float m2 = __shfl_down(v.m2, factor);
+    float w = __shfl_down(v.weight, factor);
+    return welford_fp32(m, m2, w);
 }
 __device__ inline welford_fp64 cinn_warp_shuffle_down_welford_fp64_wrapper(welford_fp64 v, int factor) {
-    return __shfl_down_sync(0xffffffff, v, factor);
+    double m = __shfl_down(v.mean, factor);
+    double m2 = __shfl_down(v.m2, factor);
+    double w = __shfl_down(v.weight, factor);
+    return welford_fp64(m, m2, w);
 }
 
 // 广播类型的 Idx 包装函数 (最后返回阶段使用 shfl_sync(var, 0))
-__device__ inline float cinn_warp_shuffle_idx_float_wrapper(float v, int lane) { return __shfl_sync(0xffffffff, v, lane); }
-__device__ inline int cinn_warp_shuffle_idx_int_wrapper(int v, int lane) { return __shfl_sync(0xffffffff, v, lane); }
-__device__ inline bool cinn_warp_shuffle_idx_bool_wrapper(bool v, int lane) { return __shfl_sync(0xffffffff, v, lane); }
+__device__ inline float cinn_warp_shuffle_idx_float_wrapper(float v, int lane) { return __shfl(v, lane); }
+__device__ inline int cinn_warp_shuffle_idx_int_wrapper(int v, int lane) { return __shfl(v, lane); }
+__device__ inline bool cinn_warp_shuffle_idx_bool_wrapper(bool v, int lane) { return __shfl(v, lane); }
+
 __device__ inline float16 cinn_warp_shuffle_idx_float16_wrapper(float16 v, int lane) {
   unsigned short val = __half_as_ushort(v);
-  return __ushort_as_half((unsigned short)__shfl_sync(0xffffffff, (int)val, lane));
+  return __ushort_as_half((unsigned short)__shfl((int)val, lane));
 }
+
 __device__ inline double cinn_warp_shuffle_idx_double_wrapper(double v, int lane) {
   unsigned long long int val_u64 = *(unsigned long long int*)&v;
-  int lo = __shfl_sync(0xffffffff, (int)val_u64, lane);
-  int hi = __shfl_sync(0xffffffff, (int)(val_u64 >> 32), lane);
+  int lo = __shfl((int)val_u64, lane);
+  int hi = __shfl((int)(val_u64 >> 32), lane);
   unsigned long long int res = ((unsigned long long int)hi << 32) | (unsigned int)lo;
   return *(double*)&res;
 }
+
 __device__ inline int64_t cinn_warp_shuffle_idx_int64_t_wrapper(int64_t v, int lane) {
-  int lo = __shfl_sync(0xffffffff, (int)v, lane);
-  int hi = __shfl_sync(0xffffffff, (int)(v >> 32), lane);
+  int lo = __shfl((int)v, lane);
+  int hi = __shfl((int)(v >> 32), lane);
   return ((int64_t)hi << 32) | (unsigned int)lo;
 }
 
 // === 新增：Welford 的 Idx (广播) 包装函数 ===
 __device__ inline welford_fp32 cinn_warp_shuffle_idx_welford_fp32_wrapper(welford_fp32 v, int lane) {
-    float m = __shfl_sync(0xffffffff, v.mean, lane);
-    float m2 = __shfl_sync(0xffffffff, v.m2, lane);
-    float w = __shfl_sync(0xffffffff, v.weight, lane);
+    float m = __shfl(v.mean, lane);
+    float m2 = __shfl(v.m2, lane);
+    float w = __shfl(v.weight, lane);
     return welford_fp32(m, m2, w);
 }
 __device__ inline welford_fp64 cinn_warp_shuffle_idx_welford_fp64_wrapper(welford_fp64 v, int lane) {
-    double m = __shfl_sync(0xffffffff, v.mean, lane);
-    double m2 = __shfl_sync(0xffffffff, v.m2, lane);
-    double w = __shfl_sync(0xffffffff, v.weight, lane);
+    double m = __shfl(v.mean, lane);
+    double m2 = __shfl(v.m2, lane);
+    double w = __shfl(v.weight, lane);
     return welford_fp64(m, m2, w);
 }
 
@@ -606,39 +614,44 @@ EXPAND_REDUCE_FP16_MACRO(CINN_WARP_SHUFFLE_INTERNAL_IMPL)
 // 5. Block Reduce & Discrete Reduce & Grid Reduce
 // ===============================================================
 
-// Block Reduce Implementation
-// 1. Warp Reduce -> SHM
-// 2. Warp 0 reads SHM and Pads with Identity
-// 3. Warp 0 Reduce
-// 4. Broadcast
 #define CINN_BLOCK_REDUCE_IMPL(DTYPE, INIT_VAL, cinn_warp_shuffle_internal)       \
-  /* 1. Warp Reduce */                                                            \
+  /* 1. 单个 Warp 内部规约 */                                                       \
   DTYPE tmp_val = cinn_warp_shuffle_internal(value);                              \
   if (return_warp || blockDim.x <= WARP_SIZE) {                                   \
     return tmp_val;                                                               \
   }                                                                               \
   __syncthreads();                                                                \
-  /* 2. Write Warp results to SHM (Lane 0 only) */                                \
+  \
+  /* 【核心修复】：计算 2D/3D 线程块的专属共享显存偏移量 */                              \
+  /* row_id 代表当前线程属于哪一个独立的空间行 */                                       \
+  int row_id = threadIdx.y + threadIdx.z * blockDim.y;                            \
+  int warps_per_row = (blockDim.x + WARP_SIZE - 1) / WARP_SIZE;                   \
+  /* row_shm 是当前行专属的共享显存指针，彻底杜绝越行踩踏 */                             \
+  DTYPE* row_shm = shm + (row_id * warps_per_row);                                \
+  \
+  /* 2. 每个 Warp 的 0 号线程把结果写入自己行的专属 SHM */                             \
   if (threadIdx.x % WARP_SIZE == 0) {                                             \
-    shm[threadIdx.x / WARP_SIZE] = tmp_val;                                       \
+    row_shm[threadIdx.x / WARP_SIZE] = tmp_val;                                   \
   }                                                                               \
   __syncthreads();                                                                \
-  /* 3. Inter-Warp Reduce (Warp 0 only) */                                        \
+  \
+  /* 3. 跨 Warp 规约合并 (仅限每个行的前 WARP_SIZE 个线程执行) */                      \
   if (threadIdx.x < WARP_SIZE) {                                                  \
-    int num_warps = (blockDim.x + WARP_SIZE - 1) / WARP_SIZE;                     \
-    /* Pad with Identity value for idle threads in Warp 0 */                        \
+    /* 闲置线程用初始值 (比如 0) 填充 */                                              \
     DTYPE reduce_val = (DTYPE)(INIT_VAL);                                         \
-    if (threadIdx.x < num_warps) {                                                \
-      reduce_val = shm[threadIdx.x];                                              \
+    if (threadIdx.x < warps_per_row) {                                            \
+      reduce_val = row_shm[threadIdx.x];                                          \
     }                                                                             \
-    /* Reduce across all threads in Warp 0 */                                     \
+    /* 在 Warp 0 内部完成最终规约 */                                                 \
     reduce_val = cinn_warp_shuffle_internal(reduce_val);                          \
+    /* 写入最终结果到当前行的头部 */                                                  \
     if (threadIdx.x == 0) {                                                       \
-      shm[0] = reduce_val;                                                        \
+      row_shm[0] = reduce_val;                                                    \
     }                                                                             \
   }                                                                               \
   __syncthreads();                                                                \
-  return shm[0];
+  /* 4. 同一行的所有线程都返回正确的最终结果 */                                         \
+  return row_shm[0];
 
 #define CINN_BLOCK_REDUCE_MACRO(REDUCE_TYPE, INIT_VAL, DTYPE)                  \
   __device__ inline DTYPE cinn_block_reduce_##REDUCE_TYPE(                     \

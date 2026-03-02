@@ -411,7 +411,7 @@ C_Status GetMaxSharedMemPerBlock(const C_Device device,
   int count = 0;
   cudaError_t status =
       cudaDeviceGetAttribute(&count, cudaDevAttrMaxSharedMemoryPerBlock, id);
-  *shared_mem_per_block = 5000;
+  *shared_mem_per_block = 65534;
   return C_SUCCESS;
 }
 

@@ -817,6 +817,11 @@ list(
 file(
   GLOB_RECURSE CC_SRCS
   RELATIVE ${CMAKE_SOURCE_DIR}
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/ap_variadic_kernel.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/kernel_dispatch_helper.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/ap_infer_meta_helper.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/kernel_define_helper.cc
+  
   runtime/runtime.cc
   runtime/iluvatar_context.cc
   common/*.cc

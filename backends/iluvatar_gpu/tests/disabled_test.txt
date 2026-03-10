@@ -561,3 +561,4 @@ test_api_compatibility.py
 test_celu_op.py
 test_fused_rms_norm_op.py
 test_read_file.py
+test_interp_antialias_op.py

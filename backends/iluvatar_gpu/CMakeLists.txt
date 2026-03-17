@@ -41,6 +41,8 @@ if(WITH_FLAGCX)
   add_definitions("-DPADDLE_WITH_FLAGCX")
   include(external/flagcx)
 endif()
+  
+add_definitions("-DPADDLE_WITH_CINN")
 
 set(PLUGIN_VERSION ${PADDLE_VERSION})
 set(PROTO_FILE "${PADDLE_SOURCE_DIR}/paddle/phi/core/external_error.proto")
@@ -817,6 +819,17 @@ list(
 file(
   GLOB_RECURSE CC_SRCS
   RELATIVE ${CMAKE_SOURCE_DIR}
+  # 增加ap依赖项
+  #${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/ap_variadic_kernel.cc
+  #${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/kernel_dispatch_helper.cc
+  #${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/ap_infer_meta_helper.cc
+  #${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/kernel_define_helper.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/axpr/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/fs/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/code_module/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/code_gen/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/kernel_dispatch/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/*.cc
   runtime/runtime.cc
   runtime/iluvatar_context.cc
   common/*.cc

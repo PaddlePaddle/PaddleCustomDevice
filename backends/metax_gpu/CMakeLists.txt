@@ -158,8 +158,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/grid_sample_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/instance_norm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/instance_norm_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rnn_grad_kernel.cu.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rnn_kernel.cu.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rnn_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rnn_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/ctc_align_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/yolo_box_head_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/stft_grad_kernel.cu

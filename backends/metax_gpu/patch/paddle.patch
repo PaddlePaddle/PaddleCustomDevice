@@ -1,15 +1,19 @@
 diff --git a/cmake/external/eigen.cmake b/cmake/external/eigen.cmake
-index cfada544d4..a690e97d74 100644
+index 6790d961f8..37b841bfc4 100644
 --- a/cmake/external/eigen.cmake
 +++ b/cmake/external/eigen.cmake
-@@ -42,12 +42,12 @@ endif()
+@@ -42,14 +42,14 @@ endif()
  file(TO_NATIVE_PATH "${PADDLE_SOURCE_DIR}/patches/eigen/TensorRandom.h.patch"
       tensor_random_header)
  # See: [Why calling some `git` commands before `patch`?]
--set(EIGEN_PATCH_COMMAND git checkout -- . && git checkout ${EIGEN_TAG} && git
--                        apply ${tensor_random_header})
-+# set(EIGEN_PATCH_COMMAND git checkout -- . && git checkout ${EIGEN_TAG} && git
-+#                         apply ${tensor_random_header})
+-set(EIGEN_PATCH_COMMAND
+-    git checkout -- Eigen/src/Core/arch/SSE/Complex.h
+-    unsupported/Eigen/CXX11/src/Tensor/TensorRandom.h && git checkout
+-    ${EIGEN_TAG} && git apply ${tensor_random_header})
++# set(EIGEN_PATCH_COMMAND
++#     git checkout -- Eigen/src/Core/arch/SSE/Complex.h
++#     unsupported/Eigen/CXX11/src/Tensor/TensorRandom.h && git checkout
++#     ${EIGEN_TAG} && git apply ${tensor_random_header})
  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
    file(TO_NATIVE_PATH ${PADDLE_SOURCE_DIR}/patches/eigen/Complex.h.patch
         complex_header)
@@ -35,18 +39,19 @@ index 8d445b39ae..504e7b6293 100755
      op_library(fused_gemm_epilogue_op)
    endif()
 diff --git a/paddle/phi/backends/dynload/dynamic_loader.cc b/paddle/phi/backends/dynload/dynamic_loader.cc
-index 37ee00b591..f497472ad9 100644
+index 99d3733da0..d0c8783afd 100644
 --- a/paddle/phi/backends/dynload/dynamic_loader.cc
 +++ b/paddle/phi/backends/dynload/dynamic_loader.cc
-@@ -18,7 +18,6 @@ limitations under the License. */
- #include <cstdlib>
+@@ -19,7 +19,7 @@ limitations under the License. */
+ #include <locale>
  #include <string>
  #include <vector>
 -#include "paddle/phi/backends/dynload/cupti_lib_path.h"
++// #include "paddle/phi/backends/dynload/cupti_lib_path.h"
  #include "paddle/phi/common/port.h"
  #include "paddle/phi/core/enforce.h"
  
-@@ -112,6 +111,10 @@ COMMON_DECLARE_string(magma_dir);
+@@ -113,6 +113,10 @@ COMMON_DECLARE_string(magma_dir);
  #define SPARSELT_LIB_NAME "libcusparseLt.so"
  #endif
  
@@ -1096,3 +1101,4 @@ index d8bc15926b..6071baf340 100644
 
      PADDLE_ENFORCE_EQ(
          status,
+         

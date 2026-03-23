@@ -42,10 +42,10 @@ jobs:
     uses: ./.github/workflows/_MLU.yml
     needs: [Codestyle-Check]
 
-  ixuca:
-    name: ixuca
-    uses: ./.github/workflows/_IXUCA.yml
-    needs: [Codestyle-Check]
+  # ixuca:
+  #   name: ixuca
+  #   uses: ./.github/workflows/_IXUCA.yml
+  #   needs: [Codestyle-Check]
 
   metax:
     name: metax

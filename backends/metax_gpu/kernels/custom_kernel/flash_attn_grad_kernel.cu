@@ -48,7 +48,7 @@ void FlashAttnUnpaddedGradKernel_(
     DenseTensor* dk,
     DenseTensor* dv) {
 #ifdef PADDLE_WITH_FLASHATTN
-  printf("************ FlashAttnUnpaddedGradKernel_ ****************\n");
+  // printf("************ FlashAttnUnpaddedGradKernel_ ****************\n");
   ctx.template Alloc<T>(dq);
 
   DenseTensor dk_tmp;
@@ -214,7 +214,7 @@ void FlashAttnGradKernel(const Context& ctx,
   ctx.template Alloc<T>(dq);
   DenseTensor dk_tmp;
   if (dk) {
-    printf("dk input pointer is not nullptr!\n");
+    // printf("dk input pointer is not nullptr!\n");
     if (!is_mha) {
       dk_tmp.Resize({batch_size, seqlen_k, num_heads, head_size_og});
       ctx.template Alloc<T>(&dk_tmp);
@@ -224,7 +224,7 @@ void FlashAttnGradKernel(const Context& ctx,
     }
 
   } else {
-    printf("dk input pointer is nullptr!\n");
+    // printf("dk input pointer is nullptr!\n");
     dk_tmp = EmptyLike<T, Context>(ctx, k);
   }
 
@@ -242,9 +242,9 @@ void FlashAttnGradKernel(const Context& ctx,
   }
 
   if (dk_tmp.meta().is_contiguous()) {
-    printf("dk_tmp alloc memory is contiguous!\n");
+    // printf("dk_tmp alloc memory is contiguous!\n");
   } else {
-    printf("dk_tmp alloc memory is not contiguous!\n");
+    // printf("dk_tmp alloc memory is not contiguous!\n");
   }
 
   FlashAttnParamsBwd params = FlashAttnParamsBwd(ctx,
@@ -278,7 +278,7 @@ void FlashAttnGradKernel(const Context& ctx,
     VLOG(10) << "[FlashAttn Backward] attn_mask.shape=["
              << (attn_mask.get_ptr())->dims() << "]";
   }
-  // printf("params.dq dims[2]:%d, params.dk dims[2]:%d, params.dv
+  // // printf("params.dq dims[2]:%d, params.dk dims[2]:%d, params.dv
   // dims[2]:%d\n", params.dq->head_num, params.dk->head_num,
   // params.dv->head_num);
   print_tensor_info(params.dq);
@@ -326,7 +326,7 @@ void FlashAttnGradKernel(const Context& ctx,
         phi::SumKernel<T, Context>(ctx, dk_tmp, {3}, dk->type(), false, dk);
       } else {
         // kvReduceBatchedForGQA<T, Context>(ctx, dk_tmp, dk);
-        printf("[%s: %d] - Need to complete!\n", __func__, __LINE__);
+        // printf("[%s: %d] - Need to complete!\n", __func__, __LINE__);
       }
     }
 
@@ -340,7 +340,7 @@ void FlashAttnGradKernel(const Context& ctx,
         phi::SumKernel<T, Context>(ctx, dv_tmp, {3}, dv->type(), false, dv);
       } else {
         // kvReduceBatchedForGQA<T, Context>(ctx, dv_tmp, dv);
-        printf("[%s: %d] - Need to complete!\n", __func__, __LINE__);
+        // printf("[%s: %d] - Need to complete!\n", __func__, __LINE__);
       }
     }
   }

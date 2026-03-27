@@ -1,93 +1,93 @@
-name: IXUCA-Smoke-Schedule
+# name: IXUCA-Smoke-Schedule
 
-on:
-  workflow_dispatch:
-    inputs:
-      check_type:
-        description: "Type of check: scheduled or double_check"
-        required: false
-        default: "scheduled"
-        type: choice
-        options:
-          - scheduled
-          - double_check
-  schedule:
-    - cron: "0 * * * *"
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       check_type:
+#         description: "Type of check: scheduled or double_check"
+#         required: false
+#         default: "scheduled"
+#         type: choice
+#         options:
+#           - scheduled
+#           - double_check
+#   schedule:
+#     - cron: "0 * * * *"
 
-permissions: read-all
+# permissions: read-all
 
-concurrency:
-  group: ixuca-smoke-schedule
-  cancel-in-progress: false
+# concurrency:
+#   group: ixuca-smoke-schedule
+#   cancel-in-progress: false
 
-jobs:
-  smoke-check:
-    name: Smoke Check (run_check)
-    runs-on: iluvatar-gpu-2
-    timeout-minutes: 20
-    container:
-      image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:3.3.0
-      env:
-        LD_LIBRARY_PATH: /usr/local/corex/lib
-        LIBRARY_PATH: /usr/local/corex/lib
-        no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
-    steps:
-      - name: Install paddle nightly
-        run: |
-          set -e
-          pip uninstall -y paddlepaddle || true
-          pip uninstall -y paddle-iluvatar-gpu || true
-          retry_count=0
-          max_retries=3
-          while [ $retry_count -lt $max_retries ]; do
-            if python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/; then
-              echo "Paddle install success"
-              break
-            fi
-            retry_count=$((retry_count + 1))
-            if [ $retry_count -lt $max_retries ]; then
-              echo "Install failed, retrying in 30 seconds... ($retry_count/$max_retries)"
-              sleep 30
-            else
-              echo "Install failed after $max_retries attempts."
-              exit 1
-            fi
-          done
-          pip show paddlepaddle
-          retry_count=0
-          while [ $retry_count -lt $max_retries ]; do
-            if python3 -m pip install --pre paddle-iluvatar-gpu -i https://www.paddlepaddle.org.cn/packages/nightly/ixuca/; then
-              echo "paddle-iluvatar-gpu install success"
-              break
-            fi
-            retry_count=$((retry_count + 1))
-            if [ $retry_count -lt $max_retries ]; then
-              echo "paddle-iluvatar-gpu install failed, retrying in 30 seconds... ($retry_count/$max_retries)"
-              sleep 30
-            else
-              echo "paddle-iluvatar-gpu install failed after $max_retries attempts."
-              exit 1
-            fi
-          done
-          pip show paddle-iluvatar-gpu
+# jobs:
+#   smoke-check:
+#     name: Smoke Check (run_check)
+#     runs-on: iluvatar-gpu-2
+#     timeout-minutes: 20
+#     container:
+#       image: ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-ixuca:3.3.0
+#       env:
+#         LD_LIBRARY_PATH: /usr/local/corex/lib
+#         LIBRARY_PATH: /usr/local/corex/lib
+#         no_proxy: "bcebos.com,apiin.im.baidu.com,gitee.com,aliyun.com,.baidu.com,.tuna.tsinghua.edu.cn"
+#     steps:
+#       - name: Install paddle nightly
+#         run: |
+#           set -e
+#           pip uninstall -y paddlepaddle || true
+#           pip uninstall -y paddle-iluvatar-gpu || true
+#           retry_count=0
+#           max_retries=3
+#           while [ $retry_count -lt $max_retries ]; do
+#             if python3 -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/; then
+#               echo "Paddle install success"
+#               break
+#             fi
+#             retry_count=$((retry_count + 1))
+#             if [ $retry_count -lt $max_retries ]; then
+#               echo "Install failed, retrying in 30 seconds... ($retry_count/$max_retries)"
+#               sleep 30
+#             else
+#               echo "Install failed after $max_retries attempts."
+#               exit 1
+#             fi
+#           done
+#           pip show paddlepaddle
+#           retry_count=0
+#           while [ $retry_count -lt $max_retries ]; do
+#             if python3 -m pip install --pre paddle-iluvatar-gpu -i https://www.paddlepaddle.org.cn/packages/nightly/ixuca/; then
+#               echo "paddle-iluvatar-gpu install success"
+#               break
+#             fi
+#             retry_count=$((retry_count + 1))
+#             if [ $retry_count -lt $max_retries ]; then
+#               echo "paddle-iluvatar-gpu install failed, retrying in 30 seconds... ($retry_count/$max_retries)"
+#               sleep 30
+#             else
+#               echo "paddle-iluvatar-gpu install failed after $max_retries attempts."
+#               exit 1
+#             fi
+#           done
+#           pip show paddle-iluvatar-gpu
 
-      - name: Run Check
-        run: |
-          set -e
-          ixsmi
-          gpu_count=$(ixsmi --query-gpu=name --format=csv,noheader | wc -l)
-          echo "Detected GPU count: ${gpu_count}"
-          if [ "${gpu_count}" -le 1 ]; then
-            echo "GPU count is <= 1, card status is abnormal."
-            exit 1
-          fi
-          export LD_LIBRARY_PATH=/usr/local/openmpi/lib/:$LD_LIBRARY_PATH
-          toolbox_bin=$(ls -d /usr/local/corex/corex-toolbox-*/bin 2>/dev/null | head -n 1)
-          if [ -z "${toolbox_bin}" ]; then
-            echo "Cannot find /usr/local/corex/corex-toolbox-*/bin"
-            exit 1
-          fi
-          cd "${toolbox_bin}"
-          mpirun --allow-run-as-root --report-bindings -tag-output --prefix /usr/local -np 2 --bind-to none --map-by node -mca btl ^openib ./all_reduce_perf -b 8 -e 1G -f 2 -g 1
-          cd -
-          python3 -c "import paddle; paddle.utils.run_check();"
+#       - name: Run Check
+#         run: |
+#           set -e
+#           ixsmi
+#           gpu_count=$(ixsmi --query-gpu=name --format=csv,noheader | wc -l)
+#           echo "Detected GPU count: ${gpu_count}"
+#           if [ "${gpu_count}" -le 1 ]; then
+#             echo "GPU count is <= 1, card status is abnormal."
+#             exit 1
+#           fi
+#           export LD_LIBRARY_PATH=/usr/local/openmpi/lib/:$LD_LIBRARY_PATH
+#           toolbox_bin=$(ls -d /usr/local/corex/corex-toolbox-*/bin 2>/dev/null | head -n 1)
+#           if [ -z "${toolbox_bin}" ]; then
+#             echo "Cannot find /usr/local/corex/corex-toolbox-*/bin"
+#             exit 1
+#           fi
+#           cd "${toolbox_bin}"
+#           mpirun --allow-run-as-root --report-bindings -tag-output --prefix /usr/local -np 2 --bind-to none --map-by node -mca btl ^openib ./all_reduce_perf -b 8 -e 1G -f 2 -g 1
+#           cd -
+#           python3 -c "import paddle; paddle.utils.run_check();"

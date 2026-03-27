@@ -41,7 +41,7 @@ if(WITH_FLAGCX)
   add_definitions("-DPADDLE_WITH_FLAGCX")
   include(external/flagcx)
 endif()
-  
+
 set(PLUGIN_VERSION ${PADDLE_VERSION})
 set(PROTO_FILE "${PADDLE_SOURCE_DIR}/paddle/phi/core/external_error.proto")
 get_filename_component(PROTO_WE "${PROTO_FILE}" NAME_WE)

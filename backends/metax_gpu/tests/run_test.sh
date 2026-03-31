@@ -23,18 +23,6 @@ TEST_PATH2="${SCRIPT_DIR}/../../../python/tests"
 export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}:${TEST_PATH1}:${TEST_PATH2}"
 export PADDLE_XCCL_BACKEND=metax_gpu
 export CUDA_VISIBLE_DEVICES=0
-
-PYTHONUNBUFFERED=1
-# 以下三条为运行CINN必开
-FLAGS_prim_all=true
-FLAGS_prim_enable_dynamic=true
-FLAGS_use_cinn=true
-# 关闭多线程编译，调试时用
-FLAGS_enable_cinn_compile_cache=false
-# 打印log，调试时用
-FLAGS_print_ir=true
-GLOG_v=1
-
 # export
 # sleep 1000000
 
@@ -93,8 +81,8 @@ done
 export GLOG_v=$TEST_LOG_LEVEL
 
 
-cmake .. -DTEST_LIST_FILE=$TEST_LIST_FILE -DLOG_OUTPUT_DIR=$TEST_LOG_OUTPUT_DIR -DIGNORE_BLOCKS="$IGNORE_BLOCKS" -DWITH_CINN=ON
+cmake .. -DTEST_LIST_FILE=$TEST_LIST_FILE -DLOG_OUTPUT_DIR=$TEST_LOG_OUTPUT_DIR -DIGNORE_BLOCKS="$IGNORE_BLOCKS"
 
 cmake --build .
 
-GLOG_v=1 FLAGS_print_ir=1 ctest -j$TEST_PARALLEL_NUM --output-on-failure
+ctest -j$TEST_PARALLEL_NUM --output-on-failure

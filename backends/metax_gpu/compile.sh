@@ -28,7 +28,7 @@ export LD_LIBRARY_PATH=${MACA_PATH}/lib:${MACA_PATH}/mxgpu_llvm/lib:${LD_LIBRARY
 export PADDLE_VERSION="3.3.0.dev$(date +%Y%m%d)"
 export MACA_AI_VERSION=$(cat /opt/maca/Version.txt | cut -d':' -f2)
 if [ ! -d build ]; then
-echo "build directory not found, creating..."
+    echo "build directory not found, creating..."
     mkdir build
 fi
 

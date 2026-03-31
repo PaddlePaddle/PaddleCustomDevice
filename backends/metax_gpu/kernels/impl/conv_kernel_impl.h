@@ -140,7 +140,7 @@ void ConvKernelImpl(const Context& dev_ctx,
   int in_step = static_cast<int>(transformed_input.dims()[1]) / groups;
   int out_step = static_cast<int>(transformed_output.dims()[1]) / groups;
 
-  phi::funcs::Im2ColFunctor<phi::funcs::ColFormat::CFO, Context, T> im2col;
+  phi::funcs::Im2ColFunctor<phi::funcs::ColFormat::kCFO, Context, T> im2col;
   phi::funcs::Vol2ColFunctor<Context, T> vol2col;
 
   auto blas = phi::funcs::GetBlas<Context, T>(dev_ctx);

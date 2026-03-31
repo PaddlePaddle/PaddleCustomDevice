@@ -33,6 +33,7 @@ namespace cub = hipcub;
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/common/memory_utils.h"
 #include "paddle/phi/kernels/funcs/aligned_vector.h"
+#include "paddle/phi/kernels/funcs/fast_ln_v1.h"
 
 namespace phi {
 namespace funcs {

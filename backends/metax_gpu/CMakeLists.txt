@@ -43,7 +43,6 @@ if(WITH_ARM)
 endif()
 include(paddle)
 
-# 【修改点 1】: 添加 CINN 子目录编译
 if(WITH_CINN)
     message(STATUS "[MetaX] CINN enabled, adding subdirectory: cinn")
     add_definitions(-DWITH_CINN)
@@ -802,8 +801,6 @@ set(CMAKE_CUCC_FLAGS "-I ${MACA_PATH}/tools/cu-bridge/include/")
 
 add_library(${TARGET_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
 
-# 【修改点 2】: 添加 CINN 接口的头文件搜索路径
-# 这样 runtime/runtime.cc 里的 #include "../cinn/cinn_interface.h" 才能生效
 if(WITH_CINN)
     target_include_directories(${TARGET_NAME} PRIVATE 
         "${CMAKE_CURRENT_SOURCE_DIR}/cinn"
@@ -839,8 +836,6 @@ target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmccl.so)
 target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmcFlashAttn.so)
 target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmcpti.so)
 
-# 【修改点 3】: 将 CINN 编译出的对象文件链接进最终的 .so
-# 只有这样，Plugin 加载时才能找到 InitCinnInterface 等符号
 if(WITH_CINN)
     message(STATUS "[MetaX] Linking CINN object library")
     target_link_libraries(${TARGET_NAME} $<TARGET_OBJECTS:metax_cinn_obj>)

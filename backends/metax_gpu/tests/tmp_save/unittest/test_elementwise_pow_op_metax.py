@@ -17,20 +17,18 @@ import os
 import unittest
 
 import numpy as np
-import sys
-sys.path.insert(0, '/home/sw/Baidu-xuyuhan/PaddleCustomDevice/python/tests/')
 from op_test import OpTest, convert_float_to_uint16, skip_check_grad_ci
 
 import paddle
 from paddle import base
 from paddle.base import core
-import paddle.profiler as profiler
 
 
 def pow_grad(x, y, dout):
     dx = dout * y * np.power(x, (y - 1))
     dy = dout * np.log(x) * np.power(x, y)
     return dx, dy
+
 
 class TestElementwisePowOp(OpTest):
     def setUp(self):
@@ -45,61 +43,23 @@ class TestElementwisePowOp(OpTest):
         self.outputs = {"Out": np.power(self.inputs["X"], self.inputs["Y"])}
 
     def test_check_output(self):
-        # 定义输出路径 (会在当前目录下生成 profiler_log 文件夹)
-        # 1. 确保目录存在
-        output_dir = "./profiler_log"
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        output_path = "./profiler_log/check_output"
-        
-        # 定义回调函数，用于导出性能数据
-        def my_on_trace_ready(prof):
-            prof.export(path=output_path, format="json")
-
-        # 初始化 Profiler
-        # 注意：对于 MetaX 这类 CustomDevice，通常 target 选 CPU 即可捕获 Host 端调度
-        # 如果 MetaX 插件实现了 Profiler 接口，选 GPU 或 CUSTOM_DEVICE 可能捕获设备端信息
-        with profiler.Profiler(
-            targets=[profiler.ProfilerTarget.CPU, profiler.ProfilerTarget.CUSTOM_DEVICE], 
-            scheduler=profiler.make_scheduler(closed=0, ready=0, record=1, repeat=1),
-            on_trace_ready=my_on_trace_ready
-        ) as p:
-            # === 将原始测试逻辑包裹在这里 ===
-            if hasattr(self, "attrs"):
-                self.check_output(check_dygraph=False)
-            else:
-                self.check_output(check_pir=True, check_symbol_infer=False)
-            # ==============================
-            
-            p.step() # 通知 Profiler 一个 step 结束
+        if hasattr(self, "attrs"):
+            self.check_output(check_dygraph=False)
+        else:
+            self.check_output(check_pir=True, check_symbol_infer=False)
 
     def test_check_grad_normal(self):
-        # 1. 确保目录存在
-        output_dir = "./profiler_log"
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        output_path = "./profiler_log/check_grad"
-        def my_on_trace_ready(prof):
-            prof.export(path=output_path, format="json")
+        if hasattr(self, "attrs"):
+            self.check_grad(["X", "Y"], "Out", check_prim=True, check_dygraph=False)
+        else:
+            self.check_grad(
+                ["X", "Y"],
+                "Out",
+                check_prim=True,
+                check_prim_pir=True,
+                check_pir=True,
+            )
 
-        with profiler.Profiler(
-            targets=[profiler.ProfilerTarget.CPU, profiler.ProfilerTarget.CUSTOM_DEVICE],
-            scheduler=profiler.make_scheduler(closed=0, ready=0, record=1, repeat=1),
-            on_trace_ready=my_on_trace_ready
-        ) as p:
-            # === 将原始测试逻辑包裹在这里 ===
-            if hasattr(self, "attrs"):
-                self.check_grad(["X", "Y"], "Out", check_prim=True, check_dygraph=False)
-            else:
-                self.check_grad(
-                    ["X", "Y"],
-                    "Out",
-                    check_prim=True,
-                    check_prim_pir=True,
-                    check_pir=True,
-                )
-            # ==============================
-            p.step()
 
 class TestElementwisePowOp_ZeroDim1(TestElementwisePowOp):
     def setUp(self):
@@ -114,7 +74,7 @@ class TestElementwisePowOp_ZeroDim1(TestElementwisePowOp):
         }
         self.outputs = {"Out": np.power(self.inputs["X"], self.inputs["Y"])}
 
-'''
+
 class TestElementwisePowOp_ZeroDim2(TestElementwisePowOp):
     def setUp(self):
         self.op_type = "elementwise_pow"
@@ -127,6 +87,7 @@ class TestElementwisePowOp_ZeroDim2(TestElementwisePowOp):
             "Y": np.random.uniform(1, 2, []).astype("float64"),
         }
         self.outputs = {"Out": np.power(self.inputs["X"], self.inputs["Y"])}
+
 
 class TestElementwisePowOp_ZeroDim3(TestElementwisePowOp):
     def setUp(self):
@@ -494,6 +455,7 @@ class TestElementwisePowBF16Op(OpTest):
                 only_check_prim=True,
                 check_prim_pir=True,
             )
-'''
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,16 +1,31 @@
+// Copyright (c) 2026 PaddlePaddle Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // PaddleCustomDevice/backends/metax_gpu/cinn/compiler/compiler.cc
 
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <atomic>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <cstdlib>
-#include <cstdio>
-#include <cstring>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <ctime>
-#include <atomic>
 
 // Host-side header, used only by compiler.cc
 #include "paddle/phi/backends/device_ext.h"
@@ -26,6 +41,7 @@ static const char* kMacaRuntimeSource = R"MACA_SOURCE(
 #pragma once
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
+
 #include <limits>
 
 extern "C" {
@@ -96,7 +112,7 @@ __device__ inline int16_t FN_INT16(bitwise_not)(int16_t a) { return ~a; }
 __device__ inline int16_t FN_INT16(logical_right_shift)(int16_t a, int16_t b) { return ((uint16_t)a >> b); }
 
 // ===============================================================
-// 6. Standard Math Functions 
+// 6. Standard Math Functions
 // ===============================================================
 // ===============================================================
 // Float64 (Double) Math Functions
@@ -206,7 +222,7 @@ __device__ inline float FN_FP32(tanh_approx)(float x) {
 __device__ inline int FN_INT32(bitwise_not)(int a) { return ~a; }
 __device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
 __device__ inline int FN_INT32(popc)(int a) { return __popc(a); }
-__device__ inline int FN_INT32(mod)(int a, int b) { 
+__device__ inline int FN_INT32(mod)(int a, int b) {
   int res = a % b;
   if ((res != 0) && ((b ^ res) < 0)) res += b;
   return res;
@@ -965,7 +981,7 @@ __device__ int cinn_custom_device_resize_bicubic(const int *buf,
   return value;
 }
 } // extern "C"
- 
+
 // ===============================================================
 // 8. ArgMin/ArgMax Support (ArgIdx Structures & Shuffles)
 // ===============================================================
@@ -1020,22 +1036,22 @@ __device__ __forceinline__ double max(float a, double b) { return a > b ? (doubl
   __device__ __forceinline__ double max(double a, float b) { return a > b ? a : (double)b; }
   __device__ __forceinline__ double min(float a, double b) { return a < b ? (double)a : b; }
   __device__ __forceinline__ double min(double a, float b) { return a < b ? a : (double)b; }
-  
+
   // As a safeguard, resolve ambiguity when CINN emits int literals mixed with float (e.g., std::max(val, 0))
   __device__ __forceinline__ float max(float a, int b) { return a > b ? a : (float)b; }
   __device__ __forceinline__ float max(int a, float b) { return a > b ? (float)a : b; }
   __device__ __forceinline__ float min(float a, int b) { return a < b ? a : (float)b; }
   __device__ __forceinline__ float min(int a, float b) { return a < b ? (float)a : b; }
-  
+
   // ArgMax implementation
-  template <typename T> 
+  template <typename T>
   __device__ __forceinline__ T max_argidx_impl(const T& a, const T& b) {
     if (a.value > b.value) return a;
     if (a.value < b.value) return b;
     return a.index < b.index ? a : b;
   }
-  
-  template <typename T> 
+
+  template <typename T>
   __device__ __forceinline__ T min_argidx_impl(const T& a, const T& b) {
     if (a.value < b.value) return a;
     if (a.value > b.value) return b;
@@ -1043,15 +1059,15 @@ __device__ __forceinline__ double max(float a, double b) { return a > b ? (doubl
   }
 
   // Volatile overloads
-  template <typename T> 
+  template <typename T>
   __device__ __forceinline__ T max_argidx_volatile_impl(const volatile T& a, const volatile T& b) {
     T va, vb;
     va.value = a.value; va.index = a.index;
     vb.value = b.value; vb.index = b.index;
     return max_argidx_impl(va, vb);
   }
-  
-  template <typename T> 
+
+  template <typename T>
   __device__ __forceinline__ T min_argidx_volatile_impl(const volatile T& a, const volatile T& b) {
     T va, vb;
     va.value = a.value; va.index = a.index;
@@ -1062,7 +1078,7 @@ __device__ __forceinline__ double max(float a, double b) { return a > b ? (doubl
   // Explicit instantiation
   __device__ __forceinline__ argidx_fp32_i64 max(const argidx_fp32_i64& a, const argidx_fp32_i64& b) { return max_argidx_impl(a, b); }
   __device__ __forceinline__ argidx_fp32_i64 min(const argidx_fp32_i64& a, const argidx_fp32_i64& b) { return min_argidx_impl(a, b); }
-  
+
   __device__ __forceinline__ argidx_fp32_i64 max(const volatile argidx_fp32_i64& a, const volatile argidx_fp32_i64& b) { return max_argidx_volatile_impl(a, b); }
   __device__ __forceinline__ argidx_fp32_i64 min(const volatile argidx_fp32_i64& a, const volatile argidx_fp32_i64& b) { return min_argidx_volatile_impl(a, b); }
 
@@ -1070,8 +1086,8 @@ __device__ __forceinline__ double max(float a, double b) { return a > b ? (doubl
   __device__ __forceinline__ argidx_fp32_i32 min(const argidx_fp32_i32& a, const argidx_fp32_i32& b) { return min_argidx_impl(a, b); }
 }
 
-// =============================================================== 
-// 9. ArgMin/ArgMax Block Reduce Instantiation 
+// ===============================================================
+// 9. ArgMin/ArgMax Block Reduce Instantiation
 // ===============================================================
 
 // Row-wise reduction supporting 2D thread blocks
@@ -1088,7 +1104,7 @@ __device__ inline T cinn_block_reduce_shm_impl(T value, T* shm_discard, Func red
 
     // Allocate sufficient static shared memory (1024 covers up to 32x32 thread blocks).
     // Increase this if your block is larger, though CINN argmax blocks are typically small.
-    __shared__ T internal_shm[1024]; 
+    __shared__ T internal_shm[1024];
 
     // 1. Store values (with bounds check)
     if (idx < 1024) {
@@ -1128,16 +1144,16 @@ struct ArgIdxMinOp {
 
 extern "C" {
 
-__device__ inline argidx_fp32_i64 cinn_block_reduce_max(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) { 
+__device__ inline argidx_fp32_i64 cinn_block_reduce_max(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) {
     return cinn_block_reduce_shm_impl(value, shm, ArgIdxMaxOp());
 }
 
-__device__ inline argidx_fp32_i64 cinn_block_reduce_min(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) { 
+__device__ inline argidx_fp32_i64 cinn_block_reduce_min(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) {
     return cinn_block_reduce_shm_impl(value, shm, ArgIdxMinOp());
 }
 
-__device__ inline argidx_fp32_i64 cinn_block_reduce_min_argidx_fp32_i64(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) { 
-    return cinn_block_reduce_min(value, shm, return_warp); 
+__device__ inline argidx_fp32_i64 cinn_block_reduce_min_argidx_fp32_i64(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) {
+    return cinn_block_reduce_min(value, shm, return_warp);
 }
 
 __device__ inline argidx_fp32_i64 cinn_block_reduce_max_argidx_fp32_i64(const argidx_fp32_i64 value, argidx_fp32_i64 *shm, bool return_warp = false) {
@@ -1161,9 +1177,8 @@ __device__ inline argidx_fp32_i32 cinn_block_reduce_max_argidx_fp32_i32(const ar
     return cinn_block_reduce_max(value, shm, return_warp);
 }
 
-} // extern "C" 
+} // extern "C"
 )MACA_SOURCE";
-
 
 // ============================================================
 // 2. Interface Implementation
@@ -1172,86 +1187,93 @@ __device__ inline argidx_fp32_i32 cinn_block_reduce_max_argidx_fp32_i32(const ar
 // Global atomic counter to ensure unique filenames
 static std::atomic<uint64_t> g_compile_counter{0};
 
-const char* MetaxGetRuntimeSource(void* dev_ptr) {
-    return kMacaRuntimeSource;
+const char* MetaxGetRuntimeSource(void* dev_ptr) { return kMacaRuntimeSource; }
+
+C_Status MetaxCompile(void* dev_ptr,
+                      const char* code,
+                      char* out_path,
+                      size_t len) {
+  // 0. Generate unique filename
+  // Use PID + atomic counter to generate unique filenames,
+  // completely resolving filename collisions during concurrent compilation
+  uint64_t file_id = g_compile_counter.fetch_add(1);
+  std::string file_prefix =
+      "cinn_metax_" + std::to_string(getpid()) + "_" + std::to_string(file_id);
+
+  // Generate temporary file paths
+  std::string src_path = "/tmp/" + file_prefix + ".cu";
+  std::string obj_path = "/tmp/" + file_prefix + ".co";
+
+  // 1. Write source code
+  {
+    // Open in truncate mode; although the filename is unique, this is a safety
+    // measure
+    std::ofstream src_file(src_path, std::ios::trunc);
+    if (!src_file.is_open()) {
+      std::cerr << "[MetaX] Failed to open temp file: " << src_path
+                << std::endl;
+      return C_Status::C_FAILED;
+    }
+    src_file << kMacaRuntimeSource << "\n";
+    src_file << code;
+    src_file.close();
+  }
+
+  // 2. Resolve compiler binary path
+  const char* maca_path_env = std::getenv("MACA_PATH");
+  std::string maca_path =
+      maca_path_env ? std::string(maca_path_env) : "/opt/maca";
+
+  std::string mxcc_cmd = maca_path + "/mxgpu_llvm/bin/mxcc";
+  if (access(mxcc_cmd.c_str(), X_OK) != 0) {
+    mxcc_cmd = maca_path + "/bin/mxcc";
+    if (access(mxcc_cmd.c_str(), X_OK) != 0) mxcc_cmd = "mxcc";
+  }
+
+  // 3. Build compilation command
+  std::string cmd =
+      mxcc_cmd +
+      " -O3 -std=c++17 -w --fatbin --offload-arch=native -fvisibility=default";
+  cmd += " -I" + maca_path + "/include";
+  cmd += " -I" + maca_path + "/tools/cu-bridge/include";
+  cmd += " -o " + obj_path;
+  cmd += " " + src_path;
+
+  // 4. Execute compilation
+  std::cout << "Command: " << cmd << std::endl;
+  int ret = std::system(cmd.c_str());
+  if (ret != 0) {
+    std::cerr << "[MetaX] JIT Compilation Failed! Code: " << ret << std::endl;
+    std::cerr << "Command: " << cmd << std::endl;
+    return C_Status::C_FAILED;
+  }
+
+  // 5. Verify output file exists
+  if (access(obj_path.c_str(), F_OK) != 0) {
+    std::cerr << "[MetaX] Output file missing: " << obj_path << std::endl;
+    return C_Status::C_FAILED;
+  }
+
+  // =================================================================
+  // 6. Write back the generated binary path to the CINN framework
+  // =================================================================
+  if (out_path && len > 0) {
+    // Use strncpy for safe copy
+    std::strncpy(out_path, obj_path.c_str(), len - 1);
+    out_path[len - 1] = '\0';  // Ensure null-termination
+    // Print debug info to confirm write-back succeeded
+    std::cout << "[MetaX Success] Compiled: " << out_path << std::endl;
+  } else {
+    std::cerr << "[MetaX Error] Invalid out_path buffer!" << std::endl;
+    return C_Status::C_FAILED;
+  }
+
+  // 7. Clean up source file (enable after debugging is complete)
+  std::remove(src_path.c_str());
+
+  return C_Status::C_SUCCESS;
 }
 
-C_Status MetaxCompile(void* dev_ptr, const char* code, char* out_path, size_t len) {
-    // 0. Generate unique filename
-    // Use PID + atomic counter to generate unique filenames,
-    // completely resolving filename collisions during concurrent compilation
-    uint64_t file_id = g_compile_counter.fetch_add(1);
-    std::string file_prefix = "cinn_metax_" + std::to_string(getpid()) + "_" + std::to_string(file_id);
-    
-    // Generate temporary file paths
-    std::string src_path = "/tmp/" + file_prefix + ".cu";
-    std::string obj_path = "/tmp/" + file_prefix + ".co";
-
-    // 1. Write source code
-    {
-        // Open in truncate mode; although the filename is unique, this is a safety measure
-        std::ofstream src_file(src_path, std::ios::trunc);
-        if (!src_file.is_open()) {
-            std::cerr << "[MetaX] Failed to open temp file: " << src_path << std::endl;
-            return C_Status::C_FAILED;
-        }
-        src_file << kMacaRuntimeSource << "\n";
-        src_file << code;
-        src_file.close();
-    }
-
-    // 2. Resolve compiler binary path
-    const char* maca_path_env = std::getenv("MACA_PATH");
-    std::string maca_path = maca_path_env ? std::string(maca_path_env) : "/opt/maca";
-    
-    std::string mxcc_cmd = maca_path + "/mxgpu_llvm/bin/mxcc";
-    if (access(mxcc_cmd.c_str(), X_OK) != 0) {
-         mxcc_cmd = maca_path + "/bin/mxcc";
-         if (access(mxcc_cmd.c_str(), X_OK) != 0) mxcc_cmd = "mxcc";
-    }
-
-    // 3. Build compilation command
-    std::string cmd = mxcc_cmd + " -O3 -std=c++17 -w --fatbin --offload-arch=native -fvisibility=default";
-    cmd += " -I" + maca_path + "/include";
-    cmd += " -I" + maca_path + "/tools/cu-bridge/include";
-    cmd += " -o " + obj_path;
-    cmd += " " + src_path;
-
-    // 4. Execute compilation
-    std::cout << "Command: " << cmd << std::endl;
-    int ret = std::system(cmd.c_str());
-    if (ret != 0) {
-        std::cerr << "[MetaX] JIT Compilation Failed! Code: " << ret << std::endl;
-        std::cerr << "Command: " << cmd << std::endl;
-        return C_Status::C_FAILED;
-    }
-
-    // 5. Verify output file exists
-    if (access(obj_path.c_str(), F_OK) != 0) {
-        std::cerr << "[MetaX] Output file missing: " << obj_path << std::endl;
-        return C_Status::C_FAILED;
-    }
-
-    // =================================================================
-    // 6. Write back the generated binary path to the CINN framework
-    // =================================================================
-    if (out_path && len > 0) {
-        // Use strncpy for safe copy
-        std::strncpy(out_path, obj_path.c_str(), len - 1);
-        out_path[len - 1] = '\0'; // Ensure null-termination
-        // Print debug info to confirm write-back succeeded
-        std::cout << "[MetaX Success] Compiled: " << out_path << std::endl;
-    } else {
-        std::cerr << "[MetaX Error] Invalid out_path buffer!" << std::endl;
-        return C_Status::C_FAILED;
-    }
-
-    // 7. Clean up source file (enable after debugging is complete)
-    std::remove(src_path.c_str());
-
-    return C_Status::C_SUCCESS;
-}
-
-} // namespace metax
-} // namespace custom_device
-} // namespace paddle
+}  // namespace metax
+}  // namespace custom_device
+}  // namespace paddle

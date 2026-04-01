@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/backends/device_ext.h"
 #include <cuda.h>
+
 #include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "paddle/phi/backends/device_ext.h"
 
 namespace paddle {
 namespace custom_device {
@@ -24,47 +26,62 @@ namespace metax {
 
 // Load module: equivalent to cuModuleLoad
 C_Status MetaxModuleLoad(void* dev_ptr, const char* path, void** mod_out) {
-    CUmodule module;
-    CUresult err = cuModuleLoad(&module, path);
-    if (err != CUDA_SUCCESS) return C_Status::C_FAILED;
+  CUmodule module;
+  CUresult err = cuModuleLoad(&module, path);
+  if (err != CUDA_SUCCESS) return C_Status::C_FAILED;
 
-    *mod_out = (void*)module;
-    return C_Status::C_SUCCESS;
+  *mod_out = reinterpret_cast<void*>(module);
+  return C_Status::C_SUCCESS;
 }
 
 // Unload module
 C_Status MetaxModuleUnload(void* dev_ptr, void* module_handle) {
-    cuModuleUnload((CUmodule)module_handle);
-    return C_Status::C_SUCCESS;
+  cuModuleUnload((CUmodule)module_handle);
+  return C_Status::C_SUCCESS;
 }
 
 // Get kernel function address: equivalent to cuModuleGetFunction
-C_Status MetaxGetKernelAddress(void* dev_ptr, void* module_handle, const char* func_name, void** func_out) {
-    CUfunction func;
-    CUresult err = cuModuleGetFunction(&func, (CUmodule)module_handle, func_name);
-    if (err != CUDA_SUCCESS) return C_Status::C_FAILED;
+C_Status MetaxGetKernelAddress(void* dev_ptr,
+                               void* module_handle,
+                               const char* func_name,
+                               void** func_out) {
+  CUfunction func;
+  CUresult err = cuModuleGetFunction(&func, (CUmodule)module_handle, func_name);
+  if (err != CUDA_SUCCESS) return C_Status::C_FAILED;
 
-    *func_out = (void*)func;
-    return C_Status::C_SUCCESS;
+  *func_out = reinterpret_cast<void*>(func);
+  return C_Status::C_SUCCESS;
 }
 
 // Launch kernel: equivalent to cuLaunchKernel
-C_Status MetaxLaunchKernel(void* dev_ptr, void* func_ptr, void** args, int num_args,
-                           int gx, int gy, int gz,
-                           int bx, int by, int bz,
-                           int shm, void* stream) {
-    // Note: args is typically a void*[] and may require argument marshaling
-    CUresult err = cuLaunchKernel((CUfunction)func_ptr,
-                                  gx, gy, gz,
-                                  bx, by, bz,
-                                  shm,
-                                  (CUstream)stream,
-                                  args,
-                                  nullptr);
-    if (err != CUDA_SUCCESS) return C_Status::C_FAILED;
-    return C_Status::C_SUCCESS;
+C_Status MetaxLaunchKernel(void* dev_ptr,
+                           void* func_ptr,
+                           void** args,
+                           int num_args,
+                           int gx,
+                           int gy,
+                           int gz,
+                           int bx,
+                           int by,
+                           int bz,
+                           int shm,
+                           void* stream) {
+  // Note: args is typically a void*[] and may require argument marshaling
+  CUresult err = cuLaunchKernel((CUfunction)func_ptr,
+                                gx,
+                                gy,
+                                gz,
+                                bx,
+                                by,
+                                bz,
+                                shm,
+                                (CUstream)stream,
+                                args,
+                                nullptr);
+  if (err != CUDA_SUCCESS) return C_Status::C_FAILED;
+  return C_Status::C_SUCCESS;
 }
 
-} // namespace metax
-} // namespace custom_device
-} // namespace paddle
+}  // namespace metax
+}  // namespace custom_device
+}  // namespace paddle

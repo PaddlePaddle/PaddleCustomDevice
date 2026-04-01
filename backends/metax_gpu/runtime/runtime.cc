@@ -35,6 +35,7 @@
 #include <mutex>
 #include <unordered_map>
 
+#include "../cinn/cinn_interface.h"
 #include "glog/logging.h"
 #include "paddle/fluid/platform/profiler/cuda_tracer.h"
 #include "paddle/fluid/platform/profiler/cupti_data_process.h"
@@ -53,10 +54,8 @@
 #include "paddle/phi/core/platform/device/gpu/gpu_info.h"
 #include "paddle/phi/core/platform/profiler/utils.cc"  //NOLINT
 #include "paddle/phi/core/platform/profiler/utils.h"
-#include "paddle/phi/backends/device_ext.h"
 #include "passes/pattern_passes.h"
 #include "runtime/process_cupti_data.cc"  //NOLINT
-#include "../cinn/cinn_interface.h"
 #include "unsupported/Eigen/CXX11/Tensor"
 #define MEMORY_FRACTION 0.5f
 
@@ -69,10 +68,10 @@ const char *const SubDeviceType = "v0.1";
 namespace paddle {
 namespace custom_device {
 namespace metax {
-    void InitCinnInterface(C_DeviceInterface* interface);
+void InitCinnInterface(C_DeviceInterface *interface);
 }
-}
-}
+}  // namespace custom_device
+}  // namespace paddle
 #endif
 
 namespace phi {
@@ -406,7 +405,7 @@ C_Status GetMaxThreadsPerBlock(const C_Device device,
 }
 
 C_Status GetMaxSharedMemPerBlock(const C_Device device,
-                               size_t *shared_mem_per_block) {
+                                 size_t *shared_mem_per_block) {
   int id = device->id;
   int count = 0;
   cudaError_t status =
@@ -415,28 +414,26 @@ C_Status GetMaxSharedMemPerBlock(const C_Device device,
   return C_SUCCESS;
 }
 
-C_Status GetWarpSize(const C_Device device,
-                               size_t *warp_size) {
+C_Status GetWarpSize(const C_Device device, size_t *warp_size) {
   int id = device->id;
   int size = 0;
-  cudaError_t status =
-      cudaDeviceGetAttribute(&size, cudaDevAttrWarpSize, id);
+  cudaError_t status = cudaDeviceGetAttribute(&size, cudaDevAttrWarpSize, id);
   *warp_size = size;
   return C_SUCCESS;
 }
 
 C_Status GetMaxRegistersPerMultiProcessor(const C_Device device,
-                               size_t *registers_per_mp) {
+                                          size_t *registers_per_mp) {
   int id = device->id;
   int count = 0;
-  cudaError_t status =
-      cudaDeviceGetAttribute(&count, cudaDevAttrMaxRegistersPerMultiprocessor, id);
+  cudaError_t status = cudaDeviceGetAttribute(
+      &count, cudaDevAttrMaxRegistersPerMultiprocessor, id);
   *registers_per_mp = count;
   return C_SUCCESS;
 }
 
 C_Status GetPreferredVectorWidth(const C_Device device,
-                               size_t *vector_alignment) {
+                                 size_t *vector_alignment) {
   int id = device->id;
   // int count = 0;
   // cudaError_t status =
@@ -445,9 +442,9 @@ C_Status GetPreferredVectorWidth(const C_Device device,
   *vector_alignment = 128;
   return C_SUCCESS;
 }
-  
+
 C_Status GetMaxBlocksPerMultiProcessor(const C_Device device,
-                               size_t *blocks_per_mp) {
+                                       size_t *blocks_per_mp) {
   int id = device->id;
   int count = 0;
   cudaError_t status =
@@ -473,15 +470,18 @@ C_Status GetMaxGridDimSize(const C_Device device,
 }
 
 C_Status GetMaxBlockDimSize(const C_Device device,
-                           std::array<unsigned int, 3> *block_dim_size) {
+                            std::array<unsigned int, 3> *block_dim_size) {
   int id = device->id;
   std::array<unsigned int, 3> ret = {};
   int size;
-  auto error_code_x = cudaDeviceGetAttribute(&size, cudaDevAttrMaxBlockDimX, id);
+  auto error_code_x =
+      cudaDeviceGetAttribute(&size, cudaDevAttrMaxBlockDimX, id);
   ret[0] = size;
-  auto error_code_y = cudaDeviceGetAttribute(&size, cudaDevAttrMaxBlockDimY, id);
+  auto error_code_y =
+      cudaDeviceGetAttribute(&size, cudaDevAttrMaxBlockDimY, id);
   ret[1] = size;
-  auto error_code_z = cudaDeviceGetAttribute(&size, cudaDevAttrMaxBlockDimZ, id);
+  auto error_code_z =
+      cudaDeviceGetAttribute(&size, cudaDevAttrMaxBlockDimZ, id);
   ret[2] = size;
 
   *block_dim_size = ret;
@@ -1549,7 +1549,8 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->get_max_shared_mem_per_block = GetMaxSharedMemPerBlock;
   params->interface->get_max_blocks_per_mp = GetMaxBlocksPerMultiProcessor;
   params->interface->get_warp_size = GetWarpSize;
-  params->interface->get_max_registers_per_mp = GetMaxRegistersPerMultiProcessor;
+  params->interface->get_max_registers_per_mp =
+      GetMaxRegistersPerMultiProcessor;
   params->interface->get_vector_width = GetPreferredVectorWidth;
   params->interface->get_max_grid_dim_size = GetMaxGridDimSize;
   params->interface->get_max_block_dim_size = GetMaxBlockDimSize;
@@ -1636,12 +1637,12 @@ void InitPlugin(CustomRuntimeParams *params) {
   // PIR pass pipeline
   params->pir_default_passes = reinterpret_cast<void *>(
       const_cast<std::vector<std::string> *>(GetPirMetaxGpuPasses()));
-  
+
   // CINN interface init
 #ifdef WITH_CINN
   if (params->interface) {
-      paddle::custom_device::metax::InitCinnInterface(params->interface);
-      LOG(INFO) << "[MetaX] CINN Interface registered successfully.";
+    paddle::custom_device::metax::InitCinnInterface(params->interface);
+    LOG(INFO) << "[MetaX] CINN Interface registered successfully.";
   }
 #endif
 }

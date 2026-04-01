@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/backends/device_ext.h"
 #include <iostream>
+
+#include "paddle/phi/backends/device_ext.h"
 
 namespace paddle {
 namespace custom_device {
@@ -22,10 +23,10 @@ namespace metax {
 // Applies custom graph optimization passes.
 // Currently a no-op stub; returns success immediately.
 C_Status MetaxApplyCustomPass(void* dev_ptr, void* ir_module) {
-    // VLOG(3) << "[MetaX] MetaxApplyCustomPass called (No-op)";
-    return C_Status::C_SUCCESS;
+  // VLOG(3) << "[MetaX] MetaxApplyCustomPass called (No-op)";
+  return C_Status::C_SUCCESS;
 }
 
-} // namespace metax
-} // namespace custom_device
-} // namespace paddle
+}  // namespace metax
+}  // namespace custom_device
+}  // namespace paddle

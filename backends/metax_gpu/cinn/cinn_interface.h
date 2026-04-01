@@ -28,10 +28,11 @@ namespace metax {
  * It populates device_interface->cinn_interface with the compiler
  * and runtime function pointers implemented under metax_gpu/cinn.
  *
- * @param device_interface The device interface pointer passed from the Paddle host side.
+ * @param device_interface The device interface pointer passed from the Paddle
+ * host side.
  */
 void InitCinnInterface(C_DeviceInterface* device_interface);
 
-} // namespace metax
-} // namespace custom_device
-} // namespace paddle
+}  // namespace metax
+}  // namespace custom_device
+}  // namespace paddle

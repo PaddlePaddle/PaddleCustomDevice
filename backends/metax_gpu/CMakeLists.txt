@@ -44,9 +44,9 @@ endif()
 include(paddle)
 
 if(WITH_CINN)
-    message(STATUS "[MetaX] CINN enabled, adding subdirectory: cinn")
-    add_definitions(-DWITH_CINN)
-    add_subdirectory(cinn)
+  message(STATUS "[MetaX] CINN enabled, adding subdirectory: cinn")
+  add_definitions(-DWITH_CINN)
+  add_subdirectory(cinn)
 endif()
 
 set(THIRD_PARTY_PATH
@@ -802,9 +802,8 @@ set(CMAKE_CUCC_FLAGS "-I ${MACA_PATH}/tools/cu-bridge/include/")
 add_library(${TARGET_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
 
 if(WITH_CINN)
-    target_include_directories(${TARGET_NAME} PRIVATE 
-        "${CMAKE_CURRENT_SOURCE_DIR}/cinn"
-    )
+  target_include_directories(${TARGET_NAME}
+                             PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/cinn")
 endif()
 
 target_include_directories(
@@ -837,8 +836,8 @@ target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmcFlashAttn.so)
 target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmcpti.so)
 
 if(WITH_CINN)
-    message(STATUS "[MetaX] Linking CINN object library")
-    target_link_libraries(${TARGET_NAME} $<TARGET_OBJECTS:metax_cinn_obj>)
+  message(STATUS "[MetaX] Linking CINN object library")
+  target_link_libraries(${TARGET_NAME} $<TARGET_OBJECTS:metax_cinn_obj>)
 endif()
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})

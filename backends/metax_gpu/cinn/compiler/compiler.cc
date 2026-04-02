@@ -700,6 +700,65 @@ EXPAND_REDUCE_FP64_MACRO(CINN_DISCRETE_REDUCE_MACRO)
 EXPAND_REDUCE_BOOL_MACRO(CINN_DISCRETE_REDUCE_MACRO)
 EXPAND_REDUCE_FP16_MACRO(CINN_DISCRETE_REDUCE_MACRO)
 
+// ===============================================================
+// ArgMin/ArgMax Support (ArgIdx Structures & Combine Functions)
+// Must be defined before discrete/block/grid reduce functions that use them
+// ===============================================================
+
+// arg reduce arg index struct
+// Do not define operator<; force dispatch through std::max overloads
+#define ARGIDX_STRUCT_MACRO(TYPENAME, DTYPE, ITYPE, IINIT)                    \
+  struct TYPENAME {                                                           \
+    DTYPE value;                                                              \
+    ITYPE index;                                                              \
+    __device__ TYPENAME() {}                                                  \
+    __device__ explicit TYPENAME(DTYPE value) : value(value), index(IINIT) {} \
+    __device__ TYPENAME(DTYPE value, ITYPE index)                             \
+        : value(value), index(index) {}                                       \
+    __device__ explicit operator ITYPE() { return index; }                    \
+    /* Assignment operator support */                                         \
+    __device__ inline TYPENAME& operator=(const TYPENAME& other) {            \
+        value = other.value;                                                  \
+        index = other.index;                                                  \
+        return *this;                                                         \
+    }                                                                         \
+    __device__ inline volatile TYPENAME& operator=(const volatile TYPENAME& other) volatile { \
+        value = other.value;                                                  \
+        index = other.index;                                                  \
+        return *this;                                                         \
+    }                                                                         \
+  };
+
+// Instantiate structs
+#ifdef CINN_CUDA_FP16
+ARGIDX_STRUCT_MACRO(argidx_fp16_i64, float16, int64_t, 0LL)
+#endif
+ARGIDX_STRUCT_MACRO(argidx_fp32_i64, float, int64_t, 0LL)
+ARGIDX_STRUCT_MACRO(argidx_fp64_i64, double, int64_t, 0LL)
+ARGIDX_STRUCT_MACRO(argidx_i16_i64, int16_t, int64_t, 0LL)
+ARGIDX_STRUCT_MACRO(argidx_i32_i64, int, int64_t, 0LL)
+ARGIDX_STRUCT_MACRO(argidx_i64_i64, int64_t, int64_t, 0LL)
+ARGIDX_STRUCT_MACRO(argidx_u8_i64, uint8_t, int64_t, 0LL)
+
+ARGIDX_STRUCT_MACRO(argidx_fp32_i32, float, int, 0)
+ARGIDX_STRUCT_MACRO(argidx_i32_i32, int, int, 0)
+
+// cinn_max_argidx / cinn_min_argidx combine functions
+// These are called by CINN_DISCRETE_REDUCE_IMPL via cinn_##REDUCE_TYPE token pasting
+#define ARGIDX_COMBINE_MACRO(TYPENAME)                              \
+  __device__ TYPENAME cinn_min_##TYPENAME(TYPENAME a, TYPENAME b) { \
+    return a.value == b.value ? (a.index < b.index ? a : b)         \
+                              : (a.value < b.value ? a : b);        \
+  }                                                                 \
+  __device__ TYPENAME cinn_max_##TYPENAME(TYPENAME a, TYPENAME b) { \
+    return a.value == b.value ? (a.index < b.index ? a : b)         \
+                              : (a.value > b.value ? a : b);        \
+  }
+
+ARGIDX_COMBINE_MACRO(argidx_fp32_i32)
+ARGIDX_COMBINE_MACRO(argidx_fp32_i64)
+ARGIDX_COMBINE_MACRO(argidx_i32_i32)
+
 // Discrete reduce for argidx types
 __device__ inline argidx_fp32_i32 cinn_discrete_reduce_max_argidx_fp32_i32(
     const argidx_fp32_i32 value, argidx_fp32_i32 *shm) {
@@ -983,47 +1042,8 @@ __device__ int cinn_custom_device_resize_bicubic(const int *buf,
 } // extern "C"
 
 // ===============================================================
-// 8. ArgMin/ArgMax Support (ArgIdx Structures & Shuffles)
+// 8. ArgMin/ArgMax std::max/min Overloads & Block Reduce
 // ===============================================================
-// --- C++ Scope Start ---
-
-// arg reduce arg index struct
-// Do not define operator<; force dispatch through std::max overloads
-#define ARGIDX_STRUCT_MACRO(TYPENAME, DTYPE, ITYPE, IINIT)                    \
-  struct TYPENAME {                                                           \
-    DTYPE value;                                                              \
-    ITYPE index;                                                              \
-    __device__ TYPENAME() {}                                                  \
-    __device__ explicit TYPENAME(DTYPE value) : value(value), index(IINIT) {} \
-    __device__ TYPENAME(DTYPE value, ITYPE index)                             \
-        : value(value), index(index) {}                                       \
-    __device__ explicit operator ITYPE() { return index; }                    \
-    /* Assignment operator support */                                                      \
-    __device__ inline TYPENAME& operator=(const TYPENAME& other) {            \
-        value = other.value;                                                  \
-        index = other.index;                                                  \
-        return *this;                                                         \
-    }                                                                         \
-    __device__ inline volatile TYPENAME& operator=(const volatile TYPENAME& other) volatile { \
-        value = other.value;                                                  \
-        index = other.index;                                                  \
-        return *this;                                                         \
-    } \
-  };
-
-// Instantiate structs
-#ifdef CINN_CUDA_FP16
-ARGIDX_STRUCT_MACRO(argidx_fp16_i64, float16, int64_t, 0LL)
-#endif
-ARGIDX_STRUCT_MACRO(argidx_fp32_i64, float, int64_t, 0LL)
-ARGIDX_STRUCT_MACRO(argidx_fp64_i64, double, int64_t, 0LL)
-ARGIDX_STRUCT_MACRO(argidx_i16_i64, int16_t, int64_t, 0LL)
-ARGIDX_STRUCT_MACRO(argidx_i32_i64, int, int64_t, 0LL)
-ARGIDX_STRUCT_MACRO(argidx_i64_i64, int64_t, int64_t, 0LL)
-ARGIDX_STRUCT_MACRO(argidx_u8_i64, uint8_t, int64_t, 0LL)
-
-ARGIDX_STRUCT_MACRO(argidx_fp32_i32, float, int, 0)
-ARGIDX_STRUCT_MACRO(argidx_i32_i32, int, int, 0)
 
 // std::max overloads
 namespace std {

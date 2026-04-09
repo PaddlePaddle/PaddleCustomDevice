@@ -17,6 +17,8 @@ project(${PROJ_NAME} CXX C CUDA)
 
 set(TARGET_NAME ${PROJ_NAME})
 
+option(WITH_CINN "Compile with CINN support" ON)
+
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(PY_VERSION ${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
 message(STATUS "Python version detected: ${PY_VERSION}")
@@ -24,6 +26,20 @@ set(PYTHON_VERSION ${PY_VERSION})
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
+
+if(NOT DEFINED PADDLE_WARP_SIZE)
+  set(PADDLE_WARP_SIZE 64)
+endif()
+math(EXPR PADDLE_WARP_MASK "${PADDLE_WARP_SIZE} - 1")
+if(PADDLE_WARP_SIZE EQUAL 64)
+  set(PADDLE_WARP_SHIFT 6)
+else()
+  set(PADDLE_WARP_SHIFT 5)
+endif()
+add_definitions(-DPADDLE_WARP_SIZE=${PADDLE_WARP_SIZE})
+add_definitions(-DPADDLE_WARP_MASK=${PADDLE_WARP_MASK})
+add_definitions(-DPADDLE_WARP_SHIFT=${PADDLE_WARP_SHIFT})
+
 set(WITH_MKLML ON)
 if(WITH_ARM)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
@@ -40,6 +56,13 @@ if(WITH_ARM)
   add_definitions(-DPADDLE_WITH_ARM)
 endif()
 include(paddle)
+
+if(WITH_CINN)
+  message(STATUS "[MetaX] CINN enabled, adding subdirectory: cinn")
+  add_definitions(-DWITH_CINN)
+  add_subdirectory(cinn)
+endif()
+
 set(THIRD_PARTY_PATH
     "${PADDLE_SOURCE_DIR}/build/third_party"
     CACHE PATH "Third party libraries directory.")
@@ -290,7 +313,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/squeeze_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/squeeze_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sign_kernel.cu.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sign_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/split_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_nd_add_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_nd_add_grad_kernel.cu
@@ -792,6 +815,11 @@ set(CMAKE_CUCC_FLAGS "-I ${MACA_PATH}/tools/cu-bridge/include/")
 
 add_library(${TARGET_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
 
+if(WITH_CINN)
+  target_include_directories(${TARGET_NAME}
+                             PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/cinn")
+endif()
+
 target_include_directories(
   ${TARGET_NAME}
   PRIVATE ${PADDLE_SOURCE_DIR}
@@ -820,6 +848,11 @@ target_link_libraries(
 target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmccl.so)
 target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmcFlashAttn.so)
 target_link_libraries(${TARGET_NAME} ${MACA_PATH}/lib/libmcpti.so)
+
+if(WITH_CINN)
+  message(STATUS "[MetaX] Linking CINN object library")
+  target_link_libraries(${TARGET_NAME} $<TARGET_OBJECTS:metax_cinn_obj>)
+endif()
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 include_directories(BEFORE ${CMAKE_SOURCE_DIR}/headers)

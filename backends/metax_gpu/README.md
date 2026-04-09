@@ -2,7 +2,7 @@
 
 English | [简体中文](./README_cn.md)
 
-Please refer to the following steps to compile, install and verify the custom device implementation for Iluvatar GPU.
+Please refer to the following steps to compile, install and verify the custom device implementation for Metax GPU.
 
 ## Install Paddle
 

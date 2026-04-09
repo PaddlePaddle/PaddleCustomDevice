@@ -1,455 +1,455 @@
-name: IXUCA-Smoke-Watchdog
+# name: IXUCA-Smoke-Watchdog
 
-on:
-  workflow_run:
-    workflows: ["IXUCA-Smoke-Schedule"]
-    types: [completed]
-  schedule:
-    - cron: "*/15 * * * *"  # 排队超时检测
-  workflow_dispatch:
+# on:
+#   workflow_run:
+#     workflows: ["IXUCA-Smoke-Schedule"]
+#     types: [completed]
+#   schedule:
+#     - cron: "*/15 * * * *"  # 排队超时检测
+#   workflow_dispatch:
 
-permissions:
-  actions: write
-  contents: read
+# permissions:
+#   actions: write
+#   contents: read
 
-concurrency:
-  group: ixuca-smoke-watchdog
-  cancel-in-progress: true
+# concurrency:
+#   group: ixuca-smoke-watchdog
+#   cancel-in-progress: true
 
-jobs:
-  check-and-alert:
-    name: Check IXUCA smoke status and alert
-    runs-on: ubuntu-latest
-    steps:
-      - name: Fetch previous watchdog state artifact
-        id: fetch_state
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
+# jobs:
+#   check-and-alert:
+#     name: Check IXUCA smoke status and alert
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Fetch previous watchdog state artifact
+#         id: fetch_state
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             const owner = context.repo.owner;
+#             const repo = context.repo.repo;
 
-            const artifactsResp = await github.rest.actions.listArtifactsForRepo({
-              owner,
-              repo,
-              per_page: 100
-            });
+#             const artifactsResp = await github.rest.actions.listArtifactsForRepo({
+#               owner,
+#               repo,
+#               per_page: 100
+#             });
 
-            const artifacts = artifactsResp.data.artifacts || [];
-            const candidates = artifacts
-              .filter(a => a.name === "ixuca-smoke-watchdog-state" && !a.expired)
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+#             const artifacts = artifactsResp.data.artifacts || [];
+#             const candidates = artifacts
+#               .filter(a => a.name === "ixuca-smoke-watchdog-state" && !a.expired)
+#               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-            if (candidates.length > 0) {
-              core.setOutput("artifact_id", String(candidates[0].id));
-              core.info(`Found previous state artifact: ${candidates[0].id}`);
-            } else {
-              core.info("No previous state artifact found.");
-            }
+#             if (candidates.length > 0) {
+#               core.setOutput("artifact_id", String(candidates[0].id));
+#               core.info(`Found previous state artifact: ${candidates[0].id}`);
+#             } else {
+#               core.info("No previous state artifact found.");
+#             }
 
-      - name: Download previous watchdog state zip
-        if: steps.fetch_state.outputs.artifact_id != ''
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const artifactId = Number("${{ steps.fetch_state.outputs.artifact_id }}");
-            const fs = require("fs");
+#       - name: Download previous watchdog state zip
+#         if: steps.fetch_state.outputs.artifact_id != ''
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             const owner = context.repo.owner;
+#             const repo = context.repo.repo;
+#             const artifactId = Number("${{ steps.fetch_state.outputs.artifact_id }}");
+#             const fs = require("fs");
 
-            const response = await github.rest.actions.downloadArtifact({
-              owner,
-              repo,
-              artifact_id: artifactId,
-              archive_format: "zip"
-            });
+#             const response = await github.rest.actions.downloadArtifact({
+#               owner,
+#               repo,
+#               artifact_id: artifactId,
+#               archive_format: "zip"
+#             });
 
-            fs.writeFileSync("state.zip", Buffer.from(response.data));
-            core.info("Downloaded previous state artifact to state.zip");
+#             fs.writeFileSync("state.zip", Buffer.from(response.data));
+#             core.info("Downloaded previous state artifact to state.zip");
 
-      - name: Extract previous watchdog state
-        if: steps.fetch_state.outputs.artifact_id != ''
-        run: |
-          python3 - <<'PY'
-          import zipfile
+#       - name: Extract previous watchdog state
+#         if: steps.fetch_state.outputs.artifact_id != ''
+#         run: |
+#           python3 - <<'PY'
+#           import zipfile
 
-          with zipfile.ZipFile("state.zip") as zf:
-            if "state.json" not in zf.namelist():
-              raise SystemExit("state.json not found in artifact")
-            with zf.open("state.json") as src, open("prev_state.json", "wb") as dst:
-              dst.write(src.read())
-          print("Extracted previous state to prev_state.json")
-          PY
+#           with zipfile.ZipFile("state.zip") as zf:
+#             if "state.json" not in zf.namelist():
+#               raise SystemExit("state.json not found in artifact")
+#             with zf.open("state.json") as src, open("prev_state.json", "wb") as dst:
+#               dst.write(src.read())
+#           print("Extracted previous state to prev_state.json")
+#           PY
 
-      - name: Evaluate and handle smoke status
-        id: evaluate
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const workflow_id = "ixuca-smoke-schedule.yml";
-            const fs = require("fs");
+#       - name: Evaluate and handle smoke status
+#         id: evaluate
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             const owner = context.repo.owner;
+#             const repo = context.repo.repo;
+#             const workflow_id = "ixuca-smoke-schedule.yml";
+#             const fs = require("fs");
 
-            const now = new Date();
-            const oneDayMs = 24 * 60 * 60 * 1000;
-            const QUEUE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
+#             const now = new Date();
+#             const oneDayMs = 24 * 60 * 60 * 1000;
+#             const QUEUE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 
-            // 默认状态
-            let prevState = {
-              status: "OK",
-              last_conclusion: null,
-              consecutive_success: 0,
-              last_alerted_at: null,
-              last_alert_type: "",
-              pending_double_check: false
-            };
+#             // 默认状态
+#             let prevState = {
+#               status: "OK",
+#               last_conclusion: null,
+#               consecutive_success: 0,
+#               last_alerted_at: null,
+#               last_alert_type: "",
+#               pending_double_check: false
+#             };
 
-            if (fs.existsSync("prev_state.json")) {
-              try {
-                prevState = { ...prevState, ...JSON.parse(fs.readFileSync("prev_state.json", "utf8")) };
-              } catch (err) {
-                core.warning(`Failed to parse prev_state.json: ${err.message}`);
-              }
-            }
+#             if (fs.existsSync("prev_state.json")) {
+#               try {
+#                 prevState = { ...prevState, ...JSON.parse(fs.readFileSync("prev_state.json", "utf8")) };
+#               } catch (err) {
+#                 core.warning(`Failed to parse prev_state.json: ${err.message}`);
+#               }
+#             }
 
-            const triggerEvent = context.eventName;
-            let shouldAlert = false;
-            let alertType = "";
-            let alertText = "";
-            let needDoubleCheck = false;
+#             const triggerEvent = context.eventName;
+#             let shouldAlert = false;
+#             let alertType = "";
+#             let alertText = "";
+#             let needDoubleCheck = false;
 
-            core.info(`Trigger event: ${triggerEvent}`);
+#             core.info(`Trigger event: ${triggerEvent}`);
 
-            // 辅助函数：启动 double-check
-            async function triggerDoubleCheck() {
-              core.info("Triggering double-check workflow...");
-              await github.rest.actions.createWorkflowDispatch({
-                owner,
-                repo,
-                workflow_id,
-                ref: "develop",
-                inputs: {
-                  check_type: "double_check"
-                }
-              });
-            }
+#             // 辅助函数：启动 double-check
+#             async function triggerDoubleCheck() {
+#               core.info("Triggering double-check workflow...");
+#               await github.rest.actions.createWorkflowDispatch({
+#                 owner,
+#                 repo,
+#                 workflow_id,
+#                 ref: "develop",
+#                 inputs: {
+#                   check_type: "double_check"
+#                 }
+#               });
+#             }
 
-            // 辅助函数：发送告警
-            function getAlertMessage(type, url) {
-              if (type === "CONTAINER_ERROR") {
-                return `[CONTAINER_ERROR] CI容器异常：连续两次 Smoke 测试失败。\nrun_url: ${url}`;
-              } else if (type === "SCHEDULING_ERROR") {
-                return `[SCHEDULING_ERROR] CI调度异常：连续两次 Smoke 测试取消或排队超时。\nrun_url: ${url}`;
-              } else if (type === "RECOVERED") {
-                return `[RECOVERED] 问题已修复：连续两次 Smoke 测试成功。\nrun_url: ${url}`;
-              }
-              return "";
-            }
+#             // 辅助函数：发送告警
+#             function getAlertMessage(type, url) {
+#               if (type === "CONTAINER_ERROR") {
+#                 return `[CONTAINER_ERROR] CI容器异常：连续两次 Smoke 测试失败。\nrun_url: ${url}`;
+#               } else if (type === "SCHEDULING_ERROR") {
+#                 return `[SCHEDULING_ERROR] CI调度异常：连续两次 Smoke 测试取消或排队超时。\nrun_url: ${url}`;
+#               } else if (type === "RECOVERED") {
+#                 return `[RECOVERED] 问题已修复：连续两次 Smoke 测试成功。\nrun_url: ${url}`;
+#               }
+#               return "";
+#             }
 
-            // 辅助函数：检查是否需要告警（去重）
-            function shouldSendAlert(type) {
-              const prevAlertAt = prevState.last_alerted_at ? new Date(prevState.last_alerted_at) : null;
-              const sameIssue = prevState.last_alert_type === type;
+#             // 辅助函数：检查是否需要告警（去重）
+#             function shouldSendAlert(type) {
+#               const prevAlertAt = prevState.last_alerted_at ? new Date(prevState.last_alerted_at) : null;
+#               const sameIssue = prevState.last_alert_type === type;
 
-              if (type === "RECOVERED") {
-                // 恢复通知：之前有异常状态才发
-                return prevState.status !== "OK";
-              }
+#               if (type === "RECOVERED") {
+#                 // 恢复通知：之前有异常状态才发
+#                 return prevState.status !== "OK";
+#               }
 
-              // 新问题或不同问题：直接告警
-              if (!sameIssue) {
-                return true;
-              }
+#               // 新问题或不同问题：直接告警
+#               if (!sameIssue) {
+#                 return true;
+#               }
 
-              // 相同问题：24小时内不重复告警
-              if (prevAlertAt && now - prevAlertAt < oneDayMs) {
-                core.info(`Same issue ${type} already alerted at ${prevAlertAt.toISOString()}, skipping.`);
-                return false;
-              }
+#               // 相同问题：24小时内不重复告警
+#               if (prevAlertAt && now - prevAlertAt < oneDayMs) {
+#                 core.info(`Same issue ${type} already alerted at ${prevAlertAt.toISOString()}, skipping.`);
+#                 return false;
+#               }
 
-              return true; // 超过24小时，可以重复告警
-            }
+#               return true; // 超过24小时，可以重复告警
+#             }
 
-            if (triggerEvent === "workflow_run") {
-              // ============ workflow_run 触发：处理任务完成 ============
-              const currentRun = context.payload.workflow_run;
-              const conclusion = currentRun.conclusion;
-              const htmlUrl = currentRun.html_url;
-              const runEvent = currentRun.event;
+#             if (triggerEvent === "workflow_run") {
+#               // ============ workflow_run 触发：处理任务完成 ============
+#               const currentRun = context.payload.workflow_run;
+#               const conclusion = currentRun.conclusion;
+#               const htmlUrl = currentRun.html_url;
+#               const runEvent = currentRun.event;
 
-              // 判断 check_type：
-              // - schedule 触发的任务 event 是 "schedule"
-              // - workflow_dispatch 触发的任务 event 是 "workflow_dispatch"，需要进一步看 inputs
-              let checkType = "scheduled";
-              if (runEvent === "workflow_dispatch") {
-                // 从 workflow_run 获取 inputs 需要额外查询
-                // 这里简化处理：如果是从 workflow_dispatch 触发的，检查原因
-                // 通过重新运行 ID 来获取 inputs
-                try {
-                  const runDetail = await github.rest.actions.getWorkflowRun({
-                    owner,
-                    repo,
-                    run_id: currentRun.id
-                  });
-                  const inputs = runDetail.data.inputs || {};
-                  checkType = inputs.check_type || "scheduled";
-                } catch (err) {
-                  core.warning(`Failed to get workflow run details: ${err.message}`);
-                }
-              }
+#               // 判断 check_type：
+#               // - schedule 触发的任务 event 是 "schedule"
+#               // - workflow_dispatch 触发的任务 event 是 "workflow_dispatch"，需要进一步看 inputs
+#               let checkType = "scheduled";
+#               if (runEvent === "workflow_dispatch") {
+#                 // 从 workflow_run 获取 inputs 需要额外查询
+#                 // 这里简化处理：如果是从 workflow_dispatch 触发的，检查原因
+#                 // 通过重新运行 ID 来获取 inputs
+#                 try {
+#                   const runDetail = await github.rest.actions.getWorkflowRun({
+#                     owner,
+#                     repo,
+#                     run_id: currentRun.id
+#                   });
+#                   const inputs = runDetail.data.inputs || {};
+#                   checkType = inputs.check_type || "scheduled";
+#                 } catch (err) {
+#                   core.warning(`Failed to get workflow run details: ${err.message}`);
+#                 }
+#               }
 
-              core.info(`Workflow run completed: conclusion=${conclusion}, check_type=${checkType}, url=${htmlUrl}`);
+#               core.info(`Workflow run completed: conclusion=${conclusion}, check_type=${checkType}, url=${htmlUrl}`);
 
-              if (conclusion === "success") {
-                // 成功处理
-                prevState.consecutive_success++;
-                prevState.pending_double_check = false;
-                prevState.last_conclusion = "success";
+#               if (conclusion === "success") {
+#                 // 成功处理
+#                 prevState.consecutive_success++;
+#                 prevState.pending_double_check = false;
+#                 prevState.last_conclusion = "success";
 
-                // 连续两次成功才认为恢复
-                if (prevState.consecutive_success >= 2 && prevState.status !== "OK") {
-                  if (shouldSendAlert("RECOVERED")) {
-                    shouldAlert = true;
-                    alertType = "RECOVERED";
-                    alertText = getAlertMessage("RECOVERED", htmlUrl);
-                  }
-                  prevState.status = "OK";
-                  prevState.last_alert_type = "";
-                  prevState.last_alerted_at = null;
-                }
+#                 // 连续两次成功才认为恢复
+#                 if (prevState.consecutive_success >= 2 && prevState.status !== "OK") {
+#                   if (shouldSendAlert("RECOVERED")) {
+#                     shouldAlert = true;
+#                     alertType = "RECOVERED";
+#                     alertText = getAlertMessage("RECOVERED", htmlUrl);
+#                   }
+#                   prevState.status = "OK";
+#                   prevState.last_alert_type = "";
+#                   prevState.last_alerted_at = null;
+#                 }
 
-                core.info(`Success: consecutive_success=${prevState.consecutive_success}`);
+#                 core.info(`Success: consecutive_success=${prevState.consecutive_success}`);
 
-              } else if (conclusion === "failure") {
-                prevState.last_conclusion = "failure";
-                prevState.consecutive_success = 0;
+#               } else if (conclusion === "failure") {
+#                 prevState.last_conclusion = "failure";
+#                 prevState.consecutive_success = 0;
 
-                if (checkType === "scheduled" && !prevState.pending_double_check) {
-                  // 首次失败，启动 double-check
-                  needDoubleCheck = true;
-                  prevState.pending_double_check = true;
-                  core.info("First failure detected, triggering double-check...");
-                } else if (checkType === "double_check" && prevState.pending_double_check) {
-                  // double-check 也失败，确认容器异常
-                  if (shouldSendAlert("CONTAINER_ERROR")) {
-                    shouldAlert = true;
-                    alertType = "CONTAINER_ERROR";
-                    alertText = getAlertMessage("CONTAINER_ERROR", htmlUrl);
-                  }
-                  prevState.status = "CONTAINER_ERROR";
-                  prevState.pending_double_check = false;
-                  core.info("Double-check also failed, confirming container error.");
-                }
+#                 if (checkType === "scheduled" && !prevState.pending_double_check) {
+#                   // 首次失败，启动 double-check
+#                   needDoubleCheck = true;
+#                   prevState.pending_double_check = true;
+#                   core.info("First failure detected, triggering double-check...");
+#                 } else if (checkType === "double_check" && prevState.pending_double_check) {
+#                   // double-check 也失败，确认容器异常
+#                   if (shouldSendAlert("CONTAINER_ERROR")) {
+#                     shouldAlert = true;
+#                     alertType = "CONTAINER_ERROR";
+#                     alertText = getAlertMessage("CONTAINER_ERROR", htmlUrl);
+#                   }
+#                   prevState.status = "CONTAINER_ERROR";
+#                   prevState.pending_double_check = false;
+#                   core.info("Double-check also failed, confirming container error.");
+#                 }
 
-              } else if (conclusion === "cancelled") {
-                prevState.last_conclusion = "cancelled";
-                prevState.consecutive_success = 0;
+#               } else if (conclusion === "cancelled") {
+#                 prevState.last_conclusion = "cancelled";
+#                 prevState.consecutive_success = 0;
 
-                if (checkType === "scheduled" && !prevState.pending_double_check) {
-                  // 首次取消，启动 double-check
-                  needDoubleCheck = true;
-                  prevState.pending_double_check = true;
-                  core.info("First cancellation detected, triggering double-check...");
-                } else if (checkType === "double_check" && prevState.pending_double_check) {
-                  // double-check 也取消，确认调度异常
-                  if (shouldSendAlert("SCHEDULING_ERROR")) {
-                    shouldAlert = true;
-                    alertType = "SCHEDULING_ERROR";
-                    alertText = getAlertMessage("SCHEDULING_ERROR", htmlUrl);
-                  }
-                  prevState.status = "SCHEDULING_ERROR";
-                  prevState.pending_double_check = false;
-                  core.info("Double-check also cancelled, confirming scheduling error.");
-                }
-              }
+#                 if (checkType === "scheduled" && !prevState.pending_double_check) {
+#                   // 首次取消，启动 double-check
+#                   needDoubleCheck = true;
+#                   prevState.pending_double_check = true;
+#                   core.info("First cancellation detected, triggering double-check...");
+#                 } else if (checkType === "double_check" && prevState.pending_double_check) {
+#                   // double-check 也取消，确认调度异常
+#                   if (shouldSendAlert("SCHEDULING_ERROR")) {
+#                     shouldAlert = true;
+#                     alertType = "SCHEDULING_ERROR";
+#                     alertText = getAlertMessage("SCHEDULING_ERROR", htmlUrl);
+#                   }
+#                   prevState.status = "SCHEDULING_ERROR";
+#                   prevState.pending_double_check = false;
+#                   core.info("Double-check also cancelled, confirming scheduling error.");
+#                 }
+#               }
 
-            } else if (triggerEvent === "schedule") {
-              // ============ schedule 触发：排队超时检测 ============
-              core.info("Running queue timeout check...");
+#             } else if (triggerEvent === "schedule") {
+#               // ============ schedule 触发：排队超时检测 ============
+#               core.info("Running queue timeout check...");
 
-              try {
-                const runsResp = await github.rest.actions.listWorkflowRuns({
-                  owner,
-                  repo,
-                  workflow_id,
-                  status: "queued",
-                  per_page: 5
-                });
+#               try {
+#                 const runsResp = await github.rest.actions.listWorkflowRuns({
+#                   owner,
+#                   repo,
+#                   workflow_id,
+#                   status: "queued",
+#                   per_page: 5
+#                 });
 
-                const runs = runsResp.data.workflow_runs || [];
-                core.info(`Found ${runs.length} queued runs.`);
+#                 const runs = runsResp.data.workflow_runs || [];
+#                 core.info(`Found ${runs.length} queued runs.`);
 
-                for (const run of runs) {
-                  const runTime = new Date(run.created_at);
-                  const elapsed = now - runTime;
+#                 for (const run of runs) {
+#                   const runTime = new Date(run.created_at);
+#                   const elapsed = now - runTime;
 
-                  core.info(`Run ${run.id}: created_at=${run.created_at}, elapsed=${Math.round(elapsed / 60000)} minutes`);
+#                   core.info(`Run ${run.id}: created_at=${run.created_at}, elapsed=${Math.round(elapsed / 60000)} minutes`);
 
-                  if (elapsed > QUEUE_TIMEOUT_MS) {
-                    core.info(`Run ${run.id} has been queued for over 1 hour, cancelling and triggering double-check.`);
+#                   if (elapsed > QUEUE_TIMEOUT_MS) {
+#                     core.info(`Run ${run.id} has been queued for over 1 hour, cancelling and triggering double-check.`);
 
-                    // 取消该运行
-                    try {
-                      await github.rest.actions.cancelWorkflowRun({
-                        owner,
-                        repo,
-                        run_id: run.id
-                      });
-                      core.info(`Cancelled run ${run.id}`);
-                    } catch (err) {
-                      core.warning(`Failed to cancel run ${run.id}: ${err.message}`);
-                    }
+#                     // 取消该运行
+#                     try {
+#                       await github.rest.actions.cancelWorkflowRun({
+#                         owner,
+#                         repo,
+#                         run_id: run.id
+#                       });
+#                       core.info(`Cancelled run ${run.id}`);
+#                     } catch (err) {
+#                       core.warning(`Failed to cancel run ${run.id}: ${err.message}`);
+#                     }
 
-                    // 启动 double-check
-                    needDoubleCheck = true;
-                    prevState.pending_double_check = true;
-                    break;
-                  }
-                }
-              } catch (err) {
-                core.warning(`Failed to list workflow runs: ${err.message}`);
-              }
+#                     // 启动 double-check
+#                     needDoubleCheck = true;
+#                     prevState.pending_double_check = true;
+#                     break;
+#                   }
+#                 }
+#               } catch (err) {
+#                 core.warning(`Failed to list workflow runs: ${err.message}`);
+#               }
 
-            } else {
-              // workflow_dispatch 手动触发：执行完整的检查逻辑（兼容旧行为）
-              core.info("Manual trigger, performing full check...");
+#             } else {
+#               // workflow_dispatch 手动触发：执行完整的检查逻辑（兼容旧行为）
+#               core.info("Manual trigger, performing full check...");
 
-              const runsResp = await github.rest.actions.listWorkflowRuns({
-                owner,
-                repo,
-                workflow_id,
-                status: "completed",
-                per_page: 10
-              });
+#               const runsResp = await github.rest.actions.listWorkflowRuns({
+#                 owner,
+#                 repo,
+#                 workflow_id,
+#                 status: "completed",
+#                 per_page: 10
+#               });
 
-              const runs = runsResp.data.workflow_runs || [];
-              const recent = runs.slice(0, 2);
+#               const runs = runsResp.data.workflow_runs || [];
+#               const recent = runs.slice(0, 2);
 
-              if (recent.length < 2) {
-                core.info("Not enough completed runs to evaluate. Need at least 2.");
-              } else {
-                const latest = recent[0];
-                const previous = recent[1];
+#               if (recent.length < 2) {
+#                 core.info("Not enough completed runs to evaluate. Need at least 2.");
+#               } else {
+#                 const latest = recent[0];
+#                 const previous = recent[1];
 
-                const schedulingIssue =
-                  latest.conclusion === "cancelled" &&
-                  previous.conclusion === "cancelled";
+#                 const schedulingIssue =
+#                   latest.conclusion === "cancelled" &&
+#                   previous.conclusion === "cancelled";
 
-                const smokeFailed = latest.conclusion === "failure";
+#                 const smokeFailed = latest.conclusion === "failure";
 
-                let status = "OK";
+#                 let status = "OK";
 
-                if (schedulingIssue) {
-                  status = "SCHEDULING_ERROR";
-                } else if (smokeFailed) {
-                  status = "CONTAINER_ERROR";
-                }
+#                 if (schedulingIssue) {
+#                   status = "SCHEDULING_ERROR";
+#                 } else if (smokeFailed) {
+#                   status = "CONTAINER_ERROR";
+#                 }
 
-                if (status !== "OK" && shouldSendAlert(status)) {
-                  shouldAlert = true;
-                  alertType = status;
-                  alertText = getAlertMessage(status, latest.html_url);
-                  if (schedulingIssue) {
-                    alertText += `\nprevious: ${previous.html_url}`;
-                  }
-                }
+#                 if (status !== "OK" && shouldSendAlert(status)) {
+#                   shouldAlert = true;
+#                   alertType = status;
+#                   alertText = getAlertMessage(status, latest.html_url);
+#                   if (schedulingIssue) {
+#                     alertText += `\nprevious: ${previous.html_url}`;
+#                   }
+#                 }
 
-                prevState.status = status;
-                if (latest.conclusion === "success") {
-                  prevState.consecutive_success++;
-                } else {
-                  prevState.consecutive_success = 0;
-                }
-                prevState.last_conclusion = latest.conclusion;
-              }
-            }
+#                 prevState.status = status;
+#                 if (latest.conclusion === "success") {
+#                   prevState.consecutive_success++;
+#                 } else {
+#                   prevState.consecutive_success = 0;
+#                 }
+#                 prevState.last_conclusion = latest.conclusion;
+#               }
+#             }
 
-            // 触发 double-check（如果需要）
-            if (needDoubleCheck) {
-              await triggerDoubleCheck();
-            }
+#             // 触发 double-check（如果需要）
+#             if (needDoubleCheck) {
+#               await triggerDoubleCheck();
+#             }
 
-            // 更新告警时间
-            if (shouldAlert && alertType && alertType !== "RECOVERED") {
-              prevState.last_alerted_at = now.toISOString();
-              prevState.last_alert_type = alertType;
-            } else if (shouldAlert && alertType === "RECOVERED") {
-              prevState.last_alerted_at = null;
-              prevState.last_alert_type = "";
-            }
+#             // 更新告警时间
+#             if (shouldAlert && alertType && alertType !== "RECOVERED") {
+#               prevState.last_alerted_at = now.toISOString();
+#               prevState.last_alert_type = alertType;
+#             } else if (shouldAlert && alertType === "RECOVERED") {
+#               prevState.last_alerted_at = null;
+#               prevState.last_alert_type = "";
+#             }
 
-            // 保存状态
-            const nextState = {
-              status: prevState.status,
-              last_conclusion: prevState.last_conclusion,
-              consecutive_success: prevState.consecutive_success,
-              last_alerted_at: prevState.last_alerted_at,
-              last_alert_type: prevState.last_alert_type,
-              pending_double_check: prevState.pending_double_check,
-              updated_at: now.toISOString()
-            };
+#             // 保存状态
+#             const nextState = {
+#               status: prevState.status,
+#               last_conclusion: prevState.last_conclusion,
+#               consecutive_success: prevState.consecutive_success,
+#               last_alerted_at: prevState.last_alerted_at,
+#               last_alert_type: prevState.last_alert_type,
+#               pending_double_check: prevState.pending_double_check,
+#               updated_at: now.toISOString()
+#             };
 
-            fs.writeFileSync("state.json", JSON.stringify(nextState, null, 2));
+#             fs.writeFileSync("state.json", JSON.stringify(nextState, null, 2));
 
-            core.info(`State saved: ${JSON.stringify(nextState, null, 2)}`);
-            core.setOutput("should_alert", shouldAlert ? "true" : "false");
-            core.setOutput("alert_type", alertType);
-            core.setOutput("alert_text", alertText);
+#             core.info(`State saved: ${JSON.stringify(nextState, null, 2)}`);
+#             core.setOutput("should_alert", shouldAlert ? "true" : "false");
+#             core.setOutput("alert_type", alertType);
+#             core.setOutput("alert_text", alertText);
 
-      - name: Send alert to Baidu IM robot
-        if: steps.evaluate.outputs.should_alert == 'true'
-        env:
-          WEBHOOK_URL: ${{ secrets.BAIDU_IM_WEBHOOK_URL }}
-          ALERT_TEXT: ${{ steps.evaluate.outputs.alert_text }}
-          ALERT_TYPE: ${{ steps.evaluate.outputs.alert_type }}
-          TO_ID: "11992367"
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          import time
-          import urllib.request
+#       - name: Send alert to Baidu IM robot
+#         if: steps.evaluate.outputs.should_alert == 'true'
+#         env:
+#           WEBHOOK_URL: ${{ secrets.BAIDU_IM_WEBHOOK_URL }}
+#           ALERT_TEXT: ${{ steps.evaluate.outputs.alert_text }}
+#           ALERT_TYPE: ${{ steps.evaluate.outputs.alert_type }}
+#           TO_ID: "11992367"
+#         run: |
+#           python3 - <<'PY'
+#           import json
+#           import os
+#           import time
+#           import urllib.request
 
-          webhook_url = os.environ.get("WEBHOOK_URL", "").strip()
-          if not webhook_url:
-            raise SystemExit("Need secret BAIDU_IM_WEBHOOK_URL for alerting.")
-          alert_text = os.environ["ALERT_TEXT"]
-          alert_type = os.environ["ALERT_TYPE"]
-          to_id = int(os.environ.get("TO_ID", "11992367"))
+#           webhook_url = os.environ.get("WEBHOOK_URL", "").strip()
+#           if not webhook_url:
+#             raise SystemExit("Need secret BAIDU_IM_WEBHOOK_URL for alerting.")
+#           alert_text = os.environ["ALERT_TEXT"]
+#           alert_type = os.environ["ALERT_TYPE"]
+#           to_id = int(os.environ.get("TO_ID", "11992367"))
 
-          payload = {
-              "message": {
-                  "header": {
-                      "toid": to_id,
-                      "totype": "GROUP",
-                      "msgtype": "TEXT",
-                      "clientmsgid": int(time.time() * 1000),
-                      "role": "robot"
-                  },
-                  "body": [
-                      {
-                          "content": f"[{alert_type}] {alert_text}",
-                          "type": "TEXT"
-                      }
-                  ]
-              }
-          }
+#           payload = {
+#               "message": {
+#                   "header": {
+#                       "toid": to_id,
+#                       "totype": "GROUP",
+#                       "msgtype": "TEXT",
+#                       "clientmsgid": int(time.time() * 1000),
+#                       "role": "robot"
+#                   },
+#                   "body": [
+#                       {
+#                           "content": f"[{alert_type}] {alert_text}",
+#                           "type": "TEXT"
+#                       }
+#                   ]
+#               }
+#           }
 
-          req = urllib.request.Request(
-              webhook_url,
-              data=json.dumps(payload).encode("utf-8"),
-              headers={"Content-Type": "application/json"},
-              method="POST",
-          )
-          with urllib.request.urlopen(req, timeout=20) as resp:
-              print(f"alert sent, status={resp.status}")
-          PY
+#           req = urllib.request.Request(
+#               webhook_url,
+#               data=json.dumps(payload).encode("utf-8"),
+#               headers={"Content-Type": "application/json"},
+#               method="POST",
+#           )
+#           with urllib.request.urlopen(req, timeout=20) as resp:
+#               print(f"alert sent, status={resp.status}")
+#           PY
 
-      - name: Upload watchdog state
-        if: steps.evaluate.conclusion == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ixuca-smoke-watchdog-state
-          path: state.json
-          retention-days: 7
+#       - name: Upload watchdog state
+#         if: steps.evaluate.conclusion == 'success'
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: ixuca-smoke-watchdog-state
+#           path: state.json
+#           retention-days: 7

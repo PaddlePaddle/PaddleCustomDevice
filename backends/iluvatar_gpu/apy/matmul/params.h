@@ -71,7 +71,7 @@ struct GemmEpilogueParams {
   const void *bias;
   void *output;
 
-  cudaStream_t* stream_ptr;
+  cudaStream_t *stream_ptr;
 
   std::vector<int64_t> input0_shape;
   std::vector<int64_t> input1_shape;
@@ -81,7 +81,7 @@ struct GemmEpilogueParams {
   std::vector<std::vector<int64_t>> epilogue_out_shapes;
 
   GemmEpilogueParams() {}
-  GemmEpilogueParams(void* stream_ptr,
+  GemmEpilogueParams(void *stream_ptr,
                      const void *input,
                      const void *weight,
                      const void *bias,
@@ -91,7 +91,7 @@ struct GemmEpilogueParams {
                      const std::vector<int64_t> &bias_shape,
                      bool transpose_a = false,
                      bool transpose_b = false)
-      : stream_ptr(reinterpret_cast<cudaStream_t*>(stream_ptr)),
+      : stream_ptr(reinterpret_cast<cudaStream_t *>(stream_ptr)),
         input(input),
         weight(weight),
         bias(bias),
@@ -136,7 +136,8 @@ struct GemmEpilogueParams {
     std::cout << "-- [GemmEpilogueParams] weight: " << weight << std::endl;
     std::cout << "-- [GemmEpilogueParams] bias: " << bias << std::endl;
     std::cout << "-- [GemmEpilogueParams] output: " << output << std::endl;
-    std::cout << "-- [GemmEpilogueParams] stream_str: " << stream_str << std::endl;
+    std::cout << "-- [GemmEpilogueParams] stream_str: " << stream_str
+              << std::endl;
 #endif
 
     shape_args.batch_stride_A = m * k;

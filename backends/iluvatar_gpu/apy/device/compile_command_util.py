@@ -20,7 +20,7 @@ class CompileCommandGenerator:
         self.file_ext = "cu"
         self.op_type2generate_func = ap.OrderedDict(
             [
-                ['matmul', self.generate_matmul_compile_command],
+                ["matmul", self.generate_matmul_compile_command],
             ]
         )
 
@@ -40,9 +40,7 @@ class CompileCommandGenerator:
             compile_cmd
             + " -DCUTLASS_ENABLE_TENSOR_CORE_MMA=1 -DCUTLASS_DEBUG_TRACE_LEVEL=0 -DCUTLASS_ILUVATAR"
         )
-        compile_cmd = (
-            compile_cmd + " -DAP_ENABLE_AUTOTUNE=0 -DAP_ENABLE_DEBUG=0"
-        )
+        compile_cmd = compile_cmd + " -DAP_ENABLE_AUTOTUNE=0 -DAP_ENABLE_DEBUG=0"
         compile_cmd = (
             compile_cmd
             + f" --shared {library_name}.{self.file_ext} -o lib{library_name}.so"

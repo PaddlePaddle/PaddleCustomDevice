@@ -14,13 +14,13 @@
 
 #pragma once
 
-#include <iostream>
-#include <map>
-#include <vector>
-
 #include <cuda.h>
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
+
+#include <iostream>
+#include <map>
+#include <vector>
 
 #define CHECK_CUDA(func)                                                      \
   {                                                                           \

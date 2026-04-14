@@ -24,7 +24,6 @@
 #include "cutlass/functional.h"
 #include "cutlass/numeric_conversion.h"
 #include "cutlass/numeric_types.h"
-
 #include "cutlass_patch/batched_matrix_coord.h"
 #include "cutlass_patch/trace_device.h"
 
@@ -330,16 +329,18 @@ class LinearCombinationVariadic {
   // Specializations for scalar (for use with cute::collective::DefaultEpilogue)
   //
   CUTLASS_HOST_DEVICE
-  ElementD operator()(ElementAccumulator const accumulator, 
+  ElementD operator()(ElementAccumulator const accumulator,
                       ElementC const source,
                       int batch,
                       int row_offset,
                       int column_offset,
                       bool valid) const {
-                    
-    // Convert everything to Compute type, do compute, and then store to output type
-    NumericConverter<ElementCompute, ElementAccumulator, Round> accumulator_converter;
-    [[maybe_unused]] NumericConverter<ElementCompute, ElementC, Round> source_converter;
+    // Convert everything to Compute type, do compute, and then store to output
+    // type
+    NumericConverter<ElementCompute, ElementAccumulator, Round>
+        accumulator_converter;
+    [[maybe_unused]] NumericConverter<ElementCompute, ElementC, Round>
+        source_converter;
     NumericConverter<ElementD, ElementCompute, Round> destination_converter;
 
     // Convert to destination numeric type
@@ -357,16 +358,17 @@ class LinearCombinationVariadic {
 
     if constexpr (Scale == ScaleType::NoBetaScaling) {
       intermediate = source_converter(source);
-    }
-    else {
-      intermediate = multiply(params_.beta, source);                            // X =  beta * C + uniform
+    } else {
+      intermediate = multiply(params_.beta, source);  // X =  beta * C + uniform
     }
 
-    intermediate = madd(params_.alpha, converted_accumulator, intermediate);    // D = alpha * Accum + X
+    intermediate = madd(params_.alpha,
+                        converted_accumulator,
+                        intermediate);  // D = alpha * Accum + X
     intermediate = variadic_op(
-                  intermediate, 
-                  params_.variadic_args, 
-                  BatchedMatrixCoord(batch, row_offset, column_offset, valid));
+        intermediate,
+        params_.variadic_args,
+        BatchedMatrixCoord(batch, row_offset, column_offset, valid));
     return destination_converter(intermediate);
   }
 
@@ -376,9 +378,10 @@ class LinearCombinationVariadic {
                       int row_offset,
                       int column_offset,
                       bool valid) const {
-                      
-    // Convert everything to Compute type, do compute, and then store to output type
-    NumericConverter<ElementCompute, ElementAccumulator, Round> accumulator_converter;
+    // Convert everything to Compute type, do compute, and then store to output
+    // type
+    NumericConverter<ElementCompute, ElementAccumulator, Round>
+        accumulator_converter;
     NumericConverter<ElementD, ElementCompute, Round> destination_converter;
     ElementCompute converted_accumulator = accumulator_converter(accumulator);
 
@@ -392,14 +395,13 @@ class LinearCombinationVariadic {
     multiplies<ElementCompute> multiply;
     VariadicOp<ElementCompute> variadic_op;
 
-    intermediate = multiply(params_.alpha, accumulator);    // D = alpha * Accum
+    intermediate = multiply(params_.alpha, accumulator);  // D = alpha * Accum
     intermediate = variadic_op(
-                      intermediate, 
-                      params_.variadic_args, 
-                      BatchedMatrixCoord(batch, row_offset, column_offset, valid));
+        intermediate,
+        params_.variadic_args,
+        BatchedMatrixCoord(batch, row_offset, column_offset, valid));
     return destination_converter(intermediate);
   }
-  
 };
 
 }  // namespace thread

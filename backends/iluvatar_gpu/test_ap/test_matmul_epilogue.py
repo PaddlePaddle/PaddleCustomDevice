@@ -1,7 +1,19 @@
+# Copyright (c) 2026 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
-import subprocess
 import unittest
-import time
 
 import numpy as np
 
@@ -13,7 +25,7 @@ import paddle.profiler as profiler
 
 # os.environ["AP_WORKSPACE_DIR"] = "/tmp/paddle/ap"
 
-DT = 'float16'
+DT = "float16"
 # BS = 4
 # MS = 65536
 # NS = 32
@@ -38,6 +50,7 @@ BS = 4
 MS = 784
 NS = 192
 KS = 768
+
 
 class TestMatmulEpilogue(unittest.TestCase):
     def setUp(self):
@@ -70,7 +83,6 @@ class TestMatmulEpilogue(unittest.TestCase):
         self.mask = paddle.randn(mask_shape, dtype=dtype)
         self.mask.stop_gradient = True
 
-
     def get_subgraph(self):
         B = pct.DimVar(BS)
         M = pct.DimVar(MS)
@@ -90,7 +102,7 @@ class TestMatmulEpilogue(unittest.TestCase):
             # return paddle.nn.functional.sigmoid(out)
             return paddle.nn.functional.relu(out)
 
-        #return matmul_add_act
+        # return matmul_add_act
 
         def matmul_add_divide_multipy_add_S1(
             x: pct.Tensor([B, M, K], T),
@@ -104,7 +116,7 @@ class TestMatmulEpilogue(unittest.TestCase):
             # out = out / 1.2
             out = out * mask
             return residual + out
-        
+
         return matmul_add_divide_multipy_add_S1
 
     def test_subgraph(self):
@@ -117,8 +129,7 @@ class TestMatmulEpilogue(unittest.TestCase):
         # dy_outs = foo(self.x, self.y, self.b, self.b1)
         ap_outs = fused_foo(self.x, self.y, self.bias, self.residual, self.mask)
         dy_outs = foo(self.x, self.y, self.bias, self.residual, self.mask)
-        #return
-
+        # return
 
         # -------- 性能测试部分 --------
         iters = 10
@@ -139,7 +150,7 @@ class TestMatmulEpilogue(unittest.TestCase):
         with profiler.Profiler(
             targets=[profiler.ProfilerTarget.CPU, profiler.ProfilerTarget.GPU],
             on_trace_ready=profiler.export_chrome_tracing("./profiler_log"),
-            timer_only = False
+            timer_only=False,
         ) as prof:
             for step in range(iters):
                 # _ = fused_foo(self.x, self.y, self.b, self.b1)
@@ -147,13 +158,16 @@ class TestMatmulEpilogue(unittest.TestCase):
                 # _ = foo(self.x, self.y, self.b, self.b1)
                 prof.step()
         print("[Profiler] Trace saved to ./profiler_log")
-        prof.summary(sorted_by=profiler.SortedKeys.GPUTotal,
-             op_detail=True,
-             thread_sep=False,
-             time_unit='us')
-        
+        prof.summary(
+            sorted_by=profiler.SortedKeys.GPUTotal,
+            op_detail=True,
+            thread_sep=False,
+            time_unit="us",
+        )
+
         for dy_out, ap_out in zip(dy_outs, ap_outs):
             np.testing.assert_allclose(dy_out, ap_out, rtol=5e-2, atol=1e-1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -18,7 +18,7 @@ git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 
 # Compile Source Code
 cd backends/metax_gpu
-bash build_in_metax.sh
+bash build_in_custom.sh
 # or
 bash change_patch.sh #Only execute once
 bash compile.sh      #Can be executed multiple times

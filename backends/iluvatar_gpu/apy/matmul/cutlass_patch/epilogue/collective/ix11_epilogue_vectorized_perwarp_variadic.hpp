@@ -201,7 +201,7 @@ class EpilogueVariadic<
   }
 
   CUTLASS_HOST_DEVICE
-  EpilogueVariadic(Params const& params_)
+  explicit EpilogueVariadic(Params const& params_)
       : params(params_), epilogue_op(params_.epilogue_op) {}
 
   CUTLASS_DEVICE
@@ -223,7 +223,7 @@ class EpilogueVariadic<
                                  ResidueMNK residue_mnk,
                                  int thread_idx,
                                  char* smem_buf) {
-    using namespace cute;
+    using namespace cute;  // NOLINT
     using X = Underscore;
 
     static_assert(cute::rank(ProblemShapeMNKL{}) == 4,
@@ -383,34 +383,6 @@ class EpilogueVariadic<
         flat_divide(cD, EpilogueTile{});  // (SMEM_M,SMEM_N,TILE_M,TILE_N)
     Tensor tRG_cD = thread_r2g.partition_D(cDt);
 
-#if 0
-    if (thread_idx == 0 && m_coord == 0 && n_coord == 0) {
-      print("aC   : "); print(accumulators.layout()); print("\n");
-      // print("gC   : "); print(gC.layout()); print("\n");
-      print("gD   : "); print(gD.layout()); print("\n");
-      // print("gBias   : "); print(gBias.layout()); print("\n");
-      print("sAcc   : "); print(sAcc.layout()); print("\n");
-      // print("rAcc   : "); print(rAcc.layout()); print("\n");
-      print("\n");
-      // print("tRS_rAcc : "); print(tRS_rAcc.layout()); print("\n");
-      print("tRS_sAcc : "); print(tRS_sAcc.layout()); print("\n");
-      print("\n");
-      print("tSR_sAcc : "); print(tSR_sAcc.layout()); print("\n");
-      print("tSR_rAcc : "); print(tSR_rAcc.layout()); print("\n");
-      print("\n");
-      print("tRR_rSrc : "); print(tRR_rSrc.layout()); print("\n");
-      print("tRR_rDst : "); print(tRR_rDst.layout()); print("\n");
-      print("\n");
-      print("tRG_rAcc : "); print(tRG_rAcc.layout()); print("\n");
-      print("tRG_gD   : "); print(tRG_gD.layout()); print("\n");
-      print("tRS_cC   : "); print(tRS_cC.layout()); print("\n");
-      print("cCt      : "); print(cCt.layout()); print("\n");
-      print("cD       : "); print(cD.layout()); print("\n");
-      print("tE_D     : "); print(tE_D.layout()); print("\n");
-      print("sAcc     : "); print(sAcc.layout()); print("\n");
-      print("tErAcc    : "); print(tErAcc.layout()); print("\n");
-    }
-#endif
     CUTLASS_PRAGMA_UNROLL
     for (int epi_tile_m = 0; epi_tile_m < size<2>(tEgD).value; ++epi_tile_m) {
       CUTLASS_PRAGMA_UNROLL

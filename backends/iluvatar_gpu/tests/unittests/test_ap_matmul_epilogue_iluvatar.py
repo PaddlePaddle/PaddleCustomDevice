@@ -125,7 +125,12 @@ class TestMatmulEpilogue(unittest.TestCase):
             for _ in range(iters):
                 _ = fused_foo(*foo_args)
                 prof.step()
-            prof.summary()
+        prof.summary(
+            sorted_by=profiler.SortedKeys.GPUTotal,
+            op_detail=True,
+            thread_sep=False,
+            time_unit="us",
+        )
 
     def test_subgraph(self):
         foo = self.get_matmul_add_act()

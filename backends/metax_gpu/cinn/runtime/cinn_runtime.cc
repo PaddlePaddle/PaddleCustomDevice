@@ -82,6 +82,33 @@ C_Status MetaxLaunchKernel(void* dev_ptr,
   return C_Status::C_SUCCESS;
 }
 
+// Launch cooperative kernel: equivalent to cuLaunchCooperativeKernel
+C_Status MetaxLaunchCooperativeKernel(void* dev_ptr,
+                                      void* func_ptr,
+                                      void** args,
+                                      int num_args,
+                                      int gx,
+                                      int gy,
+                                      int gz,
+                                      int bx,
+                                      int by,
+                                      int bz,
+                                      int shm,
+                                      void* stream) {
+  CUresult err = cuLaunchCooperativeKernel((CUfunction)func_ptr,
+                                           gx,
+                                           gy,
+                                           gz,
+                                           bx,
+                                           by,
+                                           bz,
+                                           shm,
+                                           (CUstream)stream,
+                                           args);
+  if (err != CUDA_SUCCESS) return C_Status::C_FAILED;
+  return C_Status::C_SUCCESS;
+}
+
 }  // namespace metax
 }  // namespace custom_device
 }  // namespace paddle

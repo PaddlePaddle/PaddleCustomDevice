@@ -67,6 +67,20 @@ extern C_Status MetaxLaunchKernel(void* dev_ptr,
                                   int shm,
                                   void* stream);
 
+// Launches a cooperative kernel function (grid-level sync)
+extern C_Status MetaxLaunchCooperativeKernel(void* dev_ptr,
+                                             void* func_ptr,
+                                             void** args,
+                                             int num_args,
+                                             int gx,
+                                             int gy,
+                                             int gz,
+                                             int bx,
+                                             int by,
+                                             int bz,
+                                             int shm,
+                                             void* stream);
+
 // --- From passes/pass_manager.cc ---
 // Applies custom graph optimization passes
 extern C_Status MetaxApplyCustomPass(void* dev_ptr, void* ir_module);
@@ -99,6 +113,7 @@ void InitCinnInterface(C_DeviceInterface* device_interface) {
   metax_cinn_impl.module_unload = MetaxModuleUnload;
   metax_cinn_impl.get_kernel_address = MetaxGetKernelAddress;
   metax_cinn_impl.launch_kernel = MetaxLaunchKernel;
+  metax_cinn_impl.launch_cooperative_kernel = MetaxLaunchCooperativeKernel;
 
   // 6. Register Compilation Strategy interface
   metax_cinn_impl.apply_custom_pass = MetaxApplyCustomPass;

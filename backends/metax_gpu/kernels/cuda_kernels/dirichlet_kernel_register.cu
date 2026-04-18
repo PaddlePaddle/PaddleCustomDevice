@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/dirichlet_kernel_impl.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/impl/dirichlet_kernel_impl.h"
 
 PD_CUSTOM_KERNEL_REGISTER(dirichlet,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::Dirichletkernel,
+                          phi::DirichletKernel,
                           float,
                           double,
                           phi::dtype::float16,

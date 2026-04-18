@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/lstm_kernel_impl.h"
+#include "paddle/phi/kernels/impl/lstm_kernel_impl.h"
 #include "paddle/phi/kernels/lstm_kernel.h"
 
 PD_REGISTER_PLUGIN_KERNEL(

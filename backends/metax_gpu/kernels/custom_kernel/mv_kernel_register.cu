@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/mv_kernel_impl.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/impl/mv_kernel_impl.h"
 #include "paddle/phi/kernels/mv_kernel.h"
 
 PD_REGISTER_PLUGIN_KERNEL(

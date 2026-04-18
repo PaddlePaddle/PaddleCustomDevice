@@ -23,7 +23,7 @@ PD_CUSTOM_KERNEL_REGISTER(repeat_interleave,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::bfloat16) {}
+                          phi::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(repeat_interleave_with_tensor_index,
                           metax_gpu,
@@ -33,4 +33,4 @@ PD_CUSTOM_KERNEL_REGISTER(repeat_interleave_with_tensor_index,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::bfloat16) {}
+                          phi::bfloat16) {}

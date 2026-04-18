@@ -23,4 +23,4 @@ PD_CUSTOM_KERNEL_REGISTER(sync_batch_norm_grad,
                           phi::SyncBatchNormGradKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

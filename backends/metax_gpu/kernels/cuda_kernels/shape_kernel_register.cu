@@ -28,8 +28,8 @@ PD_CUSTOM_KERNEL_REGISTER(shape,
                           double,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->OutputAt(0).SetBackend(phi::Backend::CPU);
   kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
@@ -46,8 +46,8 @@ PD_CUSTOM_KERNEL_REGISTER(shape64,
                           int64_t,
                           float,
                           phi::dtype::complex<float>,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->OutputAt(0).SetBackend(phi::Backend::CPU);
   kernel->OutputAt(0).SetDataType(phi::DataType::INT64);

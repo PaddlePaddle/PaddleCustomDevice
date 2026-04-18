@@ -22,7 +22,7 @@ PD_CUSTOM_KERNEL_REGISTER(sync_batch_norm,
                           ALL_LAYOUT,
                           phi::SyncBatchNormKernel,
                           float,
-                          phi::dtype::float16) {
+                          phi::float16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);
     kernel->InputAt(2).SetDataType(phi::DataType::FLOAT32);
@@ -42,8 +42,8 @@ PD_CUSTOM_KERNEL_REGISTER(sync_batch_norm,
                           phi::SyncBatchNormKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16 ||
       kernel_key.dtype() == phi::DataType::BFLOAT16) {
     kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);
@@ -63,7 +63,7 @@ PD_CUSTOM_KERNEL_REGISTER(sync_batch_norm,
                           phi::SyncBatchNormKernel,
                           float,
                           double,
-                          phi::dtype::float16) {
+                          phi::float16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);
     kernel->InputAt(2).SetDataType(phi::DataType::FLOAT32);

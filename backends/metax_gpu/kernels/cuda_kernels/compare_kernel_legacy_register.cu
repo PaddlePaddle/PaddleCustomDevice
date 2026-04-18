@@ -33,8 +33,8 @@ PD_CUSTOM_KERNEL_REGISTER(less_than_raw,
                           phi::dtype::complex<double>,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
 
@@ -53,8 +53,8 @@ PD_CUSTOM_KERNEL_REGISTER(less_than_raw,
                             phi::dtype::complex<double>,   \
                             float,                         \
                             double,                        \
-                            phi::dtype::float16,           \
-                            phi::dtype::bfloat16) {        \
+                            phi::float16,                  \
+                            phi::bfloat16) {               \
     kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);  \
   }
 

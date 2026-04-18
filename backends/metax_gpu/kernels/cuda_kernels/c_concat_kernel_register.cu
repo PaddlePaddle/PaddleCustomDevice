@@ -23,4 +23,4 @@ PD_CUSTOM_KERNEL_REGISTER(c_concat,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

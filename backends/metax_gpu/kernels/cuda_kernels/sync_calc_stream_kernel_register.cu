@@ -22,5 +22,5 @@ PD_CUSTOM_KERNEL_REGISTER(sync_calc_stream,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

@@ -26,8 +26,8 @@ PD_REGISTER_KERNEL(c_identity,
                    double,
                    int,
                    int64_t,
-                   phi::dtype::bfloat16,
-                   phi::dtype::float16) {}
+                   phi::bfloat16,
+                   phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(c_identity,
                           metax_gpu,
@@ -37,5 +37,5 @@ PD_CUSTOM_KERNEL_REGISTER(c_identity,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+                          phi::bfloat16,
+                          phi::float16) {}

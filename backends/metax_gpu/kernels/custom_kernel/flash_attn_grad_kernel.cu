@@ -356,8 +356,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn_unpadded_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::FlashAttnUnpaddedGradKernel_,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(7).SetBackend(phi::Backend::ALL_BACKEND);  // seed_offset
 }
 
@@ -366,7 +366,7 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn_grad,
                           ALL_LAYOUT,
                           phi::FlashAttnGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);  // seed_offset
 }

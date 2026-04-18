@@ -27,4 +27,4 @@ PD_CUSTOM_KERNEL_REGISTER(p_send,
                           uint8_t,
                           int16_t,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

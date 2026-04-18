@@ -353,8 +353,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn_unpadded,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::FlashAttnUnpaddedKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(5).SetBackend(
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }
@@ -364,8 +364,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn,
                           ALL_LAYOUT,
                           phi::FlashAttnKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(3).SetBackend(
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }

@@ -24,5 +24,5 @@ PD_CUSTOM_KERNEL_REGISTER(squared_l2_norm_grad,
                           phi::SquaredL2NormGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

@@ -24,8 +24,8 @@ PD_CUSTOM_KERNEL_REGISTER(take_along_axis,
                           double,
                           int64_t,
                           int,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           uint8_t,  // 支持 uint8
                           int16_t   // 支持 int16
 ) {}

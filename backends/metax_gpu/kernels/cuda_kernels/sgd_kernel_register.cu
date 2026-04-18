@@ -20,8 +20,8 @@ PD_CUSTOM_KERNEL_REGISTER(sgd,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::SGDDenseKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           float,
                           double) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16 ||
@@ -36,7 +36,7 @@ PD_CUSTOM_KERNEL_REGISTER(sgd,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::SGDDenseKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           float,
                           double) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
@@ -49,7 +49,7 @@ PD_CUSTOM_KERNEL_REGISTER(sgd_dense_param_sparse_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::SGDDenseParamSparseGradKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           float,
                           double) {}
 
@@ -57,6 +57,6 @@ PD_CUSTOM_KERNEL_REGISTER(sgd_sparse_param_sparse_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::SGDSparseParamSparseGradKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           float,
                           double) {}

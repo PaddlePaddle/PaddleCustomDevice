@@ -23,4 +23,4 @@ PD_CUSTOM_KERNEL_REGISTER(expand_as_grad,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::bfloat16) {}
+                          phi::bfloat16) {}

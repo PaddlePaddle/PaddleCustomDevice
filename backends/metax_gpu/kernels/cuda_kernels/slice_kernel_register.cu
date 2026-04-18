@@ -30,8 +30,8 @@ PD_CUSTOM_KERNEL_REGISTER(slice,
                           int8_t,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+                          phi::bfloat16,
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(slice_array,
                           metax_gpu,
@@ -47,8 +47,8 @@ PD_CUSTOM_KERNEL_REGISTER(slice_array,
                           int8_t,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+                          phi::bfloat16,
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(slice_array_dense,
                           metax_gpu,
@@ -64,5 +64,5 @@ PD_CUSTOM_KERNEL_REGISTER(slice_array_dense,
                           int8_t,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+                          phi::bfloat16,
+                          phi::float16) {}

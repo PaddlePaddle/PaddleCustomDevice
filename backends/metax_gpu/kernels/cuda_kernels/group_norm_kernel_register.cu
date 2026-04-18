@@ -21,8 +21,8 @@ PD_CUSTOM_KERNEL_REGISTER(group_norm,
                           phi::GroupNormKernel,
                           float,
                           double,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {
+                          phi::bfloat16,
+                          phi::float16) {
   if (kernel_key.dtype() == phi::DataType::BFLOAT16 ||
       kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
@@ -34,8 +34,8 @@ PD_CUSTOM_KERNEL_REGISTER(add_group_norm_silu,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::GroupNormNDHWCKernel,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {
+                          phi::bfloat16,
+                          phi::float16) {
   kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
   kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
 }

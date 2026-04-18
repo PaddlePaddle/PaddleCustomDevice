@@ -23,10 +23,10 @@ PD_CUSTOM_KERNEL_REGISTER(partial_allgather,
                           phi::PartialAllGatherOpCUDAKernel,
                           float,
                           double,
-                          phi::dtype::bfloat16,
+                          phi::bfloat16,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 #else
 PD_CUSTOM_KERNEL_REGISTER(partial_allgather,
                           metax_gpu,
@@ -36,5 +36,5 @@ PD_CUSTOM_KERNEL_REGISTER(partial_allgather,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 #endif

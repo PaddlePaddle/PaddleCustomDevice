@@ -22,16 +22,16 @@ PD_CUSTOM_KERNEL_REGISTER(pool2d_grad,
                           phi::Pool2dGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(lp_pool2d_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::LPPool2dGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(pool2d_double_grad,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -44,8 +44,8 @@ PD_CUSTOM_KERNEL_REGISTER(max_pool2d_with_index_grad,
                           phi::MaxPool2dWithIndexGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetDataType(phi::CppTypeToDataType<int>::Type());
 }
 
@@ -55,16 +55,16 @@ PD_CUSTOM_KERNEL_REGISTER(pool3d_grad,
                           phi::Pool3dGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(max_pool3d_with_index_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::MaxPool3dWithIndexGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetDataType(phi::CppTypeToDataType<int>::Type());
 }
 
@@ -74,8 +74,8 @@ PD_CUSTOM_KERNEL_REGISTER(fractional_max_pool2d_grad,
                           phi::FractionalMaxPool2dGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetDataType(phi::CppTypeToDataType<int>::Type());
 }
 
@@ -85,7 +85,7 @@ PD_CUSTOM_KERNEL_REGISTER(fractional_max_pool3d_grad,
                           phi::FractionalMaxPool3dGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetDataType(phi::CppTypeToDataType<int>::Type());
 }

@@ -20,5 +20,5 @@ PD_CUSTOM_KERNEL_REGISTER(maxout,
                           ALL_LAYOUT,
                           phi::MaxOutKernel,
                           float,
-                          phi::dtype::float16,
+                          phi::float16,
                           double) {}

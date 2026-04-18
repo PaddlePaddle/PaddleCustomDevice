@@ -20,5 +20,5 @@ PD_CUSTOM_KERNEL_REGISTER(softmax_grad,
                           phi::SoftmaxGradGPUDNNKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

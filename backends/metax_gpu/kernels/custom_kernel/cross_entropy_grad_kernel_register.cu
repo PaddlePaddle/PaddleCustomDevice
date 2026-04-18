@@ -21,5 +21,5 @@ PD_CUSTOM_KERNEL_REGISTER(cross_entropy_with_softmax_grad,
                           phi::CrossEntropyWithSoftmaxGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

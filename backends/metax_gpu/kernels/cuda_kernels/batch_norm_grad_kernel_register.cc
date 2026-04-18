@@ -22,7 +22,7 @@ PD_CUSTOM_KERNEL_REGISTER(batch_norm_coo_grad,
                           phi::sparse::BatchNormCooGradKernel,
                           float,
                           double,
-                          phi::dtype::float16) {
+                          phi::float16) {
   kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_COO);
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);  // x_grad

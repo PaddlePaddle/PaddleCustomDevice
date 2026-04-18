@@ -21,7 +21,7 @@ PD_CUSTOM_KERNEL_REGISTER(cross_entropy_grad,
                           phi::CrossEntropyGradientOpKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(cross_entropy_grad2,
                           metax_gpu,
@@ -29,6 +29,6 @@ PD_CUSTOM_KERNEL_REGISTER(cross_entropy_grad2,
                           phi::CrossEntropyGradientOpKernel2,
                           float,
                           double,
-                          phi::dtype::float16) {
+                          phi::float16) {
   kernel->InputAt(1).SetDataType(phi::DataType::INT64);
 }

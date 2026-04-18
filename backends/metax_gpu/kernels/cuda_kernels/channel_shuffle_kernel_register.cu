@@ -21,5 +21,5 @@ PD_CUSTOM_KERNEL_REGISTER(channel_shuffle,
                           phi::ChannelShuffleKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

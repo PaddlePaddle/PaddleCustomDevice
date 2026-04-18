@@ -20,4 +20,4 @@ PD_CUSTOM_KERNEL_REGISTER(radam,
                           phi::RAdamKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

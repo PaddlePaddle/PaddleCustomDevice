@@ -20,7 +20,7 @@ PD_CUSTOM_KERNEL_REGISTER(lookup_table_grad,
                           phi::LookupTableGradCUDAKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(lookup_table_sparse_grad,
                           metax_gpu,
@@ -28,4 +28,4 @@ PD_CUSTOM_KERNEL_REGISTER(lookup_table_sparse_grad,
                           phi::LookupTableSparseGradCUDAKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

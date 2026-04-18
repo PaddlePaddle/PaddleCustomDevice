@@ -1323,8 +1323,8 @@ PD_REGISTER_PLUGIN_KERNEL(batch_norm,
                           phi::BatchNormKernel,
                           float,
                           double,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {
+                          phi::bfloat16,
+                          phi::float16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16 ||
       kernel_key.dtype() == phi::DataType::BFLOAT16) {
     kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);

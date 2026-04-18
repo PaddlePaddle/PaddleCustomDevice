@@ -14,8 +14,5 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/moe_permute.h"
-PD_CUSTOM_KERNEL_REGISTER(moe_permute,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::MoePermuteKernel,
-                          phi::dtype::bfloat16) {}
+PD_CUSTOM_KERNEL_REGISTER(
+    moe_permute, metax_gpu, ALL_LAYOUT, phi::MoePermuteKernel, phi::bfloat16) {}

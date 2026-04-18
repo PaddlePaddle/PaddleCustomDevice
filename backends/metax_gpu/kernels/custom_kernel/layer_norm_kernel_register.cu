@@ -764,7 +764,7 @@ template PADDLE_API void LayerNormKernel<float, GPUContext>(
     DenseTensor* y,
     DenseTensor* mean,
     DenseTensor* var);
-template PADDLE_API void LayerNormKernel<phi::dtype::float16, GPUContext>(
+template PADDLE_API void LayerNormKernel<phi::float16, GPUContext>(
     const GPUContext& dev_ctx,
     const DenseTensor& x,
     const optional<DenseTensor>& scale_opt,

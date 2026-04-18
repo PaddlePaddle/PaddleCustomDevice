@@ -28,7 +28,7 @@
                             bool,                              \
                             int8_t,                            \
                             uint8_t,                           \
-                            phi::dtype::float16,               \
+                            phi::float16,                      \
                             phi::dtype::complex<float>,        \
                             phi::dtype::complex<double>,       \
                             ##__VA_ARGS__) {                   \
@@ -36,6 +36,6 @@
   }
 
 PTEN_REGISTER_CAST_CUDA_BASE_TYPE(cast,
-                                  phi::dtype::bfloat16,
+                                  phi::bfloat16,
                                   phi::dtype::float8_e4m3fn,
                                   phi::dtype::float8_e5m2)

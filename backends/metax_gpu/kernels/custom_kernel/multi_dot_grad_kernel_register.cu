@@ -21,5 +21,5 @@ PD_REGISTER_PLUGIN_KERNEL(multi_dot_grad,
                           phi::MultiDotGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

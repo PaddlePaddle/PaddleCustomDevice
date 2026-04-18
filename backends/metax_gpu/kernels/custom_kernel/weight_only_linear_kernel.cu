@@ -216,5 +216,5 @@ PD_REGISTER_PLUGIN_KERNEL(weight_only_linear,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::WeightOnlyLinearKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

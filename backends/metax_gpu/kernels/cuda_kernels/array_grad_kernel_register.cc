@@ -24,6 +24,6 @@ PD_CUSTOM_KERNEL_REGISTER(tensor_to_array,
                           int64_t,
                           float,
                           double,
-                          phi::dtype::float16,
+                          phi::float16,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>) {}

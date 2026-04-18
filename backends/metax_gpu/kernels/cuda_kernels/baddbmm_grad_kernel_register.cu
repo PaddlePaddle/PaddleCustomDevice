@@ -22,5 +22,5 @@ PD_CUSTOM_KERNEL_REGISTER(baddbmm_grad,
                           phi::BaddbmmGradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

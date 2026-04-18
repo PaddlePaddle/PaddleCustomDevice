@@ -22,7 +22,7 @@
                             metax_gpu,                             \
                             ALL_LAYOUT,                            \
                             phi::sparse::prefix##CooGradKernel,    \
-                            phi::dtype::float16,                   \
+                            phi::float16,                          \
                             float,                                 \
                             double) {                              \
     kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_COO); \
@@ -32,7 +32,7 @@
                             metax_gpu,                             \
                             ALL_LAYOUT,                            \
                             phi::sparse::prefix##CsrGradKernel,    \
-                            phi::dtype::float16,                   \
+                            phi::float16,                          \
                             float,                                 \
                             double) {                              \
     kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_CSR); \
@@ -43,7 +43,7 @@
                             metax_gpu,                                      \
                             ALL_LAYOUT,                                     \
                             phi::sparse::prefix##CooGradKernel,             \
-                            phi::dtype::float16,                            \
+                            phi::float16,                                   \
                             float,                                          \
                             double,                                         \
                             phi::dtype::complex<float>,                     \
@@ -55,7 +55,7 @@
                             metax_gpu,                                      \
                             ALL_LAYOUT,                                     \
                             phi::sparse::prefix##CsrGradKernel,             \
-                            phi::dtype::float16,                            \
+                            phi::float16,                                   \
                             float,                                          \
                             double,                                         \
                             phi::dtype::complex<float>,                     \
@@ -67,7 +67,7 @@ PD_CUSTOM_KERNEL_REGISTER(cast_coo_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::sparse::CastCooGradKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           float,
                           double,
                           int8_t,
@@ -81,7 +81,7 @@ PD_CUSTOM_KERNEL_REGISTER(cast_csr_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::sparse::CastCsrGradKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           float,
                           double,
                           int8_t,

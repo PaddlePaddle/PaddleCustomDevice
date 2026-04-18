@@ -22,4 +22,4 @@ PD_CUSTOM_KERNEL_REGISTER(fc,
                           phi::fusion::FCKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

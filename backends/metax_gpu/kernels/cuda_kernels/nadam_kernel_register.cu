@@ -20,4 +20,4 @@ PD_CUSTOM_KERNEL_REGISTER(nadam,
                           phi::NAdamKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

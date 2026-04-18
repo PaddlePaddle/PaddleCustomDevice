@@ -21,4 +21,4 @@ PD_CUSTOM_KERNEL_REGISTER(random_routing,
                           phi::RandomRoutingKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

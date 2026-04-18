@@ -20,28 +20,28 @@ PD_CUSTOM_KERNEL_REGISTER(fake_quantize_range_abs_max,
                           ALL_LAYOUT,
                           phi::FakeQuantizeRangeAbsMaxKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(fake_quantize_abs_max,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::FakeQuantizeAbsMaxKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(fake_quantize_moving_average_abs_max,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::FakeQuantOrWithDequantMovingAverageAbsMaxKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(fake_channel_wise_quantize_abs_max,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::FakeChannelWiseQuantizeAbsMaxKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(fake_channel_wise_quantize_dequantize_abs_max,
                           metax_gpu,
@@ -54,11 +54,11 @@ PD_CUSTOM_KERNEL_REGISTER(fake_quantize_dequantize_moving_average_abs_max,
                           ALL_LAYOUT,
                           phi::FakeQuantizeDequantizeMovingAverageAbsMaxKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(fake_quantize_dequantize_abs_max,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::FakeQuantizeDequantizeAbsMaxKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

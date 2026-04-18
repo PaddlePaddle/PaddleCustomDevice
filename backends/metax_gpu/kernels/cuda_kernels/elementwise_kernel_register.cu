@@ -24,8 +24,8 @@ PD_CUSTOM_KERNEL_REGISTER(maximum,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(minimum,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -34,8 +34,8 @@ PD_CUSTOM_KERNEL_REGISTER(minimum,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(remainder,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -44,8 +44,8 @@ PD_CUSTOM_KERNEL_REGISTER(remainder,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           phi::dtype::complex<float>) {}
 PD_CUSTOM_KERNEL_REGISTER(floor_divide,
                           metax_gpu,
@@ -58,8 +58,8 @@ PD_CUSTOM_KERNEL_REGISTER(floor_divide,
                           int64_t,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(elementwise_pow,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -68,8 +68,8 @@ PD_CUSTOM_KERNEL_REGISTER(elementwise_pow,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>) {}
 PD_CUSTOM_KERNEL_REGISTER(copysign,
@@ -84,11 +84,11 @@ PD_CUSTOM_KERNEL_REGISTER(copysign,
                           int64_t,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
-using float16 = phi::dtype::float16;
-using bfloat16 = phi::dtype::bfloat16;
+using float16 = phi::float16;
+using bfloat16 = phi::bfloat16;
 using complex64 = ::phi::dtype::complex<float>;
 using complex128 = ::phi::dtype::complex<double>;
 
@@ -137,8 +137,8 @@ PD_CUSTOM_KERNEL_REGISTER(add,
                           uint8_t,
                           int8_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           complex64,
                           complex128) {}
 
@@ -154,8 +154,8 @@ PD_CUSTOM_KERNEL_REGISTER(grad_add,
                           uint8_t,
                           int8_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           complex64,
                           complex128) {}
 

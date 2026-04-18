@@ -44,4 +44,4 @@ PD_CUSTOM_KERNEL_REGISTER(npu_identity,
                           int,
                           int64_t,
                           bool,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

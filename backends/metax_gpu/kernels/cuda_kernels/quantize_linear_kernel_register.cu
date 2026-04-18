@@ -24,7 +24,7 @@ PD_CUSTOM_KERNEL_REGISTER(dequantize_linear,
                           float,
                           int8_t,
                           double,
-                          phi::dtype::float16) {
+                          phi::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
@@ -33,7 +33,7 @@ PD_CUSTOM_KERNEL_REGISTER(quantize_linear,
                           ALL_LAYOUT,
                           phi::QuantizeLinearKernel,
                           float,
-                          phi::dtype::float16) {
+                          phi::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
@@ -44,7 +44,7 @@ PD_CUSTOM_KERNEL_REGISTER(dequantize_linear_deprecated,
                           float,
                           int8_t,
                           double,
-                          phi::dtype::float16) {
+                          phi::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
@@ -53,7 +53,7 @@ PD_CUSTOM_KERNEL_REGISTER(quantize_linear_deprecated_train,
                           ALL_LAYOUT,
                           phi::QuantizeLinearDeprecatedTrainKernel,
                           float,
-                          phi::dtype::float16) {
+                          phi::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
@@ -62,6 +62,6 @@ PD_CUSTOM_KERNEL_REGISTER(quantize_linear_deprecated_infer,
                           ALL_LAYOUT,
                           phi::QuantizeLinearDeprecatedInferKernel,
                           float,
-                          phi::dtype::float16) {
+                          phi::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }

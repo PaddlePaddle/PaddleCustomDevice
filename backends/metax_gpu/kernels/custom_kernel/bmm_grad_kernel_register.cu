@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/bmm_grad_kernel_impl.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/bmm_grad_kernel.h"
+#include "paddle/phi/kernels/impl/bmm_grad_kernel_impl.h"
 
 PD_REGISTER_PLUGIN_KERNEL(bmm_grad,
                           metax_gpu,

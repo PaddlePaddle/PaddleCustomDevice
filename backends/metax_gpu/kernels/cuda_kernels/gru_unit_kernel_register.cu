@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/gru_unit_kernel_impl.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/impl/gru_unit_kernel_impl.h"
 
 PD_CUSTOM_KERNEL_REGISTER(
     gru_unit, metax_gpu, ALL_LAYOUT, phi::GRUUnitKernel, float, double) {}

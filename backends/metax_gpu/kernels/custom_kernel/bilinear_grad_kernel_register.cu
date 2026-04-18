@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/bilinear_grad_kernel_impl.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/bilinear_grad_kernel.h"
+#include "paddle/phi/kernels/impl/bilinear_grad_kernel_impl.h"
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_grad,
                           metax_gpu,

@@ -12,8 +12,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "kernels/impl/multi_dot_kernel_impl.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/impl/multi_dot_kernel_impl.h"
 #include "paddle/phi/kernels/multi_dot_kernel.h"
 PD_REGISTER_PLUGIN_KERNEL(multi_dot,
                           metax_gpu,

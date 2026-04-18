@@ -34,7 +34,7 @@
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #endif
-#include "kernels/impl/values_vectors_functor.h"
+#include "paddle/phi/kernels/funcs/values_vectors_functor.h"
 namespace phi {
 
 inline int GetBatchCount(const DDim& dims) {

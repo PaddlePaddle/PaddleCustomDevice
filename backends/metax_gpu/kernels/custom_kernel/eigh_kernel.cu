@@ -16,8 +16,7 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/eigh_kernel.h"
 #include "paddle/phi/kernels/funcs/complex_functors.h"
-// #include "kernels/funcs/values_vectors_functor.h"
-#include "kernels/impl/values_vectors_functor.h"
+#include "paddle/phi/kernels/funcs/values_vectors_functor.h"
 
 namespace phi {
 

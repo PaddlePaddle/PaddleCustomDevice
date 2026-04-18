@@ -11,8 +11,8 @@ limitations under the License. */
 
 #pragma once
 
-#include "kernels/funcs/values_vectors_functor.h"
 #include "paddle/phi/kernels/eigvalsh_kernel.h"
+#include "paddle/phi/kernels/funcs/values_vectors_functor.h"
 
 namespace phi {
 

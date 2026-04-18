@@ -903,19 +903,6 @@ index 29fa252e96..4ae72b0935 100644
    return tanhf(x);
  }
  
-diff --git a/paddle/phi/kernels/gpu/lstsq_kernel.cu b/paddle/phi/kernels/gpu/lstsq_kernel.cu
-index 75a8f71d8c..cb21e9e301 100644
---- a/paddle/phi/kernels/gpu/lstsq_kernel.cu
-+++ b/paddle/phi/kernels/gpu/lstsq_kernel.cu
-@@ -21,7 +21,7 @@
- #include "paddle/phi/core/kernel_registry.h"
- #include "paddle/phi/kernels/full_kernel.h"
- #include "paddle/phi/kernels/funcs/slice.h"
--#include "paddle/phi/kernels/impl/lstsq_kernel_impl.h"
-+#include "kernels/impl/lstsq_kernel_impl.h"
- #include "paddle/phi/kernels/impl/qr_kernel_impl.h"
- #include "paddle/phi/kernels/impl/tril_triu_kernel_impl.h"
- #include "paddle/phi/kernels/lstsq_kernel.h"
 diff --git a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h b/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
 index 4a28600c38..d96495b7aa 100644
 --- a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
@@ -1102,3 +1089,56 @@ index d8bc15926b..6071baf340 100644
      PADDLE_ENFORCE_EQ(
          status,
          
+diff --git a/paddle/phi/backends/custom/custom_context.cc b/paddle/phi/backends/custom/custom_context.cc
+index 27157e2291..9c105591d8 100644
+--- a/paddle/phi/backends/custom/custom_context.cc
++++ b/paddle/phi/backends/custom/custom_context.cc
+@@ -281,6 +281,24 @@ struct CustomContext::Impl {
+     return blaslt_handle_;
+   }
+ 
++  cuSolverHandle_t GetSolverHandle() {
++#if defined(PADDLE_WITH_CUDA)
++    std::call_once(flag_solver_, [&]() {
++      if (!solver_handle_) {
++        cuSolverHandle_t* handle = &solver_handle_;
++        PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cusolverDnCreate(handle));
++        PADDLE_RETRY_CUDA_SUCCESS(
++            phi::dynload::cusolverDnSetStream(*handle, stream()));
++      }
++    });
++    PADDLE_ENFORCE_NOT_NULL(
++        solver_handle_,
++        common::errors::InvalidArgument("The Custom Device solver handle is "
++                                        "nullptr. It must not be null."));
++#endif
++    return solver_handle_;
++  }
++
+   bool IsTensorCoreAvailable() const {
+     return blas_tensor_core_handle_ != nullptr;
+   }
+@@ -629,6 +647,10 @@ cublasLtHandle_t CustomContext::cublaslt_handle() const {
+   return impl_->GetBlasLtHandle();
+ }
+ 
++cuSolverHandle_t CustomContext::cusolver_dn_handle() const {
++  return impl_->GetSolverHandle();
++}
++
+ void CustomContext::SetBlasHandle(cublasHandle_t blas) {
+   impl_->SetBlasHandle(blas);
+ }
+diff --git a/paddle/phi/backends/custom/custom_context.h b/paddle/phi/backends/custom/custom_context.h
+index fdbaa6030b..794112359d 100644
+--- a/paddle/phi/backends/custom/custom_context.h
++++ b/paddle/phi/backends/custom/custom_context.h
+@@ -182,6 +182,8 @@ class CustomContext : public DeviceContext,
+ 
+   cublasLtHandle_t cublaslt_handle() const;
+ 
++  cusolverDnHandle_t cusolver_dn_handle() const;
++
+   void SetBlasHandle(cublasHandle_t);
+   void SetBlasHandle(std::function<cublasHandle_t()>&&);
+ 

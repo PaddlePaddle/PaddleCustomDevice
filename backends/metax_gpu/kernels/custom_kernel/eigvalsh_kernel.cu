@@ -14,11 +14,11 @@ limitations under the License. */
 
 #ifndef PADDLE_WITH_HIP
 
-#include "kernels/impl/eigvalsh_kernel_impl.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/complex.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/eigvalsh_kernel.h"
+#include "paddle/phi/kernels/impl/eigvalsh_kernel_impl.h"
 
 PD_REGISTER_PLUGIN_KERNEL(eigvalsh,  // cuda_only
                           metax_gpu,

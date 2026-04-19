@@ -765,16 +765,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/logical_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/reduce_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/kps/reduce_max_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_kernel.cc
-  ${CMAKE_SOURCE_DIR}/kernels/gpudnn/cudnn.cc
-  ${CMAKE_SOURCE_DIR}/kernels/metax_context.cc
-  ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_kernel_register.cu
-  ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_grad_kernel_register.cu
-  ${CMAKE_SOURCE_DIR}/kernels/layer_norm_kernel_register.cu
-  ${CMAKE_SOURCE_DIR}/kernels/layer_norm_grad_kernel_register.cu
-  ${CMAKE_SOURCE_DIR}/kernels/flash_attn_grad_kernel.cu
-  ${CMAKE_SOURCE_DIR}/kernels/flash_attn_kernel.cu
-  ${CMAKE_SOURCE_DIR}/kernels/flashattn.cc)
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_kernel.cc)
 
 list(REMOVE_ITEM CUDA_SRCS
      ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax.cu

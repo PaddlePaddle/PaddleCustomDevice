@@ -14,7 +14,7 @@
 
 #include "pattern_passes.h"  // NOLINT
 
-static const std::vector<std::string> KPirMetaxGpuPasses{
+static const std::vector<std::string> kPirMetaxGpuPasses{
     // Functional pass
     "add_shadow_output_after_dead_parameter_pass",
     "delete_quant_dequant_linear_op_pass",
@@ -43,5 +43,5 @@ static const std::vector<std::string> KPirMetaxGpuPasses{
 };
 
 const std::vector<std::string>* GetPirMetaxGpuPasses() {
-  return &KPirMetaxGpuPasses;
+  return &kPirMetaxGpuPasses;
 }

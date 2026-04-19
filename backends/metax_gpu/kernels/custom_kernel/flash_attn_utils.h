@@ -537,7 +537,7 @@ static void CheckFlashAttnStatus(const mcflashattnStatus_t status) {
 static void RaiseNotSupportedError() {
   PADDLE_THROW(
       phi::errors::Unimplemented("FlashAttention is unsupported, please check "
-                                 "the GPU compability and CUDA Version."));
+                                 "the GPU compatibility and CUDA Version."));
 }
 
 }  // namespace phi

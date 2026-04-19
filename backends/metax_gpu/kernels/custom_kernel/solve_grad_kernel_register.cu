@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/solve_grad_kernel_impl.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/impl/solve_grad_kernel_impl.h"
 #include "paddle/phi/kernels/solve_grad_kernel.h"
 
 PD_REGISTER_PLUGIN_KERNEL(

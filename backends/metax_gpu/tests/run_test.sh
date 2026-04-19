@@ -67,7 +67,7 @@ while getopts "i:o:v:j:b:h" opt; do
       exit 0
       ;;
     \?)
-      echo "error: unknow option '-$OPTARG'."
+      echo "error: unknown option '-$OPTARG'."
       exit 1
       ;;
     :)

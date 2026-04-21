@@ -31,13 +31,13 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void NllLossRawKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& labels,
-                      const paddle::optional<phi::DenseTensor>& weight,
+                      const DenseTensor& x,
+                      const DenseTensor& labels,
+                      const paddle::optional<DenseTensor>& weight,
                       int64_t ignore_index,
                       const std::string& reduction,
-                      phi::DenseTensor* out,
-                      phi::DenseTensor* total_weight) {
+                      DenseTensor* out,
+                      DenseTensor* total_weight) {
   VLOG(4) << "Call SDAA NllLossRawKernel";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -49,7 +49,7 @@ void NllLossRawKernel(const Context& dev_ctx,
   int batch_size = x_dims[0];
   int n_classes = x_dims[1];
 
-  phi::DenseTensor weight_temp;
+  DenseTensor weight_temp;
   if (weight.get_ptr() == nullptr) {
     std::vector<int> temp = {n_classes};
     phi::DDim weight_dims = phi::make_ddim(std::move(temp));
@@ -83,11 +83,11 @@ void NllLossRawKernel(const Context& dev_ctx,
     labels_dims.emplace_back(1);
 
     std::vector<int> weight_dims = phi::vectorize<int>(weight_temp.dims());
-    phi::DenseTensor labels_cast;
+    DenseTensor labels_cast;
     if (labels.dtype() != phi::DataType::INT32) {
       // due to tecodnn is only support labels of INT32 -> do cast
       labels_cast.Resize(labels.dims());
-      phi::DenseTensorMeta labels_meta = {phi::DataType::INT32, labels.dims()};
+      DenseTensorMeta labels_meta = {phi::DataType::INT32, labels.dims()};
       labels_cast.set_meta(labels_meta);
       dev_ctx.template Alloc<int32_t>(&labels_cast);
       sdaa_ops::doCastTensor(dev_ctx, labels, &labels_cast);
@@ -175,7 +175,7 @@ void NllLossRawKernel(const Context& dev_ctx,
                                             total_weight_desc,
                                             total_weight->data()));
     } else {
-      phi::DenseTensor out_temp;
+      DenseTensor out_temp;
       out_temp.Resize(temp_out_dim);
       dev_ctx.template Alloc<T>(&out_temp);
       TECODNN_CHECK(tecodnnNLLLoss2dForward(handle,
@@ -217,14 +217,14 @@ void NllLossRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void NllLossGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& labels,
-                       const paddle::optional<phi::DenseTensor>& weight,
-                       const phi::DenseTensor& total_weight,
-                       const phi::DenseTensor& dout,
+                       const DenseTensor& x,
+                       const DenseTensor& labels,
+                       const paddle::optional<DenseTensor>& weight,
+                       const DenseTensor& total_weight,
+                       const DenseTensor& dout,
                        int64_t ignore_index,
                        const std::string& reduction,
-                       phi::DenseTensor* dx) {
+                       DenseTensor* dx) {
   VLOG(4) << "Call SDAA NllLossGradKernel";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -235,7 +235,7 @@ void NllLossGradKernel(const Context& dev_ctx,
   int batch_size = x_dims[0];
   int n_classes = x_dims[1];
 
-  phi::DenseTensor weight_temp;
+  DenseTensor weight_temp;
   if (weight.get_ptr() == nullptr) {
     std::vector<int> temp = {n_classes};
     phi::DDim weight_dims = phi::make_ddim(std::move(temp));
@@ -269,11 +269,11 @@ void NllLossGradKernel(const Context& dev_ctx,
     labels_dims.emplace_back(1);
 
     std::vector<int> weight_dims = phi::vectorize<int>(weight_temp.dims());
-    phi::DenseTensor labels_cast;
+    DenseTensor labels_cast;
     if (labels.dtype() != phi::DataType::INT32) {
       // due to tecodnn is only support labels of INT32 -> do cast
       labels_cast.Resize(labels.dims());
-      phi::DenseTensorMeta labels_meta = {phi::DataType::INT32, labels.dims()};
+      DenseTensorMeta labels_meta = {phi::DataType::INT32, labels.dims()};
       labels_cast.set_meta(labels_meta);
       dev_ctx.template Alloc<int32_t>(&labels_cast);
       sdaa_ops::doCastTensor(dev_ctx, labels, &labels_cast);

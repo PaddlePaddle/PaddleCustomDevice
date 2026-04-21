@@ -44,13 +44,12 @@ size_t Alignment(size_t size, const phi::Place& place, int align_size) {
   return remaining == 0 ? size : size + (alignment - remaining);
 }
 
-void GetMemSizeAndDtype(
-    const std::vector<const phi::DenseTensor*>& dense_tensor,
-    size_t* numel,
-    const size_t& size_of_dtype,
-    const phi::Place& place,
-    const bool use_align = true,
-    const int align_size = -1) {
+void GetMemSizeAndDtype(const std::vector<const DenseTensor*>& dense_tensor,
+                        size_t* numel,
+                        const size_t& size_of_dtype,
+                        const phi::Place& place,
+                        const bool use_align = true,
+                        const int align_size = -1) {
   *numel = 0;
   std::stringstream ss;
   ss << "alloc_space_for_vars: ";
@@ -78,7 +77,7 @@ void GetMemSizeAndDtype(
 template <typename Context>
 struct FillConstantVisitor {
   FillConstantVisitor(const Context& dev_ctx,
-                      phi::DenseTensor* tensor,
+                      DenseTensor* tensor,
                       const float value,
                       phi::DataType dtype)
       : dev_ctx_(dev_ctx), tensor_(tensor), value_(value), dtype_(dtype) {}
@@ -101,7 +100,7 @@ struct FillConstantVisitor {
   }
 
   const Context& dev_ctx_;
-  phi::DenseTensor* tensor_;
+  DenseTensor* tensor_;
   float value_;
   phi::DataType dtype_;
 };
@@ -128,7 +127,7 @@ static void VisitDataType(phi::DataType type, Visitor visitor) {
 
 template <typename T, typename Context>
 void CoalesceTensorKernel(const Context& dev_ctx,
-                          const std::vector<const phi::DenseTensor*>& input,
+                          const std::vector<const DenseTensor*>& input,
                           phi::DataType dtype,
                           bool copy_data,
                           bool set_constant,
@@ -139,8 +138,8 @@ void CoalesceTensorKernel(const Context& dev_ctx,
                           int size_of_dtype,
                           const std::vector<int64_t>& concated_shapes,
                           const std::vector<int64_t>& concated_ranks,
-                          std::vector<phi::DenseTensor*> output,
-                          phi::DenseTensor* fused_output) {
+                          std::vector<DenseTensor*> output,
+                          DenseTensor* fused_output) {
   VLOG(4) << "CALL SDAA CoalesceTensorKernel";
 
   PADDLE_ENFORCE_GT(input.size(),

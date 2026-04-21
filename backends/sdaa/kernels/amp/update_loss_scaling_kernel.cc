@@ -36,8 +36,8 @@ class LazyZerosSDAA {
  public:
   void operator()(const Context& dev_ctx,
                   const std::vector<bool> found_inf_vec,
-                  const std::vector<const phi::DenseTensor*>& xs,
-                  const std::vector<phi::DenseTensor*>& outs) const {
+                  const std::vector<const DenseTensor*>& xs,
+                  const std::vector<DenseTensor*>& outs) const {
     if (!xs.size()) {
       return;
     }
@@ -60,22 +60,22 @@ class LazyZerosSDAA {
 template <typename T, typename Context>
 void Update(const Context& dev_ctx,
             const std::vector<bool> found_inf_vec,
-            const phi::DenseTensor* pre_loss_scaling_tensor,
-            const phi::DenseTensor* good_in_tensor,
-            const phi::DenseTensor* bad_in_tensor,
+            const DenseTensor* pre_loss_scaling_tensor,
+            const DenseTensor* good_in_tensor,
+            const DenseTensor* bad_in_tensor,
             const int incr_every_n_steps,
             const int decr_every_n_nan_or_inf,
             const float incr_ratio,
             const float decr_ratio,
-            phi::DenseTensor* updated_loss_scaling_tensor,
-            phi::DenseTensor* good_out_tensor,
-            phi::DenseTensor* bad_out_tensor) {
+            DenseTensor* updated_loss_scaling_tensor,
+            DenseTensor* good_out_tensor,
+            DenseTensor* bad_out_tensor) {
   dev_ctx.template Alloc<T>(updated_loss_scaling_tensor);
   dev_ctx.template Alloc<int>(good_out_tensor);
   dev_ctx.template Alloc<int>(bad_out_tensor);
 
-  phi::DenseTensor* pre_loss_scaling_tensor_ =
-      const_cast<phi::DenseTensor*>(pre_loss_scaling_tensor);
+  DenseTensor* pre_loss_scaling_tensor_ =
+      const_cast<DenseTensor*>(pre_loss_scaling_tensor);
 
   if (found_inf_vec[0]) {
     // good_out_data = 0
@@ -163,20 +163,20 @@ void Update(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UpdateLossScaling(const Context& dev_ctx,
-                       const std::vector<const phi::DenseTensor*>& xs,
-                       const phi::DenseTensor& t_found_inf,
-                       const phi::DenseTensor& t_pre_loss_scaling,
-                       const phi::DenseTensor& t_good_in,
-                       const phi::DenseTensor& t_bad_in,
+                       const std::vector<const DenseTensor*>& xs,
+                       const DenseTensor& t_found_inf,
+                       const DenseTensor& t_pre_loss_scaling,
+                       const DenseTensor& t_good_in,
+                       const DenseTensor& t_bad_in,
                        int incr_every_n_steps,
                        int decr_every_n_nan_or_inf,
                        float incr_ratio,
                        float decr_ratio,
                        const phi::Scalar& stop_update,
-                       std::vector<phi::DenseTensor*> outs,
-                       phi::DenseTensor* updated_loss_scaling,
-                       phi::DenseTensor* good_out,
-                       phi::DenseTensor* bad_out) {
+                       std::vector<DenseTensor*> outs,
+                       DenseTensor* updated_loss_scaling,
+                       DenseTensor* good_out,
+                       DenseTensor* bad_out) {
   VLOG(4) << "Call SDAA UpdateLossScaling";
 
   auto* found_inf = &t_found_inf;

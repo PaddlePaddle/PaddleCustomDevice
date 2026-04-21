@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void doWhereTensor(const Context& dev_ctx,
-                   const phi::DenseTensor& condition,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& condition,
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   DenseTensor* out) {
   VLOG(4) << "tecodnn where tensor called";
 
   std::vector<int> condition_dims = phi::vectorize<int>(condition.dims());
@@ -58,10 +58,10 @@ void doWhereTensor(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void WhereKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& condition,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& condition,
+                 const DenseTensor& x,
+                 const DenseTensor& y,
+                 DenseTensor* out) {
   VLOG(4) << "Call SDAA WhereKernel";
 
   dev_ctx.template Alloc<T>(out);
@@ -71,19 +71,19 @@ void WhereKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void WhereGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& condition,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx,
-                     phi::DenseTensor* dy) {
+                     const DenseTensor& condition,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     const DenseTensor& dout,
+                     DenseTensor* dx,
+                     DenseTensor* dy) {
   VLOG(4) << "CALL SDAA WhereGradKernel";
 
   if (dx) dev_ctx.template Alloc<T>(dx);
   if (dy) dev_ctx.template Alloc<T>(dy);
 
-  phi::DenseTensor zero_tensor;
-  phi::DenseTensorMeta zero_tensor_meta = {dout.dtype(), dout.dims()};
+  DenseTensor zero_tensor;
+  DenseTensorMeta zero_tensor_meta = {dout.dtype(), dout.dims()};
   zero_tensor.set_meta(zero_tensor_meta);
   dev_ctx.template Alloc<T>(&zero_tensor);
 

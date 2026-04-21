@@ -29,34 +29,34 @@ using Context = phi::CustomContext;
 
 template <typename T, typename Context>
 void ExpandKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::IntArray& shape,
-                  phi::DenseTensor* out);
+                  DenseTensor* out);
 
 template <typename T, typename Context>
 void NonZeroKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& condition,
-                   phi::DenseTensor* out);
+                   const DenseTensor& condition,
+                   DenseTensor* out);
 
 template <typename T, typename Context>
 void SplitWithNumKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         int num,
                         const phi::Scalar& axis_scalar,
-                        std::vector<phi::DenseTensor*> outs);
+                        std::vector<DenseTensor*> outs);
 
 template <typename T, typename Context>
 void CastKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 phi::DataType out_dtype,
-                phi::DenseTensor* out);
+                DenseTensor* out);
 
 template <typename T, typename Context>
-phi::DenseTensor GetReshapeAndExpandTensor(const Context& dev_ctx,
-                                           const phi::DenseTensor& tensor,
-                                           const phi::DDim& res_dim,
-                                           const phi::DDim& bd_dim,
-                                           int index) {
+DenseTensor GetReshapeAndExpandTensor(const Context& dev_ctx,
+                                      const DenseTensor& tensor,
+                                      const phi::DDim& res_dim,
+                                      const phi::DDim& bd_dim,
+                                      int index) {
   std::vector<int64_t> before_dims = phi::vectorize(tensor.dims());
   std::vector<int64_t> mid_dims(res_dim.size(), 1);
 
@@ -68,14 +68,14 @@ phi::DenseTensor GetReshapeAndExpandTensor(const Context& dev_ctx,
     mid_dims[index] = before_dims[0];
   }
 
-  phi::DenseTensor mid_tensor;
-  phi::DenseTensorMeta meta_mid = {tensor.dtype(), phi::make_ddim(mid_dims)};
+  DenseTensor mid_tensor;
+  DenseTensorMeta meta_mid = {tensor.dtype(), phi::make_ddim(mid_dims)};
   mid_tensor.set_meta(meta_mid);
   phi::ReshapeKernel<Context>(
       dev_ctx, tensor, phi::IntArray(mid_dims), &mid_tensor);
 
-  phi::DenseTensor res_tensor;
-  phi::DenseTensorMeta meta_res = {tensor.dtype(), res_dim};
+  DenseTensor res_tensor;
+  DenseTensorMeta meta_res = {tensor.dtype(), res_dim};
   res_tensor.set_meta(meta_res);
   custom_kernel::ExpandKernel<T, Context>(
       dev_ctx, mid_tensor, phi::IntArray(phi::vectorize(res_dim)), &res_tensor);
@@ -83,11 +83,11 @@ phi::DenseTensor GetReshapeAndExpandTensor(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-std::vector<const phi::DenseTensor*> DealWithBoolIndices(
+std::vector<const DenseTensor*> DealWithBoolIndices(
     const Context& dev_ctx,
-    const std::vector<const phi::DenseTensor*>& indices_v,
-    std::vector<phi::DenseTensor>* tmp_indices_v) {
-  std::vector<const phi::DenseTensor*> res;
+    const std::vector<const DenseTensor*>& indices_v,
+    std::vector<DenseTensor>* tmp_indices_v) {
+  std::vector<const DenseTensor*> res;
 
   bool contains_bool_tensor = false;
   for (size_t i = 0; i < indices_v.size(); ++i) {
@@ -106,20 +106,20 @@ std::vector<const phi::DenseTensor*> DealWithBoolIndices(
                           phi::errors::InvalidArgument(
                               "the only bool tensor in indices should "
                               "have number of dimension at least 1"));
-        phi::DenseTensor nonzero_indices;
+        DenseTensor nonzero_indices;
         custom_kernel::NonZeroKernel<bool, Context>(
             dev_ctx, *indices_v[i], &nonzero_indices);
 
         if (nonzero_indices.numel() == 0) {
-          std::vector<const phi::DenseTensor*> empty_indices;
+          std::vector<const DenseTensor*> empty_indices;
           return empty_indices;
         }
 
-        std::vector<phi::DenseTensor*> integer_indices(rank, nullptr);
+        std::vector<DenseTensor*> integer_indices(rank, nullptr);
         const int tmp_ix = tmp_indices_v->size();
         for (int i = 0; i < rank; ++i) {
-          phi::DenseTensor tmp_index;
-          phi::DenseTensorMeta meta_tmp_index = {
+          DenseTensor tmp_index;
+          DenseTensorMeta meta_tmp_index = {
               phi::DataType::INT64,
               phi::make_ddim({nonzero_indices.dims()[0], 1})};
           tmp_index.set_meta(meta_tmp_index);
@@ -154,7 +154,7 @@ std::vector<const phi::DenseTensor*> DealWithBoolIndices(
 }
 
 static phi::DDim BroadCastTensorsDims(
-    const std::vector<const phi::DenseTensor*>& tensors) {
+    const std::vector<const DenseTensor*>& tensors) {
   int target_rank = 0;
   for (const auto& tensor : tensors) {
     target_rank = std::max(target_rank, tensor->dims().size());
@@ -195,11 +195,11 @@ static phi::DDim BroadCastTensorsDims(
 
 template <typename T, typename Context>
 void DealWithIndices(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const std::vector<const phi::DenseTensor*>& int_indices_v,
-                     std::vector<const phi::DenseTensor*>* res_indices_v,
-                     std::vector<phi::DenseTensor>* tmp_res_indices_v,
-                     const std::vector<phi::DenseTensor>& range_tensor_v,
+                     const DenseTensor& x,
+                     const std::vector<const DenseTensor*>& int_indices_v,
+                     std::vector<const DenseTensor*>* res_indices_v,
+                     std::vector<DenseTensor>* tmp_res_indices_v,
+                     const std::vector<DenseTensor>& range_tensor_v,
                      const phi::DDim& bd_dim,
                      std::vector<int64_t>* res_dim_v) {
   size_t total_dims = x.dims().size();
@@ -211,7 +211,7 @@ void DealWithIndices(const Context& dev_ctx,
                       tmp_x_dims.end());
     phi::DDim res_dim = phi::make_ddim(*res_dim_v);
     for (size_t i = 0; i < int_indices_v.size(); ++i) {
-      phi::DenseTensor index_tensor;
+      DenseTensor index_tensor;
       if (int_indices_v[i]->dtype() == phi::DataType::INT32) {
         index_tensor.Resize(int_indices_v[i]->dims());
         custom_kernel::CastKernel<T, Context>(
@@ -234,8 +234,8 @@ void DealWithIndices(const Context& dev_ctx,
 
   } else {
     for (size_t i = 0; i < int_indices_v.size(); ++i) {
-      phi::DenseTensor index_tensor;
-      phi::DenseTensor expand_index;
+      DenseTensor index_tensor;
+      DenseTensor expand_index;
       if (int_indices_v[i]->dtype() == phi::DataType::INT32) {
         index_tensor.Resize(int_indices_v[i]->dims());
         custom_kernel::CastKernel<T, Context>(
@@ -244,8 +244,8 @@ void DealWithIndices(const Context& dev_ctx,
         index_tensor = *int_indices_v[i];
       }
       if (bd_dim != int_indices_v[i]->dims()) {
-        phi::DenseTensor expand_index;
-        phi::DenseTensorMeta meta_ei = {phi::DataType::INT64, bd_dim};
+        DenseTensor expand_index;
+        DenseTensorMeta meta_ei = {phi::DataType::INT64, bd_dim};
         expand_index.set_meta(meta_ei);
         custom_kernel::ExpandKernel<int64_t, Context>(
             dev_ctx,
@@ -270,9 +270,9 @@ void DealWithIndices(const Context& dev_ctx,
  */
 template <typename Context>
 inline void TensorCopy(const Context& dev_ctx,
-                       const phi::DenseTensor& src,
+                       const DenseTensor& src,
                        bool blocking,
-                       phi::DenseTensor* dst,
+                       DenseTensor* dst,
                        const phi::Place& dst_place = phi::CustomPlace()) {
   auto* src_ptr = src.data();
   if (src_ptr == nullptr) {
@@ -291,7 +291,7 @@ inline void TensorCopy(const Context& dev_ctx,
     } else {
       VLOG(6) << "Src and dst are the same Tensor, in-place copy data("
               << src_ptr << ") from " << src_place << " to " << dst_place_;
-      const phi::DenseTensor src_copy = src;
+      const DenseTensor src_copy = src;
       TensorCopy(dev_ctx, src_copy, blocking, dst, dst_place_);
     }
     return;
@@ -372,7 +372,7 @@ void TensorFromArray(const phi::CustomContext& ctx,
                      const T* src,
                      const size_t& array_size,
                      const phi::CustomContext& dev_ctx,
-                     phi::DenseTensor* dst) {
+                     DenseTensor* dst) {
   VLOG(4) << "TensorFromArray start";
   auto dst_place = dev_ctx.GetPlace();
   auto src_ptr = static_cast<const void*>(src);
@@ -400,7 +400,7 @@ template <typename T>
 inline void TensorFromVector(const phi::CustomContext& ctx,
                              const std::vector<T>& src,
                              const phi::CustomContext& dev_ctx,
-                             phi::DenseTensor* dst) {
+                             DenseTensor* dst) {
   auto dst_place = dev_ctx.GetPlace();
   auto src_ptr = static_cast<const void*>(src.data());
   dst->Resize({static_cast<int64_t>(src.size())});
@@ -425,7 +425,7 @@ inline void TensorFromVector(const phi::CustomContext& ctx,
  */
 template <typename T>
 inline void TensorToVector(const phi::CustomContext& ctx,
-                           const phi::DenseTensor& src,
+                           const DenseTensor& src,
                            const phi::CustomContext& dev_ctx,
                            std::vector<T>* dst) {
   VLOG(4) << "MemCpyD2H start";
@@ -455,7 +455,7 @@ inline void TensorToVector(const phi::CustomContext& ctx,
 
 template <>
 inline void TensorToVector<bool>(const phi::CustomContext& ctx,
-                                 const phi::DenseTensor& src,
+                                 const DenseTensor& src,
                                  const phi::CustomContext& dev_ctx,
                                  std::vector<bool>* dst) {
   auto src_ptr = static_cast<const void*>(src.data<bool>());
@@ -489,10 +489,9 @@ inline void TensorToVector<bool>(const phi::CustomContext& ctx,
  * only used for the number of tensor is one
  */
 template <typename T>
-inline void TensorFromVectorTensor(
-    const phi::CustomContext& dev_ctx,
-    const std::vector<const phi::DenseTensor*>& src,
-    phi::DenseTensor* dst) {
+inline void TensorFromVectorTensor(const phi::CustomContext& dev_ctx,
+                                   const std::vector<const DenseTensor*>& src,
+                                   DenseTensor* dst) {
   int n = src.size();
   dst->Resize({static_cast<int64_t>(n)});
   dev_ctx.template Alloc<T>(dst);
@@ -615,7 +614,7 @@ struct MatmulParam {
 
 static void setTBlasWorkspace(const Context& dev_ctx,
                               const struct MatmulParam& param,
-                              phi::DenseTensor* workspace) {
+                              DenseTensor* workspace) {
   CustomSDAAStream_t stream =
       reinterpret_cast<CustomSDAAStream_t>(dev_ctx.stream());
   tblasHandle_t tblas_handle = stream->tblasHandle;
@@ -644,8 +643,8 @@ static void setTBlasWorkspace(const Context& dev_ctx,
   if (kWorkspaceSize) {
     VLOG(4) << "start to allocate memory for tblas's workspace with size: "
             << kWorkspaceSize / 1024 << " KB.";
-    phi::DenseTensorMeta w_meta = {phi::DataType::UINT8,
-                                   {static_cast<int64_t>(kWorkspaceSize)}};
+    DenseTensorMeta w_meta = {phi::DataType::UINT8,
+                              {static_cast<int64_t>(kWorkspaceSize)}};
     workspace->set_meta(w_meta);
     dev_ctx.template Alloc<uint8_t>(workspace);
 
@@ -657,7 +656,7 @@ static void setTBlasWorkspace(const Context& dev_ctx,
 inline static tblasHandle_t GetBlasHandleFromCTX(
     const Context& dev_ctx,
     const struct MatmulParam& param,
-    phi::DenseTensor* workspace) {
+    DenseTensor* workspace) {
   CustomSDAAStream_t stream =
       reinterpret_cast<CustomSDAAStream_t>(dev_ctx.stream());
   tblasHandle_t& tblas_handle = stream->tblasHandle;
@@ -770,10 +769,10 @@ inline void foldNonReduceDims(const std::vector<T>& x_dims,
   }
 }
 template <typename T>
-inline phi::DenseTensor build_dummy_tensor(const Context& dev_ctx,
-                                           phi::DataType dtype,
-                                           phi::DDim input_dims) {
-  phi::DenseTensor input_;
+inline DenseTensor build_dummy_tensor(const Context& dev_ctx,
+                                      phi::DataType dtype,
+                                      phi::DDim input_dims) {
+  DenseTensor input_;
   input_.Resize(input_dims);
   dev_ctx.Alloc(&input_, dtype);
   return input_;

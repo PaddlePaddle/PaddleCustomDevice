@@ -31,9 +31,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MultiClassNMSKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& bboxes,
-                         const phi::DenseTensor& scores,
-                         const paddle::optional<phi::DenseTensor>& rois_num,
+                         const DenseTensor& bboxes,
+                         const DenseTensor& scores,
+                         const paddle::optional<DenseTensor>& rois_num,
                          float score_threshold,
                          int nms_top_k,
                          int keep_top_k,
@@ -41,9 +41,9 @@ void MultiClassNMSKernel(const Context& dev_ctx,
                          bool normalized,
                          float nms_eta,
                          int background_label,
-                         phi::DenseTensor* out,
-                         phi::DenseTensor* index,
-                         phi::DenseTensor* nms_rois_num) {
+                         DenseTensor* out,
+                         DenseTensor* index,
+                         DenseTensor* nms_rois_num) {
   VLOG(4) << "Call SDAA MultiClassNMSKernel";
 
   bool return_index = index != nullptr;
@@ -94,7 +94,7 @@ void MultiClassNMSKernel(const Context& dev_ctx,
                                                      scores_desc,
                                                      rois_num_desc,
                                                      &workspace_size));
-  phi::DenseTensor dev_workspace;
+  DenseTensor dev_workspace;
   dev_workspace.Resize(phi::make_ddim({static_cast<int64_t>(workspace_size)}));
   dev_ctx.Alloc(&dev_workspace, phi::DataType::INT8);
 
@@ -134,18 +134,18 @@ void MultiClassNMSKernel(const Context& dev_ctx,
   tecodnnTensorDescriptor_t nms_rois_num_desc = sdaa_ops::GetTecodnnTensorDesc(
       nms_rois_num_dimensions, DataType::INT32, TensorFormat::Undefined);
 
-  phi::DenseTensor out_temp;
+  DenseTensor out_temp;
   out_temp.Resize(phi::make_ddim(out_dimensions_temp));
   dev_ctx.template Alloc<T>(&out_temp);
 
-  phi::DenseTensor index_temp;
+  DenseTensor index_temp;
   // if index is nullptr
   if (return_index) {
     index_temp.Resize(phi::make_ddim(index_dimensions_temp));
     dev_ctx.template Alloc<int>(&index_temp);
   }
 
-  phi::DenseTensor nms_rois_num_temp;
+  DenseTensor nms_rois_num_temp;
   nms_rois_num_temp.Resize(phi::make_ddim(nms_rois_num_dimensions));
   dev_ctx.template Alloc<int>(&nms_rois_num_temp);
 
@@ -174,7 +174,7 @@ void MultiClassNMSKernel(const Context& dev_ctx,
 
   // truncate output, judging the length of out by the sum of nms_rois_num
   // nms_rois_num data is on sdaa, copy from sdaa to CPU
-  phi::DenseTensor nms_rois_num_cpu;
+  DenseTensor nms_rois_num_cpu;
   auto cpu_place = phi::CPUPlace();
   auto custom_place = dev_ctx.GetPlace();
   phi::Copy(dev_ctx, nms_rois_num_temp, cpu_place, true, &nms_rois_num_cpu);

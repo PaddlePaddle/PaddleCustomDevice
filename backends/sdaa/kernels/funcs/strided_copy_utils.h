@@ -43,14 +43,14 @@ using vec_tuple = std::tuple<int64_vec, int64_vec, int64_vec>;
 
 phi::DDim permute(const phi::DDim& dims, const int64_vec& axis);
 
-bool is_permute(const phi::DenseTensor& input);
+bool is_permute(const DenseTensor& input);
 
 bool pair_first_down(std::pair<int64_t, int64_t> pair1,
                      std::pair<int64_t, int64_t> pair2);
 
 bool strided_copy(const Context& dev_ctx,
-                  const phi::DenseTensor& src,
-                  phi::DenseTensor* dst);
+                  const DenseTensor& src,
+                  DenseTensor* dst);
 
 }  // namespace sdaa_copy
 

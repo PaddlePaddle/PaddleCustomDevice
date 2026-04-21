@@ -21,8 +21,8 @@ namespace custom_kernel {
 
 template <typename Context>
 void doAddNRaw(const Context& dev_ctx,
-               const std::vector<const phi::DenseTensor*>& x,
-               phi::DenseTensor* out) {
+               const std::vector<const DenseTensor*>& x,
+               DenseTensor* out) {
   std::vector<tecodnnTensorDescriptor_t> descs;
   std::vector<const void*> data_ptrs;
   // NOTE(liaotianju): addN enforce all tensor shapes are equal
@@ -33,7 +33,7 @@ void doAddNRaw(const Context& dev_ctx,
     descs.push_back(desc);
     data_ptrs.push_back(x[i]->data());
   }
-  phi::DenseTensor ptrs;
+  DenseTensor ptrs;
   int64_t ptr_size = x.size() * sizeof(void*);
   ptrs.Resize({ptr_size});
   dev_ctx.template Alloc<int8_t>(&ptrs);
@@ -57,8 +57,8 @@ void doAddNRaw(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AddNKernel(const Context& dev_ctx,
-                const std::vector<const phi::DenseTensor*>& x,
-                phi::DenseTensor* out) {
+                const std::vector<const DenseTensor*>& x,
+                DenseTensor* out) {
   VLOG(4) << "CALL SDAA AddNKernel";
 
   PADDLE_ENFORCE_EQ(out->dtype() == phi::DataType::FLOAT32 ||
@@ -119,7 +119,7 @@ void AddNKernel(const Context& dev_ctx,
     }
   }
 
-  std::vector<phi::DenseTensor> inputs;
+  std::vector<DenseTensor> inputs;
   std::vector<std::vector<int>> inputs_dims;
   for (int i = 0; i < n; i++) {
     if (x[i] && x[i]->numel() > 0) {

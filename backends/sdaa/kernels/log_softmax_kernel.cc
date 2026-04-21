@@ -30,9 +30,9 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void LogSoftmaxKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
+                      const DenseTensor& x,
                       int axis,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   VLOG(4) << "CALL SDAA LogSoftmaxKernel";
   const int rank = x.dims().size();
 
@@ -47,8 +47,8 @@ void LogSoftmaxKernel(const Context& dev_ctx,
     axis += x.dims().size();
   }
   if (axis != x.dims().size() - 1) {
-    phi::DenseTensor x_temp;
-    phi::DenseTensor out_temp;
+    DenseTensor x_temp;
+    DenseTensor out_temp;
     std::vector<int> x_dims = phi::vectorize<int>(x.dims());
     std::vector<int> axis_vec(x.dims().size());
     std::iota(axis_vec.begin(), axis_vec.end(), 0);
@@ -81,10 +81,10 @@ void LogSoftmaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogSoftmaxGradKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& out,
-                          const phi::DenseTensor& out_grad,
+                          const DenseTensor& out,
+                          const DenseTensor& out_grad,
                           int axis,
-                          phi::DenseTensor* x_grad) {
+                          DenseTensor* x_grad) {
   VLOG(4) << "Call SDAA LogSoftmaxGradKernel";
   const int rank = out.dims().size();
   dev_ctx.template Alloc<T>(x_grad);
@@ -99,9 +99,9 @@ void LogSoftmaxGradKernel(const Context& dev_ctx,
     axis += out.dims().size();
   }
   if (axis != out.dims().size() - 1) {
-    phi::DenseTensor out_temp;
-    phi::DenseTensor out_grad_temp;
-    phi::DenseTensor x_grad_temp;
+    DenseTensor out_temp;
+    DenseTensor out_grad_temp;
+    DenseTensor x_grad_temp;
 
     std::vector<int> out_dims = phi::vectorize<int>(out.dims());
     std::vector<int> axis_vec(out.dims().size());

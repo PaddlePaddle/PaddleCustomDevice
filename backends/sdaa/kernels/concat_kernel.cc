@@ -48,9 +48,9 @@ static inline int ComputeAxis(int axis, int rank) {
 
 template <typename T, typename Context>
 void ConcatKernel(const Context& dev_ctx,
-                  const std::vector<const phi::DenseTensor*>& ins,
+                  const std::vector<const DenseTensor*>& ins,
                   const phi::Scalar& axis_scalar,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "Call SDAA ConcatKernel.";
   dev_ctx.template Alloc<T>(out);
 
@@ -61,13 +61,13 @@ void ConcatKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ConcatGradKernel(const Context& dev_ctx,
-                      const std::vector<const phi::DenseTensor*>& ins,
-                      const phi::DenseTensor& dout,
+                      const std::vector<const DenseTensor*>& ins,
+                      const DenseTensor& dout,
                       const phi::Scalar& axis_scalar,
-                      std::vector<phi::DenseTensor*> outs) {
+                      std::vector<DenseTensor*> outs) {
   VLOG(4) << "CALL SDAA ConcatGradKernel";
-  std::vector<phi::DenseTensor*> outputs_vec;
-  std::vector<phi::DenseTensor> tmp_outputs_vec;
+  std::vector<DenseTensor*> outputs_vec;
+  std::vector<DenseTensor> tmp_outputs_vec;
   int axis = axis_scalar.to<int>();
   axis = ComputeAxis(axis, static_cast<int>(ins[0]->dims().size()));
   for (int i = 0; i < outs.size(); ++i) {
@@ -75,7 +75,7 @@ void ConcatGradKernel(const Context& dev_ctx,
       dev_ctx.template Alloc<T>(outs[i]);
       outputs_vec.push_back(outs[i]);
     } else {
-      phi::DenseTensor tmp_tensor;
+      DenseTensor tmp_tensor;
       tmp_tensor.Resize(ins[i]->dims());
       dev_ctx.template Alloc<T>(&tmp_tensor);
       tmp_outputs_vec.push_back((std::move(tmp_tensor)));

@@ -18,11 +18,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MeanRawKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    const phi::IntArray& axes,
                    bool keep_dim,
                    bool reduce_all,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   VLOG(4) << "Call SDAA MeanRawKernel";
   auto dims = axes.GetData();
   std::vector<int64_t> reduce_dims;
@@ -55,10 +55,10 @@ void MeanRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::IntArray& dims,
                 bool keep_dim,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA MeanKernel";
   bool reduce_all = false;
   if (dims.size() == 0) {
@@ -69,8 +69,8 @@ void MeanKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanAllKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   DenseTensor* out) {
   VLOG(4) << "Call SDAA MeanAllKernel";
 
   custom_kernel::MeanRawKernel<T>(
@@ -79,9 +79,9 @@ void MeanAllKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanAllGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& grad,
-                       phi::DenseTensor* x_grad) {
+                       const DenseTensor& x,
+                       const DenseTensor& grad,
+                       DenseTensor* x_grad) {
   PADDLE_ENFORCE_EQ(grad.numel(),
                     1,
                     phi::errors::InvalidArgument(
@@ -96,15 +96,15 @@ void MeanAllGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& x,
+                    const DenseTensor& out_grad,
                     const phi::IntArray& dims,
                     bool keep_dim,
                     bool reduce_all,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   VLOG(4) << "call sdaa mean grad kernel";
   dev_ctx.template Alloc<T>(x_grad);
-  phi::DenseTensor out_grad_temp(out_grad);
+  DenseTensor out_grad_temp(out_grad);
   float constant = 1;
   if (reduce_all || dims.size() == 0) {
     std::vector<int64_t> out_dims(x.dims().size(), 1);

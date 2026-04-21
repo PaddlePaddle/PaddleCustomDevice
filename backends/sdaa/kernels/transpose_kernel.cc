@@ -33,9 +33,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TransposeKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const std::vector<int>& axis,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   VLOG(4) << "Call SDAA TransposeKernel";
 
   dev_ctx.template Alloc<T>(out);
@@ -44,9 +44,9 @@ void TransposeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TransposeGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& dout,
+                         const DenseTensor& dout,
                          const std::vector<int>& axis,
-                         phi::DenseTensor* dx) {
+                         DenseTensor* dx) {
   VLOG(4) << "Call SDAA TransposeGradKernel";
 
   dev_ctx.template Alloc<T>(dx);

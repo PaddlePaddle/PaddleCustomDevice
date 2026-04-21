@@ -34,13 +34,13 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void PNormKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  float porder,
                  int axis,
                  float epsilon,
                  bool keepdim,
                  bool asvector,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   VLOG(4) << "Call SDAA PNormKernel";
 
   PADDLE_ENFORCE_LT(x.dims().size(),
@@ -85,15 +85,15 @@ void PNormKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void PNormGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     const phi::DenseTensor& dy,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     const DenseTensor& dy,
                      float porder,
                      int axis,
                      float epsilon,
                      bool keepdim UNUSED,
                      bool asvector,
-                     phi::DenseTensor* dx) {
+                     DenseTensor* dx) {
   VLOG(4) << "CALL SDAA PNormGradKernel";
   dev_ctx.template Alloc<T>(dx);
 

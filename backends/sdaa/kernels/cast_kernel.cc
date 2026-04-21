@@ -20,9 +20,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void CastKernel(const Context &dev_ctx,
-                const phi::DenseTensor &x,
+                const DenseTensor &x,
                 phi::DataType out_dtype,
-                phi::DenseTensor *out) {
+                DenseTensor *out) {
   VLOG(4) << "Call SDAA CastKernel";
   dev_ctx.Alloc(out, out_dtype, 0, false, false);
 

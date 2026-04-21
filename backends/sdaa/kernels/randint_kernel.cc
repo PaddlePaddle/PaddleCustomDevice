@@ -37,7 +37,7 @@ void RandintKernelNVAlign(const Context& dev_ctx,
                           int high,
                           const phi::IntArray& shape,
                           phi::DataType dtype,
-                          phi::DenseTensor* out) {
+                          DenseTensor* out) {
   out->Resize(common::make_ddim(shape.GetData()));
   dev_ctx.template Alloc<T>(out);
 
@@ -72,9 +72,9 @@ void RandintKernelNVAlign(const Context& dev_ctx,
   //         << ", seed=" << seed_data << ", offset=" << increment
   //         << ", increment=" << offset;
 
-  phi::DenseTensor out_int32{};
+  DenseTensor out_int32{};
   if (need_trans) {
-    auto out_meta = phi::DenseTensorMeta{phi::DataType::INT32, out->dims()};
+    auto out_meta = DenseTensorMeta{phi::DataType::INT32, out->dims()};
     out_int32.set_meta(out_meta);
     dev_ctx.template Alloc<int>(&out_int32);
   }

@@ -35,9 +35,9 @@ struct TensorStride {
   uint32_t stride;
 };
 
-void CheckInputs(const phi::DenseTensor& q,
-                 const phi::DenseTensor& k,
-                 const phi::DenseTensor& v,
+void CheckInputs(const DenseTensor& q,
+                 const DenseTensor& k,
+                 const DenseTensor& v,
                  float dropout) {
   // q,k,v [seq_len, batch_size, num_heads, head_dim]
   const auto& dims = q.dims();
@@ -69,7 +69,7 @@ void CheckInputs(const phi::DenseTensor& q,
 }
 
 void CastFP32TOFP16Raw(const Context& dev_ctx,
-                       const phi::DenseTensor& src,
+                       const DenseTensor& src,
                        void* dst) {
   std::vector<int> src_dims(phi::vectorize<int>(src.dims()));
   tecodnnTensorDescriptor_t src_Desc =
@@ -84,11 +84,11 @@ void CastFP32TOFP16Raw(const Context& dev_ctx,
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(dst_Desc));
 }
 
-int64_t GetFP16TensorSize(const phi::DenseTensor& t) {
+int64_t GetFP16TensorSize(const DenseTensor& t) {
   return phi::SizeOf(phi::DataType::FLOAT16) * t.numel();
 }
 
-TensorStride GenTensorStride(const phi::DenseTensor& t) {
+TensorStride GenTensorStride(const DenseTensor& t) {
   // t [seq_len, batch_size, num_heads, head_dim]
   auto dims = t.dims();
   PADDLE_ENFORCE_EQ(
@@ -102,22 +102,21 @@ TensorStride GenTensorStride(const phi::DenseTensor& t) {
 }
 
 template <typename T, typename Context>
-void FlashAttnKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& q,
-    const phi::DenseTensor& k,
-    const phi::DenseTensor& v,
-    const paddle::optional<phi::DenseTensor>& fixed_seed_offset,
-    const paddle::optional<phi::DenseTensor>& attn_mask,
-    float dropout,
-    bool causal,
-    bool return_softmax,
-    bool is_test,
-    const std::string& rng_name,
-    phi::DenseTensor* out,
-    phi::DenseTensor* softmax,
-    phi::DenseTensor* softmax_lse,
-    phi::DenseTensor* seed_offset) {
+void FlashAttnKernel(const Context& dev_ctx,
+                     const DenseTensor& q,
+                     const DenseTensor& k,
+                     const DenseTensor& v,
+                     const paddle::optional<DenseTensor>& fixed_seed_offset,
+                     const paddle::optional<DenseTensor>& attn_mask,
+                     float dropout,
+                     bool causal,
+                     bool return_softmax,
+                     bool is_test,
+                     const std::string& rng_name,
+                     DenseTensor* out,
+                     DenseTensor* softmax,
+                     DenseTensor* softmax_lse,
+                     DenseTensor* seed_offset) {
   VLOG(4) << "Call SDAA FlashAttnKernel";
   // q,k,v [seq_len, batch_size, num_heads, head_dim]
   CheckInputs(q, k, v, dropout);
@@ -197,19 +196,19 @@ void FlashAttnKernel(
 
 template <typename T, typename Context>
 void FlashAttnGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& q,
-                         const phi::DenseTensor& k,
-                         const phi::DenseTensor& v,
-                         const phi::DenseTensor& out,
-                         const phi::DenseTensor& softmax_lse,
-                         const phi::DenseTensor& seed_offset,
-                         const paddle::optional<phi::DenseTensor>& attn_mask,
-                         const phi::DenseTensor& dout,
+                         const DenseTensor& q,
+                         const DenseTensor& k,
+                         const DenseTensor& v,
+                         const DenseTensor& out,
+                         const DenseTensor& softmax_lse,
+                         const DenseTensor& seed_offset,
+                         const paddle::optional<DenseTensor>& attn_mask,
+                         const DenseTensor& dout,
                          float dropout,
                          bool causal,
-                         phi::DenseTensor* dq,
-                         phi::DenseTensor* dk,
-                         phi::DenseTensor* dv) {
+                         DenseTensor* dq,
+                         DenseTensor* dk,
+                         DenseTensor* dv) {
   VLOG(4) << "Call SDAA FlashAttnGradKernel";
   // q,k,v [seq_len, batch_size, num_heads, head_dim]
   CheckInputs(q, k, v, dropout);

@@ -32,17 +32,17 @@ namespace custom_kernel {
 // out = -label*log(input+epsilon)-(1-label)*log(1-input+epsilon)
 template <typename T, typename Context>
 void LogLossKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& input,
-                   const phi::DenseTensor& label,
+                   const DenseTensor& input,
+                   const DenseTensor& label,
                    float epsilon,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   VLOG(4) << "Call SDAA LogLossKernel";
   dev_ctx.template Alloc<T>(out);
   // compute out=-label*log(input+epsilon)
-  phi::DenseTensor input_temp;
+  DenseTensor input_temp;
   input_temp.Resize(input.dims());
   dev_ctx.template Alloc<T>(&input_temp);
-  phi::DenseTensor label_temp;
+  DenseTensor label_temp;
   label_temp.Resize(label.dims());
   dev_ctx.template Alloc<T>(&label_temp);
   sdaa_ops::doUnaryOpTensor(
@@ -53,7 +53,7 @@ void LogLossKernel(const Context& dev_ctx,
   sdaa_ops::doUnaryOpTensor(dev_ctx, input_temp, 1.0, UnaryOpMode::LOG, out);
   sdaa_ops::doElementMul(dev_ctx, *out, label_temp, -1, out);
   // compute (1-label)*log(1-input+epsilon)
-  phi::DenseTensor out_2;
+  DenseTensor out_2;
   out_2.Resize(out->dims());
   dev_ctx.template Alloc<T>(&out_2);
 
@@ -71,18 +71,18 @@ void LogLossKernel(const Context& dev_ctx,
 // dout/dx = -label*1/(input+epsilon)+(1-label)*1/(1-input+epsilon)
 template <typename T, typename Context>
 void LogLossGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& input,
-                       const phi::DenseTensor& label,
-                       const phi::DenseTensor& out_grad,
+                       const DenseTensor& input,
+                       const DenseTensor& label,
+                       const DenseTensor& out_grad,
                        float epsilon,
-                       phi::DenseTensor* in_grad) {
+                       DenseTensor* in_grad) {
   VLOG(4) << "Call SDAA LogLossGradKernel";
   dev_ctx.template Alloc<T>(in_grad);
   // compute out=-label*1/(input+epsilon)
-  phi::DenseTensor input_temp;
+  DenseTensor input_temp;
   input_temp.Resize(input.dims());
   dev_ctx.template Alloc<T>(&input_temp);
-  phi::DenseTensor label_temp;
+  DenseTensor label_temp;
   label_temp.Resize(label.dims());
   dev_ctx.template Alloc<T>(&label_temp);
   sdaa_ops::doUnaryOpTensor(
@@ -93,7 +93,7 @@ void LogLossGradKernel(const Context& dev_ctx,
       dev_ctx, input_temp, 1.0, UnaryOpMode::RDIV, in_grad);
   sdaa_ops::doElementMul(dev_ctx, *in_grad, label_temp, -1, in_grad);
   // compute (1-label)*1/(1-input+epsilon)
-  phi::DenseTensor out_2;
+  DenseTensor out_2;
   out_2.Resize(in_grad->dims());
   dev_ctx.template Alloc<T>(&out_2);
 

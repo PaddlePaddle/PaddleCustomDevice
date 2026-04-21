@@ -81,9 +81,9 @@ inline DataTypes_t ToExtendDataType(const DataType& dtype) {
 
 template <typename T, typename Context>
 void AddOne(const Context& dev_ctx,
-            const phi::DenseTensor* in_tensor,
-            phi::DenseTensor* out_tensor) {
-  phi::DenseTensor factor_tensor, in_tensor_f, out_tensor_f;
+            const DenseTensor* in_tensor,
+            DenseTensor* out_tensor) {
+  DenseTensor factor_tensor, in_tensor_f, out_tensor_f;
 
   factor_tensor.Resize({1});
   dev_ctx.template Alloc<float>(&factor_tensor);
@@ -105,13 +105,13 @@ void AddOne(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AbnormCheckAndScale(const Context& dev_ctx,
-                         const std::vector<const phi::DenseTensor*>& xs,
-                         const phi::DenseTensor& t_scale,
-                         std::vector<phi::DenseTensor*> outs,
-                         phi::DenseTensor* found_inf) {
+                         const std::vector<const DenseTensor*>& xs,
+                         const DenseTensor& t_scale,
+                         std::vector<DenseTensor*> outs,
+                         DenseTensor* found_inf) {
   VLOG(4) << "call sdaa custom fusedVSCheckInvalid op";
 
-  phi::DenseTensor found_inf_INT;
+  DenseTensor found_inf_INT;
   found_inf_INT.Resize(found_inf->dims());
   dev_ctx.template Alloc<int32_t>(&found_inf_INT);
 
@@ -134,12 +134,12 @@ void AbnormCheckAndScale(const Context& dev_ctx,
   for (int i = 0; i < M; i++) {
     int64_t tensor_num = xs[i]->numel();
     every_tensor_num.push_back(tensor_num);
-    auto* x = const_cast<phi::DenseTensor*>(xs[i]);
+    auto* x = const_cast<DenseTensor*>(xs[i]);
     input[i] = x->data<T>();
     input[i + M] = outs[i]->data<T>();
   }
 
-  phi::DenseTensor total;
+  DenseTensor total;
   int total_numel = M * sizeof(int64_t) + 2 * M * sizeof(void*);
   total.Resize({total_numel});
   dev_ctx.template Alloc<uint8_t>(&total);

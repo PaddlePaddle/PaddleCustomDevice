@@ -105,13 +105,13 @@ inline phi::DDim GetDecreasedDims(const phi::DDim slice_dims,
 
 template <typename T, typename Context>
 void SliceRawKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     const std::vector<int64_t>& axes,
                     const phi::IntArray& starts_array,
                     const phi::IntArray& ends_array,
                     const std::vector<int64_t>& infer_flags,
                     const std::vector<int64_t>& decrease_axis,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   VLOG(4) << "Call SDAA SliceRawKernel";
 
   auto starts = starts_array.GetData();
@@ -157,14 +157,14 @@ void SliceRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SliceGradRawKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& dout,
+                        const DenseTensor& x,
+                        const DenseTensor& dout,
                         const std::vector<int64_t>& axes_t,
                         const phi::IntArray& starts_array,
                         const phi::IntArray& ends_array,
                         const std::vector<int64_t>& infer_flags,
                         const std::vector<int64_t>& decrease_axis,
-                        phi::DenseTensor* dx) {
+                        DenseTensor* dx) {
   VLOG(4) << "Call SDAA SliceGradRawKernel";
 
   std::vector<int> axes(axes_t.begin(), axes_t.end());
@@ -194,7 +194,7 @@ void SliceGradRawKernel(const Context& dev_ctx,
     paddings[1][i] = in_dims[i] - size[i] - offset[i];
   }
 
-  phi::DenseTensor tmp_dout(dout);
+  DenseTensor tmp_dout(dout);
   auto out_dims = dout.dims();
 
   auto decrease_size = decrease_axis.size();

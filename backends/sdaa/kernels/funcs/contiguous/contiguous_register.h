@@ -43,11 +43,11 @@ class ContiguousOpt {
   ContiguousOpt() {}
   virtual ~ContiguousOpt() = default;
   virtual bool Optimize(const Context& dev_ctx,
-                        const phi::DenseTensor& src,
-                        phi::DenseTensor* dst) = 0;
+                        const DenseTensor& src,
+                        DenseTensor* dst) = 0;
   virtual bool CanOptimize(const Context& dev_ctx,
-                           const phi::DenseTensor& src,
-                           phi::DenseTensor* dst) {
+                           const DenseTensor& src,
+                           DenseTensor* dst) {
     return false;
   }
 };
@@ -80,8 +80,8 @@ class CopyOptRegister {
 
   bool CanOptimize(std::string& name,  // NOLINT
                    const Context& dev_ctx,
-                   const phi::DenseTensor& src,
-                   phi::DenseTensor* dst) {
+                   const DenseTensor& src,
+                   DenseTensor* dst) {
     for (int8_t level = ProfLevel::PROF_HIGH; level < ProfLevel::PROF_MAX_CNT;
          level++) {
       if (FindOptimize(registry[level], name, dev_ctx, src, dst)) {
@@ -93,8 +93,8 @@ class CopyOptRegister {
 
   bool Run(const std::string& name,
            const Context& dev_ctx,
-           const phi::DenseTensor& src,
-           phi::DenseTensor* dst) {
+           const DenseTensor& src,
+           DenseTensor* dst) {
     for (int8_t level = ProfLevel::PROF_HIGH; level < ProfLevel::PROF_MAX_CNT;
          level++) {
       auto itr = registry[level].find(name);
@@ -114,8 +114,8 @@ class CopyOptRegister {
   bool FindOptimize(OptMap& opt_map,    // NOLINT
                     std::string& name,  // NOLINT
                     const Context& dev_ctx,
-                    const phi::DenseTensor& src,
-                    phi::DenseTensor* dst) {
+                    const DenseTensor& src,
+                    DenseTensor* dst) {
     for (auto& opt : opt_map) {
       if (opt.second->CanOptimize(dev_ctx, src, dst)) {
         name = opt.first;

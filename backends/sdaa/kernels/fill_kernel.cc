@@ -31,9 +31,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void FillKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::Scalar& value,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA FillKernel";
   double fill_var = value.to<double>();
 

@@ -34,10 +34,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void IndexSelectKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& index,
+                       const DenseTensor& x,
+                       const DenseTensor& index,
                        int dim,
-                       phi::DenseTensor* output) {
+                       DenseTensor* output) {
   VLOG(4) << "Call SDAA IndexSelectKernel";
 
   if (dim < 0) {

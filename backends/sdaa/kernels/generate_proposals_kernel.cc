@@ -33,20 +33,20 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GenerateProposalsKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& scores,
-                             const phi::DenseTensor& bbox_deltas,
-                             const phi::DenseTensor& im_shape,
-                             const phi::DenseTensor& anchors,
-                             const phi::DenseTensor& variances,
+                             const DenseTensor& scores,
+                             const DenseTensor& bbox_deltas,
+                             const DenseTensor& im_shape,
+                             const DenseTensor& anchors,
+                             const DenseTensor& variances,
                              int pre_nms_top_n,
                              int post_nms_top_n,
                              float nms_thresh,
                              float min_size,
                              float eta,
                              bool pixel_offset,
-                             phi::DenseTensor* rpn_rois,
-                             phi::DenseTensor* rpn_roi_probs,
-                             phi::DenseTensor* rpn_rois_num) {
+                             DenseTensor* rpn_rois,
+                             DenseTensor* rpn_roi_probs,
+                             DenseTensor* rpn_rois_num) {
   VLOG(4) << "Call Sdaa GenerateProposalkKernel";
   PADDLE_ENFORCE_EQ(
       scores.dims().size(),
@@ -74,7 +74,7 @@ void GenerateProposalsKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(rpn_roi_probs);
   // [N,1]
 
-  phi::DenseTensor rpn_roi_num_tmp;
+  DenseTensor rpn_roi_num_tmp;
   if (rpn_rois_num) {
     rpn_rois_num->Resize({num});
     dev_ctx.template Alloc<int>(rpn_rois_num);
@@ -86,7 +86,7 @@ void GenerateProposalsKernel(const Context& dev_ctx,
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   // Scores [N,C,H,W] -> [N,H,W,C]
 
-  phi::DenseTensor scores_swap, bbox_deltas_swap;
+  DenseTensor scores_swap, bbox_deltas_swap;
   std::vector<int> dims = {num, h_score, w_score, c_score};
 
   scores_swap.Resize(phi::make_ddim(dims));
@@ -190,7 +190,7 @@ void GenerateProposalsKernel(const Context& dev_ctx,
                                                anchor_Desc,
                                                var_Desc,
                                                &workSpaceSizeInBytes));
-  phi::DenseTensor workspace;
+  DenseTensor workspace;
   int8_t* workspace_data =
       dev_ctx.template Alloc<int8_t>(&workspace, workSpaceSizeInBytes);
 

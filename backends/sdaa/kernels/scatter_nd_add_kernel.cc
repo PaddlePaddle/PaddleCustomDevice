@@ -30,10 +30,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ScatterNdAddKernel(const Context &ctx,
-                        const phi::DenseTensor &x,
-                        const phi::DenseTensor &index,
-                        const phi::DenseTensor &updates,
-                        phi::DenseTensor *out) {
+                        const DenseTensor &x,
+                        const DenseTensor &index,
+                        const DenseTensor &updates,
+                        DenseTensor *out) {
   VLOG(4) << "Call SDAA ScatterNdAddKernel";
 
   // In place output: Out = X

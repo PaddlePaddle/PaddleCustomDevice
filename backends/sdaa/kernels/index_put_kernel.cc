@@ -34,15 +34,15 @@ void doArangeTensor(const Context& dev_ctx,
                     const T& start,
                     const T& end,
                     const T& step,
-                    phi::DenseTensor* out);
+                    DenseTensor* out);
 
 template <typename T, typename Context>
 void IndexPutKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const std::vector<const phi::DenseTensor*>& indices,
-                    const phi::DenseTensor& value,
+                    const DenseTensor& x,
+                    const std::vector<const DenseTensor*>& indices,
+                    const DenseTensor& value,
                     bool accumulate,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   VLOG(4) << "CALL SDAA IndexPutKernel.";
 
   if (!out->initialized()) {
@@ -62,8 +62,8 @@ void IndexPutKernel(const Context& dev_ctx,
                     false,
                     phi::errors::InvalidArgument("Indices cannot be empty."));
 
-  std::vector<phi::DenseTensor> tmp_args;
-  std::vector<const phi::DenseTensor*> int_indices_v =
+  std::vector<DenseTensor> tmp_args;
+  std::vector<const DenseTensor*> int_indices_v =
       custom_kernel::DealWithBoolIndices<T, Context>(
           dev_ctx, indices, &tmp_args);
 
@@ -74,13 +74,13 @@ void IndexPutKernel(const Context& dev_ctx,
   auto bd_dim = custom_kernel::BroadCastTensorsDims(int_indices_v);
 
   std::vector<int64_t> res_dim_v(phi::vectorize(bd_dim));
-  std::vector<const phi::DenseTensor*> res_indices_v(x.dims().size(), nullptr);
-  std::vector<phi::DenseTensor> tmp_res_indices_v;
-  std::vector<phi::DenseTensor> range_tensor_v;
+  std::vector<const DenseTensor*> res_indices_v(x.dims().size(), nullptr);
+  std::vector<DenseTensor> tmp_res_indices_v;
+  std::vector<DenseTensor> range_tensor_v;
 
   for (int i = static_cast<int>(int_indices_v.size()); i < x.dims().size();
        ++i) {
-    phi::DenseTensor range_tensor;
+    DenseTensor range_tensor;
     range_tensor.Resize(phi::make_ddim({x.dims()[i]}));
     dev_ctx.template Alloc<int64_t>(&range_tensor);
     custom_kernel::doArangeTensor<int64_t, Context>(
@@ -96,9 +96,9 @@ void IndexPutKernel(const Context& dev_ctx,
                                              range_tensor_v,
                                              bd_dim,
                                              &res_dim_v);
-  phi::DenseTensor value_tmp;
+  DenseTensor value_tmp;
   if (value.numel() != 1) {
-    phi::DenseTensorMeta meta = {value.dtype(), phi::make_ddim(res_dim_v)};
+    DenseTensorMeta meta = {value.dtype(), phi::make_ddim(res_dim_v)};
     value_tmp.set_meta(meta);
 
     custom_kernel::ExpandKernel<T, Context>(
@@ -119,7 +119,7 @@ void IndexPutKernel(const Context& dev_ctx,
     indicesDesc.emplace_back(indexDesc);
   }
 
-  phi::DenseTensor index;
+  DenseTensor index;
   int64_t index_size = res_indices_v.size() * sizeof(void*);
   index.Resize({index_size});
   dev_ctx.template Alloc<int8_t>(&index);

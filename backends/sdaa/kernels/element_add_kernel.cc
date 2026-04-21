@@ -20,10 +20,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AddRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "Call SDAA AddKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doElementAdd(dev_ctx, x, y, axis, out);
@@ -31,9 +31,9 @@ void AddRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AddKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const phi::DenseTensor& y,
-               phi::DenseTensor* out) {
+               const DenseTensor& x,
+               const DenseTensor& y,
+               DenseTensor* out) {
   // In RPNFeat layer of mask-rcnn, five conv layers use the same filter
   // weights, so out's storage properties will be eliminated while accumulating
   // gradients and it must add storage properties to out.
@@ -78,12 +78,12 @@ void AddKernel(const Context& dev_ctx,
 }
 template <typename T, typename Context>
 void AddGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   const phi::DenseTensor& dout,
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   const DenseTensor& dout,
                    int axis,
-                   phi::DenseTensor* dx,
-                   phi::DenseTensor* dy) {
+                   DenseTensor* dx,
+                   DenseTensor* dy) {
   VLOG(4) << "Call SDAA AddGradKernel";
 
   auto out_dims_vec = phi::vectorize<int64_t>(dout.dims());
@@ -115,9 +115,9 @@ void AddGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GradAddKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   DenseTensor* out) {
   VLOG(4) << "Call SDAA GradAddKernel";
 
   custom_kernel::AddRawKernel<T>(dev_ctx, x, y, -1, out);

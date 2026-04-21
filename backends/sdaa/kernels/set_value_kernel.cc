@@ -31,8 +31,7 @@ namespace custom_kernel {
 
 // This function is used to check if the value_dims size is less than
 // decrease_slice_dims size.
-inline void CheckIsDimsMatch(const phi::DenseTensor& input,
-                             phi::DenseTensor* output) {
+inline void CheckIsDimsMatch(const DenseTensor& input, DenseTensor* output) {
   std::vector<int64_t> input_dims = phi::vectorize(input.dims());
   std::vector<int64_t> out_dims = phi::vectorize(output->dims());
 
@@ -209,15 +208,15 @@ inline phi::DDim GetDecreasedDims(const phi::DDim slice_dims,
 
 template <typename T, typename Context>
 void SetTensorValueKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& value,
+                          const DenseTensor& x,
+                          const DenseTensor& value,
                           const phi::IntArray& starts,
                           const phi::IntArray& ends,
                           const phi::IntArray& steps,
                           const std::vector<int64_t>& axes,
                           const std::vector<int64_t>& decrease_axes,
                           const std::vector<int64_t>& none_axes,
-                          phi::DenseTensor* out) {
+                          DenseTensor* out) {
   VLOG(4) << "CALL SDAA SetTensorValueKernel";
 
   dev_ctx.template Alloc<T>(out);
@@ -282,7 +281,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
     strides_indices[axis_index] = static_cast<int>(steps_local[i]);
   }
 
-  phi::DenseTensor value_temp;
+  DenseTensor value_temp;
   if (slice_dims_for_assign == value.dims()) {
     value_temp = value;
   } else {
@@ -298,7 +297,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
   std::vector<T> index_indices(stride_step);
   std::iota(index_indices.begin(), index_indices.end(), 0);
 
-  phi::DenseTensor in_temp, val_temp, index_out, index_temp;
+  DenseTensor in_temp, val_temp, index_out, index_temp;
   in_temp = x;
   val_temp = value_temp;
   index_temp.Resize(in_dims);
@@ -354,13 +353,12 @@ void SetTensorValueKernel(const Context& dev_ctx,
       phi::errors::InvalidArgument(
           "OP(set_value) error index indices and value update not match "));
 
-  phi::DenseTensor index_final(index_out);
+  DenseTensor index_final(index_out);
   int64_t indices_numel = phi::product(index_dims);
   auto new_index_dims = phi::make_ddim({indices_numel});
   index_final.Resize(new_index_dims);
 
-  phi::DenseTensor in_temp_non_int, val_temp_non_int, out_non_int,
-      index_final_int32;
+  DenseTensor in_temp_non_int, val_temp_non_int, out_non_int, index_final_int32;
   if (x.dtype() == DataType::INT64) {
     index_final_int32 = index_final;
 

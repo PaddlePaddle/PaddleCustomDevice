@@ -123,17 +123,17 @@ void bce_loss_grad(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BCELossKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& labels,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   const DenseTensor& labels,
+                   DenseTensor* out) {
   VLOG(4) << "Call SDAA BCELossKernel";
   dev_ctx.template Alloc<T>(out);
   std::vector<int> xdims;
   for (int i = 0; i < x.dims().size(); i++) {
     xdims.push_back(x.dims()[i]);
   }
-  phi::DenseTensor w;
-  phi::DenseTensorMeta w_meta = {x.dtype(), x.dims()};
+  DenseTensor w;
+  DenseTensorMeta w_meta = {x.dtype(), x.dims()};
   w.set_meta(w_meta);
   dev_ctx.template Alloc<T>(&w);
   sdaa_ops::doFillTensor<T>(dev_ctx, static_cast<T>(1), x.dtype(), &w);
@@ -149,18 +149,18 @@ void BCELossKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BCELossGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& labels,
-                       const phi::DenseTensor& dout,
-                       phi::DenseTensor* dx) {
+                       const DenseTensor& x,
+                       const DenseTensor& labels,
+                       const DenseTensor& dout,
+                       DenseTensor* dx) {
   VLOG(4) << "Call SDAA BCELossGradKernel";
   dev_ctx.template Alloc<T>(dx);
   std::vector<int> xdims;
   for (int i = 0; i < x.dims().size(); i++) {
     xdims.push_back(x.dims()[i]);
   }
-  phi::DenseTensor w;
-  phi::DenseTensorMeta w_meta = {x.dtype(), x.dims()};
+  DenseTensor w;
+  DenseTensorMeta w_meta = {x.dtype(), x.dims()};
   w.set_meta(w_meta);
   dev_ctx.template Alloc<T>(&w);
   sdaa_ops::doFillTensor<T>(dev_ctx, static_cast<T>(1), x.dtype(), &w);

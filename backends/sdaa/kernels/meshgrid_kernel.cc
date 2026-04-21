@@ -34,8 +34,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MeshgridKernel(const Context& dev_ctx,
-                    const std::vector<const phi::DenseTensor*>& inputs,
-                    std::vector<phi::DenseTensor*> outputs) {
+                    const std::vector<const DenseTensor*>& inputs,
+                    std::vector<DenseTensor*> outputs) {
   VLOG(4) << "Call SDAA MeshgridKernel";
 
   int rank = inputs.size();
@@ -72,7 +72,7 @@ void MeshgridKernel(const Context& dev_ctx,
   memcpy(host_input.data(), input_ptr.data(), inputWorkspaceSize);
   memcpy(host_output.data(), output_ptr.data(), outputWorkspaceSize);
 
-  phi::DenseTensor input_tmp, output_tmp;
+  DenseTensor input_tmp, output_tmp;
   input_tmp.Resize(phi::make_ddim({hostInputSize}));
   output_tmp.Resize(phi::make_ddim({hostOutputSize}));
   dev_ctx.Alloc(&input_tmp, phi::DataType::INT8);

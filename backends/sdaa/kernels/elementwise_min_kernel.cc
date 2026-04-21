@@ -34,9 +34,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MinimumKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   DenseTensor* out) {
   VLOG(4) << "Call SDAA MinimumKernel";
   dev_ctx.template Alloc<T>(out);
 

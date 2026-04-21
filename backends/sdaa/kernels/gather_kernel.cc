@@ -33,10 +33,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void doGatherTensor(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& index,
+                    const DenseTensor& x,
+                    const DenseTensor& index,
                     const phi::Scalar& axis,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   int axis_ = axis.to<int32_t>();
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> index_dims = phi::vectorize<int>(index.dims());
@@ -66,10 +66,10 @@ void doGatherTensor(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GatherKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& index,
+                  const DenseTensor& x,
+                  const DenseTensor& index,
                   const phi::Scalar& axis,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "Call SDAA GatherKernel";
 
   dev_ctx.template Alloc<T>(out);
@@ -80,11 +80,11 @@ void GatherKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GatherGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& index,
-                      const phi::DenseTensor& dout,
+                      const DenseTensor& x,
+                      const DenseTensor& index,
+                      const DenseTensor& dout,
                       const phi::Scalar& axis,
-                      phi::DenseTensor* dx) {
+                      DenseTensor* dx) {
   VLOG(4) << "CALL SDAA GatherGradKernel";
 
   dev_ctx.template Alloc<T>(dx);
@@ -113,8 +113,8 @@ void GatherGradKernel(const Context& dev_ctx,
                           index_dims.size()));
   }
 
-  phi::DenseTensor zeroslike_x;
-  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  DenseTensor zeroslike_x;
+  DenseTensorMeta meta = {x.dtype(), x.dims()};
   zeroslike_x.set_meta(meta);
   dev_ctx.template Alloc<T>(&zeroslike_x);
 

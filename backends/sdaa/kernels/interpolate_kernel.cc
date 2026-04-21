@@ -63,7 +63,7 @@ inline void ExtractNCDWH(const phi::DDim& dims,
 
 inline std::vector<int> GetNewShape(
     const Context& dev_ctx,
-    const std::vector<const phi::DenseTensor*>& list_new_shape_tensor) {
+    const std::vector<const DenseTensor*>& list_new_shape_tensor) {
   // get tensor from
   std::vector<int> vec_new_shape;
   for (size_t i = 0; i < list_new_shape_tensor.size(); ++i) {
@@ -76,7 +76,7 @@ inline std::vector<int> GetNewShape(
                           "but received d%.",
                           tensor->dims()));
     if (src_place.GetType() == phi::AllocationType::CUSTOM) {
-      phi::DenseTensor temp;
+      DenseTensor temp;
       TensorCopy(dev_ctx, *tensor, true, &temp, phi::CPUPlace());
       vec_new_shape.push_back(static_cast<int32_t>(*temp.data<int32_t>()));
     } else {
@@ -88,11 +88,11 @@ inline std::vector<int> GetNewShape(
 }
 
 template <typename T>
-inline std::vector<T> GetNewDataFromTensor(
-    const Context& dev_ctx, const phi::DenseTensor* new_data_tensor) {
+inline std::vector<T> GetNewDataFromTensor(const Context& dev_ctx,
+                                           const DenseTensor* new_data_tensor) {
   std::vector<T> vec_new_data;
   auto* new_data = new_data_tensor->data<T>();
-  phi::DenseTensor cpu_starts_tensor;
+  DenseTensor cpu_starts_tensor;
   const auto& src_place = new_data_tensor->place();
   if (src_place.GetType() == phi::AllocationType::CUSTOM) {
     TensorCopy(
@@ -109,10 +109,10 @@ inline std::vector<T> GetNewDataFromTensor(
 template <typename T, typename Context>
 void NearestInterpKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& input,
-    const paddle::optional<phi::DenseTensor>& out_size,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& size_tensor,
-    const paddle::optional<phi::DenseTensor>& scale_tensor,
+    const DenseTensor& input,
+    const paddle::optional<DenseTensor>& out_size,
+    const paddle::optional<std::vector<const DenseTensor*>>& size_tensor,
+    const paddle::optional<DenseTensor>& scale_tensor,
     const std::string& data_layout_str,
     int out_d,
     int out_h,
@@ -121,7 +121,7 @@ void NearestInterpKernel(
     const std::string& interp_method,
     bool align_corners,
     int align_mode,
-    phi::DenseTensor* output) {
+    DenseTensor* output) {
   VLOG(4) << "Call SDAA NearestInterpKernel";
 
   auto* input_data = input.data<T>();
@@ -233,9 +233,9 @@ void NearestInterpKernel(
     phi::DDim out_NHWC_dims =
         sdaa_ops::doDimPermute(*output, Convert_TF::NCHW2NHWC);
 
-    phi::DenseTensor in_x_NHWC, out_NHWC;
-    phi::DenseTensorMeta in_x_NHWC_meta = {input.dtype(), in_x_NHWC_dims};
-    phi::DenseTensorMeta out_NHWC_meta = {output->dtype(), out_NHWC_dims};
+    DenseTensor in_x_NHWC, out_NHWC;
+    DenseTensorMeta in_x_NHWC_meta = {input.dtype(), in_x_NHWC_dims};
+    DenseTensorMeta out_NHWC_meta = {output->dtype(), out_NHWC_dims};
     in_x_NHWC.set_meta(in_x_NHWC_meta);
     out_NHWC.set_meta(out_NHWC_meta);
 
@@ -264,11 +264,11 @@ void NearestInterpKernel(
 template <typename T, typename Context>
 void NearestInterpGradKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& input,
-    const paddle::optional<phi::DenseTensor>& out_size,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& size_tensor,
-    const paddle::optional<phi::DenseTensor>& scale_tensor,
-    const phi::DenseTensor& output_grad,
+    const DenseTensor& input,
+    const paddle::optional<DenseTensor>& out_size,
+    const paddle::optional<std::vector<const DenseTensor*>>& size_tensor,
+    const paddle::optional<DenseTensor>& scale_tensor,
+    const DenseTensor& output_grad,
     const std::string& data_layout_str,
     int out_d,
     int out_h,
@@ -277,7 +277,7 @@ void NearestInterpGradKernel(
     const std::string& interp_method,
     bool align_corners,
     int align_mode,
-    phi::DenseTensor* input_grad) {
+    DenseTensor* input_grad) {
   VLOG(4) << "Call SDAA NearestInterpGradKernel";
 
   const DataLayout data_layout = common::StringToDataLayout(data_layout_str);
@@ -378,9 +378,9 @@ void NearestInterpGradKernel(
     phi::DDim out_NHWC_dims =
         sdaa_ops::doDimPermute(*input_grad, Convert_TF::NCHW2NHWC);
 
-    phi::DenseTensor in_x_NHWC, out_NHWC;
-    phi::DenseTensorMeta in_x_NHWC_meta = {output_grad.dtype(), in_x_NHWC_dims};
-    phi::DenseTensorMeta out_NHWC_meta = {input_grad->dtype(), out_NHWC_dims};
+    DenseTensor in_x_NHWC, out_NHWC;
+    DenseTensorMeta in_x_NHWC_meta = {output_grad.dtype(), in_x_NHWC_dims};
+    DenseTensorMeta out_NHWC_meta = {input_grad->dtype(), out_NHWC_dims};
     in_x_NHWC.set_meta(in_x_NHWC_meta);
     out_NHWC.set_meta(out_NHWC_meta);
 

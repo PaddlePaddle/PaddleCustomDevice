@@ -21,11 +21,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ScaleKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const phi::Scalar& in_scale,
                  const phi::Scalar& bias,
                  bool bias_after_scale,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   VLOG(4) << "Call SDAA ScaleKernel";
   using MT = typename sdaa_ops::MPTypeTrait<T>::Type;
   auto scale = in_scale.to<MT>();

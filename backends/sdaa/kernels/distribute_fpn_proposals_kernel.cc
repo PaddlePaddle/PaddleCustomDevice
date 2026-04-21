@@ -31,10 +31,10 @@ namespace custom_kernel {
 
 template <typename Context>
 inline std::vector<size_t> GetLodFromRoisNum(const Context& dev_ctx,
-                                             const phi::DenseTensor* rois_num) {
+                                             const DenseTensor* rois_num) {
   std::vector<size_t> rois_lod;
   auto* rois_num_data = rois_num->data<int>();
-  phi::DenseTensor cpu_tensor;
+  DenseTensor cpu_tensor;
   phi::Copy<Context>(dev_ctx, *rois_num, phi::CPUPlace(), true, &cpu_tensor);
   rois_num_data = cpu_tensor.data<int>();
   rois_lod.push_back(static_cast<size_t>(0));
@@ -47,16 +47,16 @@ inline std::vector<size_t> GetLodFromRoisNum(const Context& dev_ctx,
 template <typename T, typename Context>
 void DistributeFpnProposalsKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& fpn_rois,
-    const paddle::optional<phi::DenseTensor>& rois_num,
+    const DenseTensor& fpn_rois,
+    const paddle::optional<DenseTensor>& rois_num,
     int min_level,
     int max_level,
     int refer_level,
     int refer_scale,
     bool pixel_offset,
-    std::vector<phi::DenseTensor*> multi_fpn_rois,
-    std::vector<phi::DenseTensor*> multi_level_rois_num,
-    phi::DenseTensor* restore_index) {
+    std::vector<DenseTensor*> multi_fpn_rois,
+    std::vector<DenseTensor*> multi_level_rois_num,
+    DenseTensor* restore_index) {
   VLOG(4) << "CALL SDAA DistributeFpnProposalsKernel";
 
   int num_level = max_level - min_level + 1;
@@ -80,7 +80,7 @@ void DistributeFpnProposalsKernel(
   int lod_size = fpn_rois_lod.size() - 1;
   int roi_num = fpn_rois_lod[lod_size];
 
-  phi::DenseTensor rois_num_cpu, rois_num_sdaa;
+  DenseTensor rois_num_cpu, rois_num_sdaa;
   if (!rois_num.get_ptr()) {
     // get rois_num from fpn_rois_lod
     rois_num_cpu.Resize({lod_size});
@@ -160,14 +160,14 @@ void DistributeFpnProposalsKernel(
     phi::LoD lod;
     lod.clear();
     lod.emplace_back(lod_offset[i]);
-    phi::DenseTensorMeta lod_meta = {multi_fpn_rois[i]->dtype(),
-                                     multi_fpn_rois[i]->dims(),
-                                     multi_fpn_rois[i]->layout(),
-                                     lod};
+    DenseTensorMeta lod_meta = {multi_fpn_rois[i]->dtype(),
+                                multi_fpn_rois[i]->dims(),
+                                multi_fpn_rois[i]->layout(),
+                                lod};
     multi_fpn_rois[i]->set_meta(lod_meta);
   }
 
-  phi::DenseTensor multi_level_rois_num_ptr_tensor;
+  DenseTensor multi_level_rois_num_ptr_tensor;
   void* multi_level_rois_num_ptr_tensor_data_ptr = nullptr;
   if (multi_level_rois_num.size() > 0) {
     std::vector<int> multi_level_rois_num_dims = {lod_size};
@@ -210,7 +210,7 @@ void DistributeFpnProposalsKernel(
       restore_index_dims, restore_index->dtype(), TensorFormat::Undefined);
 
   int multi_fpn_rois_ptr_size = multi_fpn_rois_ptr.size() * sizeof(void*);
-  phi::DenseTensor multi_fpn_rois_ptr_tensor;
+  DenseTensor multi_fpn_rois_ptr_tensor;
   multi_fpn_rois_ptr_tensor.Resize(phi::make_ddim({multi_fpn_rois_ptr_size}));
   dev_ctx.template Alloc<int8_t>(&multi_fpn_rois_ptr_tensor);
   AsyncMemCpyH2D(nullptr,

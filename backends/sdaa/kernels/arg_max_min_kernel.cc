@@ -31,10 +31,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void doArgMaxMinTensor(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        int axis,
                        bool arg_max,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   VLOG(4) << "call tecodnn argmax/argmin kernel";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -63,13 +63,13 @@ void doArgMaxMinTensor(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ArgMaxMin(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::Scalar& axis,
                bool keepdims,
                bool flatten,
                phi::DataType dtype,
                bool arg_max,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   int axis_ = axis.to<int>();
   if (x.numel() == 0) return;
 
@@ -96,7 +96,7 @@ void ArgMaxMin(const Context& dev_ctx,
   }
 
   if (flatten) {
-    phi::DenseTensor flatten_x(x);
+    DenseTensor flatten_x(x);
     flatten_x.Resize(phi::make_ddim({x.numel()}));
     // if flatten, the axis_ is 0
     axis_ = 0;
@@ -110,12 +110,12 @@ void ArgMaxMin(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ArgMaxKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::Scalar& axis,
                   bool keepdims,
                   bool flatten,
                   phi::DataType dtype,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "CALL SDAA ArgMaxKernel";
   custom_kernel::ArgMaxMin<T, Context>(
       dev_ctx, x, axis, keepdims, flatten, dtype, true, out);
@@ -123,12 +123,12 @@ void ArgMaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ArgMinKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::Scalar& axis,
                   bool keepdims,
                   bool flatten,
                   phi::DataType dtype,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "CALL SDAA ArgMinKernel";
   custom_kernel::ArgMaxMin<T, Context>(
       dev_ctx, x, axis, keepdims, flatten, dtype, false, out);

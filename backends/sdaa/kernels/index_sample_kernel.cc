@@ -34,9 +34,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void IndexSampleKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& index,
-                       phi::DenseTensor* out) {
+                       const DenseTensor& x,
+                       const DenseTensor& index,
+                       DenseTensor* out) {
   VLOG(4) << "Call SDAA IndexSampleKernel";
 
   auto index_type = index.dtype();

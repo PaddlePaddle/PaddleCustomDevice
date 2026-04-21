@@ -20,33 +20,32 @@
 #include "tecodnn.h"  // NOLINT
 namespace custom_kernel {
 template <typename T, typename Context>
-void AdamKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& param,
-    const phi::DenseTensor& grad,
-    const phi::DenseTensor& learning_rate,
-    const phi::DenseTensor& moment1,
-    const phi::DenseTensor& moment2,
-    const paddle::optional<phi::DenseTensor>& moment2_max,  // UNUSED
-    const phi::DenseTensor& beta1_pow_in,
-    const phi::DenseTensor& beta2_pow_in,
-    const paddle::optional<phi::DenseTensor>& master_param,  // fp32
-    const paddle::optional<phi::DenseTensor>& skip_update,
-    const phi::Scalar& beta1_in,
-    const phi::Scalar& beta2_in,
-    const phi::Scalar& epsilon_in,
-    bool lazy_mode,
-    int64_t min_row_size_to_use_multithread,
-    bool multi_precision,
-    bool use_global_beta_pow,
-    bool amsgrad,  // UNUSED
-    phi::DenseTensor* param_out,
-    phi::DenseTensor* moment1_out,
-    phi::DenseTensor* moment2_out,
-    phi::DenseTensor* moment2_max_out,  // UNUSED
-    phi::DenseTensor* beta1_pow_out,
-    phi::DenseTensor* beta2_pow_out,
-    phi::DenseTensor* master_param_out) {
+void AdamKernel(const Context& dev_ctx,
+                const DenseTensor& param,
+                const DenseTensor& grad,
+                const DenseTensor& learning_rate,
+                const DenseTensor& moment1,
+                const DenseTensor& moment2,
+                const paddle::optional<DenseTensor>& moment2_max,  // UNUSED
+                const DenseTensor& beta1_pow_in,
+                const DenseTensor& beta2_pow_in,
+                const paddle::optional<DenseTensor>& master_param,  // fp32
+                const paddle::optional<DenseTensor>& skip_update,
+                const phi::Scalar& beta1_in,
+                const phi::Scalar& beta2_in,
+                const phi::Scalar& epsilon_in,
+                bool lazy_mode,
+                int64_t min_row_size_to_use_multithread,
+                bool multi_precision,
+                bool use_global_beta_pow,
+                bool amsgrad,  // UNUSED
+                DenseTensor* param_out,
+                DenseTensor* moment1_out,
+                DenseTensor* moment2_out,
+                DenseTensor* moment2_max_out,  // UNUSED
+                DenseTensor* beta1_pow_out,
+                DenseTensor* beta2_pow_out,
+                DenseTensor* master_param_out) {
   VLOG(4) << "call sdaa AdamKernel";
 
   PADDLE_ENFORCE_NE(
@@ -99,8 +98,8 @@ void AdamKernel(
   std::vector<bool> cpu_if_skip = {false};
 
   if (skip_update.is_initialized()) {
-    const phi::DenseTensor& skip_update_tmp =
-        static_cast<const phi::DenseTensor&>(*skip_update);
+    const DenseTensor& skip_update_tmp =
+        static_cast<const DenseTensor&>(*skip_update);
     TensorToVector(dev_ctx, skip_update_tmp, dev_ctx, &cpu_if_skip);
     PADDLE_ENFORCE_EQ(skip_update->numel(),
                       1,
@@ -140,18 +139,18 @@ void AdamKernel(
     device_scale += 1;
   }
 
-  phi::DenseTensor* beta1_pow = const_cast<phi::DenseTensor*>(&beta1_pow_in);
-  phi::DenseTensor* beta2_pow = const_cast<phi::DenseTensor*>(&beta2_pow_in);
-  phi::DenseTensor* lr = const_cast<phi::DenseTensor*>(&learning_rate);
-  phi::DenseTensor* grad_in = const_cast<phi::DenseTensor*>(&grad);
+  DenseTensor* beta1_pow = const_cast<DenseTensor*>(&beta1_pow_in);
+  DenseTensor* beta2_pow = const_cast<DenseTensor*>(&beta2_pow_in);
+  DenseTensor* lr = const_cast<DenseTensor*>(&learning_rate);
+  DenseTensor* grad_in = const_cast<DenseTensor*>(&grad);
   float beta1 = beta1_in.to<float>();  // cpu
   float beta2 = beta2_in.to<float>();  // cpu
   float epsilon = epsilon_in.to<float>();
   int n_total = static_cast<int>(param.numel());
 
-  phi::DenseTensor param_in = multi_precision ? master_param.get() : param;
-  phi::DenseTensor* moment1_in = const_cast<phi::DenseTensor*>(&moment1);
-  phi::DenseTensor* moment2_in = const_cast<phi::DenseTensor*>(&moment2);
+  DenseTensor param_in = multi_precision ? master_param.get() : param;
+  DenseTensor* moment1_in = const_cast<DenseTensor*>(&moment1);
+  DenseTensor* moment2_in = const_cast<DenseTensor*>(&moment2);
 
   // init beta_pow_out in case beta_pow_out is NULL when use_global_beta_pow is
   // true
@@ -173,7 +172,7 @@ void AdamKernel(
   }
   void* A[4] = {
       grad_in->data(), param_in.data(), moment1_in->data(), moment2_in->data()};
-  phi::DenseTensor param_out_;
+  DenseTensor param_out_;
   if (multi_precision) {
     param_out_ = *master_param_out;
   } else {
@@ -204,36 +203,35 @@ void AdamKernel(
 }
 
 template <typename T, typename Context>
-void AdamwKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& param,
-    const phi::DenseTensor& grad,
-    const phi::DenseTensor& learning_rate,
-    const phi::DenseTensor& moment1,
-    const phi::DenseTensor& moment2,
-    const paddle::optional<phi::DenseTensor>& moment2_max,  // UNUSED
-    const phi::DenseTensor& beta1_pow,
-    const phi::DenseTensor& beta2_pow,
-    const paddle::optional<phi::DenseTensor>& master_param,
-    const paddle::optional<phi::DenseTensor>& skip_update,
-    const phi::Scalar& beta1,
-    const phi::Scalar& beta2,
-    const phi::Scalar& epsilon,
-    float lr_ratio,
-    float coeff,
-    bool with_decay,
-    bool lazy_mode,
-    int64_t min_row_size_to_use_multithread,
-    bool multi_precision,
-    bool use_global_beta_pow,
-    bool amsgrad,  // UNUSED
-    phi::DenseTensor* param_out,
-    phi::DenseTensor* moment1_out,
-    phi::DenseTensor* moment2_out,
-    phi::DenseTensor* moment2_max_out,  // UNUSED
-    phi::DenseTensor* beta1_pow_out,
-    phi::DenseTensor* beta2_pow_out,
-    phi::DenseTensor* master_param_outs) {
+void AdamwKernel(const Context& dev_ctx,
+                 const DenseTensor& param,
+                 const DenseTensor& grad,
+                 const DenseTensor& learning_rate,
+                 const DenseTensor& moment1,
+                 const DenseTensor& moment2,
+                 const paddle::optional<DenseTensor>& moment2_max,  // UNUSED
+                 const DenseTensor& beta1_pow,
+                 const DenseTensor& beta2_pow,
+                 const paddle::optional<DenseTensor>& master_param,
+                 const paddle::optional<DenseTensor>& skip_update,
+                 const phi::Scalar& beta1,
+                 const phi::Scalar& beta2,
+                 const phi::Scalar& epsilon,
+                 float lr_ratio,
+                 float coeff,
+                 bool with_decay,
+                 bool lazy_mode,
+                 int64_t min_row_size_to_use_multithread,
+                 bool multi_precision,
+                 bool use_global_beta_pow,
+                 bool amsgrad,  // UNUSED
+                 DenseTensor* param_out,
+                 DenseTensor* moment1_out,
+                 DenseTensor* moment2_out,
+                 DenseTensor* moment2_max_out,  // UNUSED
+                 DenseTensor* beta1_pow_out,
+                 DenseTensor* beta2_pow_out,
+                 DenseTensor* master_param_outs) {
   VLOG(4) << "call sdaa AdamwKernel";
   PADDLE_ENFORCE_NE(
       amsgrad,
@@ -285,8 +283,8 @@ void AdamwKernel(
   std::vector<bool> cpu_if_skip = {false};
 
   if (skip_update.is_initialized()) {
-    const phi::DenseTensor& skip_update_tmp =
-        static_cast<const phi::DenseTensor&>(*skip_update);
+    const DenseTensor& skip_update_tmp =
+        static_cast<const DenseTensor&>(*skip_update);
     TensorToVector(dev_ctx, skip_update_tmp, dev_ctx, &cpu_if_skip);
     PADDLE_ENFORCE_EQ(skip_update->numel(),
                       1,
@@ -326,13 +324,13 @@ void AdamwKernel(
   float beta1_ = beta1.to<float>();  // cpu
   float beta2_ = beta2.to<float>();  // cpu
   float epsilon_ = epsilon.to<float>();
-  phi::DenseTensor* beta1_pow_ = const_cast<phi::DenseTensor*>(&beta1_pow);
-  phi::DenseTensor* beta2_pow_ = const_cast<phi::DenseTensor*>(&beta2_pow);
-  phi::DenseTensor* lr = const_cast<phi::DenseTensor*>(&learning_rate);
-  phi::DenseTensor* grad_in = const_cast<phi::DenseTensor*>(&grad);
-  phi::DenseTensor param_in = multi_precision ? master_param.get() : param;
-  phi::DenseTensor* moment1_in = const_cast<phi::DenseTensor*>(&moment1);
-  phi::DenseTensor* moment2_in = const_cast<phi::DenseTensor*>(&moment2);
+  DenseTensor* beta1_pow_ = const_cast<DenseTensor*>(&beta1_pow);
+  DenseTensor* beta2_pow_ = const_cast<DenseTensor*>(&beta2_pow);
+  DenseTensor* lr = const_cast<DenseTensor*>(&learning_rate);
+  DenseTensor* grad_in = const_cast<DenseTensor*>(&grad);
+  DenseTensor param_in = multi_precision ? master_param.get() : param;
+  DenseTensor* moment1_in = const_cast<DenseTensor*>(&moment1);
+  DenseTensor* moment2_in = const_cast<DenseTensor*>(&moment2);
   int n_total = static_cast<int>(param.numel());
 
   float* b1_out = beta1_pow_->data<MPDType>();
@@ -353,7 +351,7 @@ void AdamwKernel(
   }
   void* A[4] = {
       grad_in->data(), param_in.data(), moment1_in->data(), moment2_in->data()};
-  phi::DenseTensor param_out_;
+  DenseTensor param_out_;
   if (multi_precision) {
     param_out_ = *master_param_outs;
   } else {

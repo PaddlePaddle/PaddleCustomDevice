@@ -33,13 +33,13 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void InstanceNormKernel(const Context &dev_ctx,
-                        const phi::DenseTensor &x,
-                        const paddle::optional<phi::DenseTensor> &scale,
-                        const paddle::optional<phi::DenseTensor> &bias,
+                        const DenseTensor &x,
+                        const paddle::optional<DenseTensor> &scale,
+                        const paddle::optional<DenseTensor> &bias,
                         float epsilon_f,
-                        phi::DenseTensor *y,
-                        phi::DenseTensor *saved_mean,
-                        phi::DenseTensor *saved_variance) {
+                        DenseTensor *y,
+                        DenseTensor *saved_mean,
+                        DenseTensor *saved_variance) {
   // This OP only support NCHW for paddlepaddle.
   VLOG(4) << "CALL SDAA InstanceNormKernel.";
 
@@ -74,14 +74,13 @@ void InstanceNormKernel(const Context &dev_ctx,
   std::vector<int> scale_bias_dims = {1, 1, 1, C};
   std::vector<int> mean_variance_dims = {N, 1, 1, C};
 
-  phi::DenseTensor x_NHWC, y_NHWC;
+  DenseTensor x_NHWC, y_NHWC;
   x_NHWC.Resize(phi::make_ddim(x_NHWC_dims));
   y_NHWC.Resize(phi::make_ddim(x_NHWC_dims));
   dev_ctx.template Alloc<T>(&x_NHWC);
   dev_ctx.template Alloc<T>(&y_NHWC);
 
-  phi::DenseTensor scale_tensor, bias_tensor, saved_mean_tmp,
-      saved_variance_tmp;
+  DenseTensor scale_tensor, bias_tensor, saved_mean_tmp, saved_variance_tmp;
   if (scale) {
     scale_tensor = scale.get();
   } else {
@@ -118,7 +117,7 @@ void InstanceNormKernel(const Context &dev_ctx,
 
   // tecodnnInstanceNormalizationForwardTraining also calculate moving_mean and
   // moving_variance.
-  phi::DenseTensor moving_mean, moving_var;
+  DenseTensor moving_mean, moving_var;
   moving_mean.Resize(phi::make_ddim(scale_bias_dims));
   dev_ctx.template Alloc<AccT>(&moving_mean);
   moving_var.Resize(phi::make_ddim(scale_bias_dims));
@@ -167,17 +166,16 @@ void InstanceNormKernel(const Context &dev_ctx,
 
 template <typename T, typename Context>
 void InstanceNormGradKernel(const Context &dev_ctx,
-                            const phi::DenseTensor &x,
-                            const paddle::optional<phi::DenseTensor> &scale,
-                            const paddle::optional<phi::DenseTensor> &bias
-                                UNUSED,
-                            const phi::DenseTensor &saved_mean,
-                            const phi::DenseTensor &saved_variance,
-                            const phi::DenseTensor &d_y,
+                            const DenseTensor &x,
+                            const paddle::optional<DenseTensor> &scale,
+                            const paddle::optional<DenseTensor> &bias UNUSED,
+                            const DenseTensor &saved_mean,
+                            const DenseTensor &saved_variance,
+                            const DenseTensor &d_y,
                             float epsilon_f,
-                            phi::DenseTensor *d_x,
-                            phi::DenseTensor *d_scale,
-                            phi::DenseTensor *d_bias) {
+                            DenseTensor *d_x,
+                            DenseTensor *d_scale,
+                            DenseTensor *d_bias) {
   VLOG(4) << "CALL SDAA InstanceNormGradKernel.";
 
   auto x_dims = x.dims();
@@ -208,7 +206,7 @@ void InstanceNormGradKernel(const Context &dev_ctx,
   std::vector<int> scale_bias_dims = {1, 1, 1, C};
   std::vector<int> mean_variance_dims = {N, 1, 1, C};
 
-  phi::DenseTensor x_NHWC, dy_NHWC, dx_NHWC;
+  DenseTensor x_NHWC, dy_NHWC, dx_NHWC;
   x_NHWC.Resize(phi::make_ddim(x_NHWC_dims));
   dy_NHWC.Resize(phi::make_ddim(x_NHWC_dims));
   dx_NHWC.Resize(phi::make_ddim(x_NHWC_dims));
@@ -216,7 +214,7 @@ void InstanceNormGradKernel(const Context &dev_ctx,
   dev_ctx.template Alloc<T>(&dy_NHWC);
   dev_ctx.template Alloc<T>(&dx_NHWC);
 
-  phi::DenseTensor scale_tensor, d_scale_temp, d_bias_temp;
+  DenseTensor scale_tensor, d_scale_temp, d_bias_temp;
 
   if (scale) {
     scale_tensor = scale.get();

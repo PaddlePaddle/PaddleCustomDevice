@@ -35,12 +35,12 @@ bool CheckDtype(const phi::DataType& dt) {
 
 template <typename T, typename Context>
 void SumRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DataType out_dtype,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "Call SDAA SumRawKernel";
 
   auto tecodnn_support = CheckDtype(out->dtype());
@@ -74,7 +74,7 @@ void SumRawKernel(const Context& dev_ctx,
     sdaa_ops::doSumTensor(dev_ctx, x, reduce_dims, out);
   } else {
     // cast x tensor to out dtype
-    phi::DenseTensor in_t;
+    DenseTensor in_t;
     in_t.Resize(x.dims());
     dev_ctx.Alloc(&in_t, out->dtype());
     sdaa_ops::doCastTensor(dev_ctx, x, &in_t);
@@ -84,11 +84,11 @@ void SumRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SumKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::IntArray& dims,
                phi::DataType out_dtype,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   VLOG(4) << "Call SDAA SumKernel";
   bool reduce_all = false;
   if (dims.size() == 0) {
@@ -100,15 +100,15 @@ void SumKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SumGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& out_grad,
+                   const DenseTensor& x,
+                   const DenseTensor& out_grad,
                    const phi::IntArray& dims,
                    bool keep_dim,
                    bool reduce_all,
-                   phi::DenseTensor* x_grad) {
+                   DenseTensor* x_grad) {
   VLOG(4) << "Call SDAA SumGradKernel";
   dev_ctx.template Alloc<T>(x_grad);
-  phi::DenseTensor out_grad_temp(out_grad);
+  DenseTensor out_grad_temp(out_grad);
   if (reduce_all || dims.size() == 0) {
     std::vector<int64_t> out_dims(x.dims().size(), 1);
     out_grad_temp.Resize(phi::make_ddim(out_dims));

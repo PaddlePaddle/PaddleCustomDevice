@@ -20,10 +20,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void EmbeddingKernel(const Context &dev_ctx,
-                     const phi::DenseTensor &inputx,
-                     const phi::DenseTensor &weight,
+                     const DenseTensor &inputx,
+                     const DenseTensor &weight,
                      int64_t padding_idx,
-                     phi::DenseTensor *out) {
+                     DenseTensor *out) {
   VLOG(4) << "Call SDAA EmbeddingKernel";
   // basic settings
   dev_ctx.template Alloc<T>(out);
@@ -136,11 +136,11 @@ void EmbeddingKernel(const Context &dev_ctx,
 
 template <typename T, typename Context>
 void EmbeddingGradKernel(const Context &dev_ctx,
-                         const phi::DenseTensor &input,
-                         const phi::DenseTensor &weight,
-                         const phi::DenseTensor &out_grad,
+                         const DenseTensor &input,
+                         const DenseTensor &weight,
+                         const DenseTensor &out_grad,
                          int64_t padding_idx,
-                         phi::DenseTensor *weight_grad) {
+                         DenseTensor *weight_grad) {
   VLOG(4) << "Call SDAA EmbeddingGradKernel";
   // basic settings
   dev_ctx.template Alloc<T>(weight_grad);
@@ -162,7 +162,7 @@ void EmbeddingGradKernel(const Context &dev_ctx,
   }
 
   // switch input from int64 into int32
-  phi::DenseTensor inputx_cast;
+  DenseTensor inputx_cast;
   if (input.dtype() == phi::DataType::INT64) {
     inputx_cast.Resize(input.dims());
     dev_ctx.template Alloc<int32_t>(&inputx_cast);

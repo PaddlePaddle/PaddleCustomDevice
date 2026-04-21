@@ -80,12 +80,12 @@ inline void checkpadding(int* h, int* w, std::vector<T> paddings) {
 }
 
 template <typename T = int, int D>
-inline phi::DenseTensor build_dummy_tensor(const Context& dev_ctx,
-                                           phi::DataType dtype,
-                                           phi::Dim<D> dims) {
+inline DenseTensor build_dummy_tensor(const Context& dev_ctx,
+                                      phi::DataType dtype,
+                                      phi::Dim<D> dims) {
   phi::DDim input_dims(dims);
-  phi::DenseTensor input_;
-  phi::DenseTensorMeta input_meta = {dtype, input_dims};
+  DenseTensor input_;
+  DenseTensorMeta input_meta = {dtype, input_dims};
   input_.set_meta(input_meta);
   dev_ctx.template Alloc<T>(&input_);
   return input_;
@@ -173,7 +173,7 @@ inline void check_paddings(int* h, int* w, const std::vector<int>& paddings) {
   }
 }
 
-inline void checkdims(const phi::DenseTensor* input,
+inline void checkdims(const DenseTensor* input,
                       checkformat check_f,
                       std::string kernel_name) {
   switch (check_f) {
@@ -203,8 +203,8 @@ inline void checkdims(const phi::DenseTensor* input,
 
 template <typename T>
 void Gen_Tecodnn_Out(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     phi::DenseTensor* out,
+                     const DenseTensor& x,
+                     DenseTensor* out,
                      bool if_nchw) {
   phi::DDim out_dims;
   if (if_nchw) {
@@ -212,15 +212,15 @@ void Gen_Tecodnn_Out(const Context& dev_ctx,
   } else {
     out_dims = x.dims();
   }
-  phi::DenseTensorMeta out_meta = {x.dtype(), out_dims};
+  DenseTensorMeta out_meta = {x.dtype(), out_dims};
   out->set_meta(out_meta);
   dev_ctx.template Alloc<T>(out);
 }
 
 template <typename T>
 bool Trans_Xy_Tensor_in(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        phi::DenseTensor* out,
+                        const DenseTensor& x,
+                        DenseTensor* out,
                         bool is_NCHW = true,
                         bool is_depthwise_conv = false) {
   phi::DDim out_dims;
@@ -238,7 +238,7 @@ bool Trans_Xy_Tensor_in(const Context& dev_ctx,
     }
     return true;
   }
-  phi::DenseTensorMeta out_meta = {phi::DataType::FLOAT16, out_dims};
+  DenseTensorMeta out_meta = {phi::DataType::FLOAT16, out_dims};
   out->set_meta(out_meta);
   dev_ctx.template Alloc<phi::dtype::float16>(out);
 
@@ -256,8 +256,8 @@ bool Trans_Xy_Tensor_in(const Context& dev_ctx,
 
 template <typename T>
 void Trans_Xy_Tensor_out(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         phi::DenseTensor* out,
+                         const DenseTensor& x,
+                         DenseTensor* out,
                          bool is_NCHW = true) {
   dev_ctx.template Alloc<T>(out);
   // input -> input_nchw
@@ -269,8 +269,8 @@ void Trans_Xy_Tensor_out(const Context& dev_ctx,
     sdaa_ops::doCastTensor(dev_ctx, x, out);
   } else if (std::is_same<T, float>::value && is_NCHW) {
     // input -> input_float
-    phi::DenseTensor in_float;
-    phi::DenseTensorMeta out_meta = {phi::DataType::FLOAT32, x.dims()};
+    DenseTensor in_float;
+    DenseTensorMeta out_meta = {phi::DataType::FLOAT32, x.dims()};
     in_float.set_meta(out_meta);
     dev_ctx.template Alloc<float>(&in_float);
     sdaa_ops::doCastTensor(dev_ctx, x, &in_float);
@@ -282,10 +282,10 @@ void Trans_Xy_Tensor_out(const Context& dev_ctx,
 }
 template <typename T>
 void doConv2dForward(const Context& dev_ctx,
-                     const phi::DenseTensor& in_x_NHWC_HALF,
-                     const phi::DenseTensor& filter_CHWN_HALF,
+                     const DenseTensor& in_x_NHWC_HALF,
+                     const DenseTensor& filter_CHWN_HALF,
                      const phi::DDim& filter_dims,
-                     phi::DenseTensor* out,
+                     DenseTensor* out,
                      int* padA,
                      int* filterStrideA,
                      int* upscaleA,
@@ -297,7 +297,7 @@ void doConv2dForward(const Context& dev_ctx,
   phi::DDim in_dims = in_x_NHWC_HALF.dims();
   phi::DDim out_dims = out->dims();
 
-  phi::DenseTensor out_temp;
+  DenseTensor out_temp;
   if (output_need_cast_for_group_conv) {
     out_temp.Resize(out_dims);
     dev_ctx.template Alloc<phi::dtype::float16>(&out_temp);
@@ -346,7 +346,7 @@ void doConv2dForward(const Context& dev_ctx,
                                                 y_Desc,
                                                 algo,
                                                 &workSpaceSizeInBytes));
-  phi::DenseTensor workspace;
+  DenseTensor workspace;
   if (workSpaceSizeInBytes != 0)
     workspace.Resize({static_cast<int64_t>(workSpaceSizeInBytes)});
   dev_ctx.Alloc(&workspace, DataType::INT8);
@@ -376,8 +376,8 @@ void doConv2dForward(const Context& dev_ctx,
 template <typename T, typename Context>
 void ConvKernel(const Context& dev_ctx,
                 int Nd,
-                const phi::DenseTensor& input,
-                const phi::DenseTensor& filter_t,
+                const DenseTensor& input,
+                const DenseTensor& filter_t,
                 const std::vector<int>& strides_t,
                 const std::vector<int>& paddings_t,
                 const std::string& padding_algorithm,
@@ -385,7 +385,7 @@ void ConvKernel(const Context& dev_ctx,
                 int groups,
                 bool is_depthwise_conv,
                 const std::string& data_format,
-                phi::DenseTensor* output) {
+                DenseTensor* output) {
   // HIGH PERFORMANCE CONV
 
   if (isEnvEnable("HIGH_PERFORMANCE_CONV") &&
@@ -461,7 +461,7 @@ void ConvKernel(const Context& dev_ctx,
   bool is_NCHW = !channel_last;
 
   phi::DDim filter_chwn_dim;
-  phi::DenseTensor input_nhwc_half;
+  DenseTensor input_nhwc_half;
 
   bool flag = Trans_Xy_Tensor_in<T>(
       dev_ctx, input, &input_nhwc_half, is_NCHW, is_depthwise_conv);
@@ -469,11 +469,11 @@ void ConvKernel(const Context& dev_ctx,
     input_nhwc_half = input;
   }
 
-  phi::DenseTensor filter_chwn_half;
+  DenseTensor filter_chwn_half;
   if (!filter_t.storage_properties_initialized()) {
     phi::DDim out_dims =
         sdaa_ops::doDimPermute(filter_t, Convert_TF::NCHW2CHWN);
-    phi::DenseTensorMeta out_meta;
+    DenseTensorMeta out_meta;
     if (is_depthwise_conv) {
       out_meta = {filter_t.dtype(), out_dims};
     } else {
@@ -493,7 +493,7 @@ void ConvKernel(const Context& dev_ctx,
     if (is_depthwise_conv || (std::is_same<T, phi::dtype::float16>::value)) {
       filter_chwn_half = filter_t;
     } else {
-      phi::DenseTensorMeta out_meta = {phi::DataType::FLOAT16, filter_dims};
+      DenseTensorMeta out_meta = {phi::DataType::FLOAT16, filter_dims};
       filter_chwn_half.set_meta(out_meta);
       dev_ctx.template Alloc<phi::dtype::float16>(&filter_chwn_half);
       sdaa_ops::doCastTensor(dev_ctx, filter_t, &filter_chwn_half);
@@ -516,9 +516,9 @@ void ConvKernel(const Context& dev_ctx,
                        output_need_cast_for_group_conv);
 
   } else {  // NCHW
-    phi::DenseTensor out_nhwc;
+    DenseTensor out_nhwc;
     phi::DDim out_dims = sdaa_ops::doDimPermute(*output, Convert_TF::NCHW2NHWC);
-    phi::DenseTensorMeta out_meta = {output->dtype(), out_dims};
+    DenseTensorMeta out_meta = {output->dtype(), out_dims};
     out_nhwc.set_meta(out_meta);
     dev_ctx.template Alloc<T>(&out_nhwc);
     doConv2dForward<T>(dev_ctx,
@@ -539,18 +539,17 @@ void ConvKernel(const Context& dev_ctx,
   // compute Conv2dForward
 }
 
-inline void doConv2dBackwardFilter(
-    const Context& dev_ctx,
-    const phi::DenseTensor& input_NHWC_HALF,
-    const phi::DenseTensor& output_grad_NHWC_HALF,
-    phi::DenseTensor* filter_grad_CHWN,
-    const phi::DDim& filter_dims_chwn,
-    int* padA,
-    int* filterStrideA,
-    int* upscaleA,
-    int groups,
-    int Nd,
-    bool output_need_cast_for_group_conv) {
+inline void doConv2dBackwardFilter(const Context& dev_ctx,
+                                   const DenseTensor& input_NHWC_HALF,
+                                   const DenseTensor& output_grad_NHWC_HALF,
+                                   DenseTensor* filter_grad_CHWN,
+                                   const phi::DDim& filter_dims_chwn,
+                                   int* padA,
+                                   int* filterStrideA,
+                                   int* upscaleA,
+                                   int groups,
+                                   int Nd,
+                                   bool output_need_cast_for_group_conv) {
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   tecodnnTensorDescriptor_t x_Desc, dy_Desc;
   tecodnnFilterDescriptor_t filterDesc;
@@ -568,7 +567,7 @@ inline void doConv2dBackwardFilter(
       output_grad_NHWC_HALF.dtype(),
       TensorFormat::NHWC);
 
-  phi::DenseTensor filter_grad_CHWN_temp;
+  DenseTensor filter_grad_CHWN_temp;
   if (output_need_cast_for_group_conv) {
     filter_grad_CHWN_temp.Resize(filter_grad_CHWN->dims());
     dev_ctx.template Alloc<phi::dtype::float16>(&filter_grad_CHWN_temp);
@@ -609,7 +608,7 @@ inline void doConv2dBackwardFilter(
                                                        filterDesc,
                                                        BF_algo,
                                                        &workSpaceSizeInBytes));
-  phi::DenseTensor workspace;
+  DenseTensor workspace;
   if (workSpaceSizeInBytes != 0)
     workspace.Resize({static_cast<int64_t>(workSpaceSizeInBytes)});
   dev_ctx.Alloc(&workspace, DataType::INT8);
@@ -637,10 +636,10 @@ inline void doConv2dBackwardFilter(
 }
 
 inline void doConv2dBackwardData(const Context& dev_ctx,
-                                 const phi::DenseTensor& filter_CHWN_HALF,
+                                 const DenseTensor& filter_CHWN_HALF,
                                  const phi::DDim& filter_dims_chwn,
-                                 const phi::DenseTensor& output_grad_NHWC_HALF,
-                                 phi::DenseTensor* input_grad_NHWC,
+                                 const DenseTensor& output_grad_NHWC_HALF,
+                                 DenseTensor* input_grad_NHWC,
                                  int* padA,
                                  int* filterStrideA,
                                  int* upscaleA,
@@ -657,7 +656,7 @@ inline void doConv2dBackwardData(const Context& dev_ctx,
   TECODNN_CHECK(tecodnnCreateFilterDescriptor(&filterDesc));
   TECODNN_CHECK(tecodnnCreateConvolutionDescriptor(&convDesc));
 
-  phi::DenseTensor input_grad_NHWC_temp;
+  DenseTensor input_grad_NHWC_temp;
   if (output_need_cast_for_group_conv) {
     input_grad_NHWC_temp.Resize(input_grad_NHWC->dims());
     dev_ctx.template Alloc<phi::dtype::float16>(&input_grad_NHWC_temp);
@@ -704,7 +703,7 @@ inline void doConv2dBackwardData(const Context& dev_ctx,
                                                      dx_Desc,
                                                      BD_algo,
                                                      &workSpaceSizeInBytes));
-  phi::DenseTensor workspace;
+  DenseTensor workspace;
   if (workSpaceSizeInBytes != 0)
     workspace.Resize({static_cast<int64_t>(workSpaceSizeInBytes)});
   dev_ctx.Alloc(&workspace, DataType::INT8);
@@ -733,9 +732,9 @@ inline void doConv2dBackwardData(const Context& dev_ctx,
 template <typename T, typename Context>
 void ConvBackwardKernel(const Context& dev_ctx,
                         int Nd,
-                        const phi::DenseTensor& input,
-                        const phi::DenseTensor& filter,
-                        const phi::DenseTensor& output_grad,
+                        const DenseTensor& input,
+                        const DenseTensor& filter,
+                        const DenseTensor& output_grad,
                         const std::vector<int>& strides_t,
                         const std::vector<int>& paddings_t,
                         const std::string& padding_algorithm,
@@ -743,8 +742,8 @@ void ConvBackwardKernel(const Context& dev_ctx,
                         int groups,
                         bool is_depthwise_conv,
                         const std::string& data_format,
-                        phi::DenseTensor* input_grad,
-                        phi::DenseTensor* filter_grad) {
+                        DenseTensor* input_grad,
+                        DenseTensor* filter_grad) {
   phi::DDim filter_data_dims;
   phi::DDim filter_dims;
 
@@ -777,11 +776,11 @@ void ConvBackwardKernel(const Context& dev_ctx,
   VLOG(4) << "conv backward called" << filter_dims;
   VLOG(4) << "filter.storage_properties_initialized "
           << filter.storage_properties_initialized() << std::endl;
-  phi::DenseTensor filter_chwn_half;
+  DenseTensor filter_chwn_half;
   phi::DDim filter_chwn_dim;
   if (!filter.storage_properties_initialized()) {
     phi::DDim out_dims = sdaa_ops::doDimPermute(filter, Convert_TF::NCHW2CHWN);
-    phi::DenseTensorMeta out_meta;
+    DenseTensorMeta out_meta;
     if (is_depthwise_conv) {
       out_meta = {filter.dtype(), out_dims};
     } else {
@@ -800,7 +799,7 @@ void ConvBackwardKernel(const Context& dev_ctx,
     if (is_depthwise_conv || (std::is_same<T, phi::dtype::float16>::value)) {
       filter_chwn_half = filter;
     } else {
-      phi::DenseTensorMeta out_meta = {phi::DataType::FLOAT16, filter_dims};
+      DenseTensorMeta out_meta = {phi::DataType::FLOAT16, filter_dims};
       filter_chwn_half.set_meta(out_meta);
       dev_ctx.template Alloc<phi::dtype::float16>(&filter_chwn_half);
       sdaa_ops::doCastTensor(dev_ctx, filter, &filter_chwn_half);
@@ -859,8 +858,8 @@ void ConvBackwardKernel(const Context& dev_ctx,
   bool is_NCHW = !channel_last;
 
   if (filter_grad) {
-    phi::DenseTensor input_nhwc_half;
-    phi::DenseTensor output_grad_nhwc_half;
+    DenseTensor input_nhwc_half;
+    DenseTensor output_grad_nhwc_half;
     dev_ctx.template Alloc<T>(filter_grad);
     if (Trans_Xy_Tensor_in<T>(
             dev_ctx, input, &input_nhwc_half, is_NCHW, is_depthwise_conv))
@@ -893,8 +892,8 @@ void ConvBackwardKernel(const Context& dev_ctx,
                              output_need_cast_for_group_conv);
     } else {
       // output: filter_grad
-      phi::DenseTensor filter_grad_chwn;
-      phi::DenseTensorMeta out_meta = {
+      DenseTensor filter_grad_chwn;
+      DenseTensorMeta out_meta = {
           filter_grad->dtype(),
           sdaa_ops::doDimPermute(*filter_grad, Convert_TF::NCHW2CHWN)};
       filter_grad_chwn.set_meta(out_meta);
@@ -918,7 +917,7 @@ void ConvBackwardKernel(const Context& dev_ctx,
   if (input_grad) {
     VLOG(4) << "input_grad compute";
     dev_ctx.template Alloc<T>(input_grad);
-    phi::DenseTensor output_grad_nhwc_half;
+    DenseTensor output_grad_nhwc_half;
     if (Trans_Xy_Tensor_in<T>(dev_ctx,
                               output_grad,
                               &output_grad_nhwc_half,
@@ -939,7 +938,7 @@ void ConvBackwardKernel(const Context& dev_ctx,
                            Nd,
                            output_need_cast_for_group_conv);
     } else {  // NCHW
-      phi::DenseTensor input_grad_nhwc;
+      DenseTensor input_grad_nhwc;
       Gen_Tecodnn_Out<T>(dev_ctx, *input_grad, &input_grad_nhwc, is_NCHW);
       doConv2dBackwardData(dev_ctx,
                            filter_chwn_half,

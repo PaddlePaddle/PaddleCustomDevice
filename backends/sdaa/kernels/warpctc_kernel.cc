@@ -38,14 +38,14 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void WarpctcKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& logits,
-                   const phi::DenseTensor& label,
-                   const paddle::optional<phi::DenseTensor>& logits_length,
-                   const paddle::optional<phi::DenseTensor>& labels_length,
+                   const DenseTensor& logits,
+                   const DenseTensor& label,
+                   const paddle::optional<DenseTensor>& logits_length,
+                   const paddle::optional<DenseTensor>& labels_length,
                    int blank,
                    bool norm_by_times,
-                   phi::DenseTensor* loss,
-                   phi::DenseTensor* warpctcgrad) {
+                   DenseTensor* loss,
+                   DenseTensor* warpctcgrad) {
   VLOG(4) << "Call SDAA WarpctcKernel";
   bool has_logits_length = logits_length.is_initialized();
   if (!has_logits_length) {
@@ -190,7 +190,7 @@ void WarpctcKernel(const Context& dev_ctx,
                                                  gradsDesc,
                                                  &workSpaceSizeInBytes));
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     T* workspace_data =
         dev_ctx.template Alloc<T>(&workspace, workSpaceSizeInBytes);
     TECODNN_CHECK(tecodnnCTCLoss(tecodnnHandle,
@@ -216,13 +216,13 @@ void WarpctcKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void WarpctcGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& logits,
-                       const paddle::optional<phi::DenseTensor>& logits_length,
-                       const phi::DenseTensor& warpctcgrad,
-                       const phi::DenseTensor& loss_grad,
+                       const DenseTensor& logits,
+                       const paddle::optional<DenseTensor>& logits_length,
+                       const DenseTensor& warpctcgrad,
+                       const DenseTensor& loss_grad,
                        int blank,
                        bool norm_by_times,
-                       phi::DenseTensor* logits_grad) {
+                       DenseTensor* logits_grad) {
   VLOG(4) << "Call SDAA WarpctcGradKernel";
 
   dev_ctx.template Alloc<T>(logits_grad);

@@ -33,11 +33,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ScatterKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& index,
-                   const phi::DenseTensor& updates,
+                   const DenseTensor& x,
+                   const DenseTensor& index,
+                   const DenseTensor& updates,
                    bool overwirte,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   VLOG(4) << "CALL SDAA ScatterKernel";
   dev_ctx.template Alloc<T>(out);
 

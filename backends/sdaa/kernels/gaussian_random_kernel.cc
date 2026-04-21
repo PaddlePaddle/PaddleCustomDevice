@@ -26,7 +26,7 @@ void GaussianRandomAlign(const Context& dev_ctx,
                          float mean,
                          float stddev,
                          const char* mode,
-                         phi::DenseTensor* out) {
+                         DenseTensor* out) {
   // Align sdaa with NV device
   uint64_t seed_data;
   int max_threads, sm_count;
@@ -56,7 +56,7 @@ void GaussianRandomAlign(const Context& dev_ctx,
           << ", block_size=" << block_size << ", grid_size=" << grid_size
           << ", seed=" << seed << ", offset=" << offset;
 
-  phi::DenseTensor float_temp;
+  DenseTensor float_temp;
   if (out->dtype() == phi::DataType::FLOAT16 ||
       out->dtype() == phi::DataType::BFLOAT16) {
     float_temp.Resize(out->dims());
@@ -83,7 +83,7 @@ void GaussianRandomKernel(const Context& dev_ctx,
                           float std,
                           int seed,
                           phi::DataType dtype,
-                          phi::DenseTensor* out) {
+                          DenseTensor* out) {
   VLOG(4) << "Call SDAA GaussianRandomKernel";
 
   auto shape_vec = shape.GetData();
@@ -100,7 +100,7 @@ void GaussianRandomKernel(const Context& dev_ctx,
     return;
   }
   std::normal_distribution<float> dist(mean, std);
-  phi::DenseTensor host_temp;
+  DenseTensor host_temp;
   host_temp.Resize(out->dims());
   float* data = dev_ctx.template HostAlloc<float>(&host_temp);
   if (seed == 0) {
@@ -117,7 +117,7 @@ void GaussianRandomKernel(const Context& dev_ctx,
   }
   if (out->dtype() == phi::DataType::FLOAT16 ||
       out->dtype() == phi::DataType::BFLOAT16) {
-    phi::DenseTensor float_temp;
+    DenseTensor float_temp;
     float_temp.Resize(out->dims());
     dev_ctx.template Alloc<float>(&float_temp);
     phi::Copy(dev_ctx, host_temp, float_temp.place(), false, &float_temp);

@@ -22,9 +22,9 @@ namespace custom_kernel {
 
 template <typename Context>
 void AbsGrad(const Context& dev_ctx,
-             const phi::DenseTensor& x,
-             const phi::DenseTensor& dout,
-             phi::DenseTensor* dx) {
+             const DenseTensor& x,
+             const DenseTensor& dout,
+             DenseTensor* dx) {
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   int num = static_cast<int>(x.numel());
   std::vector<int> dims = {1, 1, 1, num};
@@ -46,9 +46,7 @@ void AbsGrad(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void AbsKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void AbsKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   VLOG(4) << "Call SDAA AbsKernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -57,9 +55,9 @@ void AbsKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AbsGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   VLOG(4) << "Call SDAA AbsGradKernel";
   dev_ctx.template Alloc<T>(dx);
 

@@ -21,12 +21,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AccuracyRawKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& inference,
-                       const phi::DenseTensor& indices,
-                       const phi::DenseTensor& label,
-                       phi::DenseTensor* accuracy,
-                       phi::DenseTensor* correct,
-                       phi::DenseTensor* total) {
+                       const DenseTensor& inference,
+                       const DenseTensor& indices,
+                       const DenseTensor& label,
+                       DenseTensor* accuracy,
+                       DenseTensor* correct,
+                       DenseTensor* total) {
   VLOG(4) << "Call sdaa Accuracy kernel";
   dev_ctx.template Alloc<T>(accuracy);
   dev_ctx.template Alloc<T>(correct);

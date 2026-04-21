@@ -35,28 +35,28 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void MergedAdamKernel(
     const Context& dev_ctx,
-    const std::vector<const phi::DenseTensor*>& param,
-    const std::vector<const phi::DenseTensor*>& grad,
-    const std::vector<const phi::DenseTensor*>& learning_rate,
-    const std::vector<const phi::DenseTensor*>& moment1,
-    const std::vector<const phi::DenseTensor*>& moment2,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& moment2_max,
-    const std::vector<const phi::DenseTensor*>& beta1_pow,
-    const std::vector<const phi::DenseTensor*>& beta2_pow,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& master_param,
+    const std::vector<const DenseTensor*>& param,
+    const std::vector<const DenseTensor*>& grad,
+    const std::vector<const DenseTensor*>& learning_rate,
+    const std::vector<const DenseTensor*>& moment1,
+    const std::vector<const DenseTensor*>& moment2,
+    const paddle::optional<std::vector<const DenseTensor*>>& moment2_max,
+    const std::vector<const DenseTensor*>& beta1_pow,
+    const std::vector<const DenseTensor*>& beta2_pow,
+    const paddle::optional<std::vector<const DenseTensor*>>& master_param,
     const phi::Scalar& beta1,
     const phi::Scalar& beta2,
     const phi::Scalar& epsilon,
     bool multi_precision,
     bool use_global_beta_pow,
     bool amsgrad,
-    std::vector<phi::DenseTensor*> param_out,
-    std::vector<phi::DenseTensor*> moment1_out,
-    std::vector<phi::DenseTensor*> moment2_out,
-    std::vector<phi::DenseTensor*> moment2_max_out,
-    std::vector<phi::DenseTensor*> beta1_pow_out,
-    std::vector<phi::DenseTensor*> beta2_pow_out,
-    std::vector<phi::DenseTensor*> master_param_out) {
+    std::vector<DenseTensor*> param_out,
+    std::vector<DenseTensor*> moment1_out,
+    std::vector<DenseTensor*> moment2_out,
+    std::vector<DenseTensor*> moment2_max_out,
+    std::vector<DenseTensor*> beta1_pow_out,
+    std::vector<DenseTensor*> beta2_pow_out,
+    std::vector<DenseTensor*> master_param_out) {
   VLOG(4) << "call sdaa MergedAdamKernel";
   PADDLE_ENFORCE_NE(
       amsgrad,
@@ -118,11 +118,11 @@ void MergedAdamKernel(
                         "is %d, the size of Input(param) is %d.",
                         beta2_pow.size(),
                         param_num));
-  phi::DenseTensor lr, b1_pow, b2_pow;
+  DenseTensor lr, b1_pow, b2_pow;
   const int M = param_num;
   std::vector<int> dims = {M};
   phi::DDim dim = phi::make_ddim(dims);
-  phi::DenseTensorMeta meta = {learning_rate[0]->dtype(), dim};
+  DenseTensorMeta meta = {learning_rate[0]->dtype(), dim};
   lr.set_meta(meta);
   b1_pow.set_meta(meta);
   b2_pow.set_meta(meta);
@@ -132,12 +132,12 @@ void MergedAdamKernel(
 
   int input_num = 4;
   void* data[input_num][M];
-  std::vector<phi::DenseTensor*> grad_in;
+  std::vector<DenseTensor*> grad_in;
   for (int i = 0; i < param_num; ++i) {
     TensorCopy(dev_ctx, *param[i], false, param_out[i]);
     TensorCopy(dev_ctx, *moment1[i], false, moment1_out[i]);
     TensorCopy(dev_ctx, *moment2[i], false, moment2_out[i]);
-    grad_in.push_back(const_cast<phi::DenseTensor*>(grad[i]));
+    grad_in.push_back(const_cast<DenseTensor*>(grad[i]));
   }
 
   for (int i = 0; i < M; i++) {
@@ -148,7 +148,7 @@ void MergedAdamKernel(
   }
 
   void** pointer[input_num];
-  std::vector<phi::DenseTensor> pointer_data(input_num);
+  std::vector<DenseTensor> pointer_data(input_num);
   int64_t pointer_bytes = M * sizeof(void*);
   for (int i = 0; i < input_num; ++i) {
     pointer_data[i].Resize({pointer_bytes});
@@ -170,8 +170,8 @@ void MergedAdamKernel(
     int64_t num = param_out[i]->numel();
     len.push_back(num);
   }
-  phi::DenseTensor n_total;
-  phi::DenseTensorMeta meta1 = {phi::DataType::INT64, dim};
+  DenseTensor n_total;
+  DenseTensorMeta meta1 = {phi::DataType::INT64, dim};
   n_total.set_meta(meta1);
   TensorFromVector(dev_ctx, len, dev_ctx, &n_total);
 

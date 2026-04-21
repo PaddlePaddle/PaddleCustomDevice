@@ -42,9 +42,9 @@ __inline__ static bool isEnableParallelTP() {
 
 template <typename T, typename Context>
 void doOneHotTensor(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     int num_classes,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   VLOG(4) << "call tecodnn OneHot tensor";
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
@@ -53,26 +53,26 @@ void doOneHotTensor(const Context& dev_ctx,
     out_dims.insert(out_dims.begin(), 1);
   }
   if (isEnableParallelTP()) {
-    phi::DenseTensorMeta bound_meta = {x.dtype(), phi::make_ddim({1})};
-    phi::DenseTensorMeta compare_meta = {phi::DataType::BOOL, x.dims()};
+    DenseTensorMeta bound_meta = {x.dtype(), phi::make_ddim({1})};
+    DenseTensorMeta compare_meta = {phi::DataType::BOOL, x.dims()};
 
-    phi::DenseTensor upper_bound;
+    DenseTensor upper_bound;
     upper_bound.set_meta(bound_meta);
     dev_ctx.template Alloc<T>(&upper_bound);
     sdaa_ops::doFillTensor<T>(
         dev_ctx, static_cast<T>(num_classes), x.dtype(), &upper_bound);
 
-    phi::DenseTensor lower_bound;
+    DenseTensor lower_bound;
     lower_bound.set_meta(bound_meta);
     dev_ctx.template Alloc<T>(&lower_bound);
     sdaa_ops::doFillTensor<T>(
         dev_ctx, static_cast<T>(0), x.dtype(), &lower_bound);
 
-    phi::DenseTensor x_large;
+    DenseTensor x_large;
     x_large.set_meta(compare_meta);
     dev_ctx.template Alloc<bool>(&x_large);
 
-    phi::DenseTensor x_min;
+    DenseTensor x_min;
     x_min.set_meta(compare_meta);
     dev_ctx.template Alloc<bool>(&x_min);
 
@@ -81,24 +81,24 @@ void doOneHotTensor(const Context& dev_ctx,
     sdaa_ops::doCompareTensor(
         dev_ctx, x, lower_bound, CompareType::GreaterEqual, &x_min);
 
-    phi::DenseTensor x_true;
+    DenseTensor x_true;
     x_true.set_meta(compare_meta);
     dev_ctx.template Alloc<bool>(&x_true);
 
     sdaa_ops::doBitwiseBinaryOpTensor(
         dev_ctx, x_large, x_min, BitwiseOpType::And, &x_true);
 
-    phi::DenseTensor x_true_cast;
+    DenseTensor x_true_cast;
     x_true_cast.Resize(x.dims());
     dev_ctx.Alloc(&x_true_cast, x.dtype());
     sdaa_ops::doCastTensor(dev_ctx, x_true, &x_true_cast);
 
-    phi::DenseTensor y_true_cast;
+    DenseTensor y_true_cast;
     y_true_cast.Resize(x.dims());
     dev_ctx.Alloc(&y_true_cast, out->dtype());
     sdaa_ops::doCastTensor(dev_ctx, x_true, &y_true_cast);
 
-    phi::DenseTensor real_x_label;
+    DenseTensor real_x_label;
     real_x_label.Resize(x.dims());
     dev_ctx.Alloc(&real_x_label, x.dtype());
     sdaa_ops::doElementMul(dev_ctx, x, x_true_cast, -1, &real_x_label);
@@ -107,12 +107,12 @@ void doOneHotTensor(const Context& dev_ctx,
     size_vec.push_back(1);
     y_true_cast.Resize(phi::make_ddim({size_vec}));
 
-    phi::DenseTensor x_true_expand;
+    DenseTensor x_true_expand;
     x_true_expand.Resize(out->dims());
     dev_ctx.Alloc(&x_true_expand, out->dtype());
     sdaa_ops::doExpandTensor(dev_ctx, y_true_cast, &x_true_expand);
 
-    phi::DenseTensor out_tmp;
+    DenseTensor out_tmp;
     out_tmp.Resize(out->dims());
     dev_ctx.Alloc(&out_tmp, out->dtype());
 
@@ -148,11 +148,11 @@ void doOneHotTensor(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void OneHotRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const phi::Scalar& depth_scalar,
                      phi::DataType dtype,
                      bool allow_out_of_range,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   VLOG(4) << "CALL SDAA OneHotRawKernel";
 
   int depth = depth_scalar.to<int>();
@@ -167,9 +167,9 @@ void OneHotRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void OneHotKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::Scalar& num_classes_s,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "CALL SDAA OneHotKernel";
 
   custom_kernel::OneHotRawKernel<T, Context>(

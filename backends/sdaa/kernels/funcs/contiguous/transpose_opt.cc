@@ -32,7 +32,7 @@ namespace custom_kernel {
 
 namespace sdaa_copy {
 
-vec_tuple get_permute_back_order(const phi::DenseTensor& input) {
+vec_tuple get_permute_back_order(const DenseTensor& input) {
   int64_vec input_shapes = phi::vectorize<int64_t>(input.dims());
   int64_vec input_strides = phi::vectorize<int64_t>(input.strides());
   int64_t rank = input.dims().size();
@@ -71,15 +71,15 @@ vec_tuple get_permute_back_order(const phi::DenseTensor& input) {
 class TransposeContiguousOpt : public ContiguousOpt {
  public:
   bool Optimize(const Context& dev_ctx,
-                const phi::DenseTensor& src,
-                phi::DenseTensor* dst) override {
+                const DenseTensor& src,
+                DenseTensor* dst) override {
     VLOG(1) << "SDAA use tranpose to complete the strided_copy.";
     return transpose_to_contiguous(dev_ctx, src, dst);
   }
 
   bool CanOptimize(const Context& dev_ctx,
-                   const phi::DenseTensor& src,
-                   phi::DenseTensor* dst) override {
+                   const DenseTensor& src,
+                   DenseTensor* dst) override {
     if (!check_Transpose_dtype(src) || !check_Transpose_dtype(*dst)) {
       return false;
     }
@@ -107,7 +107,7 @@ class TransposeContiguousOpt : public ContiguousOpt {
   }
 
  private:
-  bool check_Transpose_dtype(const phi::DenseTensor& t) {
+  bool check_Transpose_dtype(const DenseTensor& t) {
     static std::vector<phi::DataType> TransposeDtype = {phi::DataType::FLOAT64,
                                                         phi::DataType::FLOAT32,
                                                         phi::DataType::FLOAT16,
@@ -126,14 +126,14 @@ class TransposeContiguousOpt : public ContiguousOpt {
   }
 
   bool transpose_to_contiguous(const Context& dev_ctx,
-                               const phi::DenseTensor& src,
-                               phi::DenseTensor* dst) {
+                               const DenseTensor& src,
+                               DenseTensor* dst) {
     // convert a non_overlapping_and_dense tensor to contiguous tensor.
     auto recover_contiguous =
         [](const Context& dev_ctx,
-           const phi::DenseTensor& t,
-           std::vector<int64_t>* permute_order) -> phi::DenseTensor {
-      phi::DenseTensor view_contiguous;
+           const DenseTensor& t,
+           std::vector<int64_t>* permute_order) -> DenseTensor {
+      DenseTensor view_contiguous;
 
       if (!t.meta().is_contiguous()) {
         vec_tuple order_info = sdaa_copy::get_permute_back_order(t);
@@ -144,7 +144,7 @@ class TransposeContiguousOpt : public ContiguousOpt {
         phi::DDim new_stride =
             sdaa_copy::permute(t.strides(), std::get<0>(order_info));
         view_contiguous = t;
-        phi::DenseTensorMeta meta = t.meta();
+        DenseTensorMeta meta = t.meta();
         meta.dims = new_dim;
         meta.strides = new_stride;
         view_contiguous.set_meta(meta);
@@ -160,9 +160,9 @@ class TransposeContiguousOpt : public ContiguousOpt {
     int64_vec src_permute_order(src_rank);
     int64_vec dst_permute_order(dst_rank);
 
-    phi::DenseTensor src_view_contiguous =
+    DenseTensor src_view_contiguous =
         recover_contiguous(dev_ctx, src, &src_permute_order);
-    phi::DenseTensor dst_view_contiguous =
+    DenseTensor dst_view_contiguous =
         recover_contiguous(dev_ctx, *dst, &dst_permute_order);
 
     std::vector<int> new_permute_order(dst_rank);

@@ -24,14 +24,14 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void LayerNormKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const paddle::optional<phi::DenseTensor>& scale_opt,
-                     const paddle::optional<phi::DenseTensor>& bias_opt,
+                     const DenseTensor& x,
+                     const paddle::optional<DenseTensor>& scale_opt,
+                     const paddle::optional<DenseTensor>& bias_opt,
                      float epsilon,
                      int begin_norm_axis,
-                     phi::DenseTensor* out,
-                     phi::DenseTensor* mean,
-                     phi::DenseTensor* variance) {
+                     DenseTensor* out,
+                     DenseTensor* mean,
+                     DenseTensor* variance) {
   VLOG(4) << "Call SDAA LayerNormKernel";
 
   // check argument
@@ -64,29 +64,29 @@ void LayerNormKernel(const Context& dev_ctx,
   int right = static_cast<int>(matrix_dim[1]);
 
   // set scale to all ones if its none
-  phi::DenseTensor default_scale;
+  DenseTensor default_scale;
   if (!scale) {
-    phi::DenseTensorMeta default_scale_meta = {x.dtype(), phi::make_ddim(axes)};
+    DenseTensorMeta default_scale_meta = {x.dtype(), phi::make_ddim(axes)};
     default_scale.set_meta(default_scale_meta);
     dev_ctx.template Alloc<float>(&default_scale);
     sdaa_ops::doFillTensor<float>(
         dev_ctx, static_cast<float>(1.0), DataType::FLOAT32, &default_scale);
     scale = &default_scale;  // shallow copy to scale
   } else {
-    const_cast<phi::DenseTensor*>(scale)->Resize(phi::make_ddim(axes));
+    const_cast<DenseTensor*>(scale)->Resize(phi::make_ddim(axes));
   }
 
   // set bias to all zeros if its none
-  phi::DenseTensor default_bias;
+  DenseTensor default_bias;
   if (!bias) {
-    phi::DenseTensorMeta default_bias_meta = {x.dtype(), phi::make_ddim(axes)};
+    DenseTensorMeta default_bias_meta = {x.dtype(), phi::make_ddim(axes)};
     default_bias.set_meta(default_bias_meta);
     dev_ctx.template Alloc<float>(&default_bias);
     sdaa_ops::doFillTensor<float>(
         dev_ctx, static_cast<float>(0.0), DataType::FLOAT32, &default_bias);
     bias = &default_bias;  // shallow copy to bias
   } else {
-    const_cast<phi::DenseTensor*>(bias)->Resize(phi::make_ddim(axes));
+    const_cast<DenseTensor*>(bias)->Resize(phi::make_ddim(axes));
   }
 
   // calculate row and col according to input's shape and axis
@@ -137,8 +137,8 @@ void LayerNormKernel(const Context& dev_ctx,
                                         variance->data()));
 
   // resize scale and bias
-  const_cast<phi::DenseTensor*>(scale)->Resize(phi::make_ddim({right}));
-  const_cast<phi::DenseTensor*>(bias)->Resize(phi::make_ddim({right}));
+  const_cast<DenseTensor*>(scale)->Resize(phi::make_ddim({right}));
+  const_cast<DenseTensor*>(bias)->Resize(phi::make_ddim({right}));
 
   // destroy descriptors
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
@@ -151,17 +151,17 @@ void LayerNormKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LayerNormGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const paddle::optional<phi::DenseTensor>& scale_opt,
-                         const paddle::optional<phi::DenseTensor>& bias,
-                         const phi::DenseTensor& mean,
-                         const phi::DenseTensor& variance,
-                         const phi::DenseTensor& out_grad,
+                         const DenseTensor& x,
+                         const paddle::optional<DenseTensor>& scale_opt,
+                         const paddle::optional<DenseTensor>& bias,
+                         const DenseTensor& mean,
+                         const DenseTensor& variance,
+                         const DenseTensor& out_grad,
                          float epsilon,
                          int begin_norm_axis,
-                         phi::DenseTensor* x_grad,
-                         phi::DenseTensor* scale_grad,
-                         phi::DenseTensor* bias_grad) {
+                         DenseTensor* x_grad,
+                         DenseTensor* scale_grad,
+                         DenseTensor* bias_grad) {
   VLOG(4) << "Call SDAA LayerNormGradKernel";
 
   // check argument
@@ -202,24 +202,24 @@ void LayerNormGradKernel(const Context& dev_ctx,
 
   // The rank of mean should be equal to x
   auto mean_dims = mean.dims();  // save its original dims
-  const_cast<phi::DenseTensor*>(&mean)->Resize(phi::make_ddim({new_shape}));
-  const_cast<phi::DenseTensor*>(&variance)->Resize(phi::make_ddim({new_shape}));
+  const_cast<DenseTensor*>(&mean)->Resize(phi::make_ddim({new_shape}));
+  const_cast<DenseTensor*>(&variance)->Resize(phi::make_ddim({new_shape}));
 
   // set scale to all ones if its none
-  phi::DenseTensor default_scale;
+  DenseTensor default_scale;
   if (!scale) {
-    phi::DenseTensorMeta default_scale_meta = {x.dtype(), phi::make_ddim(axes)};
+    DenseTensorMeta default_scale_meta = {x.dtype(), phi::make_ddim(axes)};
     default_scale.set_meta(default_scale_meta);
     dev_ctx.template Alloc<float>(&default_scale);
     sdaa_ops::doFillTensor<float>(
         dev_ctx, static_cast<float>(1.0), DataType::FLOAT32, &default_scale);
     scale = &default_scale;  // shallow copy to scale
   } else {
-    const_cast<phi::DenseTensor*>(scale)->Resize(phi::make_ddim(axes));
+    const_cast<DenseTensor*>(scale)->Resize(phi::make_ddim(axes));
   }
 
   // set and allocate memory for outputs
-  phi::DenseTensor x_grad_, scale_grad_, bias_grad_;
+  DenseTensor x_grad_, scale_grad_, bias_grad_;
   x_grad = (x_grad == nullptr) ? &x_grad_ : x_grad;
   scale_grad = (scale_grad == nullptr) ? &scale_grad_ : scale_grad;
   bias_grad = (bias_grad == nullptr) ? &bias_grad_ : bias_grad;
@@ -281,9 +281,9 @@ void LayerNormGradKernel(const Context& dev_ctx,
                                          bias_grad->data()));
 
   // resize tensors
-  const_cast<phi::DenseTensor*>(&mean)->Resize(mean_dims);
-  const_cast<phi::DenseTensor*>(&variance)->Resize(mean_dims);
-  const_cast<phi::DenseTensor*>(scale)->Resize(phi::make_ddim({right}));
+  const_cast<DenseTensor*>(&mean)->Resize(mean_dims);
+  const_cast<DenseTensor*>(&variance)->Resize(mean_dims);
+  const_cast<DenseTensor*>(scale)->Resize(phi::make_ddim({right}));
   scale_grad->Resize(phi::make_ddim({right}));
   bias_grad->Resize(phi::make_ddim({right}));
 

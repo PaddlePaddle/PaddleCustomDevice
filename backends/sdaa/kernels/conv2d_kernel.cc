@@ -29,15 +29,15 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void Conv2dTecodnnKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& input,
-                         const phi::DenseTensor& filter,
+                         const DenseTensor& input,
+                         const DenseTensor& filter,
                          const std::vector<int>& strides_t,
                          const std::vector<int>& paddings_t,
                          const std::string& padding_algorithm,
                          const std::vector<int>& dilations_t,
                          int groups,
                          const std::string& data_format,
-                         phi::DenseTensor* output) {
+                         DenseTensor* output) {
   VLOG(4) << "CALL SDAA Conv2dTecodnnKernel";
 
   ConvKernel<T, Context>(dev_ctx,
@@ -56,15 +56,15 @@ void Conv2dTecodnnKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DepthwiseConv2dTecodnnKernel(const Context& dev_ctx,
-                                  const phi::DenseTensor& input,
-                                  const phi::DenseTensor& filter,
+                                  const DenseTensor& input,
+                                  const DenseTensor& filter,
                                   const std::vector<int>& strides_t,
                                   const std::vector<int>& paddings_t,
                                   const std::string& padding_algorithm,
                                   int groups,
                                   const std::vector<int>& dilations_t,
                                   const std::string& data_format,
-                                  phi::DenseTensor* output) {
+                                  DenseTensor* output) {
   VLOG(4) << "CALL SDAA DepthwiseConv2dTecodnnKernel";
   const bool is_NHWC = data_format == "NHWC";
   phi::DDim in_dims = input.dims();
@@ -99,17 +99,17 @@ void DepthwiseConv2dTecodnnKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Conv2dGradTecodnnKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& input,
-                             const phi::DenseTensor& filter,
-                             const phi::DenseTensor& output_grad,
+                             const DenseTensor& input,
+                             const DenseTensor& filter,
+                             const DenseTensor& output_grad,
                              const std::vector<int>& strides_t,
                              const std::vector<int>& paddings_t,
                              const std::string& padding_algorithm,
                              const std::vector<int>& dilations_t,
                              int groups,
                              const std::string& data_format,
-                             phi::DenseTensor* input_grad,
-                             phi::DenseTensor* filter_grad) {
+                             DenseTensor* input_grad,
+                             DenseTensor* filter_grad) {
   VLOG(4) << "CALL SDAA Conv2dGradTecodnnKernel";
 
   ConvBackwardKernel<T, Context>(dev_ctx,
@@ -130,17 +130,17 @@ void Conv2dGradTecodnnKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DepthwiseConv2dGradTecodnnKernel(const Context& dev_ctx,
-                                      const phi::DenseTensor& input,
-                                      const phi::DenseTensor& filter,
-                                      const phi::DenseTensor& output_grad,
+                                      const DenseTensor& input,
+                                      const DenseTensor& filter,
+                                      const DenseTensor& output_grad,
                                       const std::vector<int>& strides_t,
                                       const std::vector<int>& paddings_t,
                                       const std::string& padding_algorithm,
                                       int groups,
                                       const std::vector<int>& dilations_t,
                                       const std::string& data_format,
-                                      phi::DenseTensor* input_grad,
-                                      phi::DenseTensor* filter_grad) {
+                                      DenseTensor* input_grad,
+                                      DenseTensor* filter_grad) {
   VLOG(4) << "CALL SDAA DepthwiseConv2dGradTecodnnKernel";
   const bool is_NHWC = data_format == "NHWC";
   phi::DDim in_dims = input.dims();

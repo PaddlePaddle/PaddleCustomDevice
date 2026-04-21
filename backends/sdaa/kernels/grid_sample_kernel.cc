@@ -33,12 +33,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GridSampleKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& grid,
+                      const DenseTensor& x,
+                      const DenseTensor& grid,
                       const std::string& mode,
                       const std::string& padding_mode,
                       bool align_corners,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   using PaddingMode = tecodnnGridSamplePaddingMode_t;
   using Mode = tecodnnGridSampleInterpolationMode_t;
   PaddingMode enum_padding_mode;
@@ -80,16 +80,15 @@ void GridSampleKernel(const Context& dev_ctx,
   VLOG(3) << "out dims: " << out->dims()[0] << "; " << out->dims()[1] << "; "
           << out->dims()[2] << "; " << out->dims()[3];
 
-  auto x_temp = phi::DenseTensor();
+  auto x_temp = DenseTensor();
   auto x_temp_dims = std::vector<int>{n, in_h, in_w, c};
-  auto tensor_meta =
-      phi::DenseTensorMeta{x.dtype(), phi::make_ddim(x_temp_dims)};
+  auto tensor_meta = DenseTensorMeta{x.dtype(), phi::make_ddim(x_temp_dims)};
   x_temp.set_meta(tensor_meta);
   dev_ctx.template Alloc<T>(&x_temp);
   sdaa_ops::doTransformTensor(dev_ctx, x, Convert_TF::NCHW2NHWC, &x_temp);
 
-  auto out_temp = phi::DenseTensor{};
-  auto out_meta = phi::DenseTensorMeta(x.dtype(), {n, out_h, out_w, c});
+  auto out_temp = DenseTensor{};
+  auto out_meta = DenseTensorMeta(x.dtype(), {n, out_h, out_w, c});
   out_temp.set_meta(out_meta);
   dev_ctx.template Alloc<T>(&out_temp);
 
@@ -124,14 +123,14 @@ void GridSampleKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GridSampleGradKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& grid,
-                          const phi::DenseTensor& out_grad,
+                          const DenseTensor& x,
+                          const DenseTensor& grid,
+                          const DenseTensor& out_grad,
                           const std::string& mode,
                           const std::string& padding_mode,
                           bool align_corners,
-                          phi::DenseTensor* x_grad,
-                          phi::DenseTensor* grid_grad) {
+                          DenseTensor* x_grad,
+                          DenseTensor* grid_grad) {
   using PaddingMode = tecodnnGridSamplePaddingMode_t;
   using Mode = tecodnnGridSampleInterpolationMode_t;
   PaddingMode enum_padding_mode;
@@ -176,11 +175,10 @@ void GridSampleGradKernel(const Context& dev_ctx,
       dev_ctx, static_cast<T>(0), phi::CppTypeToDataType<T>::Type(), x_grad);
 
 #define NCHW_TRANFORM_NHWC(tensor)                                            \
-  auto tensor##_temp = phi::DenseTensor();                                    \
+  auto tensor##_temp = DenseTensor();                                         \
   auto tensor##_temp_dims =                                                   \
       sdaa_ops::doDimPermute(tensor, Convert_TF::NCHW2NHWC);                  \
-  auto tensor##_meta =                                                        \
-      phi::DenseTensorMeta{tensor.dtype(), tensor##_temp_dims};               \
+  auto tensor##_meta = DenseTensorMeta{tensor.dtype(), tensor##_temp_dims};   \
   tensor##_temp.set_meta(tensor##_meta);                                      \
   dev_ctx.template Alloc<T>(&tensor##_temp);                                  \
   sdaa_ops::doTransformTensor(                                                \
@@ -193,8 +191,8 @@ void GridSampleGradKernel(const Context& dev_ctx,
   NCHW_TRANFORM_NHWC(x);
   NCHW_TRANFORM_NHWC(out_grad);
 
-  auto x_grad_temp = phi::DenseTensor{};
-  auto x_grad_meta = phi::DenseTensorMeta{x.dtype(), {n, in_h, in_w, c}};
+  auto x_grad_temp = DenseTensor{};
+  auto x_grad_meta = DenseTensorMeta{x.dtype(), {n, in_h, in_w, c}};
   x_grad_temp.set_meta(x_grad_meta);
   dev_ctx.template Alloc<T>(&x_grad_temp);
 

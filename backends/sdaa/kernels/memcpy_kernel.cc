@@ -30,9 +30,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MemcpyKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   int dst_place_type,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   if (!x.initialized()) {
     return;
   }
@@ -53,9 +53,9 @@ void MemcpyKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MemcpyH2DKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      int dst_place_type,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   TensorCopy(dev_ctx, x, false, out, dev_ctx.GetPlace());
   dev_ctx.Wait();
 }
@@ -63,9 +63,9 @@ void MemcpyH2DKernel(const Context& dev_ctx,
 // used in new executor, for memory copy from device to host
 template <typename T, typename Context>
 void MemcpyD2HKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      int dst_place_type,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
   dev_ctx.Wait();
 }

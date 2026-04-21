@@ -46,10 +46,10 @@ static inline int ComputeAxis(int axis, int rank) {
 
 template <typename T, typename Context>
 void SplitKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const phi::IntArray& num_or_sections,
                  const phi::Scalar& axis_scalar,
-                 std::vector<phi::DenseTensor*> outs) {
+                 std::vector<DenseTensor*> outs) {
   VLOG(4) << "Call SDAA SplitKernel";
 
   int axis = axis_scalar.to<int>();
@@ -65,10 +65,10 @@ void SplitKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SplitWithNumKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         int num,
                         const phi::Scalar& axis_scalar,
-                        std::vector<phi::DenseTensor*> outs) {
+                        std::vector<DenseTensor*> outs) {
   VLOG(4) << "Call SDAA SplitWithNumKernel";
 
   int axis_value = axis_scalar.to<int>();

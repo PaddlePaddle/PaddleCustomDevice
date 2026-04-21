@@ -33,15 +33,15 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void RoiAlignKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& boxes,
-                    const paddle::optional<phi::DenseTensor>& boxes_num,
+                    const DenseTensor& x,
+                    const DenseTensor& boxes,
+                    const paddle::optional<DenseTensor>& boxes_num,
                     int pooled_height,
                     int pooled_width,
                     float spatial_scale,
                     int sampling_ratio,
                     bool aligned,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   if (boxes.dims()[0] == 0) {
     dev_ctx.template Alloc<T>(out);
     return;
@@ -119,12 +119,12 @@ void RoiAlignKernel(const Context& dev_ctx,
     }
   }
 
-  phi::DenseTensor boxes_num_t;
+  DenseTensor boxes_num_t;
   TensorFromVector<T>(dev_ctx, roi_batch_id_data, dev_ctx, &boxes_num_t);
   boxes_num_t.Resize({boxes.dims()[0], 1});
 
   // x and boxes must be the same dtype
-  phi::DenseTensor boxes_t;
+  DenseTensor boxes_t;
   if (boxes.dtype() == x.dtype()) {
     boxes_t = boxes;
   } else {
@@ -133,10 +133,10 @@ void RoiAlignKernel(const Context& dev_ctx,
     sdaa_ops::doCastTensor(dev_ctx, boxes, &boxes_t);
   }
 
-  std::vector<const phi::DenseTensor*> boxes_list;
+  std::vector<const DenseTensor*> boxes_list;
   boxes_list.emplace_back(&boxes_num_t);
   boxes_list.emplace_back(&boxes_t);
-  phi::DenseTensor boxes_N5;
+  DenseTensor boxes_N5;
   boxes_N5.Resize({boxes.dims()[0], 5});
   dev_ctx.template Alloc<T>(&boxes_N5);
 
@@ -147,10 +147,10 @@ void RoiAlignKernel(const Context& dev_ctx,
   // tecodnnRoiAlignForward only support input and output of NHWC format
   phi::DDim x_t_dims = sdaa_ops::doDimPermute(x, Convert_TF::NCHW2NHWC);
   phi::DDim out_t_dims = sdaa_ops::doDimPermute(*out, Convert_TF::NCHW2NHWC);
-  phi::DenseTensor x_t, out_t;
-  phi::DenseTensorMeta x_t_meta = {x.dtype(), x_t_dims, phi::DataLayout::NHWC},
-                       out_t_meta = {
-                           out->dtype(), out_t_dims, phi::DataLayout::NHWC};
+  DenseTensor x_t, out_t;
+  DenseTensorMeta x_t_meta = {x.dtype(), x_t_dims, phi::DataLayout::NHWC},
+                  out_t_meta = {
+                      out->dtype(), out_t_dims, phi::DataLayout::NHWC};
   x_t.set_meta(x_t_meta);
   out_t.set_meta(out_t_meta);
   dev_ctx.template Alloc<T>(&x_t);
@@ -186,16 +186,16 @@ void RoiAlignKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RoiAlignGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& boxes,
-                        const paddle::optional<phi::DenseTensor>& boxes_num,
-                        const phi::DenseTensor& out_grad,
+                        const DenseTensor& x,
+                        const DenseTensor& boxes,
+                        const paddle::optional<DenseTensor>& boxes_num,
+                        const DenseTensor& out_grad,
                         int pooled_height,
                         int pooled_width,
                         float spatial_scale,
                         int sampling_ratio,
                         bool aligned,
-                        phi::DenseTensor* dx) {
+                        DenseTensor* dx) {
   VLOG(4) << "Call SDAA RoiAlignGradKernel.";
   PADDLE_ENFORCE_LT(
       sampling_ratio,
@@ -235,14 +235,14 @@ void RoiAlignGradKernel(const Context& dev_ctx,
     }
   }
 
-  phi::DenseTensor boxes_num_t;
+  DenseTensor boxes_num_t;
   TensorFromVector<T>(dev_ctx, box_batch_id_data, dev_ctx, &boxes_num_t);
   boxes_num_t.Resize({boxes.dims()[0], 1});
 
-  std::vector<const phi::DenseTensor*> boxes_list;
+  std::vector<const DenseTensor*> boxes_list;
   boxes_list.emplace_back(&boxes_num_t);
   boxes_list.emplace_back(&boxes);
-  phi::DenseTensor boxes_N5;
+  DenseTensor boxes_N5;
   boxes_N5.Resize({boxes.dims()[0], 5});
   dev_ctx.template Alloc<T>(&boxes_N5);
 
@@ -254,12 +254,11 @@ void RoiAlignGradKernel(const Context& dev_ctx,
   phi::DDim dout_t_dims =
       sdaa_ops::doDimPermute(out_grad, Convert_TF::NCHW2NHWC);
   phi::DDim dx_t_dims = sdaa_ops::doDimPermute(*dx, Convert_TF::NCHW2NHWC);
-  phi::DenseTensor dout_t, dx_t;
-  phi::DenseTensorMeta dout_t_meta = {out_grad.dtype(),
-                                      dout_t_dims,
-                                      phi::DataLayout::NHWC},
-                       dx_t_meta = {
-                           dx->dtype(), dx_t_dims, phi::DataLayout::NHWC};
+  DenseTensor dout_t, dx_t;
+  DenseTensorMeta dout_t_meta = {out_grad.dtype(),
+                                 dout_t_dims,
+                                 phi::DataLayout::NHWC},
+                  dx_t_meta = {dx->dtype(), dx_t_dims, phi::DataLayout::NHWC};
   dout_t.set_meta(dout_t_meta);
   dx_t.set_meta(dx_t_meta);
   dev_ctx.template Alloc<T>(&dout_t);

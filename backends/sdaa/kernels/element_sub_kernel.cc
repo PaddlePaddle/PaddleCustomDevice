@@ -20,10 +20,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void SubtractRawKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        int axis,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   VLOG(4) << "Call SDAA SubtractKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doElementSub(dev_ctx, x, y, axis, out);
@@ -31,21 +31,21 @@ void SubtractRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SubtractKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    const DenseTensor& y,
+                    DenseTensor* out) {
   int axis = -1;
   custom_kernel::SubtractRawKernel<T>(dev_ctx, x, y, axis, out);
 }
 
 template <typename T, typename Context>
 void SubtractGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        const phi::DenseTensor& dout,
+                        const DenseTensor& x,
+                        const DenseTensor& y,
+                        const DenseTensor& dout,
                         int axis,
-                        phi::DenseTensor* dx,
-                        phi::DenseTensor* dy) {
+                        DenseTensor* dx,
+                        DenseTensor* dy) {
   VLOG(4) << "Call SDAA SubtractGradKernel";
   auto out_dims_vec = phi::vectorize<int64_t>(dout.dims());
   std::vector<int64_t> x_dims_vec, y_dims_vec;

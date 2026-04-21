@@ -65,12 +65,12 @@ static inline int SizeOutAxis(const int axis, phi::DDim dims) {
 
 template <typename T, typename Context>
 void crossEntropy(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& labels,
+                  const DenseTensor& x,
+                  const DenseTensor& labels,
                   int ignore_index,
                   int axis,
                   bool soft_label,
-                  phi::DenseTensor* loss) {
+                  DenseTensor* loss) {
   auto handle = GetHandleFromCTX(dev_ctx);
   const int rank = x.dims().size();
   const int axis_v = CanonicalAxis(axis, rank);
@@ -88,12 +88,12 @@ void crossEntropy(const Context& dev_ctx,
   const int d = SizeFromAxis(axis_v, x.dims());
 
   // weight is processsed outside the kernel, so we can't access actual weight
-  phi::DenseTensor w;
+  DenseTensor w;
   w.Resize({d});
   dev_ctx.template Alloc<T>(&w);
   sdaa_ops::doFillTensor<T>(dev_ctx, static_cast<T>(1.f), w.dtype(), &w);
 
-  phi::DenseTensor labels_cast;
+  DenseTensor labels_cast;
   if (soft_label) {
     PADDLE_ENFORCE_EQ(
         labels.numel(),
@@ -114,7 +114,7 @@ void crossEntropy(const Context& dev_ctx,
             "but got size of labels is %d and phi::funcs::SizeToAxis is %d.",
             labels.numel(),
             n));
-    phi::DenseTensorMeta labels_meta = {phi::DataType::INT32, labels.dims()};
+    DenseTensorMeta labels_meta = {phi::DataType::INT32, labels.dims()};
     labels_cast.set_meta(labels_meta);
     dev_ctx.template Alloc<int32_t>(&labels_cast);
     sdaa_ops::doCastTensor(dev_ctx, labels, &labels_cast);
@@ -154,13 +154,13 @@ void crossEntropy(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void crossEntropyGrad(const Context& dev_ctx,
-                      const phi::DenseTensor& labels,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& loss_grad,
+                      const DenseTensor& labels,
+                      const DenseTensor& x,
+                      const DenseTensor& loss_grad,
                       int ignore_index,
                       int axis,
                       bool soft_label,
-                      phi::DenseTensor* x_grad) {
+                      DenseTensor* x_grad) {
   auto handle = GetHandleFromCTX(dev_ctx);
   const int rank = x.dims().size();
   const int axis_v = CanonicalAxis(axis, rank);
@@ -178,12 +178,12 @@ void crossEntropyGrad(const Context& dev_ctx,
   const int d = SizeFromAxis(axis_v, x.dims());
 
   // weight is processsed outside the kernel, so we can't access actual weight
-  phi::DenseTensor w;
+  DenseTensor w;
   w.Resize({1, d});
   dev_ctx.template Alloc<T>(&w);
   sdaa_ops::doFillTensor<T>(dev_ctx, static_cast<T>(1.f), w.dtype(), &w);
 
-  phi::DenseTensor labels_cast;
+  DenseTensor labels_cast;
   if (soft_label) {
     PADDLE_ENFORCE_EQ(
         labels.numel(),
@@ -204,13 +204,13 @@ void crossEntropyGrad(const Context& dev_ctx,
             "but got size of labels is %d and phi::funcs::SizeToAxis is %d.",
             labels.numel(),
             n));
-    phi::DenseTensorMeta labels_meta = {phi::DataType::INT32, labels.dims()};
+    DenseTensorMeta labels_meta = {phi::DataType::INT32, labels.dims()};
     labels_cast.set_meta(labels_meta);
     dev_ctx.template Alloc<int32_t>(&labels_cast);
     sdaa_ops::doCastTensor(dev_ctx, labels, &labels_cast);
   }
 
-  phi::DenseTensor x_2d(x), labels_d(labels_cast), loss_2d(loss_grad);
+  DenseTensor x_2d(x), labels_d(labels_cast), loss_2d(loss_grad);
   x_2d.Resize({n, d});
   if (soft_label) {
     labels_d.Resize({n, d});
@@ -249,15 +249,15 @@ void crossEntropyGrad(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
-                                   const phi::DenseTensor& logits,
-                                   const phi::DenseTensor& labels,
+                                   const DenseTensor& logits,
+                                   const DenseTensor& labels,
                                    bool soft_label,
                                    bool use_softmax,
                                    bool numeric_stable_mode,
                                    int ignore_index,
                                    int axis,
-                                   phi::DenseTensor* softmax,
-                                   phi::DenseTensor* loss) {
+                                   DenseTensor* softmax,
+                                   DenseTensor* loss) {
   VLOG(4) << "Call SDAA CrossEntropyWithSoftmaxKernel";
 
   dev_ctx.template Alloc<T>(loss);
@@ -284,22 +284,22 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
-                                       const phi::DenseTensor& labels,
-                                       const phi::DenseTensor& softmax,
-                                       const phi::DenseTensor& loss_grad,
+                                       const DenseTensor& labels,
+                                       const DenseTensor& softmax,
+                                       const DenseTensor& loss_grad,
                                        bool soft_label,
                                        bool use_softmax,
                                        bool numeric_stable_mode,
                                        int ignore_index,
                                        int axis,
-                                       phi::DenseTensor* logits_grad) {
+                                       DenseTensor* logits_grad) {
   VLOG(4) << "Call SDAA CrossEntropyWithSoftmaxGradKernel";
 
   dev_ctx.template Alloc<T>(logits_grad);
 
   // input is softmax, skip softmax
   if (!use_softmax) {
-    phi::DenseTensor dlogits;
+    DenseTensor dlogits;
     // CELoss is not an inplace operator
     if (logits_grad->IsSharedWith(softmax)) {
       phi::Copy(dev_ctx, softmax, dev_ctx.GetPlace(), false, &dlogits);
@@ -317,8 +317,8 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
     return;
   }
 
-  phi::DenseTensor dlogits;
-  phi::DenseTensorMeta dlogits_meta = {softmax.dtype(), softmax.dims()};
+  DenseTensor dlogits;
+  DenseTensorMeta dlogits_meta = {softmax.dtype(), softmax.dims()};
   dlogits.set_meta(dlogits_meta);
   dev_ctx.template Alloc<T>(&dlogits);
 

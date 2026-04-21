@@ -46,6 +46,8 @@ namespace custom_kernel {
 using Context = phi::CustomContext;
 using DataType = phi::DataType;
 using DataLayout = phi::DataLayout;
+using DenseTensor = DenseTensor;
+using DenseTensorMeta = DenseTensorMeta;
 
 template <typename T>
 class MPTypeTrait {
@@ -465,113 +467,111 @@ const std::map<std::vector<int>, Convert_TF> TransposeModeMap = {
     {{3, 4, 0, 1, 2}, Convert_TF::CHWN2NCHW}};
 
 void doMeanTensor(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const std::vector<int64_t>& reduce_dims,
-                  phi::DenseTensor* y);
+                  DenseTensor* y);
 
 void doSumTensor(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const std::vector<int64_t>& reduce_dims,
-                 phi::DenseTensor* y);
+                 DenseTensor* y);
 
 void doProdTensor(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const std::vector<int64_t>& reduce_dims,
-                  phi::DenseTensor* y);
+                  DenseTensor* y);
 
 void doMinTensor(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const std::vector<int64_t>& reduce_dims,
-                 phi::DenseTensor* y);
+                 DenseTensor* y);
 
 void doMaxTensor(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const std::vector<int64_t>& reduce_dims,
-                 phi::DenseTensor* y);
+                 DenseTensor* y);
 
 void doTransformTensor(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        Convert_TF convert_tf,
-                       phi::DenseTensor* y);
+                       DenseTensor* y);
 
-void doCastTensor(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  phi::DenseTensor* y);
+void doCastTensor(const Context& dev_ctx, const DenseTensor& x, DenseTensor* y);
 
 void doAddTensor(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  float alpha,
                  float beta,
-                 phi::DenseTensor* out);
+                 DenseTensor* out);
 
 void doActivationForward(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
+                         const DenseTensor& x,
                          double factor,
                          ActivationMode activation_mode,
                          NanPropagation nan_propagate,
-                         phi::DenseTensor* out);
+                         DenseTensor* out);
 
 void doActivationBackward(const Context& dev_ctx,
-                          const phi::DenseTensor& out,
-                          const phi::DenseTensor& dout,
+                          const DenseTensor& out,
+                          const DenseTensor& dout,
                           double factor,
                           ActivationMode activation_mode,
                           NanPropagation nan_propagate,
-                          phi::DenseTensor* dx);
+                          DenseTensor* dx);
 
 void doUnaryOpTensor(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      float alpha,
                      UnaryOpMode unaryOpMode,
-                     phi::DenseTensor* out);
+                     DenseTensor* out);
 
 void doScaleTensor(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    float scale,
                    float bias,
                    bool inplace,
                    bool bias_flag,
-                   phi::DenseTensor* out);
+                   DenseTensor* out);
 
 void doNegTensor(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out);
+                 const DenseTensor& x,
+                 DenseTensor* out);
 
 void doCompareTensor(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
                      CompareType tct,
-                     phi::DenseTensor* out);
+                     DenseTensor* out);
 
 void doOpTensor(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::DenseTensor& y,
+                const DenseTensor& x,
+                const DenseTensor& y,
                 OpTensorMode opTensorMode,
-                phi::DenseTensor* out);
+                DenseTensor* out);
 
 void doElementAdd(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out);
+                  DenseTensor* out);
 
 void doElementSub(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out);
+                  DenseTensor* out);
 
 void doElementMul(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out);
+                  DenseTensor* out);
 
 void doElementDiv(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out);
+                  DenseTensor* out);
 
 tecodnnTensorDescriptor_t GetTecodnnTensorDesc(
     const std::vector<int>& dims,
@@ -591,149 +591,147 @@ tecocustomTensorDescriptor_t GetTecocustomTensorDesc(
     const std::vector<int>& strides = {});
 
 tecocustomTensorListDescriptor_t GetTecocustomTensorListDesc(
-    const std::vector<phi::DenseTensor*>& tensor_list,
+    const std::vector<DenseTensor*>& tensor_list,
     bool merged_optimizer = false);
 
 void doReciprocalTensor(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        phi::DenseTensor* out);
+                        const DenseTensor& x,
+                        DenseTensor* out);
 
 void doSoftmaxForward(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
+                      const DenseTensor& x,
                       int axis,
                       bool high_precision,
-                      phi::DenseTensor* out);
+                      DenseTensor* out);
 
 void doSoftmaxBackward(const Context& dev_ctx,
-                       const phi::DenseTensor& out,
-                       const phi::DenseTensor& dout,
+                       const DenseTensor& out,
+                       const DenseTensor& dout,
                        int axis,
                        bool high_precision,
-                       phi::DenseTensor* dx);
+                       DenseTensor* dx);
 
 void doLogSoftmaxForward(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
+                         const DenseTensor& x,
                          int axis,
-                         phi::DenseTensor* out);
+                         DenseTensor* out);
 
 void doLogSoftmaxBackward(const Context& dev_ctx,
-                          const phi::DenseTensor& out,
-                          const phi::DenseTensor& dout,
+                          const DenseTensor& out,
+                          const DenseTensor& dout,
                           int axis,
-                          phi::DenseTensor* dx);
+                          DenseTensor* dx);
 
-phi::DDim doDimPermute(const phi::DenseTensor& x, Convert_TF convert_tf);
+phi::DDim doDimPermute(const DenseTensor& x, Convert_TF convert_tf);
 
 template <typename T>
 void doSliceTensor(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    const std::vector<T>& axes,
                    const std::vector<T>& starts,
                    const std::vector<T>& ends,
                    const std::vector<T>& strides,
                    const std::vector<int64_t>& decrease_axis,
-                   phi::DenseTensor* out);
+                   DenseTensor* out);
 
 void doPaddingTensor(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const std::vector<std::vector<int>>& Paddings,
-                     phi::DenseTensor* out);
+                     DenseTensor* out);
 
 void doTransposeTensor(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        const std::vector<int>& axis,
-                       phi::DenseTensor* out);
+                       DenseTensor* out);
 
 void doLogicTensor(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    const std::vector<int64_t>& axis_reduce,
                    TensorLogicType TLT,
-                   phi::DenseTensor* out);
+                   DenseTensor* out);
 
 void doConcatTensor(const Context& dev_ctx,
-                    const std::vector<const phi::DenseTensor*>& x,
+                    const std::vector<const DenseTensor*>& x,
                     int axis,
-                    phi::DenseTensor* out);
+                    DenseTensor* out);
 
 void doScatterTensor(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& index,
-                     const phi::DenseTensor& updates,
+                     const DenseTensor& x,
+                     const DenseTensor& index,
+                     const DenseTensor& updates,
                      bool overwrite,
-                     phi::DenseTensor* out);
+                     DenseTensor* out);
 
 void doSplitTensor(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    int axis,
-                   std::vector<phi::DenseTensor*> outs);
+                   std::vector<DenseTensor*> outs);
 
 void doExpandTensor(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    phi::DenseTensor* out);
+                    const DenseTensor& x,
+                    DenseTensor* out);
 
 void doNearestInterpolateForward(const Context& dev_ctx,
-                                 const phi::DenseTensor& x,
+                                 const DenseTensor& x,
                                  const float ratio_w,
                                  const float ratio_h,
                                  const float ratio_d,
                                  const bool align_corners,
-                                 phi::DenseTensor* out);
+                                 DenseTensor* out);
 
 void doNearestInterpolateBackward(const Context& dev_ctx,
-                                  const phi::DenseTensor& out,
+                                  const DenseTensor& out,
                                   const float ratio_w,
                                   const float ratio_h,
                                   const float ratio_d,
                                   const bool align_corners,
-                                  phi::DenseTensor* dx);
+                                  DenseTensor* dx);
 
 void doBitwiseBinaryOpTensor(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& y,
+                             const DenseTensor& x,
+                             const DenseTensor& y,
                              BitwiseOpType bitwiseType,
-                             phi::DenseTensor* out);
+                             DenseTensor* out);
 
 void doBitwiseUnaryOpTensor(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
+                            const DenseTensor& x,
                             BitwiseOpType bitwiseType,
-                            phi::DenseTensor* out);
+                            DenseTensor* out);
 int64_t doAddStorageProperties(
     const Context& dev_ctx,
-    phi::DenseTensor* tensor,
+    DenseTensor* tensor,
     SDAAStorageProperties& storage_properties);  // NOLINT
 
-void doIsnanOp(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out);
+void doIsnanOp(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out);
 
 void doLogicalOpTensor(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        LogicalOpType logicaltype,
-                       phi::DenseTensor* out);
+                       DenseTensor* out);
 
 void doLogicalNotOpTensor(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          phi::DenseTensor* out);
+                          const DenseTensor& x,
+                          DenseTensor* out);
 
 void swapTensorData(const Context& dev_ctx,
-                    const phi::DenseTensor& in,
+                    const DenseTensor& in,
                     SDAAStorageProperties& storage_properties);  // NOLINT
 
 void swapTensorData(const Context& dev_ctx,
-                    const phi::DenseTensor& in,
+                    const DenseTensor& in,
                     SDAAStorageProperties& storage_properties,  // NOLINT
-                    phi::DenseTensor* out);
+                    DenseTensor* out);
 
 void doAtanTensor(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  phi::DenseTensor* out);
+                  const DenseTensor& x,
+                  DenseTensor* out);
 
 template <typename T>
 void doFillTensor(const Context& dev_ctx,
                   T val,
                   phi::DataType dtype,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   auto handle = custom_kernel::GetHandleFromCTX(dev_ctx);
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
   tecodnnTensorDescriptor_t Desc;
@@ -753,24 +751,24 @@ std::vector<int64_t> GetReduceDimAxis(const phi::DDim& in,
                                       int axis);
 
 void BatchNormFunc(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& mean,
-                   const phi::DenseTensor& variance,
-                   const phi::DenseTensor& scale,
-                   const phi::DenseTensor& bias,
+                   const DenseTensor& x,
+                   const DenseTensor& mean,
+                   const DenseTensor& variance,
+                   const DenseTensor& scale,
+                   const DenseTensor& bias,
                    float momentum,
                    float epsilon,
                    bool training,
                    const std::string& data_layout_str,
-                   phi::DenseTensor* y,
-                   phi::DenseTensor* mean_out,
-                   phi::DenseTensor* variance_out,
-                   phi::DenseTensor* saved_mean,
-                   phi::DenseTensor* saved_variance);
+                   DenseTensor* y,
+                   DenseTensor* mean_out,
+                   DenseTensor* variance_out,
+                   DenseTensor* saved_mean,
+                   DenseTensor* saved_variance);
 
 void doMemsetTensor(const Context& dev_ctx,
                     const int value,
-                    phi::DenseTensor* tensor);
+                    DenseTensor* tensor);
 
 void GetReduceDimReduceAll(const std::vector<int>& axis_dims,
                            int input_dims_size,
@@ -779,23 +777,23 @@ void GetReduceDimReduceAll(const std::vector<int>& axis_dims,
 
 template <typename T>
 void doScatterNdAdd(const Context& ctx,
-                    const phi::DenseTensor& index,
-                    const phi::DenseTensor& updates,
-                    phi::DenseTensor* out);
+                    const DenseTensor& index,
+                    const DenseTensor& updates,
+                    DenseTensor* out);
 
 void doStrideCopy(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const std::vector<int>& shape,
                   const std::vector<int>& x_strides,
                   const std::vector<int>& out_strides,
-                  phi::DenseTensor* out);
+                  DenseTensor* out);
 
 template <typename T>
 void doClipTensor(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   T min,
                   T max,
-                  phi::DenseTensor* out);
+                  DenseTensor* out);
 
 }  // namespace sdaa_ops
 }  // namespace custom_kernel

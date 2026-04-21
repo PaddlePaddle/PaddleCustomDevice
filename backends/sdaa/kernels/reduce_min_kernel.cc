@@ -17,11 +17,11 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void MinRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "Call SDAA MinRawKernel";
   std::vector<int64_t> reduce_dims;
   auto dims = axes.GetData();
@@ -46,10 +46,10 @@ void MinRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MinKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::IntArray& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   VLOG(4) << "Call SDAA MinKernel";
   bool reduce_all = false;
   if (dims.size() == 0) {

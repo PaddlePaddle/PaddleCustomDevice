@@ -33,8 +33,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void IsEmptyKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   DenseTensor* out) {
   VLOG(4) << "CALL SDAA IsEmptyKernel.";
 
   // Note: is_empty is always executed on CPU and the output data should

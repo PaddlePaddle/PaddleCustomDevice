@@ -19,17 +19,17 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void BatchNormInferKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& mean,
-                          const phi::DenseTensor& variance,
-                          const phi::DenseTensor& scale,
-                          const phi::DenseTensor& bias,
+                          const DenseTensor& x,
+                          const DenseTensor& mean,
+                          const DenseTensor& variance,
+                          const DenseTensor& scale,
+                          const DenseTensor& bias,
                           float momentum,
                           float epsilon,
                           const std::string& data_layout_str,
-                          phi::DenseTensor* y,
-                          phi::DenseTensor* mean_out,
-                          phi::DenseTensor* variance_out) {
+                          DenseTensor* y,
+                          DenseTensor* mean_out,
+                          DenseTensor* variance_out) {
   VLOG(4) << "Call SDAA BatchNormInferKernel";
 
   // allocate memory for outputs
@@ -59,23 +59,23 @@ void BatchNormInferKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BatchNormKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& running_mean,
-                     const phi::DenseTensor& running_var,
-                     const paddle::optional<phi::DenseTensor>& scale,
-                     const paddle::optional<phi::DenseTensor>& bias,
+                     const DenseTensor& x,
+                     const DenseTensor& running_mean,
+                     const DenseTensor& running_var,
+                     const paddle::optional<DenseTensor>& scale,
+                     const paddle::optional<DenseTensor>& bias,
                      bool is_test,
                      float momentum,
                      float epsilon,
                      const std::string& data_layout_str,
                      bool use_global_stats,
                      bool trainable_stats,
-                     phi::DenseTensor* y,
-                     phi::DenseTensor* mean_out,
-                     phi::DenseTensor* variance_out,
-                     phi::DenseTensor* saved_mean,
-                     phi::DenseTensor* saved_variance,
-                     phi::DenseTensor* reserve_space) {
+                     DenseTensor* y,
+                     DenseTensor* mean_out,
+                     DenseTensor* variance_out,
+                     DenseTensor* saved_mean,
+                     DenseTensor* saved_variance,
+                     DenseTensor* reserve_space) {
   // if training is False, use global mean and std
   bool test_mode = is_test && (!trainable_stats);
   // current tecodnnAPI does not support parameter use_global_stats=True
@@ -84,7 +84,7 @@ void BatchNormKernel(const Context& dev_ctx,
   auto* Scale = scale.get_ptr();
   auto* Bias = bias.get_ptr();
 
-  phi::DenseTensor new_scale, new_bias;
+  DenseTensor new_scale, new_bias;
   const auto data_layout = common::StringToDataLayout(data_layout_str);
 
   int C;
@@ -157,26 +157,25 @@ void BatchNormKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void BatchNormGradKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& scale,
-    const paddle::optional<phi::DenseTensor>& bias,
-    const paddle::optional<phi::DenseTensor>& mean,
-    const paddle::optional<phi::DenseTensor>& variance,
-    const phi::DenseTensor& saved_mean,
-    const phi::DenseTensor& saved_inv_variance,
-    const paddle::optional<phi::DenseTensor>& reserve_space,
-    const phi::DenseTensor& d_y,
-    float momentum,
-    float epsilon,
-    const std::string& data_layout_str,
-    bool is_test,
-    bool use_global_stats,
-    bool trainable_statistics,
-    phi::DenseTensor* d_x,
-    phi::DenseTensor* d_scale,
-    phi::DenseTensor* d_bias) {
+void BatchNormGradKernel(const Context& dev_ctx,
+                         const DenseTensor& x,
+                         const paddle::optional<DenseTensor>& scale,
+                         const paddle::optional<DenseTensor>& bias,
+                         const paddle::optional<DenseTensor>& mean,
+                         const paddle::optional<DenseTensor>& variance,
+                         const DenseTensor& saved_mean,
+                         const DenseTensor& saved_inv_variance,
+                         const paddle::optional<DenseTensor>& reserve_space,
+                         const DenseTensor& d_y,
+                         float momentum,
+                         float epsilon,
+                         const std::string& data_layout_str,
+                         bool is_test,
+                         bool use_global_stats,
+                         bool trainable_statistics,
+                         DenseTensor* d_x,
+                         DenseTensor* d_scale,
+                         DenseTensor* d_bias) {
   VLOG(4) << "Call SDAA BatchNormGradKernel";
   use_global_stats = is_test || use_global_stats;
   // check arguments
@@ -206,7 +205,7 @@ void BatchNormGradKernel(
   auto* Scale = scale.get_ptr();
   auto* Bias = bias.get_ptr();
 
-  phi::DenseTensor new_scale, new_bias;
+  DenseTensor new_scale, new_bias;
 
   if (Scale) {
     new_scale = scale.get();
@@ -226,7 +225,7 @@ void BatchNormGradKernel(
 
   // allocate memory for outputs
   dev_ctx.template Alloc<T>(d_x);
-  phi::DenseTensor scale_grad_tmp, bias_grad_tmp;
+  DenseTensor scale_grad_tmp, bias_grad_tmp;
   scale_grad_tmp.Resize(new_scale.dims());
   bias_grad_tmp.Resize(new_bias.dims());
   dev_ctx.template Alloc<float>(&scale_grad_tmp);
@@ -250,7 +249,7 @@ void BatchNormGradKernel(
 
   // since the tecodnnBatchNormBackward func only supports 4-D tensor,
   // when tensor dims=3, a dimensional complement is required.
-  phi::DenseTensor x_temp(x), dy_temp(d_y), dx_temp(*d_x);
+  DenseTensor x_temp(x), dy_temp(d_y), dx_temp(*d_x);
   if (x_dims.size() < 4) {
     if (need_trans) {
       x_temp.Resize(phi::make_ddim({N, C, H, W}));
@@ -263,7 +262,7 @@ void BatchNormGradKernel(
     }
   }
 
-  phi::DenseTensor x_NHWC, dy_NHWC, dx_NHWC;
+  DenseTensor x_NHWC, dy_NHWC, dx_NHWC;
   phi::DDim x_NHWC_dims, dy_NHWC_dims, dx_NHWC_dims;
 
   if (need_trans) {
@@ -301,11 +300,11 @@ void BatchNormGradKernel(
         true,
         phi::errors::InvalidArgument("scale not support NULL in sdaa device."));
     // 1. compuate inv var
-    phi::DenseTensor inv_var;
-    phi::DenseTensor running_mean = mean.get();
+    DenseTensor inv_var;
+    DenseTensor running_mean = mean.get();
 
     const auto* running_variance = variance.get_ptr();
-    phi::DenseTensor add_res, sqrt_res;
+    DenseTensor add_res, sqrt_res;
     phi::DDim C_dims = {C};
 
     add_res.Resize(C_dims);
@@ -320,8 +319,8 @@ void BatchNormGradKernel(
         dev_ctx, add_res, 1.0, UnaryOpMode::SQRT, &sqrt_res);
     sdaa_ops::doReciprocalTensor(dev_ctx, sqrt_res, &inv_var);
 
-    phi::DenseTensor dy_sum, dy_mul_x_sub_mean_mul_invstd_sum, scale_inv_var;
-    phi::DenseTensor dy_NHWC_fp32, x_NHWC_fp32;
+    DenseTensor dy_sum, dy_mul_x_sub_mean_mul_invstd_sum, scale_inv_var;
+    DenseTensor dy_NHWC_fp32, x_NHWC_fp32;
     scale_inv_var.Resize(C_dims);
     dev_ctx.Alloc(&scale_inv_var, new_scale.dtype());
     sdaa_ops::doElementMul(dev_ctx, new_scale, inv_var, -1, &scale_inv_var);
@@ -350,7 +349,7 @@ void BatchNormGradKernel(
     sdaa_ops::doSumTensor(dev_ctx, dy_NHWC_fp32, {0, 1, 2}, &dy_sum);
 
     // 3. compute dy_mul_x_sub_mean_mul_invstd_sum
-    phi::DenseTensor x_sub_mean, invstd_mul_dy, intermediate_res;
+    DenseTensor x_sub_mean, invstd_mul_dy, intermediate_res;
     x_sub_mean.set_meta(x_NHWC_fp32.meta());
     invstd_mul_dy.set_meta(dy_NHWC_fp32.meta());
     intermediate_res.set_meta(dy_NHWC_fp32.meta());
@@ -370,7 +369,7 @@ void BatchNormGradKernel(
     // 4. compute dx
     if (d_x) {
       if (!std::is_same<T, float>::value) {
-        phi::DenseTensor dx_NHWC_fp32;
+        DenseTensor dx_NHWC_fp32;
         dx_NHWC_fp32.Resize(dx_NHWC.dims());
         dev_ctx.Alloc(&dx_NHWC_fp32, phi::DataType::FLOAT32);
         sdaa_ops::doElementMul(
@@ -410,7 +409,7 @@ void BatchNormGradKernel(
     size_t workSpaceSizeInBytes = 0;
     TECODNN_CHECK(tecodnnGetBatchNormalizationBackwardWorkspaceSize(
         bnMode, sbmv_NHWC_Desc, &workSpaceSizeInBytes));
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     if (workSpaceSizeInBytes != 0)
       workspace.Resize({static_cast<int64_t>(workSpaceSizeInBytes)});
     dev_ctx.Alloc(&workspace, phi::DataType::INT8);

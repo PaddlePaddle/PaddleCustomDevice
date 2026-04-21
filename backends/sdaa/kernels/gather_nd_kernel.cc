@@ -30,16 +30,16 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GatherNdKernel(const Context &dev_ctx,
-                    const phi::DenseTensor &x,
-                    const phi::DenseTensor &index,
-                    phi::DenseTensor *out) {
+                    const DenseTensor &x,
+                    const DenseTensor &index,
+                    DenseTensor *out) {
   VLOG(4) << "Call SDAA GatherNdKernel";
 
   dev_ctx.template Alloc<T>(out);
 
   if (x.numel() == 0) return;
   if (index.numel() == 0) {
-    phi::DenseTensor x_temp(x);
+    DenseTensor x_temp(x);
     sdaa_ops::doExpandTensor(dev_ctx, x_temp, out);
     return;
   }
@@ -84,10 +84,10 @@ void GatherNdKernel(const Context &dev_ctx,
 
 template <typename T, typename Context>
 void GatherNdGradKernel(const Context &ctx,
-                        const phi::DenseTensor &x UNUSED,
-                        const phi::DenseTensor &index,
-                        const phi::DenseTensor &out_grad,
-                        phi::DenseTensor *x_grad) {
+                        const DenseTensor &x UNUSED,
+                        const DenseTensor &index,
+                        const DenseTensor &out_grad,
+                        DenseTensor *x_grad) {
   VLOG(4) << "Call SDAA GatherNdGradKernel";
 
   ctx.template Alloc<T>(x_grad);
@@ -131,8 +131,8 @@ void GatherNdGradKernel(const Context &ctx,
   tecodnnTensorDescriptor_t x_grad_desc = sdaa_ops::GetTecodnnTensorDesc(
       x_grad_dims, x_grad->dtype(), TensorFormat::Undefined);
 
-  phi::DenseTensor x_tmp;
-  phi::DenseTensorMeta temp_x_meta = {x_grad->dtype(), x_grad->dims()};
+  DenseTensor x_tmp;
+  DenseTensorMeta temp_x_meta = {x_grad->dtype(), x_grad->dims()};
   x_tmp.set_meta(temp_x_meta);
   ctx.template Alloc<T>(&x_tmp);
   sdaa_ops::doFillTensor<T>(ctx, static_cast<T>(0), x_grad->dtype(), &x_tmp);

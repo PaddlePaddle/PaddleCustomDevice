@@ -333,7 +333,7 @@ tecocustomTensorDescriptor_t GetTecocustomTensorDesc(
 //  - ndims[0] 的值应为当前张量的 numel()，即张量的总元素数量。
 // 这种处理方式将多维张量的形状简化为一个一维数组，其中数组的长度等于张量的总元素数。
 tecocustomTensorListDescriptor_t GetTecocustomTensorListDesc(
-    const std::vector<phi::DenseTensor*>& tensor_list, bool merged_optimizer) {
+    const std::vector<DenseTensor*>& tensor_list, bool merged_optimizer) {
   int M = tensor_list.size();
   tecocustomDataType_t dt = ToTecocustomDataType(tensor_list[0]->dtype());
   tecocustomTensorListDescriptor_t CustomListDesc;
@@ -363,9 +363,9 @@ tecocustomTensorListDescriptor_t GetTecocustomTensorListDesc(
 }
 
 void doTransformTensor(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        Convert_TF convert_tf,
-                       phi::DenseTensor* y) {
+                       DenseTensor* y) {
   VLOG(4) << "call tecodnn transform tensor";
   phi::DDim x_d;
   if (x.storage_properties_initialized() &&
@@ -404,8 +404,8 @@ void doTransformTensor(const Context& dev_ctx,
 }
 
 void doCastTensor(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  phi::DenseTensor* y) {
+                  const DenseTensor& x,
+                  DenseTensor* y) {
   VLOG(4) << "call tecodnn cast tensor";
   phi::DDim x_d;
   if (x.storage_properties_initialized() &&
@@ -463,10 +463,10 @@ void doCastTensor(const Context& dev_ctx,
 }
 
 void doAddTensor(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  float alpha,
                  float beta,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   VLOG(4) << "call tecodnn add tensor";
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> x_dimensions(4, 1);
@@ -493,11 +493,11 @@ void doAddTensor(const Context& dev_ctx,
 }
 
 void doActivationForward(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
+                         const DenseTensor& x,
                          double factor,
                          ActivationMode activation_mode,
                          NanPropagation nan_propagate,
-                         phi::DenseTensor* out) {
+                         DenseTensor* out) {
   VLOG(4) << "call tecodnn activation forward";
 
   int N = 1, C = x.numel(), H = 1, W = 1;
@@ -531,12 +531,12 @@ void doActivationForward(const Context& dev_ctx,
 }
 
 void doActivationBackward(const Context& dev_ctx,
-                          const phi::DenseTensor& out,
-                          const phi::DenseTensor& dout,
+                          const DenseTensor& out,
+                          const DenseTensor& dout,
                           double factor,
                           ActivationMode activation_mode,
                           NanPropagation nan_propagate,
-                          phi::DenseTensor* dx) {
+                          DenseTensor* dx) {
   VLOG(4) << "call tecodnn activation backward";
 
   int N = 1, C = out.numel(), H = 1, W = 1;
@@ -574,10 +574,10 @@ void doActivationBackward(const Context& dev_ctx,
 }
 
 void doUnaryOpTensor(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      float alpha,
                      UnaryOpMode unaryOpMode,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   VLOG(4) << "call tecodnn unary op";
 
   int N = 1, C = x.numel(), H = 1, W = 1;
@@ -599,12 +599,12 @@ void doUnaryOpTensor(const Context& dev_ctx,
 }
 
 void doScaleTensor(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    float scale,
                    float bias,
                    bool inplace,
                    bool bias_flag,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   VLOG(4) << "call tecodnn scale tensor";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -655,8 +655,8 @@ void doScaleTensor(const Context& dev_ctx,
 }
 
 void doNegTensor(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   VLOG(4) << "call tecodnn neg tensor";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -687,10 +687,10 @@ void doNegTensor(const Context& dev_ctx,
 }
 
 void doCompareTensor(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
                      CompareType tct,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   VLOG(4) << "call tecodnn compare tensor";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -789,10 +789,10 @@ void doCompareTensor(const Context& dev_ctx,
 }
 
 void doOpTensor(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::DenseTensor& y,
+                const DenseTensor& x,
+                const DenseTensor& y,
                 OpTensorMode opTensorMode,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   VLOG(4) << "call tecodnn Op Tensor";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -869,13 +869,13 @@ inline void doReduceTensor(tecodnnHandle_t handle,
 }
 
 void doReduceTensorImpl(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         const std::vector<int64_t>& reduce_dims,
                         tecodnnReduceTensorOp_t op,
                         tecodnnNanPropagation_t nan_prop,
                         tecodnnReduceTensorIndices_t indices_op,
                         tecodnnIndicesType_t indices_type,
-                        phi::DenseTensor* y) {
+                        DenseTensor* y) {
   if (reduce_dims.size() == 0) {
     if (x.data() == y->data()) {
       return;
@@ -895,7 +895,7 @@ void doReduceTensorImpl(const Context& dev_ctx,
                                                  nan_prop,
                                                  indices_op,
                                                  indices_type));
-  phi::DenseTensor workspace;
+  DenseTensor workspace;
   workspace.Resize({static_cast<int64_t>(sizeof(float) * x.numel())});
   dev_ctx.Alloc(&workspace, DataType::INT8);
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -904,7 +904,7 @@ void doReduceTensorImpl(const Context& dev_ctx,
     for (auto&& i : reduce_dims) {
       y_dims[i] = 1;
     }
-    phi::DenseTensor y_temp;
+    DenseTensor y_temp;
     // Reduce is not an inplace op
     if (x.data() == y->data()) {
       y_temp.Resize(y->dims());
@@ -935,7 +935,7 @@ void doReduceTensorImpl(const Context& dev_ctx,
   std::vector<int> ref_dims, ref_reduce_dims;
   foldNonReduceDims(x_dims, reduce_dims_int, &ref_dims, &ref_reduce_dims);
 
-  phi::DenseTensor temp_input, temp_output;
+  DenseTensor temp_input, temp_output;
   TensorCopy(dev_ctx, x, false, &temp_input);
 
   temp_output.Resize(x.dims());
@@ -1039,17 +1039,17 @@ inline tecodnnIndicesType_t ToTecodnnIndiceDataType(const DataType& dtype) {
 // temp function to mitigate int64 problem, when int64 is adapted change the
 // impl function to this function
 void doReduceTensor(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     const std::vector<int64_t>& reduce_dims,
                     tecodnnReduceTensorOp_t op,
                     tecodnnNanPropagation_t nan_prop,
                     tecodnnReduceTensorIndices_t indices_op,
                     tecodnnIndicesType_t indices_type,
-                    phi::DenseTensor* y) {
+                    DenseTensor* y) {
   // The reason for removing the dtype cast expect float16
   // is to avoid the loss of precision due to the dtype cast.
   if (x.dtype() == DataType::FLOAT16) {
-    phi::DenseTensor x_temp, y_temp;
+    DenseTensor x_temp, y_temp;
     x_temp.Resize(x.dims());
     dev_ctx.Alloc(&x_temp, DataType::FLOAT32);
     sdaa_ops::doCastTensor(dev_ctx, x, &x_temp);
@@ -1071,9 +1071,9 @@ void doReduceTensor(const Context& dev_ctx,
 }
 
 void doMeanTensor(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const std::vector<int64_t>& reduce_dims,
-                  phi::DenseTensor* y) {
+                  DenseTensor* y) {
   doReduceTensor(dev_ctx,
                  x,
                  reduce_dims,
@@ -1085,9 +1085,9 @@ void doMeanTensor(const Context& dev_ctx,
 }
 
 void doSumTensor(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const std::vector<int64_t>& reduce_dims,
-                 phi::DenseTensor* y) {
+                 DenseTensor* y) {
   doReduceTensor(dev_ctx,
                  x,
                  reduce_dims,
@@ -1099,9 +1099,9 @@ void doSumTensor(const Context& dev_ctx,
 }
 
 void doProdTensor(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const std::vector<int64_t>& reduce_dims,
-                  phi::DenseTensor* y) {
+                  DenseTensor* y) {
   doReduceTensor(dev_ctx,
                  x,
                  reduce_dims,
@@ -1113,9 +1113,9 @@ void doProdTensor(const Context& dev_ctx,
 }
 
 void doMinTensor(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const std::vector<int64_t>& reduce_dims,
-                 phi::DenseTensor* y) {
+                 DenseTensor* y) {
   doReduceTensor(dev_ctx,
                  x,
                  reduce_dims,
@@ -1127,9 +1127,9 @@ void doMinTensor(const Context& dev_ctx,
 }
 
 void doMaxTensor(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const std::vector<int64_t>& reduce_dims,
-                 phi::DenseTensor* y) {
+                 DenseTensor* y) {
   doReduceTensor(dev_ctx,
                  x,
                  reduce_dims,
@@ -1142,12 +1142,12 @@ void doMaxTensor(const Context& dev_ctx,
 
 template <typename T>
 void doElementWise(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
+                   const DenseTensor& x,
+                   const DenseTensor& y,
                    int axis,
                    T mode,
                    funcs::ElementwiseFunc tecodnnElementwiseFunctor,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   std::vector<int> x_expanded_dims, y_expanded_dims;
   custom_kernel::broadcastDims(
       x.dims(), y.dims(), axis, &x_expanded_dims, &y_expanded_dims);
@@ -1179,40 +1179,40 @@ void doElementWise(const Context& dev_ctx,
 }
 
 void doElementAdd(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   doElementWise(dev_ctx, x, y, axis, BINARY_ADD, tecodnnAddTensorEx, out);
 }
 
 void doElementSub(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   doElementWise(dev_ctx, x, y, axis, BINARY_SUB, tecodnnSubTensorEx, out);
 }
 
 void doElementMul(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   doElementWise(dev_ctx, x, y, axis, BINARY_MUL, tecodnnMulTensorEx, out);
 }
 
 void doElementDiv(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   doElementWise(dev_ctx, x, y, axis, BINARY_DIV, tecodnnDivTensorEx, out);
 }
 
 void doReciprocalTensor(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        phi::DenseTensor* out) {
+                        const DenseTensor& x,
+                        DenseTensor* out) {
   VLOG(4) << "call tecodnn reciprocal op.";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -1232,7 +1232,7 @@ void doReciprocalTensor(const Context& dev_ctx,
   tecodnnTensorDescriptor_t x_Desc =
       GetTecodnnTensorDesc(x_dimensions, x.dtype(), TensorFormat::NHWC);
 
-  phi::DenseTensor x_(x);
+  DenseTensor x_(x);
 
   TECODNN_CHECK(tecodnnReciprocalTensor(
       tecodnnHandle, x_Desc, x_.data(), x_Desc, out->data()));
@@ -1241,10 +1241,10 @@ void doReciprocalTensor(const Context& dev_ctx,
 }
 
 void doSoftmaxForward(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
+                      const DenseTensor& x,
                       int axis,
                       bool high_precision,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   VLOG(4) << "call tecodnn softmaxforward op";
 
   if (axis < 0) {
@@ -1288,11 +1288,11 @@ void doSoftmaxForward(const Context& dev_ctx,
 }
 
 void doSoftmaxBackward(const Context& dev_ctx,
-                       const phi::DenseTensor& out,
-                       const phi::DenseTensor& dout,
+                       const DenseTensor& out,
+                       const DenseTensor& dout,
                        int axis,
                        bool high_precision,
-                       phi::DenseTensor* dx) {
+                       DenseTensor* dx) {
   VLOG(4) << "call tecodnn softmaxbackward op";
 
   if (axis < 0) {
@@ -1339,9 +1339,9 @@ void doSoftmaxBackward(const Context& dev_ctx,
 
 /*This function has not benn tested.*/
 void doLogSoftmaxForward(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
+                         const DenseTensor& x,
                          int axis,
-                         phi::DenseTensor* out) {
+                         DenseTensor* out) {
   VLOG(4) << "call tecodnn softmaxforward op";
 
   if (axis < 0) {
@@ -1383,10 +1383,10 @@ void doLogSoftmaxForward(const Context& dev_ctx,
 
 /*This function has not benn tested.*/
 void doLogSoftmaxBackward(const Context& dev_ctx,
-                          const phi::DenseTensor& out,
-                          const phi::DenseTensor& dout,
+                          const DenseTensor& out,
+                          const DenseTensor& dout,
                           int axis,
-                          phi::DenseTensor* dx) {
+                          DenseTensor* dx) {
   VLOG(4) << "call tecodnn softmaxbackward op";
 
   if (axis < 0) {
@@ -1429,7 +1429,7 @@ void doLogSoftmaxBackward(const Context& dev_ctx,
 }
 
 /*This function only tests NCHW2NHWC.*/
-phi::DDim doDimPermute(const phi::DenseTensor& x, Convert_TF convert_tf) {
+phi::DDim doDimPermute(const DenseTensor& x, Convert_TF convert_tf) {
   std::vector<int> dim_permute;
   switch (convert_tf) {
     case Convert_TF::NCHW2NHWC:
@@ -1462,13 +1462,13 @@ phi::DDim doDimPermute(const phi::DenseTensor& x, Convert_TF convert_tf) {
 
 template <typename T>
 void doSliceTensor(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    const std::vector<T>& axes,
                    const std::vector<T>& starts,
                    const std::vector<T>& ends,
                    const std::vector<T>& strides,
                    const std::vector<int64_t>& decrease_axis,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   VLOG(4) << "call tecodnn slice tensor op";
 
   int axes_num = axes.size();
@@ -1583,9 +1583,9 @@ void Padding(const Context& dev_ctx,
 }
 
 void doPaddingTensor(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const std::vector<std::vector<int>>& Paddings,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   VLOG(4) << "call tecodnn padding tensor";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -1682,7 +1682,7 @@ void doPaddingTensor(const Context& dev_ctx,
       return;
     }
 
-    phi::DenseTensor out_temp;
+    DenseTensor out_temp;
     out_temp.Resize(out->dims());
     dev_ctx.Alloc(&out_temp, out->dtype());
     phi::Copy(dev_ctx, x, x.place(), false, &out_temp);
@@ -1837,9 +1837,9 @@ paddle::optional<std::tuple<phi::DDim, phi::DDim>> TryDDimFusion(
 }
 
 void doTransposeTensor(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        const std::vector<int>& axis,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   VLOG(4) << "call tecodnn transpose tensor";
 
   // FIXME(huangzhen): not sure whether the efficiency of the
@@ -1904,10 +1904,10 @@ void doTransposeTensor(const Context& dev_ctx,
 }
 
 void doLogicTensor(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    const std::vector<int64_t>& axis_reduce,
                    TensorLogicType TLT,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   VLOG(4) << "call tecodnn logic tensor";
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
@@ -1919,11 +1919,11 @@ void doLogicTensor(const Context& dev_ctx,
 
   int x_ndim = x_dims.size();
 
-  phi::DenseTensor x_int;
+  DenseTensor x_int;
   x_int.Resize(x.dims());
   dev_ctx.Alloc(&x_int, DataType::INT32);
 
-  phi::DenseTensor out_int;
+  DenseTensor out_int;
   out_int.Resize(out->dims());
   dev_ctx.Alloc(&out_int, DataType::INT32);
 
@@ -1977,9 +1977,9 @@ void doLogicTensor(const Context& dev_ctx,
 }
 
 void doConcatTensor(const Context& dev_ctx,
-                    const std::vector<const phi::DenseTensor*>& x,
+                    const std::vector<const DenseTensor*>& x,
                     int axis,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   VLOG(4) << "tecodnn concat tensor called";
 
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
@@ -2026,7 +2026,7 @@ void doConcatTensor(const Context& dev_ctx,
            input_ptr.data(),
            sizeworkspaceInBytes);
 
-    phi::DenseTensor tmp;
+    DenseTensor tmp;
     tmp.Resize({hostInputSize});
     dev_ctx.Alloc(&tmp, phi::DataType::INT8);
     AsyncMemCpyH2D(nullptr,
@@ -2062,11 +2062,11 @@ void doConcatTensor(const Context& dev_ctx,
 }
 
 void doScatterTensor(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& index,
-                     const phi::DenseTensor& updates,
+                     const DenseTensor& x,
+                     const DenseTensor& index,
+                     const DenseTensor& updates,
                      bool overwrite,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   VLOG(4) << "tecodnn scatter tensor called";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -2147,9 +2147,9 @@ void doScatterTensor(const Context& dev_ctx,
 }
 
 void doSplitTensor(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    int axis,
-                   std::vector<phi::DenseTensor*> outs) {
+                   std::vector<DenseTensor*> outs) {
   VLOG(4) << "tecodnn split tensor called";
 
   if (outs.size() == 1) {
@@ -2197,7 +2197,7 @@ void doSplitTensor(const Context& dev_ctx,
            outs_ptr.data(),
            sizeworkspaceInBytes);
 
-    phi::DenseTensor tmp;
+    DenseTensor tmp;
     tmp.Resize(phi::make_ddim({hostOutputSize}));
     dev_ctx.Alloc(&tmp, phi::DataType::INT8);
     AsyncMemCpyH2D(nullptr,
@@ -2233,8 +2233,8 @@ void doSplitTensor(const Context& dev_ctx,
 }
 
 void doExpandTensor(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    DenseTensor* out) {
   VLOG(4) << "tecodnn expand tensor called.";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -2253,12 +2253,12 @@ void doExpandTensor(const Context& dev_ctx,
 }
 
 void doNearestInterpolateForward(const Context& dev_ctx,
-                                 const phi::DenseTensor& x,
+                                 const DenseTensor& x,
                                  const float ratio_w,
                                  const float ratio_h,
                                  const float ratio_d,
                                  const bool align_corners,
-                                 phi::DenseTensor* out) {
+                                 DenseTensor* out) {
   // Note: data layout of doNearestInterpolateForward only support NHWC
   VLOG(4) << "tecodnn nearest interpolate forward called";
 
@@ -2308,12 +2308,12 @@ void doNearestInterpolateForward(const Context& dev_ctx,
 }
 
 void doNearestInterpolateBackward(const Context& dev_ctx,
-                                  const phi::DenseTensor& out,
+                                  const DenseTensor& out,
                                   const float ratio_w,
                                   const float ratio_h,
                                   const float ratio_d,
                                   const bool align_corners,
-                                  phi::DenseTensor* dx) {
+                                  DenseTensor* dx) {
   // Note: data layout of doNearestInterpolateBackward only support NHWC
   VLOG(4) << "tecodnn nearest interpolate backward called";
 
@@ -2363,10 +2363,10 @@ void doNearestInterpolateBackward(const Context& dev_ctx,
 }
 
 void doBitwiseBinaryOpTensor(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& y,
+                             const DenseTensor& x,
+                             const DenseTensor& y,
                              BitwiseOpType bitwiseType,
-                             phi::DenseTensor* out) {
+                             DenseTensor* out) {
   VLOG(4) << "tecodnn bitwise op tensor called.";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -2419,9 +2419,9 @@ void doBitwiseBinaryOpTensor(const Context& dev_ctx,
 }
 
 void doBitwiseUnaryOpTensor(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
+                            const DenseTensor& x,
                             BitwiseOpType bitwiseType,
-                            phi::DenseTensor* out) {
+                            DenseTensor* out) {
   VLOG(4) << "tecodnn bitwise op tensor called.";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -2446,17 +2446,17 @@ void doBitwiseUnaryOpTensor(const Context& dev_ctx,
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(out_Desc));
 }
 void doLogicalOpTensor(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        LogicalOpType logicaltype,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   VLOG(4) << "tecodnn logical op tensor called.";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> y_dims = phi::vectorize<int>(y.dims());
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
 
-  phi::DenseTensor out_int;
+  DenseTensor out_int;
   out_int.Resize(out->dims());
   dev_ctx.Alloc(&out_int, DataType::INT32);
 
@@ -2525,8 +2525,8 @@ void doLogicalOpTensor(const Context& dev_ctx,
 }
 
 void doLogicalNotOpTensor(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          phi::DenseTensor* out) {
+                          const DenseTensor& x,
+                          DenseTensor* out) {
   VLOG(4) << "tecodnn Logical Notop tensor called.";
 
   if (DataType::BOOL == x.dtype()) {
@@ -2550,7 +2550,7 @@ void doLogicalNotOpTensor(const Context& dev_ctx,
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
 
-  phi::DenseTensor out_int;
+  DenseTensor out_int;
   out_int.Resize(out->dims());
   dev_ctx.Alloc(&out_int, DataType::INT32);
 
@@ -2569,9 +2569,7 @@ void doLogicalNotOpTensor(const Context& dev_ctx,
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(out_Desc));
 }
 
-void doIsnanOp(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void doIsnanOp(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   VLOG(4) << "tecodnn isnan op called";
 
   // basic settings
@@ -2594,7 +2592,7 @@ void doIsnanOp(const Context& dev_ctx,
 
 int64_t doAddStorageProperties(
     const Context& dev_ctx,
-    phi::DenseTensor* tensor,
+    DenseTensor* tensor,
     SDAAStorageProperties& storage_properties) {  // NOLINT
   PADDLE_ENFORCE(
       tensor->valid(),
@@ -2616,7 +2614,7 @@ int64_t doAddStorageProperties(
 }
 
 void swapTensorData(const Context& dev_ctx,
-                    const phi::DenseTensor& in,
+                    const DenseTensor& in,
                     SDAAStorageProperties& storage_properties) {  // NOLINT
   Convert_TF tf;
   switch (storage_properties.storage_format) {
@@ -2627,9 +2625,9 @@ void swapTensorData(const Context& dev_ctx,
       PADDLE_THROW(phi::errors::InvalidArgument("invaild storage format"));
       break;
   }
-  phi::DenseTensor* temp_in = const_cast<phi::DenseTensor*>(&in);
-  phi::DenseTensor trans_in;
-  phi::DenseTensorMeta meta_in = {in.dtype(), doDimPermute(in, tf)};
+  DenseTensor* temp_in = const_cast<DenseTensor*>(&in);
+  DenseTensor trans_in;
+  DenseTensorMeta meta_in = {in.dtype(), doDimPermute(in, tf)};
   trans_in.set_meta(meta_in);
   dev_ctx.Alloc(&trans_in, in.dtype());
   doTransformTensor(dev_ctx, in, tf, &trans_in);  // CHWN
@@ -2642,15 +2640,15 @@ void swapTensorData(const Context& dev_ctx,
 }
 
 void swapTensorData(const Context& dev_ctx,
-                    const phi::DenseTensor& in,
+                    const DenseTensor& in,
                     SDAAStorageProperties& storage_properties,  // NOLINT
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   Convert_TF tf = Convert_TF::NCHW2CHWN;
   PADDLE_ENFORCE_EQ(storage_properties.storage_format,
                     StoragePropertiesCHWN,
                     phi::errors::InvalidArgument("invaild storage format!"));
 
-  phi::DenseTensorMeta meta_in = {in.dtype(), doDimPermute(in, tf)};
+  DenseTensorMeta meta_in = {in.dtype(), doDimPermute(in, tf)};
   out->set_meta(meta_in);
   dev_ctx.Alloc(out, in.dtype());
   doTransformTensor(dev_ctx, in, tf, out);  // CHWN
@@ -2679,20 +2677,20 @@ std::vector<int64_t> GetReduceDimAxis(const phi::DDim& in,
 }
 
 void BatchNormFunc(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& mean,
-                   const phi::DenseTensor& variance,
-                   const phi::DenseTensor& scale,
-                   const phi::DenseTensor& bias,
+                   const DenseTensor& x,
+                   const DenseTensor& mean,
+                   const DenseTensor& variance,
+                   const DenseTensor& scale,
+                   const DenseTensor& bias,
                    float momentum,
                    float epsilon,
                    bool training,
                    const std::string& data_layout_str,
-                   phi::DenseTensor* y,
-                   phi::DenseTensor* mean_out,
-                   phi::DenseTensor* variance_out,
-                   phi::DenseTensor* saved_mean,
-                   phi::DenseTensor* saved_variance) {
+                   DenseTensor* y,
+                   DenseTensor* mean_out,
+                   DenseTensor* variance_out,
+                   DenseTensor* saved_mean,
+                   DenseTensor* saved_variance) {
   // check arguments
   const auto& x_dims = x.dims();
   PADDLE_ENFORCE_EQ(
@@ -2722,7 +2720,7 @@ void BatchNormFunc(const Context& dev_ctx,
 
   // since the tecodnnBatchNormForward func only supports 4-D tensor,
   // when tensor dims=3, a dimensional complement is required.
-  phi::DenseTensor x_temp(x), y_temp(*y);
+  DenseTensor x_temp(x), y_temp(*y);
   if (x_dims.size() < 4) {
     if (need_trans) {
       x_temp.Resize(phi::make_ddim({N, C, H, W}));
@@ -2733,7 +2731,7 @@ void BatchNormFunc(const Context& dev_ctx,
     }
   }
 
-  phi::DenseTensor x_NHWC, y_NHWC;
+  DenseTensor x_NHWC, y_NHWC;
   phi::DDim x_NHWC_dims, y_NHWC_dims;
 
   if (need_trans) {
@@ -2810,7 +2808,7 @@ void BatchNormFunc(const Context& dev_ctx,
 
 void doMemsetTensor(const Context& dev_ctx,
                     const int value,
-                    phi::DenseTensor* tensor) {
+                    DenseTensor* tensor) {
   tecodnnHandle_t handle = GetHandleFromCTX(dev_ctx);
   TECODNN_CHECK(tecodnnMemset(handle,
                               tensor->data(),
@@ -2820,9 +2818,9 @@ void doMemsetTensor(const Context& dev_ctx,
 
 template <typename T>
 void doScatterNdAdd(const Context& ctx,
-                    const phi::DenseTensor& index,
-                    const phi::DenseTensor& updates,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& index,
+                    const DenseTensor& updates,
+                    DenseTensor* out) {
   const auto& index_type = index.dtype();
 
   bool index_type_match =
@@ -2879,9 +2877,9 @@ void doScatterNdAdd(const Context& ctx,
 }
 
 template void doScatterNdAdd<float>(const Context& ctx,
-                                    const phi::DenseTensor& index,
-                                    const phi::DenseTensor& updates,
-                                    phi::DenseTensor* out);
+                                    const DenseTensor& index,
+                                    const DenseTensor& updates,
+                                    DenseTensor* out);
 
 void GetReduceDimReduceAll(const std::vector<int>& axis_dims,
                            int input_dims_size,
@@ -2906,11 +2904,11 @@ void GetReduceDimReduceAll(const std::vector<int>& axis_dims,
 }
 
 void doStrideCopy(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const std::vector<int>& shape,
                   const std::vector<int>& x_strides,
                   const std::vector<int>& out_strides,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "tecodnn CopyStride op called";
 
   // basic settings
@@ -2942,10 +2940,10 @@ void doStrideCopy(const Context& dev_ctx,
 
 template <typename T>
 void doClipTensor(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   T min,
                   T max,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
@@ -2954,7 +2952,7 @@ void doClipTensor(const Context& dev_ctx,
   tecodnnTensorDescriptor_t out_Desc = sdaa_ops::GetTecodnnTensorDesc(
       out_dims, out->dtype(), TensorFormat::Undefined);
 
-  phi::DenseTensor x_temp(x);
+  DenseTensor x_temp(x);
 
   TECODNN_CHECK(tecodnnClampTensor(
       tecodnnHandle, &min, &max, x_Desc, x_temp.data(), out_Desc, out->data()));
@@ -2963,40 +2961,40 @@ void doClipTensor(const Context& dev_ctx,
 }
 
 template void doClipTensor<int>(const Context& dev_ctx,
-                                const phi::DenseTensor& x,
+                                const DenseTensor& x,
                                 int min,
                                 int max,
-                                phi::DenseTensor* out);
+                                DenseTensor* out);
 
 template void doClipTensor<int64_t>(const Context& dev_ctx,
-                                    const phi::DenseTensor& x,
+                                    const DenseTensor& x,
                                     int64_t min,
                                     int64_t max,
-                                    phi::DenseTensor* out);
+                                    DenseTensor* out);
 
 template void doClipTensor<float>(const Context& dev_ctx,
-                                  const phi::DenseTensor& x,
+                                  const DenseTensor& x,
                                   float min,
                                   float max,
-                                  phi::DenseTensor* out);
+                                  DenseTensor* out);
 
 template void doClipTensor<double>(const Context& dev_ctx,
-                                   const phi::DenseTensor& x,
+                                   const DenseTensor& x,
                                    double min,
                                    double max,
-                                   phi::DenseTensor* out);
+                                   DenseTensor* out);
 
 template void doClipTensor<phi::dtype::float16>(const Context& dev_ctx,
-                                                const phi::DenseTensor& x,
+                                                const DenseTensor& x,
                                                 phi::dtype::float16 min,
                                                 phi::dtype::float16 max,
-                                                phi::DenseTensor* out);
+                                                DenseTensor* out);
 
 template void doClipTensor<phi::dtype::bfloat16>(const Context& dev_ctx,
-                                                 const phi::DenseTensor& x,
+                                                 const DenseTensor& x,
                                                  phi::dtype::bfloat16 min,
                                                  phi::dtype::bfloat16 max,
-                                                 phi::DenseTensor* out);
+                                                 DenseTensor* out);
 
 }  // namespace sdaa_ops
 }  // namespace custom_kernel

@@ -31,10 +31,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ElementwisePowRawKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& y,
+                             const DenseTensor& x,
+                             const DenseTensor& y,
                              int axis,
-                             phi::DenseTensor* out) {
+                             DenseTensor* out) {
   VLOG(4) << "CALL SDAA ElementwisePowRawKernel.";
 
   dev_ctx.template Alloc<T>(out);
@@ -69,9 +69,9 @@ void ElementwisePowRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ElementwisePowKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y,
-                          phi::DenseTensor* out) {
+                          const DenseTensor& x,
+                          const DenseTensor& y,
+                          DenseTensor* out) {
   VLOG(4) << "CALL SDAA ElementwisePowKernel.";
   int axis = -1;
   custom_kernel::ElementwisePowRawKernel<T, Context>(dev_ctx, x, y, axis, out);

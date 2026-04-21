@@ -32,23 +32,23 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void SyncBatchNormKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& mean,
-                         const phi::DenseTensor& variance,
-                         const phi::DenseTensor& scale,
-                         const phi::DenseTensor& bias,
+                         const DenseTensor& x,
+                         const DenseTensor& mean,
+                         const DenseTensor& variance,
+                         const DenseTensor& scale,
+                         const DenseTensor& bias,
                          bool is_test,
                          float momentum,
                          float epsilon_f,
                          const std::string& data_layout_str,
                          bool use_global_stats,
                          bool trainable_statistics,
-                         phi::DenseTensor* y,
-                         phi::DenseTensor* mean_out,
-                         phi::DenseTensor* variance_out,
-                         phi::DenseTensor* saved_mean,
-                         phi::DenseTensor* saved_variance,
-                         phi::DenseTensor* reserve_space) {
+                         DenseTensor* y,
+                         DenseTensor* mean_out,
+                         DenseTensor* variance_out,
+                         DenseTensor* saved_mean,
+                         DenseTensor* saved_variance,
+                         DenseTensor* reserve_space) {
   VLOG(4) << "CALL SDAA SyncBatchNormKernel";
 
   PADDLE_ENFORCE_EQ(use_global_stats,
@@ -97,7 +97,7 @@ void SyncBatchNormKernel(const Context& dev_ctx,
   int N, H, W, C, D;
   sdaa_ops::ExtractNCWHD(x_dims, layout, &N, &C, &H, &W, &D);
 
-  phi::DenseTensor trans_x, trans_y;
+  DenseTensor trans_x, trans_y;
   phi::DDim trans_x_dims, trans_y_dims;
   const bool need_transpose =
       ((layout == DataLayout::kNCHW && x_dims.size() != 2) ||
@@ -124,7 +124,7 @@ void SyncBatchNormKernel(const Context& dev_ctx,
   // that the first addr of the two output parameters be 64B aligned.
   int C_temp = ceil(C / 16) * 16;
   const int data_num = C_temp + C;
-  phi::DenseTensor status;
+  DenseTensor status;
   status.Resize(phi::make_ddim({data_num}));
   dev_ctx.template Alloc<MPDType>(&status);
 
@@ -190,7 +190,7 @@ void SyncBatchNormKernel(const Context& dev_ctx,
                           saved_mean);
 
   // 2. calculate saved_inv_variance
-  phi::DenseTensor global_square_mean, saved_mean_pow, var, sqrt_var,
+  DenseTensor global_square_mean, saved_mean_pow, var, sqrt_var,
       saved_variance_tmp;
   global_square_mean.Resize(mean.dims());
   dev_ctx.template Alloc<MPDType>(&global_square_mean);
@@ -268,24 +268,23 @@ void SyncBatchNormKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SyncBatchNormGradKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const phi::DenseTensor& scale,
-    const phi::DenseTensor& bias,
-    const phi::DenseTensor& saved_mean,
-    const phi::DenseTensor& saved_variance,
-    const paddle::optional<phi::DenseTensor>& reserve_space,
-    const phi::DenseTensor& y_grad,
-    float momentum,
-    float epsilon_f,
-    const std::string& data_layout_str,
-    bool is_test,
-    bool use_global_stats,
-    bool trainable_statistics,
-    phi::DenseTensor* x_grad,
-    phi::DenseTensor* scale_grad,
-    phi::DenseTensor* bias_grad) {
+void SyncBatchNormGradKernel(const Context& dev_ctx,
+                             const DenseTensor& x,
+                             const DenseTensor& scale,
+                             const DenseTensor& bias,
+                             const DenseTensor& saved_mean,
+                             const DenseTensor& saved_variance,
+                             const paddle::optional<DenseTensor>& reserve_space,
+                             const DenseTensor& y_grad,
+                             float momentum,
+                             float epsilon_f,
+                             const std::string& data_layout_str,
+                             bool is_test,
+                             bool use_global_stats,
+                             bool trainable_statistics,
+                             DenseTensor* x_grad,
+                             DenseTensor* scale_grad,
+                             DenseTensor* bias_grad) {
   VLOG(4) << "CALL SDAA SyncBatchNormGradKernel";
 
   const DataLayout layout = common::StringToDataLayout(data_layout_str);
@@ -316,7 +315,7 @@ void SyncBatchNormGradKernel(
   using MPDType = typename sdaa_ops::MPTypeTrait<T>::Type;
   dev_ctx.template Alloc<T>(x_grad);
 
-  phi::DenseTensor d_scale, d_bias;
+  DenseTensor d_scale, d_bias;
   void* scale_grad_ptr = nullptr;
   void* bias_grad_ptr = nullptr;
   if (scale_grad && bias_grad) {
@@ -333,7 +332,7 @@ void SyncBatchNormGradKernel(
     bias_grad_ptr = d_bias.data();
   }
 
-  phi::DenseTensor trans_x, trans_dy, trans_dx;
+  DenseTensor trans_x, trans_dy, trans_dx;
   phi::DDim trans_x_dims, trans_dy_dims, trans_dx_dims;
 
   const bool need_transpose =
@@ -360,7 +359,7 @@ void SyncBatchNormGradKernel(
     trans_dx = *x_grad;
   }
 
-  phi::DenseTensor sum_dy_and_sum_dy_xmu;
+  DenseTensor sum_dy_and_sum_dy_xmu;
   sum_dy_and_sum_dy_xmu.Resize(phi::make_ddim({2 * C}));
   dev_ctx.template Alloc<MPDType>(&sum_dy_and_sum_dy_xmu);
 

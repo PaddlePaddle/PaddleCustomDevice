@@ -33,7 +33,7 @@
 namespace custom_kernel {
 #define _dologicalop(type)                                                \
   if (x.dims().size() == 0 && y.dims().size() == 0) {                     \
-    phi::DenseTensor x_temp(x), y_temp(y);                                \
+    DenseTensor x_temp(x), y_temp(y);                                     \
     x_temp.Resize(phi::make_ddim({1}));                                   \
     y_temp.Resize(phi::make_ddim({1}));                                   \
     out->Resize(phi::make_ddim({1}));                                     \
@@ -45,9 +45,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void LogicalAndKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out) {
   VLOG(4) << "CALL SDAA LogicalAndKernel";
   dev_ctx.template Alloc<bool>(out);
   _dologicalop(And);
@@ -55,9 +55,9 @@ void LogicalAndKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogicalOrKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     DenseTensor* out) {
   VLOG(4) << "CALL SDAA LogicalOrKernel";
   dev_ctx.template Alloc<bool>(out);
   _dologicalop(Or);
@@ -65,9 +65,9 @@ void LogicalOrKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogicalXorKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out) {
   VLOG(4) << "CALL SDAA LogicalXorKernel";
   dev_ctx.template Alloc<bool>(out);
   _dologicalop(Xor);
@@ -76,12 +76,12 @@ void LogicalXorKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogicalNotKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      DenseTensor* out) {
   VLOG(4) << "CALL SDAA LogicalNotKernel";
   dev_ctx.template Alloc<bool>(out);
   if (x.dims().size() == 0) {
-    phi::DenseTensor x_temp(x);
+    DenseTensor x_temp(x);
     x_temp.Resize(phi::make_ddim({1}));
     out->Resize(phi::make_ddim({1}));
     sdaa_ops::doLogicalNotOpTensor(dev_ctx, x_temp, out);

@@ -21,6 +21,6 @@ PD_CUSTOM_KERNEL_REGISTER(isclose,
                           phi::IscloseKernel,
                           float,
                           double,
-                          phi::dtype::float16,
+                          phi::float16,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>) {}

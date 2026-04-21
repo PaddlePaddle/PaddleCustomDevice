@@ -38,8 +38,8 @@ PD_CUSTOM_KERNEL_REGISTER(equal_all,
                             int16_t,                      \
                             int64_t,                      \
                             float,                        \
-                            phi::dtype::float16,          \
-                            phi::dtype::bfloat16) {       \
+                            phi::float16,                 \
+                            phi::bfloat16) {              \
     kernel->OutputAt(0).SetDataType(phi::DataType::BOOL); \
   }
 
@@ -56,8 +56,8 @@ PD_CUSTOM_KERNEL_REGISTER(equal_all,
                             int64_t,                      \
                             phi::dtype::complex<float>,   \
                             float,                        \
-                            phi::dtype::float16,          \
-                            phi::dtype::bfloat16) {       \
+                            phi::float16,                 \
+                            phi::bfloat16) {              \
     kernel->OutputAt(0).SetDataType(phi::DataType::BOOL); \
   }
 

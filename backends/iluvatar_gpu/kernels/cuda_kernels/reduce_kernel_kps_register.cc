@@ -27,8 +27,8 @@
 #include "paddle/phi/kernels/reduce_min_kernel.h"
 #include "paddle/phi/kernels/reduce_sum_kernel.h"
 
-using float16 = phi::dtype::float16;
-using bfloat16 = phi::dtype::bfloat16;
+using float16 = phi::float16;
+using bfloat16 = phi::bfloat16;
 using complex64 = ::phi::dtype::complex<float>;
 using complex128 = ::phi::dtype::complex<double>;
 
@@ -79,8 +79,8 @@ PD_CUSTOM_KERNEL_REGISTER(max,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(mean_raw,
                           iluvatar_gpu,
@@ -88,7 +88,7 @@ PD_CUSTOM_KERNEL_REGISTER(mean_raw,
                           phi::MeanRawKernel,
                           float,
                           bool,
-                          phi::dtype::bfloat16,
+                          phi::bfloat16,
                           float16,
                           int,
                           int64_t,
@@ -101,8 +101,8 @@ PD_CUSTOM_KERNEL_REGISTER(min_raw,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(sum_raw,
                           iluvatar_gpu,
@@ -128,6 +128,6 @@ PD_CUSTOM_KERNEL_REGISTER(prod,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           phi::dtype::complex<float>) {}

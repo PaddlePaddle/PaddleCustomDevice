@@ -20,8 +20,8 @@ PD_CUSTOM_KERNEL_REGISTER(bilinear_interp_grad,
                           ALL_LAYOUT,
                           phi::BilinearInterpGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
@@ -31,8 +31,8 @@ PD_CUSTOM_KERNEL_REGISTER(legacy_bilinear_interp_grad,
                           ALL_LAYOUT,
                           phi::LegacyBilinearInterpGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
@@ -42,8 +42,8 @@ PD_CUSTOM_KERNEL_REGISTER(nearest_interp_grad,
                           ALL_LAYOUT,
                           phi::NearestInterpGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
@@ -53,8 +53,8 @@ PD_CUSTOM_KERNEL_REGISTER(legacy_nearest_interp_grad,
                           ALL_LAYOUT,
                           phi::LegacyNearestInterpGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
@@ -64,8 +64,8 @@ PD_CUSTOM_KERNEL_REGISTER(trilinear_interp_grad,
                           ALL_LAYOUT,
                           phi::TrilinearInterpGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
@@ -75,8 +75,8 @@ PD_CUSTOM_KERNEL_REGISTER(linear_interp_grad,
                           ALL_LAYOUT,
                           phi::LinearInterpGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
@@ -86,8 +86,8 @@ PD_CUSTOM_KERNEL_REGISTER(bicubic_interp_grad,
                           ALL_LAYOUT,
                           phi::BicubicInterpGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetBackend(phi::Backend::CPU);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);

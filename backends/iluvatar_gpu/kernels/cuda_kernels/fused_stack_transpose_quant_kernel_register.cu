@@ -20,7 +20,7 @@ PD_CUSTOM_KERNEL_REGISTER(fused_stack_transpose_quant,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::fusion::FusedStackTransposeQuantKernel,
-                          phi::dtype::bfloat16) {
+                          phi::bfloat16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT8_E4M3FN);
   kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
 }

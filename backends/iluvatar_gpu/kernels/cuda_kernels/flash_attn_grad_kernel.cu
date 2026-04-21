@@ -1415,8 +1415,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn_unpadded_grad,
 #ifdef PADDLE_WITH_COREX
                           float,
 #endif
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(7).SetBackend(phi::Backend::CPU);  // seed_offset
 }
 
@@ -1427,8 +1427,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn_varlen_qkvpacked_grad,
 #ifdef PADDLE_WITH_COREX
                           float,
 #endif
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(5).SetBackend(phi::Backend::CPU);  // seed_offset
 }
 
@@ -1439,8 +1439,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn_grad,
 #ifdef PADDLE_WITH_COREX
                           float,
 #endif
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(5).SetBackend(phi::Backend::CPU);  // seed_offset
 }
 
@@ -1451,8 +1451,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn_qkvpacked_grad,
 #ifdef PADDLE_WITH_COREX
                           float,
 #endif
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(3).SetBackend(phi::Backend::CPU);  // seed_offset
 }
 
@@ -1460,7 +1460,7 @@ PD_REGISTER_PLUGIN_KERNEL(flashmask_attention_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FlashMaskGradKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(6).SetBackend(phi::Backend::CPU);  // seed_offset
 }

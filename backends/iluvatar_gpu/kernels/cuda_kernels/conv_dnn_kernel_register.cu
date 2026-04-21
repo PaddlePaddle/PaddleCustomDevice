@@ -20,13 +20,13 @@ PD_CUSTOM_KERNEL_REGISTER(conv2d,
                           ALL_LAYOUT,
                           phi::ConvCudnnKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(conv3d,
                           GPUDNN,
                           ALL_LAYOUT,
                           phi::Conv3DCudnnKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

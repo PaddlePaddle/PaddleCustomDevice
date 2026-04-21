@@ -21,8 +21,8 @@ PD_CUSTOM_KERNEL_REGISTER(matmul_grad,
                           ALL_LAYOUT,
                           phi::MatmulGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           phi::dtype::complex<float>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(matmul_double_grad,
@@ -30,7 +30,7 @@ PD_CUSTOM_KERNEL_REGISTER(matmul_double_grad,
                           ALL_LAYOUT,
                           phi::MatmulDoubleGradKernel,
                           float,
-                          phi::dtype::float16,
+                          phi::float16,
                           phi::dtype::complex<float>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(matmul_triple_grad,
@@ -38,7 +38,7 @@ PD_CUSTOM_KERNEL_REGISTER(matmul_triple_grad,
                           ALL_LAYOUT,
                           phi::MatmulTripleGradKernel,
                           float,
-                          phi::dtype::float16,
+                          phi::float16,
                           phi::dtype::complex<float>) {}
 
 PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten_grad,
@@ -46,20 +46,20 @@ PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten_grad,
                           ALL_LAYOUT,
                           phi::MatmulWithFlattenGradKernel,
                           float,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+                          phi::bfloat16,
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten_double_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MatmulWithFlattenDoubleGradKernel,
                           float,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+                          phi::bfloat16,
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(legacy_matmul_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LegacyMatmulGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

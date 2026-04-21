@@ -25,6 +25,6 @@ PD_CUSTOM_KERNEL_REGISTER(fill_diagonal_tensor_grad,
                           int16_t,
                           int8_t,
                           uint8_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           bool) {}

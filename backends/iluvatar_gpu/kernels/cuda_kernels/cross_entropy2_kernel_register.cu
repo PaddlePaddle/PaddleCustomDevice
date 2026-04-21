@@ -21,7 +21,7 @@ PD_CUSTOM_KERNEL_REGISTER(cross_entropy,
                           phi::CrossEntropyOpKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(cross_entropy2,
                           iluvatar_gpu,
@@ -29,4 +29,4 @@ PD_CUSTOM_KERNEL_REGISTER(cross_entropy2,
                           phi::CrossEntropyOpKernel2,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

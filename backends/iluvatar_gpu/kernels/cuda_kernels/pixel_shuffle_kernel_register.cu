@@ -20,5 +20,5 @@ PD_CUSTOM_KERNEL_REGISTER(pixel_shuffle,
                           phi::PixelShuffleKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

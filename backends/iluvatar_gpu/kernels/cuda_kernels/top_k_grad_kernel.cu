@@ -98,8 +98,8 @@ PD_REGISTER_PLUGIN_KERNEL(topk_grad,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(topk_v1_grad,
                           iluvatar_gpu,
@@ -108,5 +108,5 @@ PD_REGISTER_PLUGIN_KERNEL(topk_v1_grad,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

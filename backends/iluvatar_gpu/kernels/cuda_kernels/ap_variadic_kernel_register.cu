@@ -23,7 +23,7 @@ PD_CUSTOM_KERNEL_REGISTER(ap_variadic,
                           phi::ApVariadicKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 #else
 PD_CUSTOM_KERNEL_REGISTER(ap_variadic,
                           iluvatar_gpu,
@@ -31,6 +31,6 @@ PD_CUSTOM_KERNEL_REGISTER(ap_variadic,
                           phi::ApVariadicKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 #endif

@@ -20,5 +20,5 @@ PD_CUSTOM_KERNEL_REGISTER(bmm_grad,
                           ALL_LAYOUT,
                           phi::BmmGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

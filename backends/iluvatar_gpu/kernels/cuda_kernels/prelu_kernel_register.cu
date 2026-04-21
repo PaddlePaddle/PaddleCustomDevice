@@ -21,6 +21,6 @@ PD_CUSTOM_KERNEL_REGISTER(prelu,
                           ALL_LAYOUT,
                           phi::PReluKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           double) {}

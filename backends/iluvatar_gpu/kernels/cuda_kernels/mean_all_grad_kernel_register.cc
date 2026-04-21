@@ -20,5 +20,5 @@ PD_CUSTOM_KERNEL_REGISTER(mean_all_grad,
                           ALL_LAYOUT,
                           phi::MeanAllGradKernel,
                           float,
-                          phi::dtype::float16,
+                          phi::float16,
                           phi::dtype::complex<float>) {}

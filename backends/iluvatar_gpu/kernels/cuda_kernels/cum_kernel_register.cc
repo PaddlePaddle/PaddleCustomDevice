@@ -23,13 +23,13 @@ PD_CUSTOM_KERNEL_REGISTER(cumsum,
                           int16_t,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(logcumsumexp,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LogcumsumexpKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

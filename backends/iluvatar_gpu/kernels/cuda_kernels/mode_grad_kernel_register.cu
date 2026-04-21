@@ -22,5 +22,5 @@ PD_CUSTOM_KERNEL_REGISTER(mode_grad,
                           double,
                           int32_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

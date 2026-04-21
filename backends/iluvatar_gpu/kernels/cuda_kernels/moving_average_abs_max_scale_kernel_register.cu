@@ -20,4 +20,4 @@ PD_CUSTOM_KERNEL_REGISTER(moving_average_abs_max_scale,
                           ALL_LAYOUT,
                           phi::MovingAverageAbsMaxScaleKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

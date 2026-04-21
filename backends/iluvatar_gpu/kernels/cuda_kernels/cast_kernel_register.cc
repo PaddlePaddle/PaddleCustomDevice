@@ -26,8 +26,8 @@ PD_CUSTOM_KERNEL_REGISTER(cast,
                           bool,
                           int8_t,
                           uint8_t,
-                          phi::dtype::float16,
+                          phi::float16,
                           phi::dtype::complex<float>,
-                          phi::dtype::bfloat16) {
+                          phi::bfloat16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }

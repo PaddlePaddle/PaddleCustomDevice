@@ -23,4 +23,4 @@ PD_CUSTOM_KERNEL_REGISTER(quant_linear,
                           phi::QuantLinearKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

@@ -23,8 +23,8 @@ PD_CUSTOM_KERNEL_REGISTER(matmul,
                           float,
                           int32_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           phi::dtype::complex<float>,
                           int8_t) {
   if (kernel_key.dtype() == phi::DataType::INT8) {
@@ -41,8 +41,8 @@ PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten,
                           phi::MatmulWithFlattenKernel,
                           int8_t,
                           float,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {
+                          phi::bfloat16,
+                          phi::float16) {
   if (kernel_key.dtype() == phi::DataType::INT8) {
     kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
   }
@@ -53,7 +53,7 @@ PD_REGISTER_PLUGIN_KERNEL(legacy_matmul,
                           ALL_LAYOUT,
                           phi::LegacyMatmulKernel,
                           float,
-                          phi::dtype::float16,
+                          phi::float16,
                           int8_t) {
   if (kernel_key.dtype() == phi::DataType::INT8) {
     kernel->OutputAt(0).SetDataType(phi::DataType::INT32);

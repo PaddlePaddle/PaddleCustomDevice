@@ -23,6 +23,6 @@ PD_CUSTOM_KERNEL_REGISTER(tile_grad,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
+                          phi::float16,
                           phi::dtype::complex<float>,
-                          phi::dtype::bfloat16) {}
+                          phi::bfloat16) {}

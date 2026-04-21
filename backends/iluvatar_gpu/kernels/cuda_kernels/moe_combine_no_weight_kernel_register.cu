@@ -23,5 +23,5 @@ PD_CUSTOM_KERNEL_REGISTER(moe_combine_no_weight,
                           phi::MoeCombineNoWeightKernel,
                           float,
                           double,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+                          phi::bfloat16,
+                          phi::float16) {}

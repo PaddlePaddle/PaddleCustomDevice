@@ -23,22 +23,22 @@ PD_CUSTOM_KERNEL_REGISTER(pool2d,
                           ALL_LAYOUT,
                           phi::Pool2dKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(lp_pool2d,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LPPool2dKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(max_pool2d_with_index,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MaxPool2dWithIndexKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->OutputAt(1).SetDataType(phi::CppTypeToDataType<int>::Type());
 }
 
@@ -47,15 +47,15 @@ PD_CUSTOM_KERNEL_REGISTER(pool3d,
                           ALL_LAYOUT,
                           phi::Pool3dKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(max_pool3d_with_index,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MaxPool3dWithIndexKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->OutputAt(1).SetDataType(phi::CppTypeToDataType<int>::Type());
 }
 
@@ -64,8 +64,8 @@ PD_CUSTOM_KERNEL_REGISTER(fractional_max_pool2d,
                           ALL_LAYOUT,
                           phi::FractionalMaxPool2dKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->OutputAt(1).SetDataType(phi::CppTypeToDataType<int>::Type());
 }
 
@@ -74,7 +74,7 @@ PD_CUSTOM_KERNEL_REGISTER(fractional_max_pool3d,
                           ALL_LAYOUT,
                           phi::FractionalMaxPool3dKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->OutputAt(1).SetDataType(phi::CppTypeToDataType<int>::Type());
 }

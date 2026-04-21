@@ -18,14 +18,14 @@
 namespace phi {
 
 template <typename T>
-void SliceRawKernel(const phi::Context& ctx,
-                    const phi::DenseTensor& input,
+void SliceRawKernel(const Context& ctx,
+                    const DenseTensor& input,
                     const std::vector<int64_t>& axes,
                     const phi::IntArray& starts_arr,
                     const phi::IntArray& ends_arr,
                     const std::vector<int64_t>& infer_flags,
                     const std::vector<int64_t>& decrease_axis,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   show_kernel("SliceRawKernel, type=" << dnn_support::type2String<T>::name());
 
   // Step 1: Get the accurate attribute value of starts and ends

@@ -18,9 +18,9 @@
 namespace phi {
 
 template <typename T>
-void MeanAllKernel(const phi::Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+void MeanAllKernel(const Context& dev_ctx,
+                   const DenseTensor& x,
+                   DenseTensor* out) {
   auto out_data = dev_ctx.template Alloc<T>(out);
   auto x_data = x.data<T>();
   auto numel = x.numel();
@@ -42,10 +42,10 @@ void MeanAllKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void MeanAllGradKernel(const phi::Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& out_grad,
-                       phi::DenseTensor* x_grad) {
+void MeanAllGradKernel(const Context& dev_ctx,
+                       const DenseTensor& x,
+                       const DenseTensor& out_grad,
+                       DenseTensor* x_grad) {
   PD_CHECK(out_grad.numel() == 1UL,
            "Mean Gradient should be scalar. But received "
            "Out@Grad's elements num is %d.",

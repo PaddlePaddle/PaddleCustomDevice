@@ -120,10 +120,10 @@ static std::vector<int64_t> ValidateShape(const std::vector<int64_t> shape,
 }
 
 template <typename T>
-void ReshapeKernel(const phi::Context& dev_ctx,
-                   const phi::DenseTensor& x,
+void ReshapeKernel(const Context& dev_ctx,
+                   const DenseTensor& x,
                    const phi::IntArray& shape,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   show_kernel("Reshape type=" << dnn_support::type2String<T>::name());
   auto x_dims = x.dims();
   auto out_dims = ValidateShape(shape.GetData(), x_dims);
@@ -152,11 +152,11 @@ void ReshapeKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void ReshapeWithXShape(const phi::Context& dev_ctx,
-                       const phi::DenseTensor& x,
+void ReshapeWithXShape(const Context& dev_ctx,
+                       const DenseTensor& x,
                        const phi::IntArray& shape,
-                       phi::DenseTensor* out,
-                       phi::DenseTensor* xshape) {
+                       DenseTensor* out,
+                       DenseTensor* xshape) {
   ReshapeKernel<T>(dev_ctx, x, shape, out);
 }
 

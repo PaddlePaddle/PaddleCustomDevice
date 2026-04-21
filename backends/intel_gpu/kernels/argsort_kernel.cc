@@ -22,8 +22,8 @@ namespace phi {
 namespace gpu {
 
 template <typename T>
-void Transpose(const phi::Context& ctx,
-               const phi::DenseTensor& x,
+void Transpose(const Context& ctx,
+               const DenseTensor& x,
                const std::vector<int64_t>& axis,
                T* out_data,
                const std::vector<int64_t>& out_dims,
@@ -113,12 +113,12 @@ void FullSort(int input_height,
 }
 
 template <typename T>
-void ArgsortKernel(const phi::Context& dev_ctx,
-                   const phi::DenseTensor& input,
+void ArgsortKernel(const Context& dev_ctx,
+                   const DenseTensor& input,
                    int axis,
                    bool descending,
-                   phi::DenseTensor* output,
-                   phi::DenseTensor* indices) {
+                   DenseTensor* output,
+                   DenseTensor* indices) {
   auto in_dims = input.dims();
   auto out_dims = output->dims();
   auto out_size = output->numel();
@@ -142,7 +142,7 @@ void ArgsortKernel(const phi::Context& dev_ctx,
     n = in_dims[0];
     m = in_dims[1];
   }
-  phi::DenseTensor cpu_input;
+  DenseTensor cpu_input;
   cpu_input.Resize(std::vector<int64_t>(in_dims));
   cpu_input.set_dtype(input.dtype());
   auto cpu_input_data = dev_ctx.template HostAlloc<T>(&cpu_input);
@@ -151,14 +151,14 @@ void ArgsortKernel(const phi::Context& dev_ctx,
   q->memcpy(cpu_input_data, input_data, input.memory_size());
   q->wait();
   // cpu implement
-  phi::DenseTensor cpu_output;
+  DenseTensor cpu_output;
   cpu_output.Resize(std::vector<int64_t>(out_dims));
   cpu_output.set_dtype(output->dtype());
   auto cpu_output_dims = cpu_output.dims();
   auto cpu_output_numel = cpu_output.numel();
   auto cpu_output_data = dev_ctx.template HostAlloc<T>(&cpu_output);
 
-  phi::DenseTensor cpu_ids;
+  DenseTensor cpu_ids;
   cpu_ids.Resize(std::vector<int64_t>(indices->dims()));
   cpu_ids.set_dtype(indices->dtype());
   auto cpu_ids_dims = cpu_ids.dims();
@@ -191,7 +191,7 @@ void ArgsortKernel(const phi::Context& dev_ctx,
       trans_dims[i] = in_dims[trans[i]];
     }
 
-    phi::DenseTensor trans_inp;
+    DenseTensor trans_inp;
     trans_inp.Resize(trans_dims);
     auto trans_input_dims = trans_inp.dims();
     auto trans_input_numel = trans_inp.numel();
@@ -207,12 +207,12 @@ void ArgsortKernel(const phi::Context& dev_ctx,
     const int64_t input_height = trans_dims[0];
     const int64_t input_width = trans_dims[trans_dims.size() - 1];
 
-    phi::DenseTensor cpu_tmp_output;
+    DenseTensor cpu_tmp_output;
     cpu_tmp_output.Resize(trans_dims);
     cpu_tmp_output.set_dtype(output->dtype());
     auto cpu_tmp_output_data = dev_ctx.template HostAlloc<T>(&cpu_tmp_output);
 
-    phi::DenseTensor cpu_tmp_ids;
+    DenseTensor cpu_tmp_ids;
     cpu_tmp_ids.Resize(trans_dims);
     cpu_tmp_ids.set_dtype(indices->dtype());
     auto cpu_tmp_ids_data = dev_ctx.template HostAlloc<int64_t>(&cpu_tmp_ids);

@@ -17,14 +17,14 @@
 #include "paddle/phi/capi/all.h"
 namespace phi {
 template <typename T>
-void TransposeKernelGPU(const phi::Context& ctx,
-                        const phi::DenseTensor& x,
+void TransposeKernelGPU(const Context& ctx,
+                        const DenseTensor& x,
                         const std::vector<int>& axis,
-                        phi::DenseTensor* out);
+                        DenseTensor* out);
 
 template <typename T>
-void SoftmaxKernel(const phi::Context& dev_ctx,
-                   const phi::DenseTensor& x,
+void SoftmaxKernel(const Context& dev_ctx,
+                   const DenseTensor& x,
                    int axis,
-                   phi::DenseTensor* out);
+                   DenseTensor* out);
 }  // namespace phi

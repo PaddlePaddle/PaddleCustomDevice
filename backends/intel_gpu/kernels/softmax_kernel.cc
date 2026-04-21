@@ -81,11 +81,11 @@ void SoftmaxGrad(
 std::shared_ptr<dnnl::softmax_forward::primitive_desc> softmax_pd = nullptr;
 
 template <typename T>
-void SoftmaxGradKernel(const phi::Context& dev_ctx,
-                       const phi::DenseTensor& out,
-                       const phi::DenseTensor& out_grad,
+void SoftmaxGradKernel(const Context& dev_ctx,
+                       const DenseTensor& out,
+                       const DenseTensor& out_grad,
                        int axis,
-                       phi::DenseTensor* x_grad) {
+                       DenseTensor* x_grad) {
   show_kernel("SoftmaxGradKernel()");
   const int rank = x_grad->dims().size();
   const int calc_axis = phi::funcs::CanonicalAxis(axis, rank);
@@ -139,10 +139,10 @@ void SoftmaxGradKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void SoftmaxKernel(const phi::Context& ctx,
-                   const phi::DenseTensor& x,
+void SoftmaxKernel(const Context& ctx,
+                   const DenseTensor& x,
                    int axis,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   if constexpr (std::is_same<T, float>::value) {
     const int rank = x.dims().size();
     const int calc_axis = phi::funcs::CanonicalAxis(axis, rank);

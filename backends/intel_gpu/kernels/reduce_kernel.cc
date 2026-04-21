@@ -19,14 +19,14 @@
 namespace phi {
 
 template <typename T>
-void ReduceKernel(const phi::Context& dev_ctx,
+void ReduceKernel(const Context& dev_ctx,
                   std::string kernel_name,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const std::vector<int64_t>& dims,
                   dnnl::algorithm reduction_type,
                   bool keep_dim,
                   bool reduce_all,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   auto x_dims = x.dims();
   auto reduce_dims = dims;
 
@@ -99,12 +99,12 @@ void ReduceKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void MeanRawKernel(const phi::Context& dev_ctx,
-                   const phi::DenseTensor& x,
+void MeanRawKernel(const Context& dev_ctx,
+                   const DenseTensor& x,
                    const std::vector<int64_t>& dims,
                    bool keep_dim,
                    bool reduce_all,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   ReduceKernel<T>(dev_ctx,
                   "MeanRaw",
                   x,
@@ -116,23 +116,23 @@ void MeanRawKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void MeanKernel(const phi::Context& dev_ctx,
-                const phi::DenseTensor& x,
+void MeanKernel(const Context& dev_ctx,
+                const DenseTensor& x,
                 const std::vector<int64_t>& dims,
                 bool keep_dim,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   bool reduce_all = false;
   MeanRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
 }
 
 template <typename T>
-void SumRawKernel(const phi::Context& dev_ctx,
-                  const phi::DenseTensor& x,
+void SumRawKernel(const Context& dev_ctx,
+                  const DenseTensor& x,
                   const std::vector<int64_t>& dims,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DataType out_dtype,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   ReduceKernel<T>(dev_ctx,
                   "SumRaw",
                   x,
@@ -144,23 +144,23 @@ void SumRawKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void SumKernel(const phi::Context& dev_ctx,
-               const phi::DenseTensor& x,
+void SumKernel(const Context& dev_ctx,
+               const DenseTensor& x,
                const std::vector<int64_t>& dims,
                phi::DataType out_dtype,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   bool reduce_all = false;
   SumRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out_dtype, out);
 }
 
 template <typename T>
-void MaxRawKernel(const phi::Context& dev_ctx,
-                  const phi::DenseTensor& x,
+void MaxRawKernel(const Context& dev_ctx,
+                  const DenseTensor& x,
                   const std::vector<int64_t>& dims,
                   bool keep_dim,
                   bool reduce_all,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   ReduceKernel<T>(dev_ctx,
                   "MaxRaw",
                   x,
@@ -172,22 +172,22 @@ void MaxRawKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void MaxKernel(const phi::Context& dev_ctx,
-               const phi::DenseTensor& x,
+void MaxKernel(const Context& dev_ctx,
+               const DenseTensor& x,
                const std::vector<int64_t>& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   bool reduce_all = false;
   MaxRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
 }
 
 template <typename T>
-void MinRawKernel(const phi::Context& dev_ctx,
-                  const phi::DenseTensor& x,
+void MinRawKernel(const Context& dev_ctx,
+                  const DenseTensor& x,
                   const std::vector<int64_t>& dims,
                   bool keep_dim,
                   bool reduce_all,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   ReduceKernel<T>(dev_ctx,
                   "MinRaw",
                   x,
@@ -199,11 +199,11 @@ void MinRawKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void MinKernel(const phi::Context& dev_ctx,
-               const phi::DenseTensor& x,
+void MinKernel(const Context& dev_ctx,
+               const DenseTensor& x,
                const std::vector<int64_t>& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   bool reduce_all = false;
   MinRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
 }

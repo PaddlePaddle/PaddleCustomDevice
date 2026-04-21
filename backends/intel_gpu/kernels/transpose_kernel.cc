@@ -19,10 +19,10 @@
 namespace phi {
 
 template <typename T>
-void TransposeKernelGPU(const phi::Context& ctx,
-                        const phi::DenseTensor& x,
+void TransposeKernelGPU(const Context& ctx,
+                        const DenseTensor& x,
                         const std::vector<int>& axis,
-                        phi::DenseTensor* out) {
+                        DenseTensor* out) {
   show_kernel("TransposeKernelGPU ");
   using tag = dnnl::memory::format_tag;
   using dt = dnnl::memory::data_type;

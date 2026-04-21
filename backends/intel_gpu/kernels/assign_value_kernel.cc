@@ -19,11 +19,11 @@
 namespace phi {
 
 template <typename T>
-void AssignValueKernel(const phi::Context& dev_ctx,
+void AssignValueKernel(const Context& dev_ctx,
                        const std::vector<int>& shape,
                        phi::DataType dtype,
                        const std::vector<phi::Scalar>& values,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   show_kernel("AssignValue-SYCL, type=" << dnn_support::type2String<T>::name());
 
   auto template_dtype = phi::capi::CppTypeToPDType<T>::Type();
@@ -49,18 +49,18 @@ void AssignValueKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void AssignKernel(const phi::Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  phi::DenseTensor* out) {
+void AssignKernel(const Context& dev_ctx,
+                  const DenseTensor& x,
+                  DenseTensor* out) {
   auto out_data = dev_ctx.template Alloc<T>(out);
   auto x_data = x.data<T>();
   std::memcpy(out_data, x_data, sizeof(T) * x.numel());
 }
 
 template <typename T>
-void AssignRawKernel(const phi::Context& dev_ctx,
-                     const paddle::optional<phi::DenseTensor>& x,
-                     phi::DenseTensor* out) {
+void AssignRawKernel(const Context& dev_ctx,
+                     const paddle::optional<DenseTensor>& x,
+                     DenseTensor* out) {
   show_kernel("AssignRaw-SYCL, type=" << dnn_support::type2String<T>::name());
 
   if (x) {

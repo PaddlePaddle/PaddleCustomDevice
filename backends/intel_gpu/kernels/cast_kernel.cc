@@ -19,10 +19,10 @@
 namespace phi {
 
 template <typename T>
-void CastKernel(const phi::Context& dev_ctx,
-                const phi::DenseTensor& x,
+void CastKernel(const Context& dev_ctx,
+                const DenseTensor& x,
                 phi::DataType out_dtype,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   show_kernel("Cast-SYCL");
 
   auto x_data = x.data<T>();

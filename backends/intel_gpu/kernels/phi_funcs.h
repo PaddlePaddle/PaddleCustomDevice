@@ -267,11 +267,11 @@ inline std::vector<int64_t> GetDecreasedDims(
 }  // namespace funcs
 
 template <typename T>
-inline void BroadcastTo(const phi::Context& dev_ctx,
-                        const phi::DenseTensor& in,
+inline void BroadcastTo(const Context& dev_ctx,
+                        const DenseTensor& in,
                         std::vector<int64_t> out_dims,
                         int axis,
-                        phi::DenseTensor* out) {
+                        DenseTensor* out) {
   auto in_dims = in.dims();
 
   if (in_dims.size() == out_dims.size()) {

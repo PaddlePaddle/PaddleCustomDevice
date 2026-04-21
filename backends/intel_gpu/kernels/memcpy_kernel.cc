@@ -19,10 +19,10 @@
 namespace phi {
 
 template <typename T>
-void MemcpyD2HKernel(const phi::Context& dev_ctx,
-                     const phi::DenseTensor& x,
+void MemcpyD2HKernel(const Context& dev_ctx,
+                     const DenseTensor& x,
                      int dst_place_type,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   show_kernel("memcpy_d2h");
   auto out_data = dev_ctx.HostAlloc<T>(out);
   auto x_data = x.data<T>();
@@ -35,10 +35,10 @@ void MemcpyD2HKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void MemcpyH2DKernel(const phi::Context& dev_ctx,
-                     const phi::DenseTensor& x,
+void MemcpyH2DKernel(const Context& dev_ctx,
+                     const DenseTensor& x,
                      int dst_place_type,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   show_kernel("memcpy_h2d");
   auto out_data = dev_ctx.Alloc<T>(out);
   auto x_data = x.data<T>();
@@ -52,10 +52,10 @@ void MemcpyH2DKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void MemcpyKernel(const phi::Context& dev_ctx,
-                  const phi::DenseTensor& x,
+void MemcpyKernel(const Context& dev_ctx,
+                  const DenseTensor& x,
                   int dst_place_type,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   if (!x.initialized()) {
     return;
   }

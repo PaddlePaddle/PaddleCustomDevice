@@ -19,11 +19,11 @@
 namespace phi {
 
 template <typename T>
-void MultiplyRawKernelGPU(const phi::Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y,
+void MultiplyRawKernelGPU(const Context& dev_ctx,
+                          const DenseTensor& x,
+                          const DenseTensor& y,
                           int axis,
-                          phi::DenseTensor* out) {
+                          DenseTensor* out) {
   show_kernel(
       "ElementWise-SYCL-MUL type=" << dnn_support::type2String<T>::name());
   void* stream = const_cast<void*>(dev_ctx.stream());
@@ -46,20 +46,20 @@ void MultiplyRawKernelGPU(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void MultiplyKernelGPU(const phi::Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       phi::DenseTensor* out) {
+void MultiplyKernelGPU(const Context& dev_ctx,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
+                       DenseTensor* out) {
   int axis = -1;
   MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
 }
 
 template <typename T>
-void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& y,
+void MultiplyOneDNNRawKernel(const Context& dev_ctx,
+                             const DenseTensor& x,
+                             const DenseTensor& y,
                              int axis,
-                             phi::DenseTensor* out) {
+                             DenseTensor* out) {
   show_kernel(
       "ElementWise-ONEDNN type=" << dnn_support::type2String<T>::name());
   auto* q = static_cast<sycl::queue*>(const_cast<void*>(dev_ctx.stream()));
@@ -107,20 +107,20 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void MultiplyOneDNNKernel(const phi::Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y,
-                          phi::DenseTensor* out) {
+void MultiplyOneDNNKernel(const Context& dev_ctx,
+                          const DenseTensor& x,
+                          const DenseTensor& y,
+                          DenseTensor* out) {
   int axis = -1;
   MultiplyOneDNNRawKernel<T>(dev_ctx, x, y, axis, out);
 }
 
 template <typename T>
-void MultiplyMainRaw(const phi::Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
+void MultiplyMainRaw(const Context& dev_ctx,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
                      int axis,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   if constexpr (std::is_same<T, float>::value || std::is_same<T, int32_t>::value
                 //|| std::is_same<T,double>::value
   ) {
@@ -130,10 +130,10 @@ void MultiplyMainRaw(const phi::Context& dev_ctx,
   }
 }
 template <typename T>
-void MultiplyMain(const phi::Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
-                  phi::DenseTensor* out) {
+void MultiplyMain(const Context& dev_ctx,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
+                  DenseTensor* out) {
   int axis = -1;
   MultiplyMainRaw<T>(dev_ctx, x, y, axis, out);
 }

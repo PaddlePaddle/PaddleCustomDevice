@@ -18,9 +18,7 @@
 namespace phi {
 
 template <typename T, typename VType>
-void FullValue(const phi::Context& dev_ctx,
-               phi::DenseTensor* tensor,
-               VType val) {
+void FullValue(const Context& dev_ctx, DenseTensor* tensor, VType val) {
   show_kernel("FullValue type=" << dnn_support::type2String<T>::name());
   auto t = dev_ctx.template Alloc<T>(tensor);
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
@@ -31,11 +29,11 @@ void FullValue(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void FullKernel(const phi::Context& dev_ctx,
+void FullKernel(const Context& dev_ctx,
                 const phi::IntArray& shape,
                 const phi::Scalar& val,
                 phi::DataType dtype,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   auto int_shape = shape.GetData();
   out->Resize(std::vector<int64_t>(int_shape.cbegin(), int_shape.cend()));
   FullValue<T>(dev_ctx, out, val.to<T>());

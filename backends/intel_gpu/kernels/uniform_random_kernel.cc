@@ -32,7 +32,7 @@ inline void UniformRealDistribution(T *data,
 }
 
 template <typename T>
-void UniformRandomRawKernel(const phi::Context &dev_ctx,
+void UniformRandomRawKernel(const Context &dev_ctx,
                             const phi::IntArray &shape,
                             phi::DataType dtype,
                             const phi::Scalar &min,
@@ -41,7 +41,7 @@ void UniformRandomRawKernel(const phi::Context &dev_ctx,
                             int diag_num,
                             int diag_step,
                             float diag_val,
-                            phi::DenseTensor *out) {
+                            DenseTensor *out) {
   show_kernel(
       "UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
 
@@ -51,7 +51,7 @@ void UniformRandomRawKernel(const phi::Context &dev_ctx,
   auto numel = out->numel();
 
   // // 1. CPU implement
-  phi::DenseTensor cpu_out;
+  DenseTensor cpu_out;
   cpu_out.Resize(std::vector<int64_t>(shape_data.begin(), shape_data.end()));
   cpu_out.set_dtype(out->dtype());
   auto cpu_data = dev_ctx.template HostAlloc<T>(&cpu_out);
@@ -84,7 +84,7 @@ void UniformRandomRawKernel(const phi::Context &dev_ctx,
 }
 
 template <typename T>
-void UniformRandomKernel(const phi::Context &dev_ctx,
+void UniformRandomKernel(const Context &dev_ctx,
                          const phi::IntArray &shape,
                          phi::DataType dtype,
                          //  float min,
@@ -92,7 +92,7 @@ void UniformRandomKernel(const phi::Context &dev_ctx,
                          const phi::Scalar &min,
                          const phi::Scalar &max,
                          int seed,
-                         phi::DenseTensor *out) {
+                         DenseTensor *out) {
   show_kernel(
       "UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
   phi::UniformRandomRawKernel<T>(

@@ -19,12 +19,12 @@
 namespace phi {
 
 template <typename T, typename F, typename FF>
-void RawCompareKernelSycl(const phi::Context& dev_ctx,
+void RawCompareKernelSycl(const Context& dev_ctx,
                           std::string kernel_name,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y,
+                          const DenseTensor& x,
+                          const DenseTensor& y,
                           int axis,
-                          phi::DenseTensor* out,
+                          DenseTensor* out,
                           const F& func,
                           const FF& float_func) {
   show_kernel(kernel_name << "-SYCL type="
@@ -51,13 +51,13 @@ void RawCompareKernelSycl(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void RawCompareKernelDNN(const phi::Context& dev_ctx,
+void RawCompareKernelDNN(const Context& dev_ctx,
                          std::string kernel_name,
                          dnnl::algorithm binary_type,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& y,
+                         const DenseTensor& x,
+                         const DenseTensor& y,
                          int axis,
-                         phi::DenseTensor* out) {
+                         DenseTensor* out) {
   show_kernel(kernel_name << "-DNN type="
                           << dnn_support::type2String<T>::name());
 
@@ -106,13 +106,13 @@ void RawCompareKernelDNN(const phi::Context& dev_ctx,
 }
 
 template <typename T, typename F, typename FF>
-void EqualityKernel(const phi::Context& dev_ctx,
+void EqualityKernel(const Context& dev_ctx,
                     std::string kernel_name,
                     dnnl::algorithm binary_type,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
+                    const DenseTensor& x,
+                    const DenseTensor& y,
                     int axis,
-                    phi::DenseTensor* out,
+                    DenseTensor* out,
                     const F& func,
                     const FF& float_func) {
   if constexpr (std::is_same<T, float>::value) {
@@ -124,13 +124,13 @@ void EqualityKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T, typename F>
-void CompareKernel(const phi::Context& dev_ctx,
+void CompareKernel(const Context& dev_ctx,
                    std::string kernel_name,
                    dnnl::algorithm binary_type,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
+                   const DenseTensor& x,
+                   const DenseTensor& y,
                    int axis,
-                   phi::DenseTensor* out,
+                   DenseTensor* out,
                    const F& func) {
   if constexpr (std::is_same<T, float>::value) {
     RawCompareKernelDNN<T>(dev_ctx, kernel_name, binary_type, x, y, axis, out);
@@ -140,11 +140,11 @@ void CompareKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void NotEqualKernel(const phi::Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
+void NotEqualKernel(const Context& dev_ctx,
+                    const DenseTensor& x,
+                    const DenseTensor& y,
                     int axis,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   EqualityKernel<T>(
       dev_ctx,
       "NotEqual",
@@ -163,11 +163,11 @@ void NotEqualKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void EqualKernel(const phi::Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
+void EqualKernel(const Context& dev_ctx,
+                 const DenseTensor& x,
+                 const DenseTensor& y,
                  int axis,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   EqualityKernel<T>(
       dev_ctx,
       "Equal",
@@ -186,11 +186,11 @@ void EqualKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void LessThanKernel(const phi::Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
+void LessThanKernel(const Context& dev_ctx,
+                    const DenseTensor& x,
+                    const DenseTensor& y,
                     int axis,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   CompareKernel<T>(dev_ctx,
                    "LessThanKernel",
                    dnnl::algorithm::binary_lt,
@@ -204,11 +204,11 @@ void LessThanKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void LessEqualKernel(const phi::Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
+void LessEqualKernel(const Context& dev_ctx,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
                      int axis,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   CompareKernel<T>(dev_ctx,
                    "LessEqual",
                    dnnl::algorithm::binary_le,
@@ -222,11 +222,11 @@ void LessEqualKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void GreaterThanKernel(const phi::Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+void GreaterThanKernel(const Context& dev_ctx,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        int axis,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   CompareKernel<T>(dev_ctx,
                    "GreaterThan",
                    dnnl::algorithm::binary_gt,
@@ -240,11 +240,11 @@ void GreaterThanKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void GreaterEqualKernel(const phi::Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
+void GreaterEqualKernel(const Context& dev_ctx,
+                        const DenseTensor& x,
+                        const DenseTensor& y,
                         int axis,
-                        phi::DenseTensor* out) {
+                        DenseTensor* out) {
   CompareKernel<T>(dev_ctx,
                    "GreaterEqual",
                    dnnl::algorithm::binary_ge,

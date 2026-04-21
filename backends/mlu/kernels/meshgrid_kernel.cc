@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MeshgridKernel(const Context& dev_ctx,
-                    const std::vector<const phi::DenseTensor*>& ins,
-                    std::vector<phi::DenseTensor*> outs) {
+                    const std::vector<const DenseTensor*>& ins,
+                    std::vector<DenseTensor*> outs) {
   PADDLE_ENFORCE_EQ(
       (ins.size() > 1) && (ins.size() < 7),
       true,
@@ -52,11 +52,11 @@ void MeshgridKernel(const Context& dev_ctx,
     std::vector<int64_t> view_shape(size, 1);
     view_shape[i] = shape[i];
 
-    phi::DDim out_dims_reshape = phi::make_ddim(view_shape);
-    phi::DenseTensor reshape_ins_tensor(*ins[i]);
+    DDim out_dims_reshape = phi::make_ddim(view_shape);
+    DenseTensor reshape_ins_tensor(*ins[i]);
     reshape_ins_tensor.Resize(out_dims_reshape);
 
-    phi::DDim out_dims = phi::make_ddim(shape);
+    DDim out_dims = phi::make_ddim(shape);
     outs[i]->Resize(out_dims);
     dev_ctx.template Alloc<T>(outs[i]);
 

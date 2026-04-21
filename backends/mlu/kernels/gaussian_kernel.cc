@@ -23,7 +23,7 @@ void GaussianKernel(const Context& dev_ctx,
                     float std,
                     int seed,
                     phi::DataType dtype,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   int real_seed =

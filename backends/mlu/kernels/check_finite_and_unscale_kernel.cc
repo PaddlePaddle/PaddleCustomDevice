@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void CheckFiniteAndUnscale(const Context& dev_ctx,
-                           const std::vector<const phi::DenseTensor*>& xs,
-                           const phi::DenseTensor& t_scale,
-                           std::vector<phi::DenseTensor*> outs,
-                           phi::DenseTensor* found_inf) {
+                           const std::vector<const DenseTensor*>& xs,
+                           const DenseTensor& t_scale,
+                           std::vector<DenseTensor*> outs,
+                           DenseTensor* found_inf) {
   using MPDType = typename MPTypeTrait<T>::Type;
   dev_ctx.template Alloc<bool>(found_inf);
 

@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void LabelSmoothKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const paddle::optional<phi::DenseTensor>& dist,
+                       const DenseTensor& x,
+                       const paddle::optional<DenseTensor>& dist,
                        float epsilon,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto epsilon_gt = 1.0f - epsilon;
   if (x.numel() == 0) return;

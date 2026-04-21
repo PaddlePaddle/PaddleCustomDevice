@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void StackKernel(const Context& dev_ctx,
-                 const std::vector<const phi::DenseTensor*>& x,
+                 const std::vector<const DenseTensor*>& x,
                  int axis,
-                 phi::DenseTensor* y) {
+                 DenseTensor* y) {
   if (axis < 0) axis += (x[0]->dims().size() + 1);
   int num = static_cast<int>(x.size());
 

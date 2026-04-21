@@ -20,10 +20,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ActivationKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
+                      const DenseTensor& x,
                       float alpha,
                       cnnlActivationMode_t act_mode,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlActivationDesc act_desc(act_mode, alpha);
@@ -40,11 +40,11 @@ void ActivationKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ActivationGradKernelV1(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
-                            const phi::DenseTensor& dout,
+                            const DenseTensor& x,
+                            const DenseTensor& dout,
                             float alpha,
                             cnnlActivationMode_t act_mode,
-                            phi::DenseTensor* dx) {
+                            DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   MLUCnnlTensorDesc x_desc(x);
@@ -67,10 +67,10 @@ void ActivationGradKernelV1(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ActivationGradKernelV2(const Context& dev_ctx,
-                            const phi::DenseTensor& out,
-                            const phi::DenseTensor& dout,
+                            const DenseTensor& out,
+                            const DenseTensor& dout,
                             cnnlActivationMode_t act_mode,
-                            phi::DenseTensor* dx) {
+                            DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   MLUCnnlTensorDesc out_desc(out);
@@ -93,10 +93,10 @@ void ActivationGradKernelV2(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ActivationGradKernelV3(const Context& dev_ctx,
-                            const phi::DenseTensor& out,
-                            const phi::DenseTensor& dout,
+                            const DenseTensor& out,
+                            const DenseTensor& dout,
                             cnnlActivationMode_t act_mode,
-                            phi::DenseTensor* dx) {
+                            DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   MLUCnnlTensorDesc out_desc(out);
@@ -119,91 +119,91 @@ void ActivationGradKernelV3(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ReluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   ActivationKernel<T, Context>(dev_ctx, x, 1.0, CNNL_ACTIVATION_RELU, out);
 }
 
 template <typename T, typename Context>
 void ReluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& out,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   ActivationGradKernelV3<T, Context>(
       dev_ctx, out, dout, CNNL_ACTIVATION_RELU, dx);
 }
 
 template <typename T, typename Context>
 void Relu6RawKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     float threshold,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   ActivationKernel<T, Context>(dev_ctx, x, 1.0, CNNL_ACTIVATION_RELU6, out);
 }
 
 template <typename T, typename Context>
 void Relu6Kernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   custom_kernel::Relu6RawKernel<T, Context>(dev_ctx, x, 6.0, out);
 }
 
 template <typename T, typename Context>
 void Relu6GradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& out,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& out,
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   ActivationGradKernelV3<T, Context>(
       dev_ctx, out, dout, CNNL_ACTIVATION_RELU6, dx);
 }
 
 template <typename T, typename Context>
 void SigmoidKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   DenseTensor* out) {
   ActivationKernel<T, Context>(dev_ctx, x, 1.0, CNNL_ACTIVATION_SIGMOID, out);
 }
 
 template <typename T, typename Context>
 void SigmoidGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& out,
-                       const phi::DenseTensor& dout,
-                       phi::DenseTensor* dx) {
+                       const DenseTensor& out,
+                       const DenseTensor& dout,
+                       DenseTensor* dx) {
   ActivationGradKernelV2<T, Context>(
       dev_ctx, out, dout, CNNL_ACTIVATION_SIGMOID, dx);
 }
 
 template <typename T, typename Context>
 void TanhKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   ActivationKernel<T, Context>(dev_ctx, x, 1.0, CNNL_ACTIVATION_TANH, out);
 }
 
 template <typename T, typename Context>
 void TanhGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& out_grad,
-                    phi::DenseTensor* x_grad) {
+                    const DenseTensor& out,
+                    const DenseTensor& out_grad,
+                    DenseTensor* x_grad) {
   ActivationGradKernelV2<T, Context>(
       dev_ctx, out, out_grad, CNNL_ACTIVATION_TANH, x_grad);
 }
 
 template <typename T, typename Context>
 void LeakyReluKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      double alpha,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   float alp = static_cast<float>(alpha);
   ActivationKernel<T, Context>(dev_ctx, x, alp, CNNL_ACTIVATION_LEAKYRELU, out);
 }
 
 template <typename T, typename Context>
 void LeakyReluGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& dout,
+                         const DenseTensor& x,
+                         const DenseTensor& dout,
                          double alpha,
-                         phi::DenseTensor* dx) {
+                         DenseTensor* dx) {
   float alp = static_cast<float>(alpha);
   ActivationGradKernelV1<T, Context>(
       dev_ctx, x, dout, alp, CNNL_ACTIVATION_LEAKYRELU, dx);
@@ -211,43 +211,43 @@ void LeakyReluGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GeluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 bool approximate,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   ActivationKernel<T, Context>(dev_ctx, x, 1.0, CNNL_ACTIVATION_GELU, out);
 }
 
 template <typename T, typename Context>
 void GeluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& x,
+                    const DenseTensor& out_grad,
                     bool approximate,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   ActivationGradKernelV1<T, Context>(
       dev_ctx, x, out_grad, 1.0, CNNL_ACTIVATION_GELU, x_grad);
 }
 
 template <typename T, typename Context>
 void SiluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   ActivationKernel<T, Context>(dev_ctx, x, 1.0, CNNL_ACTIVATION_SILU, out);
 }
 
 template <typename T, typename Context>
 void SiluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& x,
+                    const DenseTensor& out,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   ActivationGradKernelV3<T, Context>(
       dev_ctx, x, dout, CNNL_ACTIVATION_SILU, dx);
 }
 
 template <typename T, typename Context>
 void SquareKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -262,9 +262,9 @@ void SquareKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SquareGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& dout,
-                      phi::DenseTensor* dx) {
+                      const DenseTensor& x,
+                      const DenseTensor& dout,
+                      DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto factor_1 = static_cast<float>(1.0);
   auto factor_2 = static_cast<float>(2.0);
@@ -291,12 +291,12 @@ void SquareGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void PowKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const phi::Scalar& factor_scalar,
-               phi::DenseTensor* out) {
+               const DenseTensor& x,
+               const Scalar& factor_scalar,
+               DenseTensor* out) {
   auto factor = factor_scalar.to<T>();
   dev_ctx.template Alloc<T>(out);
-  phi::DenseTensor factor_tensor;
+  DenseTensor factor_tensor;
   factor_tensor.Resize(x.dims());
   dev_ctx.template Alloc<T>(&factor_tensor);
   MLUCnnlTensorDesc factor_desc(factor_tensor);
@@ -322,20 +322,20 @@ void PowKernel(const Context& dev_ctx,
 // dx = dout * factor * x.pow(factor-1)
 template <typename T, typename Context>
 void PowGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   const phi::Scalar& factor_scalar,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   const Scalar& factor_scalar,
+                   DenseTensor* dx) {
   auto factor = factor_scalar.to<T>();
 
   // Step1: Compute x_pow = x.pow(factor-1)
-  phi::DenseTensor x_pow;
+  DenseTensor x_pow;
   x_pow.Resize(x.dims());
-  auto factor_1 = phi::Scalar(factor - static_cast<T>(1.0));
+  auto factor_1 = Scalar(factor - static_cast<T>(1.0));
   custom_kernel::PowKernel<T>(dev_ctx, x, factor_1, &x_pow);
 
   // Step 2: Construct a broadcast factor, which has the same shape with x.
-  phi::DenseTensor factor_tensor;
+  DenseTensor factor_tensor;
   factor_tensor.Resize(x.dims());
   dev_ctx.template Alloc<T>(&factor_tensor);
   MLUCnnlTensorDesc factor_desc(factor_tensor);
@@ -346,7 +346,7 @@ void PowGradKernel(const Context& dev_ctx,
                 GetBasePtr(&factor_tensor));
 
   // Step 3: Compute x_power_mul_factor = factor * x_pow
-  phi::DenseTensor x_power_mul_factor;
+  DenseTensor x_power_mul_factor;
   x_power_mul_factor.Resize(x.dims());
   dev_ctx.template Alloc<T>(&x_power_mul_factor);
   MLUOpTensorKernel<T>(dev_ctx,
@@ -364,8 +364,8 @@ void PowGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AtanKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   cnnlComputationPreference_t prefer = CNNL_COMPUTATION_FAST;
   MLUCnnlTrigonDesc trigon_desc(CNNL_TRIGON_ATAN, prefer);
@@ -382,17 +382,17 @@ void AtanKernel(const Context& dev_ctx,
 // dx = dout * 1 / (1 + x.pow(2))
 template <typename T, typename Context>
 void AtanGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& x,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   // Step1: Compute x_pow = x.pow(2)
-  phi::DenseTensor x_pow;
+  DenseTensor x_pow;
   x_pow.Resize(x.dims());
-  auto factor = phi::Scalar(static_cast<T>(2.0));
+  auto factor = Scalar(static_cast<T>(2.0));
   custom_kernel::PowKernel<T>(dev_ctx, x, factor, &x_pow);
 
   // Step2: x_pow_1 = x_pow + 1
-  phi::DenseTensor factor_tensor, x_pow_1;
+  DenseTensor factor_tensor, x_pow_1;
   factor_tensor.Resize(x.dims());
   x_pow_1.Resize(x.dims());
   dev_ctx.template Alloc<T>(&x_pow_1);
@@ -415,8 +415,8 @@ void AtanGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ReciprocalKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc out_desc(*out);
@@ -426,9 +426,9 @@ void ReciprocalKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ReciprocalGradKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& out,
-                          const phi::DenseTensor& dout,
-                          phi::DenseTensor* dx) {
+                          const DenseTensor& out,
+                          const DenseTensor& dout,
+                          DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   Tensor square_out;
   square_out.Resize(out.dims());
@@ -466,8 +466,8 @@ void ReciprocalGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SqrtKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -484,9 +484,9 @@ void SqrtKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SqrtGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& out,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   MLUCnnlTensorDesc data_desc(out);
@@ -499,8 +499,8 @@ void SqrtGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RsqrtKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -517,9 +517,9 @@ void RsqrtKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RsqrtGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& out,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& out,
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   MLUCnnlTensorDesc data_desc(out);
@@ -531,9 +531,7 @@ void RsqrtGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void CosKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void CosKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -550,12 +548,12 @@ void CosKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CosGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
-  phi::DenseTensor sin_out;
+  DenseTensor sin_out;
   sin_out.Resize(x.dims());
   dev_ctx.template Alloc<T>(&sin_out);
 
@@ -592,9 +590,9 @@ void CosGradKernel(const Context& dev_ctx,
 // CNNL_LOG_10 = 2,
 template <typename T, typename Context>
 void LogMLUKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   cnnlLogBase_t log_base,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -611,30 +609,26 @@ void LogMLUKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LogKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void LogKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   LogMLUKernel<T, Context>(dev_ctx, x, CNNL_LOG_E, out);
 }
 
 template <typename T, typename Context>
 void Log2Kernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   LogMLUKernel<T, Context>(dev_ctx, x, CNNL_LOG_2, out);
 }
 
 template <typename T, typename Context>
 void Log10Kernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   LogMLUKernel<T, Context>(dev_ctx, x, CNNL_LOG_10, out);
 }
 
 template <typename T, typename Context>
-void ExpKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void ExpKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -651,9 +645,9 @@ void ExpKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ExpGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& out,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& out,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   MLUCnnlTensorDesc dout_desc(dout);
@@ -675,9 +669,7 @@ void ExpGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SinKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void SinKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   MLUCnnlTensorDesc input_desc(x);
   MLUCnnlTensorDesc output_desc(*out);
@@ -692,12 +684,12 @@ void SinKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SinGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
-  phi::DenseTensor cos_out;
-  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  DenseTensor cos_out;
+  DenseTensorMeta meta = {x.dtype(), x.dims()};
   cos_out.set_meta(meta);
   dev_ctx.template Alloc<T>(&cos_out);
 
@@ -729,8 +721,8 @@ void SinGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSwishKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     DenseTensor* out) {
   float threshold = 6;
   float scale = 6;
   float offset = 3;
@@ -763,26 +755,26 @@ void HardSwishKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SwishKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   ActivationKernel<T, Context>(
       dev_ctx, x, 1.0 /* ceof */, CNNL_ACTIVATION_SILU, out);
 }
 
 template <typename T, typename Context>
 void SwishGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& x,
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   ActivationGradKernelV3<T, Context>(
       dev_ctx, x, dout, CNNL_ACTIVATION_SILU, dx);
 }
 
 template <typename T, typename Context>
 void HardSwishGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& dout,
-                         phi::DenseTensor* dx) {
+                         const DenseTensor& x,
+                         const DenseTensor& dout,
+                         DenseTensor* dx) {
   float threshold = 6;
   float scale = 6;
   float offset = 3;
@@ -822,10 +814,10 @@ void HardSwishGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSigmoidKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        float slope,
                        float offset,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlActivationDesc act_desc(CNNL_ACTIVATION_HARDSIGMOID,
@@ -846,11 +838,11 @@ void HardSigmoidKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSigmoidGradKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& out,
-                           const phi::DenseTensor& dout,
+                           const DenseTensor& out,
+                           const DenseTensor& dout,
                            float slope,
                            float offset,
-                           phi::DenseTensor* dx) {
+                           DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   MLUCnnlActivationDesc act_desc(CNNL_ACTIVATION_HARDSIGMOID,
                                  1.0f /*ceof useless*/,
@@ -876,8 +868,8 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -891,10 +883,10 @@ void FloorKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RoundKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const int decimals
                      UNUSED,  // add decimals, Now it's just for CI
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -908,8 +900,8 @@ void RoundKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RoundGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(0), dx);
 }

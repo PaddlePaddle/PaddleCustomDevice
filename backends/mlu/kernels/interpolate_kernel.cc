@@ -49,10 +49,10 @@ inline std::vector<int> get_new_shape_mlu(
 template <typename T, typename Context>
 void InterpolateKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& out_size,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& size_tensor,
-    const paddle::optional<phi::DenseTensor>& scale_tensor,
+    const DenseTensor& x,
+    const paddle::optional<DenseTensor>& out_size,
+    const paddle::optional<std::vector<const DenseTensor*>>& size_tensor,
+    const paddle::optional<DenseTensor>& scale_tensor,
     const std::string& data_layout_str,
     int out_d,
     int out_h,
@@ -61,7 +61,7 @@ void InterpolateKernel(
     const std::string& interp_method,
     bool align_corners,
     int align_mode,
-    phi::DenseTensor* out) {
+    DenseTensor* out) {
   auto input_dims = x.dims();
   PADDLE_ENFORCE_GE(input_dims.size(),
                     4,
@@ -185,7 +185,7 @@ void InterpolateKernel(
   // do transpose according to cnnl's constraints
   // cnnlInterp_v2 only accepts NHWC when mode is CNNL_INTERP_BILINEAR and
   // CNNL_INTERP_NEAREST,
-  phi::DDim dim_in, dim_in_trans, dim_out, dim_out_trans;
+  DDim dim_in, dim_in_trans, dim_out, dim_out_trans;
   Tensor transformed_input, transformed_output;
   bool need_transpose = input_dims.size() != 2;
   if (input_dims.size() == 4) {
@@ -369,11 +369,11 @@ void InterpolateKernel(
 template <typename T, typename Context>
 void InterpolateGradKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& out_size,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& size_tensor,
-    const paddle::optional<phi::DenseTensor>& scale_tensor,
-    const phi::DenseTensor& out_grad,
+    const DenseTensor& x,
+    const paddle::optional<DenseTensor>& out_size,
+    const paddle::optional<std::vector<const DenseTensor*>>& size_tensor,
+    const paddle::optional<DenseTensor>& scale_tensor,
+    const DenseTensor& out_grad,
     const std::string& data_layout_str,
     int out_d,
     int out_h,
@@ -382,7 +382,7 @@ void InterpolateGradKernel(
     const std::string& interp_method,
     bool align_corners,
     int align_mode,
-    phi::DenseTensor* dx) {
+    DenseTensor* dx) {
   auto output_grad_dims = out_grad.dims();
   PADDLE_ENFORCE_EQ(
       output_grad_dims.size(),
@@ -449,8 +449,8 @@ void InterpolateGradKernel(
     align_center = 0;
   }
 
-  phi::DDim dim_grad;
-  phi::DDim dim_out_grad, dim_out_trans_grad, dim_in_grad, dim_in_trans_grad;
+  DDim dim_grad;
+  DDim dim_out_grad, dim_out_trans_grad, dim_in_grad, dim_in_trans_grad;
   Tensor transformed_output_grad, transformed_input_grad;
   bool need_transpose =
       input_dims.size() != 2 && data_layout == DataLayout::kNCHW;
@@ -539,10 +539,10 @@ void InterpolateGradKernel(
 template <typename T, typename Context>
 void BilinearInterpKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& out_size,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& size_tensor,
-    const paddle::optional<phi::DenseTensor>& scale_tensor,
+    const DenseTensor& x,
+    const paddle::optional<DenseTensor>& out_size,
+    const paddle::optional<std::vector<const DenseTensor*>>& size_tensor,
+    const paddle::optional<DenseTensor>& scale_tensor,
     const std::string& data_layout,
     int out_d,
     int out_h,
@@ -551,7 +551,7 @@ void BilinearInterpKernel(
     const std::string& interp_method,
     bool align_corners,
     int align_mode,
-    phi::DenseTensor* out) {
+    DenseTensor* out) {
   InterpolateKernel<T, Context>(dev_ctx,
                                 x,
                                 out_size,
@@ -571,10 +571,10 @@ void BilinearInterpKernel(
 template <typename T, typename Context>
 void NearestInterpKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& out_size,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& size_tensor,
-    const paddle::optional<phi::DenseTensor>& scale_tensor,
+    const DenseTensor& x,
+    const paddle::optional<DenseTensor>& out_size,
+    const paddle::optional<std::vector<const DenseTensor*>>& size_tensor,
+    const paddle::optional<DenseTensor>& scale_tensor,
     const std::string& data_layout,
     int out_d,
     int out_h,
@@ -583,7 +583,7 @@ void NearestInterpKernel(
     const std::string& interp_method,
     bool align_corners,
     int align_mode,
-    phi::DenseTensor* out) {
+    DenseTensor* out) {
   InterpolateKernel<T, Context>(dev_ctx,
                                 x,
                                 out_size,
@@ -603,11 +603,11 @@ void NearestInterpKernel(
 template <typename T, typename Context>
 void BilinearInterpGradKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& out_size,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& size_tensor,
-    const paddle::optional<phi::DenseTensor>& scale_tensor,
-    const phi::DenseTensor& out_grad,
+    const DenseTensor& x,
+    const paddle::optional<DenseTensor>& out_size,
+    const paddle::optional<std::vector<const DenseTensor*>>& size_tensor,
+    const paddle::optional<DenseTensor>& scale_tensor,
+    const DenseTensor& out_grad,
     const std::string& data_layout,
     int out_d,
     int out_h,
@@ -616,7 +616,7 @@ void BilinearInterpGradKernel(
     const std::string& interp_method,
     bool align_corners,
     int align_mode,
-    phi::DenseTensor* x_grad) {
+    DenseTensor* x_grad) {
   InterpolateGradKernel<T, Context>(dev_ctx,
                                     x,
                                     out_size,
@@ -637,11 +637,11 @@ void BilinearInterpGradKernel(
 template <typename T, typename Context>
 void NearestInterpGradKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& out_size,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& size_tensor,
-    const paddle::optional<phi::DenseTensor>& scale_tensor,
-    const phi::DenseTensor& out_grad,
+    const DenseTensor& x,
+    const paddle::optional<DenseTensor>& out_size,
+    const paddle::optional<std::vector<const DenseTensor*>>& size_tensor,
+    const paddle::optional<DenseTensor>& scale_tensor,
+    const DenseTensor& out_grad,
     const std::string& data_layout,
     int out_d,
     int out_h,
@@ -650,7 +650,7 @@ void NearestInterpGradKernel(
     const std::string& interp_method,
     bool align_corners,
     int align_mode,
-    phi::DenseTensor* x_grad) {
+    DenseTensor* x_grad) {
   InterpolateGradKernel<T, Context>(dev_ctx,
                                     x,
                                     out_size,

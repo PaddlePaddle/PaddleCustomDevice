@@ -19,14 +19,14 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ScaleKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::Scalar& in_scale,
-                 const phi::Scalar& bias,
+                 const DenseTensor& x,
+                 const Scalar& in_scale,
+                 const Scalar& bias,
                  bool bias_after_scale,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   // cnnl require input, scale, bias with same type. And all in device side.
   auto scale = in_scale.to<T>();
-  phi::DenseTensor scale_tensor;
+  DenseTensor scale_tensor;
   scale_tensor.Resize({1});
   dev_ctx.template Alloc<T>(&scale_tensor);
 
@@ -37,7 +37,7 @@ void ScaleKernel(const Context& dev_ctx,
                 scale_desc.get(),
                 GetBasePtr(&scale_tensor));
 
-  phi::DenseTensor bias_tensor;
+  DenseTensor bias_tensor;
   bias_tensor.Resize({1});
   dev_ctx.template Alloc<T>(&bias_tensor);
 
@@ -67,7 +67,7 @@ void ScaleKernel(const Context& dev_ctx,
                    output_desc.get(),
                    GetBasePtr(out));
   } else {
-    phi::DenseTensor new_bias_tensor;
+    DenseTensor new_bias_tensor;
     new_bias_tensor.Resize({1});
     dev_ctx.template Alloc<T>(&new_bias_tensor);
 

@@ -19,13 +19,13 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void SGDKernel(const Context& dev_ctx,
-               const phi::DenseTensor& param_var,
-               const phi::DenseTensor& learning_rate,
-               const phi::DenseTensor& grad_var,
-               const paddle::optional<phi::DenseTensor>& master_param,
+               const DenseTensor& param_var,
+               const DenseTensor& learning_rate,
+               const DenseTensor& grad_var,
+               const paddle::optional<DenseTensor>& master_param,
                bool multi_precision,
-               phi::DenseTensor* param_out,
-               phi::DenseTensor* master_param_out) {
+               DenseTensor* param_out,
+               DenseTensor* master_param_out) {
   dev_ctx.template Alloc<T>(param_out);
   MLUCnnlTensorDesc grad_desc(grad_var);
 

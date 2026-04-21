@@ -18,14 +18,12 @@
 
 namespace custom_kernel {
 
-using phi::Scalar;
-
 template <typename T, typename Context>
 void ArangeKernel(const Context& dev_ctx,
-                  const phi::Scalar& start,
-                  const phi::Scalar& end,
-                  const phi::Scalar& step,
-                  phi::DenseTensor* out) {
+                  const Scalar& start,
+                  const Scalar& end,
+                  const Scalar& step,
+                  DenseTensor* out) {
   T start_value = start.to<T>();
   T end_value = end.to<T>();
   T step_value = step.to<T>();
@@ -35,10 +33,10 @@ void ArangeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ArangeTensorKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& start_t,
-                        const phi::DenseTensor& end_t,
-                        const phi::DenseTensor& step_t,
-                        phi::DenseTensor* out) {
+                        const DenseTensor& start_t,
+                        const DenseTensor& end_t,
+                        const DenseTensor& step_t,
+                        DenseTensor* out) {
   custom_kernel::ArangeKernel<T, Context>(
       dev_ctx, Scalar(start_t), Scalar(end_t), Scalar(step_t), out);
 }

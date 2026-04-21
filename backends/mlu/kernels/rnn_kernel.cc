@@ -50,10 +50,10 @@ void reset_parameter_vector(
 
 template <typename T, typename Context>
 void RnnKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const std::vector<const phi::DenseTensor*>& pre_state,
-               const std::vector<const phi::DenseTensor*>& weight_list,
-               const paddle::optional<phi::DenseTensor>& sequence_length,
+               const DenseTensor& x,
+               const std::vector<const DenseTensor*>& pre_state,
+               const std::vector<const DenseTensor*>& weight_list,
+               const paddle::optional<DenseTensor>& sequence_length,
                float dropout_prob,
                bool is_bidirec,
                int input_size,
@@ -62,10 +62,10 @@ void RnnKernel(const Context& dev_ctx,
                const std::string& mode,
                int seed,
                bool is_test,
-               phi::DenseTensor* out,
-               phi::DenseTensor* dropout_state,
-               std::vector<phi::DenseTensor*> state,
-               phi::DenseTensor* reserve) {
+               DenseTensor* out,
+               DenseTensor* dropout_state,
+               std::vector<DenseTensor*> state,
+               DenseTensor* reserve) {
   // Input
   auto init_h = pre_state[0];  // -> hx
   auto init_c = pre_state[1];  // -> cx
@@ -331,15 +331,15 @@ void RnnKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RnnGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const std::vector<const phi::DenseTensor*>& pre_state,
-                   const std::vector<const phi::DenseTensor*>& weight_list,
-                   const paddle::optional<phi::DenseTensor>& sequence_length,
-                   const phi::DenseTensor& out,
-                   const phi::DenseTensor& dropout_state,
-                   const phi::DenseTensor& reserve,
-                   const phi::DenseTensor& out_grad,
-                   const std::vector<const phi::DenseTensor*>& state_grad,
+                   const DenseTensor& x,
+                   const std::vector<const DenseTensor*>& pre_state,
+                   const std::vector<const DenseTensor*>& weight_list,
+                   const paddle::optional<DenseTensor>& sequence_length,
+                   const DenseTensor& out,
+                   const DenseTensor& dropout_state,
+                   const DenseTensor& reserve,
+                   const DenseTensor& out_grad,
+                   const std::vector<const DenseTensor*>& state_grad,
                    float dropout_prob,
                    bool is_bidirec,
                    int input_size,
@@ -348,9 +348,9 @@ void RnnGradKernel(const Context& dev_ctx,
                    const std::string& mode,
                    int seed,
                    bool is_test,
-                   phi::DenseTensor* x_grad,
-                   std::vector<phi::DenseTensor*> pre_state_grad,
-                   std::vector<phi::DenseTensor*> weight_grad_list) {
+                   DenseTensor* x_grad,
+                   std::vector<DenseTensor*> pre_state_grad,
+                   std::vector<DenseTensor*> weight_grad_list) {
   C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
 
   PADDLE_ENFORCE_EQ(

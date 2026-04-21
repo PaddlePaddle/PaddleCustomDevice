@@ -38,12 +38,12 @@ void CheckAttrs(bool normalize, int ignore_index) {
 template <typename T, typename Context>
 void SigmoidCrossEntropyWithLogitsKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const phi::DenseTensor& label,
-    const paddle::optional<phi::DenseTensor>& pos_weight,
+    const DenseTensor& x,
+    const DenseTensor& label,
+    const paddle::optional<DenseTensor>& pos_weight,
     bool normalize,
     int ignore_index,
-    phi::DenseTensor* out) {
+    DenseTensor* out) {
   CheckAttrs(normalize, ignore_index);
   const auto* t_pos_weight = pos_weight.get_ptr();
 
@@ -88,13 +88,13 @@ void SigmoidCrossEntropyWithLogitsKernel(
 template <typename T, typename Context>
 void SigmoidCrossEntropyWithLogitsGradKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const phi::DenseTensor& label,
-    const paddle::optional<phi::DenseTensor>& pos_weight,
-    const phi::DenseTensor& dout,
+    const DenseTensor& x,
+    const DenseTensor& label,
+    const paddle::optional<DenseTensor>& pos_weight,
+    const DenseTensor& dout,
     bool normalize,
     int ignore_index,
-    phi::DenseTensor* dx) {
+    DenseTensor* dx) {
   CheckAttrs(normalize, ignore_index);
   const auto* t_pos_weight = pos_weight.get_ptr();
 

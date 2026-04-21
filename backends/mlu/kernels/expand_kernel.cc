@@ -18,9 +18,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ExpandKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::IntArray& shape,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   auto in_dims = x.dims();
   auto expand_shape = shape.GetData();
   auto vec_in_dims = phi::vectorize<int>(in_dims);
@@ -90,7 +90,7 @@ void ExpandKernel(const Context& dev_ctx,
           shape_size,
           rank));
 
-  phi::DDim out_dims = phi::make_ddim(final_expand_shape);
+  DDim out_dims = phi::make_ddim(final_expand_shape);
   out->Resize(out_dims);
   dev_ctx.template Alloc<T>(out);
   MLUCnnlTensorDesc x_desc(x);
@@ -101,10 +101,10 @@ void ExpandKernel(const Context& dev_ctx,
 
 // template <typename T, typename Context>
 // void ExpandGradKernel(const Context& dev_ctx,
-//                       const phi::DenseTensor& x,
-//                       const phi::DenseTensor& out_grad,
+//                       const DenseTensor& x,
+//                       const DenseTensor& out_grad,
 //                       const phi::IntArray& shape,
-//                       phi::DenseTensor* in_grad) {
+//                       DenseTensor* in_grad) {
 // }
 
 }  // namespace custom_kernel

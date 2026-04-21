@@ -18,17 +18,17 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void DeformableConvKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& offset,
-                          const phi::DenseTensor& filter,
-                          const paddle::optional<phi::DenseTensor>& mask,
+                          const DenseTensor& x,
+                          const DenseTensor& offset,
+                          const DenseTensor& filter,
+                          const paddle::optional<DenseTensor>& mask,
                           const std::vector<int>& strides,
                           const std::vector<int>& paddings,
                           const std::vector<int>& dilations,
                           int deformable_groups,
                           int groups,
                           int im2col_step,
-                          phi::DenseTensor* out) {
+                          DenseTensor* out) {
   // TODO(fwg): Remove this check when cnnl fix the bug that groups > 1.
   PADDLE_ENFORCE_EQ(
       groups == 1,
@@ -115,21 +115,21 @@ void DeformableConvKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DeformableConvGradKernel(const Context& dev_ctx,
-                              const phi::DenseTensor& x,
-                              const phi::DenseTensor& offset,
-                              const phi::DenseTensor& filter,
-                              const paddle::optional<phi::DenseTensor>& mask,
-                              const phi::DenseTensor& out_grad,
+                              const DenseTensor& x,
+                              const DenseTensor& offset,
+                              const DenseTensor& filter,
+                              const paddle::optional<DenseTensor>& mask,
+                              const DenseTensor& out_grad,
                               const std::vector<int>& strides,
                               const std::vector<int>& paddings,
                               const std::vector<int>& dilations,
                               int deformable_groups,
                               int groups,
                               int im2col_step,
-                              phi::DenseTensor* dx,
-                              phi::DenseTensor* offset_grad,
-                              phi::DenseTensor* filter_grad,
-                              phi::DenseTensor* mask_grad) {
+                              DenseTensor* dx,
+                              DenseTensor* offset_grad,
+                              DenseTensor* filter_grad,
+                              DenseTensor* mask_grad) {
   // TODO(fwg): Remove this check when cnnl fix the bug that groups > 1.
   PADDLE_ENFORCE_EQ(groups == 1,
                     true,

@@ -18,11 +18,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MeanRawKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    const phi::IntArray& axes,
                    bool keep_dim,
                    bool reduce_all,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   if (x.dims().size() == 0) {
     TensorCopy(dev_ctx, x, false, out);
     return;
@@ -33,22 +33,22 @@ void MeanRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::IntArray& dims,
                 bool keep_dim,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   bool reduce_all = false;
   custom_kernel::MeanRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
 }
 
 template <typename T, typename Context>
 void MeanGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& x,
+                    const DenseTensor& out_grad,
                     const phi::IntArray& axes,
                     bool keep_dim,
                     bool reduce_all,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   dev_ctx.template Alloc<T>(x_grad);
 
   if (x.dims().size() == 0) {

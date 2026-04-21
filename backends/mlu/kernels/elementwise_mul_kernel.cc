@@ -18,30 +18,30 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MultiplyRawKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        int axis,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   MLUOpTensorKernel<T>(dev_ctx, x, y, axis, CNNL_OP_TENSOR_MUL, out);
 }
 
 template <typename T, typename Context>
 void MultiplyKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    const DenseTensor& y,
+                    DenseTensor* out) {
   int axis = -1;
   custom_kernel::MultiplyRawKernel<T>(dev_ctx, x, y, axis, out);
 }
 
 template <typename T, typename Context>
 void MultiplyGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        const phi::DenseTensor& dout,
+                        const DenseTensor& x,
+                        const DenseTensor& y,
+                        const DenseTensor& dout,
                         int axis,
-                        phi::DenseTensor* dx,
-                        phi::DenseTensor* dy) {
+                        DenseTensor* dx,
+                        DenseTensor* dy) {
   const auto& x_dims = x.dims();
   const auto& y_dims = y.dims();
   axis =

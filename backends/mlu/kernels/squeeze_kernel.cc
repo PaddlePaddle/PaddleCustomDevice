@@ -17,9 +17,9 @@
 
 namespace custom_kernel {
 
-phi::DDim GetOutputShape(const std::vector<int> squeeze_dims,
-                         const phi::DDim& in_dims,
-                         bool is_runtime) {
+DDim GetOutputShape(const std::vector<int> squeeze_dims,
+                    const DDim& in_dims,
+                    bool is_runtime) {
   size_t num_squeeze_dims = squeeze_dims.size();
   std::vector<bool> should_squeeze(in_dims.size(), false);
 
@@ -83,9 +83,9 @@ phi::DDim GetOutputShape(const std::vector<int> squeeze_dims,
 
 template <typename T, typename Context>
 void SqueezeKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    const phi::IntArray& axes_int_array,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   auto stream = dev_ctx.stream();
   std::vector<int32_t> axes(axes_int_array.GetData().begin(),
                             axes_int_array.GetData().end());
@@ -100,19 +100,19 @@ void SqueezeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SqueezeWithXShapeKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
+                             const DenseTensor& x,
                              const phi::IntArray& axes_int_array,
-                             phi::DenseTensor* out,
-                             phi::DenseTensor* xshape) {
+                             DenseTensor* out,
+                             DenseTensor* xshape) {
   custom_kernel::SqueezeKernel<T, Context>(dev_ctx, x, axes_int_array, out);
 }
 
 template <typename T, typename Context>
 void SqueezeGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& dout,
+                       const DenseTensor& x,
+                       const DenseTensor& dout,
                        const phi::IntArray& axes_int_array,
-                       phi::DenseTensor* dx) {
+                       DenseTensor* dx) {
   auto stream = dev_ctx.stream();
 
   auto x_dims = dx->dims();

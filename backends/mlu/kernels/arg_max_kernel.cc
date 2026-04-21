@@ -18,12 +18,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ArgMaxKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::Scalar& axis,
+                  const DenseTensor& x,
+                  const Scalar& axis,
                   bool keepdims,
                   bool flatten,
                   phi::DataType dtype,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   auto arg_max_axis = axis.to<int>();
   if (x.numel() == 0) return;
   PADDLE_ENFORCE_EQ(
@@ -37,7 +37,7 @@ void ArgMaxKernel(const Context& dev_ctx,
           dtype));
 
   if (arg_max_axis < 0) {
-    phi::DDim x_dims;
+    DDim x_dims;
     x_dims = x.dims();
     arg_max_axis += x_dims.size();
   }

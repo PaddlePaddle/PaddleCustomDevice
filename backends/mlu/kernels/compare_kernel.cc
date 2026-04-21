@@ -18,103 +18,103 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void EqualRawKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
+                    const DenseTensor& x,
+                    const DenseTensor& y,
                     int axis,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   MLULogicOp(dev_ctx, x, y, "equal", out);
 }
 
 template <typename T, typename Context>
 void EqualKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 const DenseTensor& y,
+                 DenseTensor* out) {
   custom_kernel::EqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
 void NotEqualRawKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        int axis,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   MLULogicOp(dev_ctx, x, y, "not_equal", out);
 }
 
 template <typename T, typename Context>
 void NotEqualKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    const DenseTensor& y,
+                    DenseTensor* out) {
   custom_kernel::NotEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
 void LessThanRawKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        int axis,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   MLULogicOp(dev_ctx, x, y, "less_than", out);
 }
 
 template <typename T, typename Context>
 void LessThanKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    const DenseTensor& y,
+                    DenseTensor* out) {
   custom_kernel::LessThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
 void LessEqualRawKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
+                        const DenseTensor& x,
+                        const DenseTensor& y,
                         int axis,
-                        phi::DenseTensor* out) {
+                        DenseTensor* out) {
   MLULogicOp(dev_ctx, x, y, "less_equal", out);
 }
 
 template <typename T, typename Context>
 void LessEqualKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     DenseTensor* out) {
   custom_kernel::LessEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
 void GreaterThanRawKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y,
+                          const DenseTensor& x,
+                          const DenseTensor& y,
                           int axis,
-                          phi::DenseTensor* out) {
+                          DenseTensor* out) {
   MLULogicOp(dev_ctx, x, y, "greater_than", out);
 }
 
 template <typename T, typename Context>
 void GreaterThanKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       phi::DenseTensor* out) {
+                       const DenseTensor& x,
+                       const DenseTensor& y,
+                       DenseTensor* out) {
   custom_kernel::GreaterThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
 void GreaterEqualRawKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
-                           const phi::DenseTensor& y,
+                           const DenseTensor& x,
+                           const DenseTensor& y,
                            int axis,
-                           phi::DenseTensor* out) {
+                           DenseTensor* out) {
   MLULogicOp(dev_ctx, x, y, "greater_equal", out);
 }
 
 template <typename T, typename Context>
 void GreaterEqualKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        phi::DenseTensor* out) {
+                        const DenseTensor& x,
+                        const DenseTensor& y,
+                        DenseTensor* out) {
   custom_kernel::GreaterEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 

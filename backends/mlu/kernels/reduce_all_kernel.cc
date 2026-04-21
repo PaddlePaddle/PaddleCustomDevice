@@ -18,10 +18,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AllKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const std::vector<int64_t>& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   bool reduce_all =
       dims.size() == 0 || static_cast<int>(dims.size()) == x.dims().size();

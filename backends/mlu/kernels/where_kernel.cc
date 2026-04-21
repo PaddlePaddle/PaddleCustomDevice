@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void WhereKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& condition,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& condition,
+                 const DenseTensor& x,
+                 const DenseTensor& y,
+                 DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc x_desc(x);
@@ -42,12 +42,12 @@ void WhereKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void WhereGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& condition,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     const phi::DenseTensor& out_grad,
-                     phi::DenseTensor* x_grad,
-                     phi::DenseTensor* y_grad) {
+                     const DenseTensor& condition,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     const DenseTensor& out_grad,
+                     DenseTensor* x_grad,
+                     DenseTensor* y_grad) {
   if (x_grad != nullptr) {
     dev_ctx.template Alloc<T>(x_grad);
   }

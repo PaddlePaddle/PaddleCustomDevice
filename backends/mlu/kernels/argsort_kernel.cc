@@ -19,12 +19,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ArgsortKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& in,
+                   const DenseTensor& in,
                    int axis,
                    bool descending,
                    bool stable,
-                   phi::DenseTensor* output,
-                   phi::DenseTensor* indices) {
+                   DenseTensor* output,
+                   DenseTensor* indices) {
   const auto& sorted = true;
   // axis < 0, cacluate the real axis
   if (axis < 0) {
@@ -79,13 +79,13 @@ void ArgsortKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ArgsortGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& indices,
-                       const phi::DenseTensor& input,
-                       const phi::DenseTensor& out_grad,
+                       const DenseTensor& indices,
+                       const DenseTensor& input,
+                       const DenseTensor& out_grad,
                        int axis,
                        bool descending,
                        bool stable,
-                       phi::DenseTensor* in_grad) {
+                       DenseTensor* in_grad) {
   dev_ctx.template Alloc<T>(in_grad);
 
   auto in_dims = indices.dims();

@@ -19,11 +19,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ScatterKernel(const Context &dev_ctx,
-                   const phi::DenseTensor &x,
-                   const phi::DenseTensor &index,
-                   const phi::DenseTensor &updates,
+                   const DenseTensor &x,
+                   const DenseTensor &index,
+                   const DenseTensor &updates,
                    bool overwrite,
-                   phi::DenseTensor *out) {
+                   DenseTensor *out) {
   dev_ctx.template Alloc<T>(out);
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc index_desc(index);
@@ -78,10 +78,10 @@ void ScatterKernel(const Context &dev_ctx,
 
 template <typename T, typename Context>
 void ScatterNdAddKernel(const Context &dev_ctx,
-                        const phi::DenseTensor &x,
-                        const phi::DenseTensor &index,
-                        const phi::DenseTensor &updates,
-                        phi::DenseTensor *out) {
+                        const DenseTensor &x,
+                        const DenseTensor &index,
+                        const DenseTensor &updates,
+                        DenseTensor *out) {
   dev_ctx.template Alloc<T>(out);
   cnnlScatterNdMode_t mode = CNNL_SCATTERND_ADD;
   const auto &index_type = index.dtype();

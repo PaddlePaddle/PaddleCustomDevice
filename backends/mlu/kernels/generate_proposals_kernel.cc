@@ -18,20 +18,20 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GenerateProposalsKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& scores,
-                             const phi::DenseTensor& bbox_deltas,
-                             const phi::DenseTensor& im_shape,
-                             const phi::DenseTensor& anchors,
-                             const phi::DenseTensor& variances,
+                             const DenseTensor& scores,
+                             const DenseTensor& bbox_deltas,
+                             const DenseTensor& im_shape,
+                             const DenseTensor& anchors,
+                             const DenseTensor& variances,
                              int pre_nms_top_n,
                              int post_nms_top_n,
                              float nms_thresh,
                              float min_size,
                              float eta,
                              bool pixel_offset,
-                             phi::DenseTensor* rpn_rois,
-                             phi::DenseTensor* rpn_roi_probs,
-                             phi::DenseTensor* rpn_rois_num) {
+                             DenseTensor* rpn_rois,
+                             DenseTensor* rpn_roi_probs,
+                             DenseTensor* rpn_rois_num) {
   PADDLE_ENFORCE_GE(eta,
                     1.,
                     phi::errors::InvalidArgument(

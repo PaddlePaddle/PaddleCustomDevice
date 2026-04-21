@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 static void Mul(const Context& dev_ctx,
-                const phi::DenseTensor& X,
-                const phi::DenseTensor& Y,
-                phi::DenseTensor* out) {
+                const DenseTensor& X,
+                const DenseTensor& Y,
+                DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc x_desc(X, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
@@ -43,9 +43,9 @@ static void Mul(const Context& dev_ctx,
 
 template <typename T, typename Context>
 static void MatMul2D(const Context& dev_ctx,
-                     const phi::DenseTensor& X,
-                     const phi::DenseTensor& Y,
-                     phi::DenseTensor* out,
+                     const DenseTensor& X,
+                     const DenseTensor& Y,
+                     DenseTensor* out,
                      const bool transpose_x,
                      const bool transpose_y) {
   dev_ctx.template Alloc<T>(out);
@@ -66,9 +66,9 @@ static void MatMul2D(const Context& dev_ctx,
 
 template <typename T, typename Context>
 static void MatMul2DwithReduceBatch(const Context& dev_ctx,
-                                    const phi::DenseTensor& X,
-                                    const phi::DenseTensor& Y,
-                                    phi::DenseTensor* out,
+                                    const DenseTensor& X,
+                                    const DenseTensor& Y,
+                                    DenseTensor* out,
                                     const bool transpose_x,
                                     const bool transpose_y) {
   dev_ctx.template Alloc<T>(out);
@@ -95,9 +95,9 @@ static void MatMul2DwithReduceBatch(const Context& dev_ctx,
 
 template <typename T, typename Context>
 static void MatMulND(const Context& dev_ctx,
-                     const phi::DenseTensor& X,
-                     const phi::DenseTensor& Y,
-                     phi::DenseTensor* out,
+                     const DenseTensor& X,
+                     const DenseTensor& Y,
+                     DenseTensor* out,
                      const bool transpose_x,
                      const bool transpose_y) {
   dev_ctx.template Alloc<T>(out);
@@ -121,8 +121,8 @@ template <typename T, typename Context>
 static void ReduceDims(const Context& dev_ctx,
                        const std::vector<int64_t>& dims,
                        const std::vector<int64_t>& brd_dims,
-                       const phi::DenseTensor& in,
-                       phi::DenseTensor* out) {
+                       const DenseTensor& in,
+                       DenseTensor* out) {
   std::vector<int64_t> axes;
   int64_t size = brd_dims.size();
   int64_t diff = brd_dims.size() - dims.size();
@@ -163,11 +163,11 @@ static void ReduceDims(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MatmulKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   bool transpose_x,
                   bool transpose_y,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   std::vector<int64_t> x_dims = phi::vectorize(x.dims());
   std::vector<int64_t> y_dims = phi::vectorize(y.dims());
   std::vector<int64_t> out_dims = phi::vectorize(out->dims());
@@ -255,11 +255,11 @@ void MatmulKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MatmulWithFlattenKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& y,
+                             const DenseTensor& x,
+                             const DenseTensor& y,
                              int x_num_col_dims,
                              int y_num_col_dims,
-                             phi::DenseTensor* out) {
+                             DenseTensor* out) {
   const Tensor x_matrix =
       x.dims().size() > 2 ? ReshapeToMatrix(x, x_num_col_dims) : x;
   const Tensor y_matrix =
@@ -279,13 +279,13 @@ void MatmulWithFlattenKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MatmulGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      const phi::DenseTensor& dout,
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      const DenseTensor& dout,
                       bool transpose_x,
                       bool transpose_y,
-                      phi::DenseTensor* dx,
-                      phi::DenseTensor* dy) {
+                      DenseTensor* dx,
+                      DenseTensor* dy) {
   std::vector<int64_t> x_dims = phi::vectorize(x.dims());
   std::vector<int64_t> y_dims = phi::vectorize(y.dims());
   std::vector<int64_t> out_dims = phi::vectorize(dout.dims());
@@ -414,13 +414,13 @@ void MatmulGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MatmulWithFlattenGradKernel(const Context& dev_ctx,
-                                 const phi::DenseTensor& x,
-                                 const phi::DenseTensor& y,
-                                 const phi::DenseTensor& out_grad,
+                                 const DenseTensor& x,
+                                 const DenseTensor& y,
+                                 const DenseTensor& out_grad,
                                  int x_num_col_dims,
                                  int y_num_col_dims,
-                                 phi::DenseTensor* x_grad,
-                                 phi::DenseTensor* y_grad) {
+                                 DenseTensor* x_grad,
+                                 DenseTensor* y_grad) {
   auto x_matrix = x.dims().size() > 2 ? ReshapeToMatrix(x, x_num_col_dims) : x;
   auto y_matrix = y.dims().size() > 2 ? ReshapeToMatrix(y, y_num_col_dims) : y;
   auto* dout = &out_grad;
@@ -433,11 +433,11 @@ void MatmulWithFlattenGradKernel(const Context& dev_ctx,
   auto* dy = y_grad;
 
   if (dx != nullptr) {
-    phi::DenseTensorMeta x_meta = {x.dtype(), x.dims()};
+    DenseTensorMeta x_meta = {x.dtype(), x.dims()};
     dx->set_meta(x_meta);
   }
   if (dy != nullptr) {
-    phi::DenseTensorMeta y_meta = {y.dtype(), y.dims()};
+    DenseTensorMeta y_meta = {y.dtype(), y.dims()};
     dy->set_meta(y_meta);
   }
 
@@ -462,19 +462,19 @@ void MatmulWithFlattenGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BmmKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const phi::DenseTensor& y,
-               phi::DenseTensor* out) {
+               const DenseTensor& x,
+               const DenseTensor& y,
+               DenseTensor* out) {
   MatMulND<T>(dev_ctx, x, y, out, false, false);
 }
 
 template <typename T, typename Context>
 void BmmGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx,
-                   phi::DenseTensor* dy) {
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   const DenseTensor& dout,
+                   DenseTensor* dx,
+                   DenseTensor* dy) {
   if (dx) {
     MatMulND<T>(dev_ctx, dout, y, dx, false, true);
   }

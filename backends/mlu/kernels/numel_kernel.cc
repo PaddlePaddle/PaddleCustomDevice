@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void NumelKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& input,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& input,
+                 DenseTensor* out) {
   dev_ctx.template Alloc<int64_t>(out);
   int64_t size = input.numel();
   FillMLUTensorWithHostValue<int64_t>(dev_ctx, size, out);

@@ -21,8 +21,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void NonZeroKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& condition,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& condition,
+                   DenseTensor* out) {
   auto dims = condition.dims();
   const int rank = dims.size();
 

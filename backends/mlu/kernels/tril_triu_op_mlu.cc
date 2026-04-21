@@ -18,10 +18,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TrilTriuKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     int diagonal,
                     bool lower,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   bool upper;
   if (lower) {
@@ -79,44 +79,44 @@ void TrilTriuKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TrilKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 int diagonal,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   custom_kernel::TrilTriuKernel<T, Context>(dev_ctx, x, diagonal, true, out);
 }
 
 template <typename T, typename Context>
 void TriuKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 int diagonal,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   custom_kernel::TrilTriuKernel<T, Context>(dev_ctx, x, diagonal, false, out);
 }
 
 template <typename T, typename Context>
 void TrilTriuGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& out_grad,
+                        const DenseTensor& out_grad,
                         int diagonal,
                         bool lower,
-                        phi::DenseTensor* x_grad) {
+                        DenseTensor* x_grad) {
   custom_kernel::TrilTriuKernel<T, Context>(
       dev_ctx, out_grad, diagonal, lower, x_grad);
 }
 
 template <typename T, typename Context>
 void TrilGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& out_grad,
                     int diagonal,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   custom_kernel::TrilTriuGradKernel<T, Context>(
       dev_ctx, out_grad, diagonal, true, x_grad);
 }
 
 template <typename T, typename Context>
 void TriuGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& out_grad,
                     int diagonal,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   custom_kernel::TrilTriuGradKernel<T, Context>(
       dev_ctx, out_grad, diagonal, false, x_grad);
 }

@@ -20,12 +20,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void SumRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DataType out_dtype,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   Tensor in_t, out_t;
   auto need_cast_for_int64 =
       x.dtype() == phi::DataType::INT64 || x.dtype() == phi::DataType::BOOL
@@ -74,11 +74,11 @@ void SumRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SumKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::IntArray& dims,
                phi::DataType out_dtype,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   bool reduce_all = false;
   if (dims.size() == 0) {
     reduce_all = true;
@@ -89,12 +89,12 @@ void SumKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SumGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& out_grad,
+                   const DenseTensor& x,
+                   const DenseTensor& out_grad,
                    const phi::IntArray& dims_array,
                    bool keep_dim,
                    bool reduce_all,
-                   phi::DenseTensor* x_grad) {
+                   DenseTensor* x_grad) {
   auto reduce_dims = dims_array.GetData();
   dev_ctx.template Alloc<T>(x_grad);
 
@@ -127,7 +127,7 @@ void SumGradKernel(const Context& dev_ctx,
   if (x_grad->dtype() == out_grad.dtype()) {
     tmp_out = out_grad;
   } else {
-    phi::DenseTensorMeta meta = {x_grad->dtype(), out_grad.dims()};
+    DenseTensorMeta meta = {x_grad->dtype(), out_grad.dims()};
     tmp_out.set_meta(meta);
     dev_ctx.template Alloc<T>(&tmp_out);
 

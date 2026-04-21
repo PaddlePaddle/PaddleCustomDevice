@@ -25,6 +25,9 @@
 namespace custom_kernel {
 
 using Tensor = phi::DenseTensor;
+using DenseTensor = phi::DenseTensor;
+using Scalar = phi::Scalar;
+using DDim = phi::DDim;
 using Context = phi::CustomContext;
 using DataType = phi::DataType;
 using DataLayout = phi::DataLayout;

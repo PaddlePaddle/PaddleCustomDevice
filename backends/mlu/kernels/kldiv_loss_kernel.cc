@@ -20,17 +20,17 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void KLDivLossKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& label,
+                     const DenseTensor& x,
+                     const DenseTensor& label,
                      const std::string& reduction,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  phi::DenseTensor out_tmp;
+  DenseTensor out_tmp;
   out_tmp.Resize(x.dims());
   dev_ctx.template Alloc<T>(&out_tmp);
   // formula: label * (log(label) - x)
   // 0. mark label >=0
-  phi::DenseTensor tensor_zeros;
+  DenseTensor tensor_zeros;
   tensor_zeros.Resize(label.dims());
   dev_ctx.template Alloc<T>(&tensor_zeros);
   MLUCnnlTensorDesc tensor_zeros_desc(tensor_zeros);
@@ -42,14 +42,14 @@ void KLDivLossKernel(const Context& dev_ctx,
                 tensor_zeros_desc.get(),
                 GetBasePtr(&tensor_zeros));
 
-  phi::DenseTensor condiction_out;
+  DenseTensor condiction_out;
   condiction_out.Resize(label.dims());
   dev_ctx.template Alloc<T>(&condiction_out);
   MLULogicOp(dev_ctx, label, tensor_zeros, "greater_equal", &condiction_out);
 
   MLUCnnlTensorDesc label_desc(label);
   // 1. log(label) ->log_label
-  phi::DenseTensor log_label;
+  DenseTensor log_label;
   log_label.Resize(label.dims());
   dev_ctx.template Alloc<T>(&log_label);
 
@@ -63,7 +63,7 @@ void KLDivLossKernel(const Context& dev_ctx,
                loglabel_desc.get(),
                GetBasePtr(&log_label));
   // 2. optensor --sub( log(label) - x)->sub_out
-  phi::DenseTensor sub_out;
+  DenseTensor sub_out;
   sub_out.Resize(x.dims());
   dev_ctx.template Alloc<T>(&sub_out);
   MLUOpTensorKernel<T>(dev_ctx, log_label, x, -1, CNNL_OP_TENSOR_SUB, &sub_out);
@@ -109,15 +109,15 @@ void KLDivLossKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void KLDivLossGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& label,
-                         const phi::DenseTensor& d_out,
+                         const DenseTensor& x,
+                         const DenseTensor& label,
+                         const DenseTensor& d_out,
                          const std::string& reduction,
-                         phi::DenseTensor* d_x) {
+                         DenseTensor* d_x) {
   dev_ctx.template Alloc<T>(d_x);
   // formula: dx = -1 * label * d_out
   // Relu(label) make label >=0
-  phi::DenseTensor label_clip;
+  DenseTensor label_clip;
   label_clip.Resize(label.dims());
   dev_ctx.template Alloc<T>(&label_clip);
   MLUCnnlActivationDesc act_desc(CNNL_ACTIVATION_RELU, 1.0);
@@ -132,7 +132,7 @@ void KLDivLossGradKernel(const Context& dev_ctx,
                   GetBasePtr(&label_clip));
 
   // label * d_out
-  phi::DenseTensor out_tmp;
+  DenseTensor out_tmp;
   out_tmp.Resize(x.dims());
   dev_ctx.template Alloc<T>(&out_tmp);
   MLUOpTensorKernel<T>(

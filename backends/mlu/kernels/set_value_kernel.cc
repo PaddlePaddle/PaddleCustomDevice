@@ -20,7 +20,7 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void SetValueKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     const phi::IntArray& starts,
                     const phi::IntArray& ends,
                     const phi::IntArray& steps,
@@ -28,8 +28,8 @@ void SetValueKernel(const Context& dev_ctx,
                     const std::vector<int64_t>& decrease_axes,
                     const std::vector<int64_t>& none_axes,
                     const std::vector<int64_t>& shape,
-                    const std::vector<phi::Scalar>& values,
-                    phi::DenseTensor* out) {
+                    const std::vector<Scalar>& values,
+                    DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   std::vector<int64_t> starts_local = starts.GetData();
@@ -90,13 +90,13 @@ void SetValueKernel(const Context& dev_ctx,
   for (const auto& val : values) {
     assgin_values.push_back(val.to<T>());
   }
-  phi::DenseTensor value_t;
+  DenseTensor value_t;
   value_t.Resize(phi::make_ddim(shape));
   custom_kernel::TensorFromVector(dev_ctx, assgin_values, dev_ctx, &value_t);
   dev_ctx.Wait();
   value_t.Resize(phi::make_ddim(shape));
 
-  phi::DenseTensor value_temp;
+  DenseTensor value_temp;
   if (slice_dims_for_assign == value_t.dims()) {
     value_temp = value_t;
   } else {
@@ -113,11 +113,11 @@ void SetValueKernel(const Context& dev_ctx,
 
   int64_t input_numel = phi::product(in_dims);
   int64_t value_numel = phi::product(value_temp.dims());
-  phi::DenseTensor in_temp, out_temp, val_temp, index_out;
+  DenseTensor in_temp, out_temp, val_temp, index_out;
   int64_t stride_step = phi::product(in_dims);
   std::vector<int64_t> index_indices(stride_step);
   std::iota(index_indices.begin(), index_indices.end(), 0);
-  phi::DenseTensor index_temp;
+  DenseTensor index_temp;
   in_temp = x;
   val_temp = value_temp;
   custom_kernel::TensorFromVector(dev_ctx, index_indices, dev_ctx, &index_temp);
@@ -185,15 +185,15 @@ void SetValueKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SetTensorValueKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& value,
+                          const DenseTensor& x,
+                          const DenseTensor& value,
                           const phi::IntArray& starts,
                           const phi::IntArray& ends,
                           const phi::IntArray& steps,
                           const std::vector<int64_t>& axes,
                           const std::vector<int64_t>& decrease_axes,
                           const std::vector<int64_t>& none_axes,
-                          phi::DenseTensor* out) {
+                          DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   std::vector<int64_t> starts_local = starts.GetData();
@@ -249,7 +249,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
     strides_indices[axis_index] = static_cast<int>(steps_local[i]);
   }
 
-  phi::DenseTensor value_temp;
+  DenseTensor value_temp;
   if (slice_dims_for_assign == value.dims()) {
     value_temp = value;
   } else {
@@ -266,11 +266,11 @@ void SetTensorValueKernel(const Context& dev_ctx,
 
   int64_t input_numel = phi::product(in_dims);
   int64_t value_numel = phi::product(value_temp.dims());
-  phi::DenseTensor in_temp, out_temp, val_temp, index_out;
+  DenseTensor in_temp, out_temp, val_temp, index_out;
   int64_t stride_step = phi::product(in_dims);
   std::vector<int64_t> index_indices(stride_step);
   std::iota(index_indices.begin(), index_indices.end(), 0);
-  phi::DenseTensor index_temp;
+  DenseTensor index_temp;
   in_temp = x;
   val_temp = value_temp;
   custom_kernel::TensorFromVector(dev_ctx, index_indices, dev_ctx, &index_temp);
@@ -391,7 +391,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
   if (GetBasePtr(&x) != GetBasePtr(out)) {
     // a workaround method to avoid output incorrection since the op creates a
     // tensor while not using it in static graph.
-    auto x_rm_const = const_cast<phi::DenseTensor&>(x);
+    auto x_rm_const = const_cast<DenseTensor&>(x);
     TensorCopy(dev_ctx, *out, false, &x_rm_const);
   }
 }

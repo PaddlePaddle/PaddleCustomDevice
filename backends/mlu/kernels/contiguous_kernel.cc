@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ContiguousKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& input,
-                      phi::DenseTensor* out) {
-  phi::DenseTensorMeta meta = input.meta();
+                      const DenseTensor& input,
+                      DenseTensor* out) {
+  DenseTensorMeta meta = input.meta();
   meta.strides = meta.calc_strides(meta.dims);
   meta.offset = 0;
   out->set_meta(meta);

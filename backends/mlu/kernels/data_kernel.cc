@@ -23,7 +23,7 @@ const char kBackward[] = "BACKWARD";
 
 template <typename T, typename Context>
 void PrintKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  int first_n,
                  const std::string& message,
                  int summarize,
@@ -34,9 +34,9 @@ void PrintKernel(const Context& dev_ctx,
                  bool print_tensor_lod,
                  const std::string& print_phase,
                  bool is_forward,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   TensorCopy(dev_ctx, x, false, out);
-  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  DenseTensorMeta meta = {x.dtype(), x.dims()};
   out->set_meta(meta);
 
   if ((is_forward && print_phase == kBackward) ||

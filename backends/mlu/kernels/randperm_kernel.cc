@@ -22,7 +22,7 @@ void RandpermRawKernel(const Context& dev_ctx,
                        int n,
                        phi::DataType dtype,
                        unsigned int seed,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   std::shared_ptr<std::mt19937_64> engine;
 
   if (seed) {
@@ -40,7 +40,7 @@ void RandpermRawKernel(const Context& dev_ctx,
     std::shuffle(out_data, out_data + n, *engine);
   } else {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor tmp_tensor;
+    DenseTensor tmp_tensor;
     tmp_tensor.Resize(phi::make_ddim({n}));
     T* tmp_data = dev_ctx.template HostAlloc<T>(&tmp_tensor);
     for (int i = 0; i < n; ++i) {
@@ -55,7 +55,7 @@ template <typename T, typename Context>
 void RandpermKernel(const Context& dev_ctx,
                     int n,
                     phi::DataType dtype,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   custom_kernel::RandpermRawKernel<T, Context>(dev_ctx, n, dtype, 0, out);
 }
 

@@ -21,13 +21,13 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void FlashAttnUnpaddedMLUKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& q,
-    const phi::DenseTensor& k,
-    const phi::DenseTensor& v,
-    const phi::DenseTensor& cu_seqlens_q,
-    const phi::DenseTensor& cu_seqlens_k,
-    const paddle::optional<phi::DenseTensor>& fixed_seed_offset,
-    const paddle::optional<phi::DenseTensor>& attn_mask,
+    const DenseTensor& q,
+    const DenseTensor& k,
+    const DenseTensor& v,
+    const DenseTensor& cu_seqlens_q,
+    const DenseTensor& cu_seqlens_k,
+    const paddle::optional<DenseTensor>& fixed_seed_offset,
+    const paddle::optional<DenseTensor>& attn_mask,
     int64_t max_seqlen_q,
     int64_t max_seqlen_k,
     float scale,
@@ -36,10 +36,10 @@ void FlashAttnUnpaddedMLUKernel(
     bool return_softmax,
     bool is_test,
     const std::string& rng_name,
-    phi::DenseTensor* out,
-    phi::DenseTensor* softmax,
-    phi::DenseTensor* softmax_lse,
-    phi::DenseTensor* seed_offset) {
+    DenseTensor* out,
+    DenseTensor* softmax,
+    DenseTensor* softmax_lse,
+    DenseTensor* seed_offset) {
   dev_ctx.template Alloc<T>(out);
   // q,k,v [total_*, num_heads, head_dim]
   auto dims = q.dims();
@@ -81,11 +81,11 @@ void FlashAttnUnpaddedMLUKernel(
       phi::errors::InvalidArgument(
           "flash_attn_raw receive input with return_softmax should be false"));
 
-  phi::DenseTensor dropout_mask;
+  DenseTensor dropout_mask;
   void* dropout_mask_ptr = nullptr;
   if (return_softmax) {
-    phi::DenseTensorMeta dropout_mask_meta = {
-        phi::DataType::INT32, {num_heads, total_q, max_seqlen_k}};
+    DenseTensorMeta dropout_mask_meta = {phi::DataType::INT32,
+                                         {num_heads, total_q, max_seqlen_k}};
     dropout_mask.set_meta(dropout_mask_meta);
     dropout_mask_ptr = dev_ctx.template Alloc<int32_t>(&dropout_mask);
   }
@@ -166,22 +166,21 @@ void FlashAttnUnpaddedMLUKernel(
 }
 
 template <typename T, typename Context>
-void FlashAttnKernel(
-    const Context& ctx,
-    const phi::DenseTensor& q,
-    const phi::DenseTensor& k,
-    const phi::DenseTensor& v,
-    const paddle::optional<phi::DenseTensor>& fixed_seed_offset,
-    const paddle::optional<phi::DenseTensor>& attn_mask,
-    float dropout,
-    bool causal,
-    bool return_softmax,
-    bool is_test,
-    const std::string& rng_name,
-    phi::DenseTensor* out,
-    phi::DenseTensor* softmax,
-    phi::DenseTensor* softmax_lse,
-    phi::DenseTensor* seed_offset) {
+void FlashAttnKernel(const Context& ctx,
+                     const DenseTensor& q,
+                     const DenseTensor& k,
+                     const DenseTensor& v,
+                     const paddle::optional<DenseTensor>& fixed_seed_offset,
+                     const paddle::optional<DenseTensor>& attn_mask,
+                     float dropout,
+                     bool causal,
+                     bool return_softmax,
+                     bool is_test,
+                     const std::string& rng_name,
+                     DenseTensor* out,
+                     DenseTensor* softmax,
+                     DenseTensor* softmax_lse,
+                     DenseTensor* seed_offset) {
   // q,k,v [batch_size, seq_len, num_heads, head_dim]
   const auto& dims = q.dims();
   PADDLE_ENFORCE_EQ(dims.size(),
@@ -200,7 +199,7 @@ void FlashAttnKernel(
   const int32_t total_k = batch_size * seqlen_k;
   const float scale = 1.0f / std::sqrt(head_size);
 
-  phi::DenseTensor q_t_s, k_t_s, v_t_s;
+  DenseTensor q_t_s, k_t_s, v_t_s;
   q_t_s = q;
   k_t_s = k;
   v_t_s = v;
@@ -209,8 +208,8 @@ void FlashAttnKernel(
   k_t_s.Resize({total_k, num_heads, head_size});
   v_t_s.Resize({total_k, num_heads, head_size});
 
-  phi::DenseTensor cu_seqlens_q;
-  phi::DenseTensor cu_seqlens_k;
+  DenseTensor cu_seqlens_q;
+  DenseTensor cu_seqlens_k;
   ArangeRawKernel<int32_t, Context>(
       ctx, 0, (batch_size + 1) * seqlen_q, seqlen_q, &cu_seqlens_q);
   ArangeRawKernel<int32_t, Context>(
@@ -239,26 +238,25 @@ void FlashAttnKernel(
 }
 
 template <typename T, typename Context>
-void FlashAttnUnpaddedGradKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& q,
-    const phi::DenseTensor& k,
-    const phi::DenseTensor& v,
-    const phi::DenseTensor& cu_seqlens_q,
-    const phi::DenseTensor& cu_seqlens_k,
-    const phi::DenseTensor& out,
-    const phi::DenseTensor& softmax_lse,
-    const phi::DenseTensor& seed_offset,
-    const paddle::optional<phi::DenseTensor>& attn_mask,
-    const phi::DenseTensor& dout,
-    int64_t max_seqlen_q,
-    int64_t max_seqlen_k,
-    float scale,
-    float dropout,
-    bool causal,
-    phi::DenseTensor* dq,
-    phi::DenseTensor* dk,
-    phi::DenseTensor* dv) {
+void FlashAttnUnpaddedGradKernel(const Context& dev_ctx,
+                                 const DenseTensor& q,
+                                 const DenseTensor& k,
+                                 const DenseTensor& v,
+                                 const DenseTensor& cu_seqlens_q,
+                                 const DenseTensor& cu_seqlens_k,
+                                 const DenseTensor& out,
+                                 const DenseTensor& softmax_lse,
+                                 const DenseTensor& seed_offset,
+                                 const paddle::optional<DenseTensor>& attn_mask,
+                                 const DenseTensor& dout,
+                                 int64_t max_seqlen_q,
+                                 int64_t max_seqlen_k,
+                                 float scale,
+                                 float dropout,
+                                 bool causal,
+                                 DenseTensor* dq,
+                                 DenseTensor* dk,
+                                 DenseTensor* dv) {
   dev_ctx.template Alloc<T>(dq);
   dev_ctx.template Alloc<T>(dk);
   dev_ctx.template Alloc<T>(dv);
@@ -377,19 +375,19 @@ void FlashAttnUnpaddedGradKernel(
 
 template <typename T, typename Context>
 void FlashAttnGradKernel(const Context& ctx,
-                         const phi::DenseTensor& q,
-                         const phi::DenseTensor& k,
-                         const phi::DenseTensor& v,
-                         const phi::DenseTensor& out,
-                         const phi::DenseTensor& softmax_lse,
-                         const phi::DenseTensor& seed_offset,
-                         const paddle::optional<phi::DenseTensor>& attn_mask,
-                         const phi::DenseTensor& dout,
+                         const DenseTensor& q,
+                         const DenseTensor& k,
+                         const DenseTensor& v,
+                         const DenseTensor& out,
+                         const DenseTensor& softmax_lse,
+                         const DenseTensor& seed_offset,
+                         const paddle::optional<DenseTensor>& attn_mask,
+                         const DenseTensor& dout,
                          float dropout,
                          bool causal,
-                         phi::DenseTensor* dq,
-                         phi::DenseTensor* dk,
-                         phi::DenseTensor* dv) {
+                         DenseTensor* dq,
+                         DenseTensor* dk,
+                         DenseTensor* dv) {
   // q,k,v [batch_size, seq_len, num_heads, head_dim]
   const auto& dims = q.dims();
   const int32_t batch_size = dims[0];
@@ -413,7 +411,7 @@ void FlashAttnGradKernel(const Context& ctx,
            << "], v[" << v.dims() << "]";
 
   const float scale = 1.0f / std::sqrt(head_size);
-  phi::DenseTensor q_t_s, k_t_s, v_t_s;
+  DenseTensor q_t_s, k_t_s, v_t_s;
   q_t_s = q;
   k_t_s = k;
   v_t_s = v;
@@ -422,8 +420,8 @@ void FlashAttnGradKernel(const Context& ctx,
   k_t_s.Resize({total_k, num_heads, head_size});
   v_t_s.Resize({total_k, num_heads, head_size});
 
-  phi::DenseTensor cu_seqlens_q;
-  phi::DenseTensor cu_seqlens_k;
+  DenseTensor cu_seqlens_q;
+  DenseTensor cu_seqlens_k;
   ArangeRawKernel<int32_t, Context>(
       ctx, 0, (batch_size + 1) * seqlen_q, seqlen_q, &cu_seqlens_q);
   ArangeRawKernel<int32_t, Context>(

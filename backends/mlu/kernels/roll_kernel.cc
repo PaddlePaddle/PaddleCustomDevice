@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void RollKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::IntArray& shifts,
                 const std::vector<int64_t>& axis,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   std::vector<int> shifts_data(shifts.GetData().begin(),
                                shifts.GetData().end());
@@ -43,11 +43,11 @@ void RollKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RollGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x UNUSED,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& x UNUSED,
+                    const DenseTensor& out_grad,
                     const phi::IntArray& shifts,
                     const std::vector<int64_t>& axis,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   std::vector<int> shifts_data(shifts.GetData().begin(),
                                shifts.GetData().end());
   std::vector<int> axis_int32(axis.begin(), axis.end());

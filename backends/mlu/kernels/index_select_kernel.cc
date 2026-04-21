@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void IndexSelectKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& index,
+                       const DenseTensor& x,
+                       const DenseTensor& index,
                        int dim,
-                       phi::DenseTensor* output) {
+                       DenseTensor* output) {
   dev_ctx.template Alloc<T>(output);
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc out_desc(*output);
@@ -42,11 +42,11 @@ void IndexSelectKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void IndexSelectGradKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
-                           const phi::DenseTensor& index,
-                           const phi::DenseTensor& out_grad,
+                           const DenseTensor& x,
+                           const DenseTensor& index,
+                           const DenseTensor& out_grad,
                            int dim,
-                           phi::DenseTensor* x_grad) {
+                           DenseTensor* x_grad) {
   auto x_dims = x_grad->dims();
   auto out_dims = out_grad.dims();
 
@@ -54,7 +54,7 @@ void IndexSelectGradKernel(const Context& dev_ctx,
     dim += out_dims.size();
   }
 
-  phi::DenseTensor casted_index;
+  DenseTensor casted_index;
   MLUCnnlTensorDesc index_desc(index);
   MLUCnnlTensorDesc out_grad_desc(out_grad);
   if (index.dtype() != phi::DataType::INT32) {
@@ -94,14 +94,14 @@ void IndexSelectGradKernel(const Context& dev_ctx,
         x_grad_desc.get(),
         GetBasePtr(x_grad));
   } else {
-    phi::DenseTensor transed_out_grad;
+    DenseTensor transed_out_grad;
     std::vector<int> in_trans_perm;
     in_trans_perm.push_back(dim);
     for (int i = 0; i < out_dims.size(); ++i) {
       if (i == dim) continue;
       in_trans_perm.push_back(i);
     }
-    phi::DDim transed_out_dims(out_dims);
+    DDim transed_out_dims(out_dims);
     for (size_t i = 0; i < in_trans_perm.size(); ++i) {
       transed_out_dims[i] = out_dims[in_trans_perm[i]];
     }
@@ -117,8 +117,8 @@ void IndexSelectGradKernel(const Context& dev_ctx,
                        transed_out_grad_desc.get(),
                        GetBasePtr(&transed_out_grad));
 
-    phi::DenseTensor sum_out;
-    phi::DDim sum_dims(x_dims);
+    DenseTensor sum_out;
+    DDim sum_dims(x_dims);
     sum_dims[0] = x_dims[dim];
     auto idx = 1;
     for (int i = 0; i < x_dims.size(); ++i) {

@@ -19,18 +19,18 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TopkKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::Scalar& k_scalar,
+                const DenseTensor& x,
+                const Scalar& k_scalar,
                 int axis,
                 bool largest,
                 bool sorted,
-                phi::DenseTensor* out,
-                phi::DenseTensor* indices) {
+                DenseTensor* out,
+                DenseTensor* indices) {
   if (axis < 0) {
     axis += x.dims().size();
   }
   int k = k_scalar.to<int>();
-  phi::DDim output_dims = x.dims();
+  DDim output_dims = x.dims();
   output_dims[axis] = k;
 
   out->Resize(output_dims);
@@ -47,9 +47,8 @@ void TopkKernel(const Context& dev_ctx,
     return;
   }
 
-  phi::DenseTensor indices_int32;
-  phi::DenseTensorMeta indices_int32_meta = {phi::DataType::INT32,
-                                             indices->dims()};
+  DenseTensor indices_int32;
+  DenseTensorMeta indices_int32_meta = {phi::DataType::INT32, indices->dims()};
   indices_int32.set_meta(indices_int32_meta);
   dev_ctx.template Alloc<int32_t>(&indices_int32);
   MLUCnnlTensorDesc input_desc(x);

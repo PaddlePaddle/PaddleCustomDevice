@@ -21,13 +21,13 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void PnormKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  float porder,
                  int axis,
                  float epsilon,
                  bool keepdim,
                  bool asvector,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   VLOG(5) << "[PnormKernel] x dims: " << x.dims()
           << " out dims: " << out->dims() << " porder: " << porder
           << " epsilon: " << epsilon << " keepdim: " << keepdim
@@ -90,22 +90,22 @@ void PnormKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void PnormGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     const phi::DenseTensor& dy,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     const DenseTensor& dy,
                      float porder,
                      int axis,
                      float epsilon,
                      bool keepdim,
                      bool asvector,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto xdim = x.dims();
   axis = axis < 0 ? xdim.size() + axis : axis;
 
-  phi::DenseTensor y_share(y);
-  phi::DenseTensor dy_share(dy);
+  DenseTensor y_share(y);
+  DenseTensor dy_share(dy);
   auto ydim = xdim;
   if (!keepdim) {
     ydim[axis] = 1;
@@ -118,7 +118,7 @@ void PnormGradKernel(const Context& dev_ctx,
     FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(0), out);
     out->Resize(xdim);
   } else if (porder == INFINITY || porder == -INFINITY) {
-    phi::DenseTensor x_abs;
+    DenseTensor x_abs;
     x_abs.Resize(xdim);
     dev_ctx.template Alloc<T>(&x_abs);
     MLUCnnlTensorDesc abs_in_desc(x);
@@ -129,16 +129,16 @@ void PnormGradKernel(const Context& dev_ctx,
                  abs_out_desc.get(),
                  GetBasePtr(&x_abs));
 
-    phi::DenseTensor t_cond;
+    DenseTensor t_cond;
     t_cond.Resize(xdim);
     MLULogicOp(dev_ctx, x_abs, y_share, "equal", out);
 
-    phi::DenseTensor t_zero;
+    DenseTensor t_zero;
     t_zero.Resize({1});
     dev_ctx.template Alloc<T>(&t_zero);
     FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(0), &t_zero);
 
-    phi::DenseTensor x_sign;
+    DenseTensor x_sign;
     x_sign.Resize(xdim);
     dev_ctx.template Alloc<T>(&x_sign);
     MLUCnnlTensorDesc sign_out_desc(x_sign);
@@ -164,7 +164,7 @@ void PnormGradKernel(const Context& dev_ctx,
                     out_desc.get(),
                     GetBasePtr(out));
   } else {
-    phi::DenseTensor x_abs;
+    DenseTensor x_abs;
     x_abs.Resize(xdim);
     dev_ctx.template Alloc<T>(&x_abs);
     MLUCnnlTensorDesc out_desc(*out);
@@ -176,7 +176,7 @@ void PnormGradKernel(const Context& dev_ctx,
                  abs_out_desc.get(),
                  GetBasePtr(&x_abs));
 
-    phi::DenseTensor x_sign;
+    DenseTensor x_sign;
     x_sign.Resize(xdim);
     dev_ctx.template Alloc<T>(&x_sign);
     MLUCnnlTensorDesc sign_out_desc(x_sign);
@@ -186,11 +186,11 @@ void PnormGradKernel(const Context& dev_ctx,
                   sign_out_desc.get(),
                   GetBasePtr(&x_sign));
 
-    phi::DenseTensor y_pow;
+    DenseTensor y_pow;
     y_pow.Resize(ydim);
     dev_ctx.template Alloc<T>(&y_pow);
     if (porder >= 1) {
-      phi::DenseTensor t_exp;
+      DenseTensor t_exp;
       t_exp.Resize({1});
       dev_ctx.template Alloc<float>(&t_exp);
       FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(porder - 1), &t_exp);
@@ -207,7 +207,7 @@ void PnormGradKernel(const Context& dev_ctx,
                    out_desc.get(),
                    GetBasePtr(out));
     } else {
-      phi::DenseTensor t_exp;
+      DenseTensor t_exp;
       t_exp.Resize({1});
       dev_ctx.template Alloc<float>(&t_exp);
       FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(1 - porder), &t_exp);

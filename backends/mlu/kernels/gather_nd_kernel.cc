@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GatherNdKernel(const Context &dev_ctx,
-                    const phi::DenseTensor &x,
-                    const phi::DenseTensor &index,
-                    phi::DenseTensor *out) {
+                    const DenseTensor &x,
+                    const DenseTensor &index,
+                    DenseTensor *out) {
   dev_ctx.template Alloc<T>(out);
 
   if (x.numel() == 0) return;
@@ -35,7 +35,7 @@ void GatherNdKernel(const Context &dev_ctx,
         new_dims.emplace_back(x.dims()[i]);
       }
 
-      phi::DenseTensor x_tmp(x);
+      DenseTensor x_tmp(x);
       x_tmp.Resize(phi::make_ddim(new_dims));
       MLUCnnlTensorDesc x_tmp_desc(x_tmp);
       MLUCnnlTensorDesc out_desc(*out);
@@ -75,10 +75,10 @@ void GatherNdKernel(const Context &dev_ctx,
 
 template <typename T, typename Context>
 void GatherNdGradKernel(const Context &dev_ctx,
-                        const phi::DenseTensor &x,
-                        const phi::DenseTensor &index,
-                        const phi::DenseTensor &dout,
-                        phi::DenseTensor *dx) {
+                        const DenseTensor &x,
+                        const DenseTensor &index,
+                        const DenseTensor &dout,
+                        DenseTensor *dx) {
   auto x_dims = dx->dims();
   dev_ctx.template Alloc<T>(dx);
 
@@ -98,10 +98,10 @@ void GatherNdGradKernel(const Context &dev_ctx,
     return;
   }
 
-  const phi::DenseTensor *p_index = &index;
-  const phi::DenseTensor *p_dout = &dout;
-  phi::DenseTensor tmp_tensor(index);
-  phi::DenseTensor tmp_tensor2(dout);
+  const DenseTensor *p_index = &index;
+  const DenseTensor *p_dout = &dout;
+  DenseTensor tmp_tensor(index);
+  DenseTensor tmp_tensor2(dout);
   const auto index_dims = index.dims();
   if (index_dims.size() == 1) {
     std::vector<int64_t> new_dim = {1, index_dims[0]};

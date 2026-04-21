@@ -20,8 +20,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MeanAllKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   DenseTensor* out) {
   auto rank = x.dims().size();
   if (rank == 0) {  // scalar
     TensorCopy(dev_ctx, x, false, out);
@@ -33,9 +33,9 @@ void MeanAllKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanAllGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& out_grad,
-                       phi::DenseTensor* x_grad) {
+                       const DenseTensor& x,
+                       const DenseTensor& out_grad,
+                       DenseTensor* x_grad) {
   PADDLE_ENFORCE_EQ(out_grad.numel(),
                     1,
                     phi::errors::InvalidArgument(

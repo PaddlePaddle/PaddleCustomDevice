@@ -19,9 +19,9 @@
 #include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
-inline phi::DenseTensor Slice(const phi::DenseTensor &src,
-                              int64_t begin_idx,
-                              int64_t end_idx) {
+inline DenseTensor Slice(const DenseTensor &src,
+                         int64_t begin_idx,
+                         int64_t end_idx) {
   auto meta = src.meta();
   PADDLE_ENFORCE_GE(
       begin_idx,
@@ -47,13 +47,12 @@ inline phi::DenseTensor Slice(const phi::DenseTensor &src,
     return src;
   } else {
     size_t base = src.numel() / meta.dims[0];
-    phi::DenseTensor dst(src);
-    phi::DDim dst_dims = meta.dims;
+    DenseTensor dst(src);
+    DDim dst_dims = meta.dims;
     dst_dims[0] = end_idx - begin_idx;
     size_t dst_offset =
         meta.offset + begin_idx * base * phi::SizeOf(meta.dtype);
-    phi::DenseTensorMeta dst_meta = {
-        meta.dtype, dst_dims, meta.layout, dst_offset};
+    DenseTensorMeta dst_meta = {meta.dtype, dst_dims, meta.layout, dst_offset};
     dst.set_meta(dst_meta);
     return dst;
   }
@@ -73,7 +72,7 @@ size_t Alignment(size_t size, const phi::Place &place, int align_size) {
 template <typename Context>
 struct FillConstantVisitor {
   FillConstantVisitor(const Context &dev_ctx,
-                      phi::DenseTensor *tensor,
+                      DenseTensor *tensor,
                       const float value,
                       phi::DataType dtype)
       : dev_ctx_(dev_ctx), tensor_(tensor), value_(value), dtype_(dtype) {}
@@ -90,8 +89,8 @@ struct FillConstantVisitor {
   void apply(typename std::enable_if<!(std::is_same<T, int8_t>::value ||
                                        std::is_same<T, int16_t>::value)>::type
                  * = nullptr) const {
-    phi::DenseTensor tensor_tmp;
-    phi::DenseTensorMeta meta = {dtype_, {1}};
+    DenseTensor tensor_tmp;
+    DenseTensorMeta meta = {dtype_, {1}};
     tensor_tmp.set_meta(meta);
     dev_ctx_.template Alloc<T>(&tensor_tmp);
     FillMLUTensorWithHostValue<T>(
@@ -113,18 +112,17 @@ struct FillConstantVisitor {
   }
 
   const Context &dev_ctx_;
-  phi::DenseTensor *tensor_;
+  DenseTensor *tensor_;
   float value_;
   phi::DataType dtype_;
 };
 
-void GetMemSizeAndDtype(
-    const std::vector<const phi::DenseTensor *> &dense_tensors,
-    size_t *numel,
-    const size_t &size_of_dtype,
-    const phi::Place &place,
-    const bool use_align = true,
-    const int align_size = -1) {
+void GetMemSizeAndDtype(const std::vector<const DenseTensor *> &dense_tensors,
+                        size_t *numel,
+                        const size_t &size_of_dtype,
+                        const phi::Place &place,
+                        const bool use_align = true,
+                        const int align_size = -1) {
   *numel = 0;
   std::stringstream ss;
   ss << "alloc_space_for_vars: ";
@@ -153,7 +151,7 @@ void GetMemSizeAndDtype(
 
 template <typename T, typename Context>
 void CoalesceTensorKernel(const Context &dev_ctx,
-                          const std::vector<const phi::DenseTensor *> &input,
+                          const std::vector<const DenseTensor *> &input,
                           phi::DataType dtype,
                           bool copy_data,
                           bool set_constant,
@@ -164,8 +162,8 @@ void CoalesceTensorKernel(const Context &dev_ctx,
                           int size_of_dtype,
                           const std::vector<int64_t> &concated_shapes,
                           const std::vector<int64_t> &concated_ranks,
-                          std::vector<phi::DenseTensor *> output,
-                          phi::DenseTensor *fused_output) {
+                          std::vector<DenseTensor *> output,
+                          DenseTensor *fused_output) {
   PADDLE_ENFORCE_GT(input.size(),
                     static_cast<size_t>(0),
                     phi::errors::InvalidArgument(
@@ -203,8 +201,7 @@ void CoalesceTensorKernel(const Context &dev_ctx,
                           "equal to the output tensor number."));
     int64_t accumulated_ranks = 0;
     for (size_t i = 0; i < input.size(); ++i) {
-      phi::DDim dims(concated_shapes.data() + accumulated_ranks,
-                     concated_ranks[i]);
+      DDim dims(concated_shapes.data() + accumulated_ranks, concated_ranks[i]);
       if (!input[i]->initialized()) {
         PADDLE_ENFORCE_EQ(
             input[i],

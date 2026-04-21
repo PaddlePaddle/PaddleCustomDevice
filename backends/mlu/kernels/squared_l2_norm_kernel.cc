@@ -18,8 +18,8 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void SquaredL2NormKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         phi::DenseTensor* out) {
+                         const DenseTensor& x,
+                         DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -29,11 +29,11 @@ void SquaredL2NormKernel(const Context& dev_ctx,
   MLUCnnl::L2Loss(dev_ctx, input_desc.get(), GetBasePtr(&x), GetBasePtr(out));
 
   // do mul
-  phi::DenseTensor scale_tensor;
+  DenseTensor scale_tensor;
   scale_tensor.Resize({1});
   dev_ctx.template Alloc<T>(&scale_tensor);
 
-  phi::DenseTensor bias_tensor;
+  DenseTensor bias_tensor;
   bias_tensor.Resize({1});
   dev_ctx.template Alloc<T>(&bias_tensor);
 
@@ -56,9 +56,9 @@ void SquaredL2NormKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SquaredL2NormGradKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& out_grad,
-                             phi::DenseTensor* x_grad) {
+                             const DenseTensor& x,
+                             const DenseTensor& out_grad,
+                             DenseTensor* x_grad) {
   PADDLE_ENFORCE_EQ(
       out_grad.numel(),
       1,
@@ -97,11 +97,11 @@ void SquaredL2NormGradKernel(const Context& dev_ctx,
                     ToCnnlDataType(x.dtype()));
 
   // mul
-  phi::DenseTensor scale_tensor;
+  DenseTensor scale_tensor;
   scale_tensor.Resize({1});
   dev_ctx.template Alloc<T>(&scale_tensor);
 
-  phi::DenseTensor bias_tensor;
+  DenseTensor bias_tensor;
   bias_tensor.Resize({1});
   dev_ctx.template Alloc<T>(&bias_tensor);
 

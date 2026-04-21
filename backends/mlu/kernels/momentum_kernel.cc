@@ -24,31 +24,31 @@ enum class RegularizationType {
 
 template <typename T, typename Context>
 void MomentumKernel(const Context &dev_ctx,
-                    const phi::DenseTensor &param,
-                    const phi::DenseTensor &grad,
-                    const phi::DenseTensor &velocity,
-                    const phi::DenseTensor &learning_rate,
-                    const paddle::optional<phi::DenseTensor> &master_param,
+                    const DenseTensor &param,
+                    const DenseTensor &grad,
+                    const DenseTensor &velocity,
+                    const DenseTensor &learning_rate,
+                    const paddle::optional<DenseTensor> &master_param,
                     float mu_f,
                     bool use_nesterov,
                     const std::string &regularization_method,
                     float regularization_coeff,
                     bool multi_precision,
                     float rescale_grad,
-                    phi::DenseTensor *param_out,
-                    phi::DenseTensor *velocity_out,
-                    phi::DenseTensor *master_param_out) {
+                    DenseTensor *param_out,
+                    DenseTensor *velocity_out,
+                    DenseTensor *master_param_out) {
   auto mu = static_cast<T>(mu_f);
 
   dev_ctx.template Alloc<T>(param_out);
   dev_ctx.template Alloc<T>(velocity_out);
 
-  phi::DenseTensor mu_tensor;
+  DenseTensor mu_tensor;
   mu_tensor.Resize({1});
   dev_ctx.template Alloc<T>(&mu_tensor);
   FillMLUTensorWithHostValue(dev_ctx, mu, &mu_tensor);
 
-  phi::DenseTensor regularized_grad;
+  DenseTensor regularized_grad;
   MLUCnnlTensorDesc param_desc(param);
   if (regularization_method == "l2_decay") {
     regularized_grad.Resize(grad.dims());
@@ -83,20 +83,20 @@ void MomentumKernel(const Context &dev_ctx,
 template <typename T, typename Context>
 void MergedMomentumKernel(
     const Context &dev_ctx,
-    const std::vector<const phi::DenseTensor *> &param,
-    const std::vector<const phi::DenseTensor *> &grad,
-    const std::vector<const phi::DenseTensor *> &velocity,
-    const std::vector<const phi::DenseTensor *> &learning_rate,
-    const paddle::optional<std::vector<const phi::DenseTensor *>> &master_param,
+    const std::vector<const DenseTensor *> &param,
+    const std::vector<const DenseTensor *> &grad,
+    const std::vector<const DenseTensor *> &velocity,
+    const std::vector<const DenseTensor *> &learning_rate,
+    const paddle::optional<std::vector<const DenseTensor *>> &master_param,
     float mu,
     bool use_nesterov,
     const std::vector<std::string> &regularization_method,
     const std::vector<float> &regularization_coeff,
     bool multi_precision,
     float rescale_grad,
-    std::vector<phi::DenseTensor *> param_out,
-    std::vector<phi::DenseTensor *> velocity_out,
-    std::vector<phi::DenseTensor *> master_param_out) {
+    std::vector<DenseTensor *> param_out,
+    std::vector<DenseTensor *> velocity_out,
+    std::vector<DenseTensor *> master_param_out) {
   size_t n = param.size();
   PADDLE_ENFORCE_EQ(n,
                     param_out.size(),

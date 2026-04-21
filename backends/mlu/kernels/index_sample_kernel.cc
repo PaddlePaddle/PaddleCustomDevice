@@ -18,9 +18,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void IndexSampleGather(const Context& dev_ctx,
-                       const phi::DenseTensor* index,
-                       const phi::DenseTensor* input,
-                       phi::DenseTensor* out) {
+                       const DenseTensor* index,
+                       const DenseTensor* input,
+                       DenseTensor* out) {
   auto index_dims = index->dims();
   auto input_dims = input->dims();
   auto batch_size = input_dims[0];
@@ -58,7 +58,7 @@ void IndexSampleGather(const Context& dev_ctx,
     }
   }
 
-  phi::DenseTensor gather_index;
+  DenseTensor gather_index;
   TensorFromVector(dev_ctx, gather_index_vec, dev_ctx, &gather_index);
   dev_ctx.Wait();
   gather_index.Resize({batch_size, index_length, 2});
@@ -77,9 +77,9 @@ void IndexSampleGather(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void IndexSampleKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& index,
-                       phi::DenseTensor* out) {
+                       const DenseTensor& x,
+                       const DenseTensor& index,
+                       DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   const auto& index_type = index.dtype();
@@ -102,9 +102,9 @@ void IndexSampleKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void IndexSampleGradScatter(const Context& dev_ctx,
-                            const phi::DenseTensor* index,
-                            const phi::DenseTensor* out_grad,
-                            phi::DenseTensor* x_grad) {
+                            const DenseTensor* index,
+                            const DenseTensor* out_grad,
+                            DenseTensor* x_grad) {
   auto index_dims = index->dims();
   auto input_dims = x_grad->dims();
   auto batch_size = input_dims[0];
@@ -120,7 +120,7 @@ void IndexSampleGradScatter(const Context& dev_ctx,
       scatter_index_vec.push_back(index_vec[i * index_length + j]);
     }
   }
-  phi::DenseTensor scatter_index;
+  DenseTensor scatter_index;
   TensorFromVector(dev_ctx, scatter_index_vec, dev_ctx, &scatter_index);
   dev_ctx.Wait();
   scatter_index.Resize({batch_size, index_length, 2});
@@ -151,10 +151,10 @@ void IndexSampleGradScatter(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void IndexSampleGradKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
-                           const phi::DenseTensor& index,
-                           const phi::DenseTensor& out_grad,
-                           phi::DenseTensor* x_grad) {
+                           const DenseTensor& x,
+                           const DenseTensor& index,
+                           const DenseTensor& out_grad,
+                           DenseTensor* x_grad) {
   dev_ctx.template Alloc<T>(x_grad);
 
   const auto& index_type = index.dtype();

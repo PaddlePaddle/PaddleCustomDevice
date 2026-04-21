@@ -19,11 +19,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void HuberLossKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& input,
-                     const phi::DenseTensor& label,
+                     const DenseTensor& input,
+                     const DenseTensor& label,
                      float delta,
-                     phi::DenseTensor* out,
-                     phi::DenseTensor* residual) {
+                     DenseTensor* out,
+                     DenseTensor* residual) {
   // compute y-x
   cnnlDataType_t data_type = ToCnnlDataType<T>();
   dev_ctx.template Alloc<T>(residual);
@@ -82,11 +82,11 @@ void HuberLossKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HuberLossGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& residual,
-                         const phi::DenseTensor& dout,
+                         const DenseTensor& residual,
+                         const DenseTensor& dout,
                          float delta,
-                         phi::DenseTensor* dx,
-                         phi::DenseTensor* dy) {
+                         DenseTensor* dx,
+                         DenseTensor* dy) {
   Tensor t_grad_rd;
   t_grad_rd.Resize(residual.dims());
   dev_ctx.template Alloc<T>(&t_grad_rd);

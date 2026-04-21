@@ -20,10 +20,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ExpandAsKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const paddle::optional<phi::DenseTensor>& y,
+                    const DenseTensor& x,
+                    const paddle::optional<DenseTensor>& y,
                     const std::vector<int64_t>& target_shape_64,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   std::vector<int> target_shape =
       std::vector<int>(target_shape_64.begin(), target_shape_64.end());
   auto rank = x.dims().size();
@@ -72,7 +72,7 @@ void ExpandAsKernel(const Context& dev_ctx,
               target_shape[i]));
     }
   }
-  phi::DDim out_dims = phi::make_ddim(target_shape);
+  DDim out_dims = phi::make_ddim(target_shape);
   out->Resize(out_dims);
   dev_ctx.template Alloc<T>(out);
 

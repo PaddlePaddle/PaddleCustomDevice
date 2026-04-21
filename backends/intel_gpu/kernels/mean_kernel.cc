@@ -15,7 +15,7 @@
 #include "kernels/dnn_support.hpp"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T>
 void MeanAllKernel(const phi::Context& dev_ctx,
@@ -63,18 +63,14 @@ void MeanAllGradKernel(const phi::Context& dev_ctx,
   q->wait();
 }
 
-}  // namespace custom_kernel
+}  // namespace phi
 
-PD_BUILD_PHI_KERNEL(mean_all,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::MeanAllKernel,
-                    float,
-                    double) {}
+PD_BUILD_PHI_KERNEL(
+    mean_all, intel_gpu, ALL_LAYOUT, phi::MeanAllKernel, float, double) {}
 
 PD_BUILD_PHI_KERNEL(mean_all_grad,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::MeanAllGradKernel,
+                    phi::MeanAllGradKernel,
                     float,
                     double) {}

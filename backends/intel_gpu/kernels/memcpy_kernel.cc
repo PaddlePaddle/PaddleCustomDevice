@@ -16,7 +16,7 @@
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T>
 void MemcpyD2HKernel(const phi::Context& dev_ctx,
@@ -70,12 +70,12 @@ void MemcpyKernel(const phi::Context& dev_ctx,
   }
 }
 
-}  // namespace custom_kernel
+}  // namespace phi
 
 PD_BUILD_PHI_KERNEL(memcpy_d2h,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::MemcpyD2HKernel,
+                    phi::MemcpyD2HKernel,
                     float,
                     double,
                     int32_t,
@@ -85,7 +85,7 @@ PD_BUILD_PHI_KERNEL(memcpy_d2h,
 PD_BUILD_PHI_KERNEL(memcpy_h2d,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::MemcpyH2DKernel,
+                    phi::MemcpyH2DKernel,
                     float,
                     double,
                     int32_t,
@@ -95,7 +95,7 @@ PD_BUILD_PHI_KERNEL(memcpy_h2d,
 PD_BUILD_PHI_KERNEL(memcpy,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::MemcpyKernel,
+                    phi::MemcpyKernel,
                     phi::dtype::float16,
                     float,
                     double,

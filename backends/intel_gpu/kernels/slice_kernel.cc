@@ -15,7 +15,7 @@
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T>
 void SliceRawKernel(const phi::Context& ctx,
@@ -142,12 +142,8 @@ void SliceRawKernel(const phi::Context& ctx,
   out->Resize(out_dims);
 }
 
-}  // namespace custom_kernel
+}  // namespace phi
 
-PD_BUILD_PHI_KERNEL(slice,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::SliceRawKernel,
-                    int64_t,
-                    float,
-                    double) {}
+PD_BUILD_PHI_KERNEL(
+    slice, intel_gpu, ALL_LAYOUT, phi::SliceRawKernel, int64_t, float, double) {
+}

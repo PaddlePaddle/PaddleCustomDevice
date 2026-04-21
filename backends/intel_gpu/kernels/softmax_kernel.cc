@@ -15,7 +15,7 @@
 #include "kernels/dnn_support.hpp"
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-namespace custom_kernel {
+namespace phi {
 
 template <typename T>
 T ValueClip(const T& x) {
@@ -212,17 +212,10 @@ void SoftmaxKernel(const phi::Context& ctx,
   }
 }
 
-}  // namespace custom_kernel
+}  // namespace phi
 
-PD_BUILD_PHI_KERNEL(softmax,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::SoftmaxKernel,
-                    float,
-                    double) {}
+PD_BUILD_PHI_KERNEL(
+    softmax, intel_gpu, ALL_LAYOUT, phi::SoftmaxKernel, float, double) {}
 
-PD_BUILD_PHI_KERNEL(softmax_grad,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::SoftmaxGradKernel,
-                    float) {}
+PD_BUILD_PHI_KERNEL(
+    softmax_grad, intel_gpu, ALL_LAYOUT, phi::SoftmaxGradKernel, float) {}

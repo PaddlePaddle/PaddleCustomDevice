@@ -16,7 +16,7 @@
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T>
 void ReduceKernel(const phi::Context& dev_ctx,
@@ -208,24 +208,17 @@ void MinKernel(const phi::Context& dev_ctx,
   MinRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
 }
 
-}  // namespace custom_kernel
+}  // namespace phi
 
 PD_BUILD_PHI_KERNEL(
-    mean_raw, intel_gpu, ALL_LAYOUT, custom_kernel::MeanRawKernel, float) {}
-PD_BUILD_PHI_KERNEL(
-    mean, intel_gpu, ALL_LAYOUT, custom_kernel::MeanKernel, float) {}
+    mean_raw, intel_gpu, ALL_LAYOUT, phi::MeanRawKernel, float) {}
+PD_BUILD_PHI_KERNEL(mean, intel_gpu, ALL_LAYOUT, phi::MeanKernel, float) {}
 
-PD_BUILD_PHI_KERNEL(
-    sum_raw, intel_gpu, ALL_LAYOUT, custom_kernel::SumRawKernel, float) {}
-PD_BUILD_PHI_KERNEL(
-    sum, intel_gpu, ALL_LAYOUT, custom_kernel::SumKernel, float) {}
+PD_BUILD_PHI_KERNEL(sum_raw, intel_gpu, ALL_LAYOUT, phi::SumRawKernel, float) {}
+PD_BUILD_PHI_KERNEL(sum, intel_gpu, ALL_LAYOUT, phi::SumKernel, float) {}
 
-PD_BUILD_PHI_KERNEL(
-    min_raw, intel_gpu, ALL_LAYOUT, custom_kernel::MinRawKernel, float) {}
-PD_BUILD_PHI_KERNEL(
-    min, intel_gpu, ALL_LAYOUT, custom_kernel::MinKernel, float) {}
+PD_BUILD_PHI_KERNEL(min_raw, intel_gpu, ALL_LAYOUT, phi::MinRawKernel, float) {}
+PD_BUILD_PHI_KERNEL(min, intel_gpu, ALL_LAYOUT, phi::MinKernel, float) {}
 
-PD_BUILD_PHI_KERNEL(
-    max_raw, intel_gpu, ALL_LAYOUT, custom_kernel::MaxRawKernel, float) {}
-PD_BUILD_PHI_KERNEL(
-    max, intel_gpu, ALL_LAYOUT, custom_kernel::MaxKernel, float) {}
+PD_BUILD_PHI_KERNEL(max_raw, intel_gpu, ALL_LAYOUT, phi::MaxRawKernel, float) {}
+PD_BUILD_PHI_KERNEL(max, intel_gpu, ALL_LAYOUT, phi::MaxKernel, float) {}

@@ -16,7 +16,7 @@
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T>
 void AssignValueKernel(const phi::Context& dev_ctx,
@@ -76,12 +76,12 @@ void AssignRawKernel(const phi::Context& dev_ctx,
   }
 }
 
-}  // namespace custom_kernel
+}  // namespace phi
 
 PD_BUILD_PHI_KERNEL(assign_value,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::AssignValueKernel,
+                    phi::AssignValueKernel,
                     int,
                     int64_t,
                     float,
@@ -90,7 +90,7 @@ PD_BUILD_PHI_KERNEL(assign_value,
 PD_BUILD_PHI_KERNEL(assign_raw,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::AssignRawKernel,
+                    phi::AssignRawKernel,
                     int,
                     int64_t,
                     float,

@@ -16,7 +16,7 @@
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T>
 void TransposeKernelGPU(const phi::Context& ctx,
@@ -88,10 +88,7 @@ void TransposeKernelGPU(const phi::Context& ctx,
   reorder_prim.execute(engine_stream, reorder_args);
   engine_stream.wait();
 }
-}  // namespace custom_kernel
+}  // namespace phi
 
-PD_BUILD_PHI_KERNEL(transpose,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::TransposeKernelGPU,
-                    float) {}
+PD_BUILD_PHI_KERNEL(
+    transpose, intel_gpu, ALL_LAYOUT, phi::TransposeKernelGPU, float) {}

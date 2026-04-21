@@ -15,7 +15,7 @@
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 static std::vector<int64_t> ValidateShape(const std::vector<int64_t> shape,
                                           const std::vector<int64_t>& in_dims) {
@@ -160,12 +160,12 @@ void ReshapeWithXShape(const phi::Context& dev_ctx,
   ReshapeKernel<T>(dev_ctx, x, shape, out);
 }
 
-}  // namespace custom_kernel
+}  // namespace phi
 
 PD_BUILD_PHI_KERNEL(reshape,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::ReshapeKernel,
+                    phi::ReshapeKernel,
                     float,
                     double,
                     int8_t,
@@ -178,7 +178,7 @@ PD_BUILD_PHI_KERNEL(reshape,
 PD_BUILD_PHI_KERNEL(reshape_with_xshape,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::ReshapeWithXShape,
+                    phi::ReshapeWithXShape,
                     float,
                     double,
                     int8_t,

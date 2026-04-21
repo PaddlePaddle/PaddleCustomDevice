@@ -17,7 +17,7 @@
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 namespace gpu {
 
@@ -243,12 +243,12 @@ void ArgsortKernel(const phi::Context& dev_ctx,
 
 }  // namespace gpu
 
-}  // namespace custom_kernel
+}  // namespace phi
 
 PD_BUILD_PHI_KERNEL(argsort,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::gpu::ArgsortKernel,
+                    phi::gpu::ArgsortKernel,
                     float,
                     double,
                     int,

@@ -16,7 +16,7 @@
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T>
 void MultiplyRawKernelGPU(const phi::Context& dev_ctx,
@@ -138,12 +138,12 @@ void MultiplyMain(const phi::Context& dev_ctx,
   MultiplyMainRaw<T>(dev_ctx, x, y, axis, out);
 }
 
-}  // namespace custom_kernel
+}  // namespace phi
 
 PD_BUILD_PHI_KERNEL(multiply_raw,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::MultiplyMainRaw,
+                    phi::MultiplyMainRaw,
                     int32_t,
                     int64_t,
                     float,
@@ -152,7 +152,7 @@ PD_BUILD_PHI_KERNEL(multiply_raw,
 PD_BUILD_PHI_KERNEL(multiply,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::MultiplyMain,
+                    phi::MultiplyMain,
                     int32_t,
                     int64_t,
                     float,

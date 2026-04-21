@@ -16,7 +16,7 @@
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T, typename F, typename FF>
 void RawCompareKernelSycl(const phi::Context& dev_ctx,
@@ -257,13 +257,13 @@ void GreaterEqualKernel(const phi::Context& dev_ctx,
                    });
 }
 
-}  // namespace custom_kernel
+}  // namespace phi
 
 #define PD_REGISTER_COMPARE_KERNEL(name, func)            \
   PD_BUILD_PHI_KERNEL(name,                               \
                       intel_gpu,                          \
                       ALL_LAYOUT,                         \
-                      custom_kernel::func##Kernel,        \
+                      phi::func##Kernel,                  \
                       float,                              \
                       double,                             \
                       uint8_t,                            \

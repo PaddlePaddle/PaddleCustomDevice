@@ -15,7 +15,7 @@
 #pragma once
 
 #include "paddle/phi/capi/all.h"
-namespace custom_kernel {
+namespace phi {
 template <typename T>
 void TransposeKernelGPU(const phi::Context& ctx,
                         const phi::DenseTensor& x,
@@ -27,4 +27,4 @@ void SoftmaxKernel(const phi::Context& dev_ctx,
                    const phi::DenseTensor& x,
                    int axis,
                    phi::DenseTensor* out);
-}  // namespace custom_kernel
+}  // namespace phi

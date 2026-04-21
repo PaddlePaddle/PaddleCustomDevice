@@ -15,7 +15,7 @@
 #include "kernels/dnn_support.hpp"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T, typename VType>
 void FullValue(const phi::Context& dev_ctx,
@@ -40,12 +40,12 @@ void FullKernel(const phi::Context& dev_ctx,
   out->Resize(std::vector<int64_t>(int_shape.cbegin(), int_shape.cend()));
   FullValue<T>(dev_ctx, out, val.to<T>());
 }
-}  // namespace custom_kernel
+}  // namespace phi
 
 PD_BUILD_PHI_KERNEL(full,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::FullKernel,
+                    phi::FullKernel,
                     float,
                     double,
                     uint8_t,

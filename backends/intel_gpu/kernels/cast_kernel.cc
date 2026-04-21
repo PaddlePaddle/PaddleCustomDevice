@@ -16,7 +16,7 @@
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T>
 void CastKernel(const phi::Context& dev_ctx,
@@ -109,12 +109,12 @@ void CastKernel(const phi::Context& dev_ctx,
   q->wait();
 }
 
-}  // namespace custom_kernel
+}  // namespace phi
 
 PD_BUILD_PHI_KERNEL(cast,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::CastKernel,
+                    phi::CastKernel,
                     float,
                     double,
                     int,

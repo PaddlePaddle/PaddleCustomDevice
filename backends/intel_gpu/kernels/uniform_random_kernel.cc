@@ -16,7 +16,7 @@
 #include "kernels/dnn_support.hpp"
 #include "paddle/phi/capi/all.h"
 
-namespace custom_kernel {
+namespace phi {
 
 template <typename T>
 inline void UniformRealDistribution(T *data,
@@ -95,19 +95,16 @@ void UniformRandomKernel(const phi::Context &dev_ctx,
                          phi::DenseTensor *out) {
   show_kernel(
       "UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
-  custom_kernel::UniformRandomRawKernel<T>(
+  phi::UniformRandomRawKernel<T>(
       dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);
 }
-}  // namespace custom_kernel
+}  // namespace phi
 
 PD_BUILD_PHI_KERNEL(uniform_random_raw,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::UniformRandomRawKernel,
+                    phi::UniformRandomRawKernel,
                     float) {}
 
-PD_BUILD_PHI_KERNEL(uniform_random,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::UniformRandomKernel,
-                    float) {}
+PD_BUILD_PHI_KERNEL(
+    uniform_random, intel_gpu, ALL_LAYOUT, phi::UniformRandomKernel, float) {}

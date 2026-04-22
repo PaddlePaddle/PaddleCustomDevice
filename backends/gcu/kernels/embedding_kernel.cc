@@ -68,9 +68,9 @@ void EmbeddingKernel(const Context& dev_ctx,
     meta_info.strides = DenseTensorMeta::calc_strides(meta_info.dims);
     pad_tensor.set_meta(meta_info);
     zero_tensor.set_meta(meta_info);
-    custom_kernel::FullKernel<int32_t, phi::CustomContext>(
+    custom_kernel::FullKernel<int32_t, CustomContext>(
         dev_ctx, shape, phi::Scalar(padding_idx), x.dtype(), &pad_tensor);
-    custom_kernel::FullKernel<T, phi::CustomContext>(
+    custom_kernel::FullKernel<T, CustomContext>(
         dev_ctx, shape, phi::Scalar(0), x.dtype(), &zero_tensor);
     meta_info.dtype = DataType::BOOL;
     mask_tensor.set_meta(meta_info);
@@ -87,10 +87,10 @@ void EmbeddingKernel(const Context& dev_ctx,
     x_brd.set_meta(pad_tensor.meta());
     dev_ctx.Alloc(&x_brd, x_brd.dtype());
     custom_kernel::Broadcast(dev_ctx, x_expand, &x_brd);
-    custom_kernel::EqualKernel<bool, phi::CustomContext>(
+    custom_kernel::EqualKernel<bool, CustomContext>(
         dev_ctx, pad_tensor, x_brd, &mask_tensor);
     pad_tensor.set_meta(out->meta());
-    custom_kernel::WhereKernel<T, phi::CustomContext>(
+    custom_kernel::WhereKernel<T, CustomContext>(
         dev_ctx, mask_tensor, zero_tensor, *out, &pad_tensor);
     *out = pad_tensor;
 

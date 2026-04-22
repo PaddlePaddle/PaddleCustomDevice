@@ -34,14 +34,14 @@ inline void UniformRealDistribution(T* data,
 template <typename T, typename Context>
 void UniformRawKernel(const Context& dev_ctx,
                       const phi::IntArray& shape,
-                      phi::DataType dtype,
+                      DataType dtype,
                       const phi::Scalar& min,
                       const phi::Scalar& max,
                       int seed,
                       int diag_num,
                       int diag_step,
                       float diag_val,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("uniform_raw");
   ContextPinnedGuard<Context> ctx_pinned_guard(dev_ctx);
   VLOG(6) << "[HOST_KERNEL] Impl on host for uniform_raw";
@@ -49,14 +49,14 @@ void UniformRawKernel(const Context& dev_ctx,
           << ", max:" << max.ToString() << ", seed:" << seed
           << ", diag_num:" << diag_num << ", diag_step:" << diag_step
           << ", diag_val:" << diag_val << ", shape:" << out->dims()
-          << ", dtype:" << phi::DataTypeToString(dtype);
+          << ", dtype:" << DataTypeToString(dtype);
   out->Resize(phi::make_ddim(shape.GetData()));
   T* data = dev_ctx.template Alloc<T>(out);
   auto size = out->numel();
 
   // 1. CPU implement
-  phi::DenseTensor cpu_out;
-  phi::DenseTensorMeta cpu_out_meta = {out->dtype(), out->dims()};
+  DenseTensor cpu_out;
+  DenseTensorMeta cpu_out_meta = {out->dtype(), out->dims()};
   cpu_out.set_meta(cpu_out_meta);
   T* cpu_data = dev_ctx.template HostAlloc<T>(&cpu_out);
 
@@ -95,11 +95,11 @@ void UniformRawKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void UniformKernel(const Context& dev_ctx,
                    const phi::IntArray& shape,
-                   phi::DataType dtype,
+                   DataType dtype,
                    const phi::Scalar& min,
                    const phi::Scalar& max,
                    int seed,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("uniform");
 
   if (LaunchAOTKernel()) {

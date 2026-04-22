@@ -48,12 +48,12 @@ int64_t GridSamplePaddingMode(const std::string& mode) {
 
 template <typename T, typename Context>
 void GridSampleKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& grid,
+                      const DenseTensor& x,
+                      const DenseTensor& grid,
                       const std::string& mode,
                       const std::string& padding_mode,
                       bool align_corners,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("grid_sample");
   dev_ctx.template Alloc<T>(out);
 

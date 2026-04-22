@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ContiguousKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& input,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& input,
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("contiguous");
-  phi::DenseTensorMeta meta = input.meta();
+  DenseTensorMeta meta = input.meta();
   meta.strides = meta.calc_strides(meta.dims);
   meta.offset = 0;
   out->set_meta(meta);

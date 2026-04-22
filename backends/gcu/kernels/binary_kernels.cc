@@ -47,13 +47,13 @@ inline phi::DDim GetDimsWithAxis(const phi::DDim& x_dims,
   return phi::make_ddim(y_shape);
 }
 
-std::vector<phi::DenseTensor> PaddingDims(const phi::DenseTensor& x,
-                                          const phi::DenseTensor& y,
-                                          const int axis) {
+std::vector<DenseTensor> PaddingDims(const DenseTensor& x,
+                                     const DenseTensor& y,
+                                     const int axis) {
   auto x_dims = x.dims();
   auto y_dims = y.dims();
-  phi::DenseTensor x_tensor(x);
-  phi::DenseTensor y_tensor(y);
+  DenseTensor x_tensor(x);
+  DenseTensor y_tensor(y);
 
   auto fixed_axis =
       (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
@@ -66,14 +66,14 @@ std::vector<phi::DenseTensor> PaddingDims(const phi::DenseTensor& x,
   return {x_tensor, y_tensor};
 }
 
-bool NeedTranspose(const phi::DenseTensor& tensor) {
+bool NeedTranspose(const DenseTensor& tensor) {
   auto dims = common::vectorize(tensor.dims());
   return std::count(dims.begin(), dims.end(), 1) < 3;
 }
 
 bool UnifyLayout(const phi::CustomContext& dev_ctx,
-                 phi::DenseTensor& x,    // NOLINT
-                 phi::DenseTensor& y) {  // NOLINT
+                 DenseTensor& x,    // NOLINT
+                 DenseTensor& y) {  // NOLINT
   if (!EnableTransposeOptimize()) {
     return false;
   }
@@ -116,10 +116,10 @@ bool UnifyLayout(const phi::CustomContext& dev_ctx,
 
 template <typename T, typename Context>
 void ElementBaseKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        int axis,
-                       phi::DenseTensor* out,
+                       DenseTensor* out,
                        const std::string& op_type) {
   dev_ctx.template Alloc<T>(out);
 
@@ -146,12 +146,12 @@ void ElementBaseKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ElementBaseGradKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
-                           const phi::DenseTensor& y,
-                           const phi::DenseTensor& dout,
+                           const DenseTensor& x,
+                           const DenseTensor& y,
+                           const DenseTensor& dout,
                            int axis,
-                           phi::DenseTensor* dx,
-                           phi::DenseTensor* dy,
+                           DenseTensor* dx,
+                           DenseTensor* dy,
                            const std::string& op_type) {
   TensorNameMap input_names;
   input_names["X"] = {"x"};
@@ -164,11 +164,11 @@ void ElementBaseGradKernel(const Context& dev_ctx,
   VLOG(6) << op_type << " input y shape: " << y.dims().to_str()
           << " initialized: " << y.initialized();
 
-  phi::DenseTensor input_x_tmp;
-  phi::DenseTensor input_y_tmp;
+  DenseTensor input_x_tmp;
+  DenseTensor input_y_tmp;
 
-  phi::DenseTensor* input_x = const_cast<phi::DenseTensor*>(&x);
-  phi::DenseTensor* input_y = const_cast<phi::DenseTensor*>(&y);
+  DenseTensor* input_x = const_cast<DenseTensor*>(&x);
+  DenseTensor* input_y = const_cast<DenseTensor*>(&y);
   if (!x.initialized()) {
     input_x_tmp.set_meta(x.meta());
     dev_ctx.template Alloc<T>(&input_x_tmp);
@@ -207,21 +207,20 @@ void ElementBaseGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AddRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("add_raw");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
     auto padding_shapes = PaddingDims(x, y, axis);
     auto scalar = phi::Scalar(1.0f);
-    phi::DenseTensor input_x =
+    DenseTensor input_x =
         MaybeCreateOrTrans64To32bits(dev_ctx, padding_shapes[0]);
-    phi::DenseTensor input_y =
+    DenseTensor input_y =
         MaybeCreateOrTrans64To32bits(dev_ctx, padding_shapes[1]);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
     // VLOG(6) << "Transpose debug, AddKernel add_raw input_x:"
     //           << custom_kernel::TensorDetailsToString(input_x);
@@ -249,9 +248,9 @@ void AddRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AddKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,  // NHWC
-               const phi::DenseTensor& y,  // NCHW
-               phi::DenseTensor* out) {
+               const DenseTensor& x,  // NHWC
+               const DenseTensor& y,  // NCHW
+               DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("add");
   custom_kernel::AddRawKernel<T, Context>(dev_ctx, x, y, -1, out);
   VLOG(6) << "Transpose debug, AddKernel output:"
@@ -260,12 +259,12 @@ void AddKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AddGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   const phi::DenseTensor& dout,
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   const DenseTensor& dout,
                    int axis,
-                   phi::DenseTensor* dx,
-                   phi::DenseTensor* dy) {
+                   DenseTensor* dx,
+                   DenseTensor* dy) {
   PADDLE_GCU_KERNEL_TRACE("add_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -277,17 +276,16 @@ void AddGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SubtractKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    const DenseTensor& y,
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("subtract");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
     auto scalar = phi::Scalar(1.0f);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     LAUNCH_TOPSATENOP(topsatenSub, dev_ctx, output, input_x, input_y, scalar);
     MaybeTransResult(dev_ctx, output, out);
 
@@ -298,12 +296,12 @@ void SubtractKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SubtractGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        const phi::DenseTensor& dout,
+                        const DenseTensor& x,
+                        const DenseTensor& y,
+                        const DenseTensor& dout,
                         int axis,
-                        phi::DenseTensor* dx,
-                        phi::DenseTensor* dy) {
+                        DenseTensor* dx,
+                        DenseTensor* dy) {
   PADDLE_GCU_KERNEL_TRACE("subtract_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -315,19 +313,18 @@ void SubtractGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MultiplyKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    const DenseTensor& y,
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("multiply");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
     auto padding_shapes = PaddingDims(x, y, -1);
-    phi::DenseTensor input_x =
+    DenseTensor input_x =
         MaybeCreateOrTrans64To32bits(dev_ctx, padding_shapes[0]);
-    phi::DenseTensor input_y =
+    DenseTensor input_y =
         MaybeCreateOrTrans64To32bits(dev_ctx, padding_shapes[1]);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
     // VLOG(6) << "Transpose debug, MultiplyKernel input_x:"
     //           << custom_kernel::TensorDetailsToString(input_x);
@@ -354,12 +351,12 @@ void MultiplyKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MultiplyGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        const phi::DenseTensor& dout,
+                        const DenseTensor& x,
+                        const DenseTensor& y,
+                        const DenseTensor& dout,
                         int axis,
-                        phi::DenseTensor* dx,
-                        phi::DenseTensor* dy) {
+                        DenseTensor* dx,
+                        DenseTensor* dy) {
   PADDLE_GCU_KERNEL_TRACE("multiply_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -371,9 +368,9 @@ void MultiplyGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DivideKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  const DenseTensor& y,
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("divide");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -386,13 +383,13 @@ void DivideKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DivideGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      const phi::DenseTensor& out,
-                      const phi::DenseTensor& dout,
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      const DenseTensor& out,
+                      const DenseTensor& dout,
                       int axis,
-                      phi::DenseTensor* dx,
-                      phi::DenseTensor* dy) {
+                      DenseTensor* dx,
+                      DenseTensor* dy) {
   PADDLE_GCU_KERNEL_TRACE("divide_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -404,16 +401,15 @@ void DivideGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MinimumKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("minimum");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     LAUNCH_TOPSATENOP(topsatenMinimum, dev_ctx, output_z, input_x, input_y);
     MaybeTransResult(dev_ctx, output_z, out);
 
@@ -424,11 +420,11 @@ void MinimumKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MinimumGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       const phi::DenseTensor& dout,
-                       phi::DenseTensor* dx,
-                       phi::DenseTensor* dy) {
+                       const DenseTensor& x,
+                       const DenseTensor& y,
+                       const DenseTensor& dout,
+                       DenseTensor* dx,
+                       DenseTensor* dy) {
   PADDLE_GCU_KERNEL_TRACE("minimum_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -440,16 +436,15 @@ void MinimumGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MaximumKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("maximum");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     LAUNCH_TOPSATENOP(topsatenMaximum, dev_ctx, output_z, input_x, input_y);
     MaybeTransResult(dev_ctx, output_z, out);
 
@@ -460,11 +455,11 @@ void MaximumKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MaximumGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       const phi::DenseTensor& dout,
-                       phi::DenseTensor* dx,
-                       phi::DenseTensor* dy) {
+                       const DenseTensor& x,
+                       const DenseTensor& y,
+                       const DenseTensor& dout,
+                       DenseTensor* dx,
+                       DenseTensor* dy) {
   PADDLE_GCU_KERNEL_TRACE("maximum_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -476,16 +471,15 @@ void MaximumGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ElementwisePowKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y,
-                          phi::DenseTensor* out) {
+                          const DenseTensor& x,
+                          const DenseTensor& y,
+                          DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("elementwise_pow");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     LAUNCH_TOPSATENOP(topsatenPow, dev_ctx, output_z, input_x, input_y);
     MaybeTransResult(dev_ctx, output_z, out);
 
@@ -496,16 +490,15 @@ void ElementwisePowKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RemainderKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("remainder");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     LAUNCH_TOPSATENOP(topsatenRemainder, dev_ctx, output_z, input_x, input_y);
     MaybeTransResult(dev_ctx, output_z, out);
 
@@ -516,16 +509,15 @@ void RemainderKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorDivideKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       phi::DenseTensor* out) {
+                       const DenseTensor& x,
+                       const DenseTensor& y,
+                       DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("floor_divide");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     static const char* const rounding_mode = "floor";
     LAUNCH_TOPSATENOP(
         topsatenDiv, dev_ctx, output_z, input_x, input_y, rounding_mode);
@@ -538,16 +530,15 @@ void FloorDivideKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FMaxKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::DenseTensor& y,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                const DenseTensor& y,
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("fmax");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     LAUNCH_TOPSATENOP(topsatenFmax, dev_ctx, output_z, input_x, input_y);
     MaybeTransResult(dev_ctx, output_z, out);
 
@@ -558,16 +549,15 @@ void FMaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FMinKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::DenseTensor& y,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                const DenseTensor& y,
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("fmin");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     LAUNCH_TOPSATENOP(topsatenFmin, dev_ctx, output_z, input_x, input_y);
     MaybeTransResult(dev_ctx, output_z, out);
 

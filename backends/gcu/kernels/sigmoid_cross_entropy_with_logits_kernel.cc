@@ -18,11 +18,11 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void SigmoidCrossEntropyWithLogitsKernel(const Context& dev_ctx,
-                                         const phi::DenseTensor& x,
-                                         const phi::DenseTensor& label,
+                                         const DenseTensor& x,
+                                         const DenseTensor& label,
                                          bool normalize,
                                          int ignore_index,
-                                         phi::DenseTensor* out) {
+                                         DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("sigmoid_cross_entropy_with_logits");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
@@ -58,12 +58,12 @@ void SigmoidCrossEntropyWithLogitsKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SigmoidCrossEntropyWithLogitsGradKernel(const Context& dev_ctx,
-                                             const phi::DenseTensor& x,
-                                             const phi::DenseTensor& label,
-                                             const phi::DenseTensor& dout,
+                                             const DenseTensor& x,
+                                             const DenseTensor& label,
+                                             const DenseTensor& dout,
                                              bool normalize,
                                              int ignore_index,
-                                             phi::DenseTensor* dx) {
+                                             DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("sigmoid_cross_entropy_with_logits_grad");
   dev_ctx.template Alloc<T>(dx);
 

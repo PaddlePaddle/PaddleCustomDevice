@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GatherNdKernel(const Context &dev_ctx,
-                    const phi::DenseTensor &x,
-                    const phi::DenseTensor &index,
-                    phi::DenseTensor *out) {
+                    const DenseTensor &x,
+                    const DenseTensor &index,
+                    DenseTensor *out) {
   PADDLE_GCU_KERNEL_TRACE("gather_nd");
   dev_ctx.template Alloc<T>(out);
 
@@ -44,22 +44,22 @@ void GatherNdKernel(const Context &dev_ctx,
 
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
-    // phi::DenseTensor input_x(x);
-    // phi::DenseTensor input_index(index);
-    // phi::DenseTensor output(*out);
+    // DenseTensor input_x(x);
+    // DenseTensor input_index(index);
+    // DenseTensor output(*out);
 
-    // if (x.dtype() == phi::DataType::INT64) {
-    //   input_x = custom_kernel::Cast(dev_ctx, x, phi::DataType::INT32);
+    // if (x.dtype() == DataType::INT64) {
+    //   input_x = custom_kernel::Cast(dev_ctx, x, DataType::INT32);
     // }
 
-    // if (index.dtype() == phi::DataType::INT64) {
+    // if (index.dtype() == DataType::INT64) {
     //   input_index = custom_kernel::Cast(dev_ctx, index,
-    //   phi::DataType::INT32);
+    //   DataType::INT32);
     // }
 
-    // if (out->dtype() == phi::DataType::INT64) {
+    // if (out->dtype() == DataType::INT64) {
     //   auto meta = out->meta();
-    //   meta.dtype = phi::DataType::INT32;
+    //   meta.dtype = DataType::INT32;
     //   output.set_meta(meta);
     //   dev_ctx.template Alloc(&output, output.dtype());
     // }
@@ -129,8 +129,8 @@ void GatherNdKernel(const Context &dev_ctx,
     //                   indices_are_sorted,
     //                   unique_indices);
 
-    // if (out->dtype() == phi::DataType::INT64) {
-    //   custom_kernel::Cast(dev_ctx, output, phi::DataType::INT64, out);
+    // if (out->dtype() == DataType::INT64) {
+    //   custom_kernel::Cast(dev_ctx, output, DataType::INT64, out);
     // }
 
   } else {  // kernel impl base on JIT
@@ -164,10 +164,10 @@ void GatherNdKernel(const Context &dev_ctx,
 
 template <typename T, typename Context>
 void GatherNdGradKernel(const Context &dev_ctx,
-                        const phi::DenseTensor &x,
-                        const phi::DenseTensor &index,
-                        const phi::DenseTensor &dout,
-                        phi::DenseTensor *dx) {
+                        const DenseTensor &x,
+                        const DenseTensor &index,
+                        const DenseTensor &dout,
+                        DenseTensor *dx) {
   PADDLE_GCU_KERNEL_TRACE("gather_nd_grad");
   auto x_dims = dx->dims();
   dev_ctx.template Alloc<T>(dx);

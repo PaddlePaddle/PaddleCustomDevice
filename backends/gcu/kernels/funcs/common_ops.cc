@@ -16,9 +16,9 @@
 
 namespace custom_kernel {
 namespace {
-std::unordered_map<phi::DataType, phi::DataType> kDataTypeTrans64To32 = {
-    {phi::DataType::INT64, phi::DataType::INT32},
-    {phi::DataType::FLOAT64, phi::DataType::FLOAT32},
+std::unordered_map<DataType, DataType> kDataTypeTrans64To32 = {
+    {DataType::INT64, DataType::INT32},
+    {DataType::FLOAT64, DataType::FLOAT32},
 };
 
 std::vector<int64_t> InferBroadcastDimMap(
@@ -56,23 +56,22 @@ std::vector<int64_t> InferBroadcastDimMap(
   return dim_maps;
 }
 
-inline std::string GetDataTypePairKey(const phi::DataType src_type,
-                                      const phi::DataType dst_type) {
-  return phi::DataTypeToString(src_type) + "_to_" +
-         phi::DataTypeToString(dst_type);
+inline std::string GetDataTypePairKey(const DataType src_type,
+                                      const DataType dst_type) {
+  return DataTypeToString(src_type) + "_to_" + DataTypeToString(dst_type);
 }
 }  // namespace
 
-phi::DenseTensor MaybeCreateOrTrans(
+DenseTensor MaybeCreateOrTrans(
     const phi::CustomContext& dev_ctx,
-    const phi::DenseTensor& src,
-    const std::unordered_map<phi::DataType, phi::DataType>& tans_map,
+    const DenseTensor& src,
+    const std::unordered_map<DataType, DataType>& tans_map,
     bool need_cast) {
   auto src_dtype = src.dtype();
   if (tans_map.count(src_dtype) == 0) {
     return src;
   }
-  phi::DenseTensor dst;
+  DenseTensor dst;
   if (need_cast) {
     custom_kernel::Cast(dev_ctx, src, tans_map.at(src_dtype), &dst);
   } else {
@@ -84,24 +83,24 @@ phi::DenseTensor MaybeCreateOrTrans(
   return dst;
 }
 
-phi::DenseTensor MaybeCreateOrTrans64To32bits(const phi::CustomContext& dev_ctx,
-                                              const phi::DenseTensor& src,
-                                              bool need_cast) {
+DenseTensor MaybeCreateOrTrans64To32bits(const phi::CustomContext& dev_ctx,
+                                         const DenseTensor& src,
+                                         bool need_cast) {
   return MaybeCreateOrTrans(dev_ctx, src, kDataTypeTrans64To32, need_cast);
 }
 
-phi::DenseTensor MaybeCreateOrTransFp16ToFp32(const phi::CustomContext& dev_ctx,
-                                              const phi::DenseTensor& src,
-                                              bool need_cast) {
-  static const std::unordered_map<phi::DataType, phi::DataType> kFp16ToFp32 = {
-      {phi::DataType::FLOAT16, phi::DataType::FLOAT32},
+DenseTensor MaybeCreateOrTransFp16ToFp32(const phi::CustomContext& dev_ctx,
+                                         const DenseTensor& src,
+                                         bool need_cast) {
+  static const std::unordered_map<DataType, DataType> kFp16ToFp32 = {
+      {DataType::FLOAT16, DataType::FLOAT32},
   };
   return MaybeCreateOrTrans(dev_ctx, src, kFp16ToFp32, need_cast);
 }
 
 void MaybeTransResult(const phi::CustomContext& dev_ctx,
-                      const phi::DenseTensor& result,
-                      phi::DenseTensor* dst) {
+                      const DenseTensor& result,
+                      DenseTensor* dst) {
   auto dst_dtype = dst->dtype();
   if (dst_dtype == result.dtype()) {
     return;
@@ -110,14 +109,14 @@ void MaybeTransResult(const phi::CustomContext& dev_ctx,
 }
 
 void Broadcast(const phi::CustomContext& dev_ctx,
-               const phi::DenseTensor& src,
-               phi::DenseTensor* dst) {
+               const DenseTensor& src,
+               DenseTensor* dst) {
   if (src.numel() <= 0) {
     VLOG(1) << "Common op Broadcast, src numel:" << src.numel()
             << ", will do nothing.";
     return;
   }
-  phi::DenseTensor as_strides_out;
+  DenseTensor as_strides_out;
   auto src_tensor = CreateTopsatenTensor(src);
   auto dst_tensor = CreateTopsatenTensor(*dst);
   auto view_out_tensor = CreateTopsatenTensor(as_strides_out);
@@ -138,127 +137,127 @@ void Broadcast(const phi::CustomContext& dev_ctx,
       topsatenCopy, dev_ctx, abstract_info, dst_tensor, view_out_tensor, false);
 }
 
-phi::DenseTensor Broadcast(const phi::CustomContext& dev_ctx,
-                           const phi::DenseTensor& src,
-                           const std::vector<int64_t>& output_shapes) {
-  auto meta = phi::DenseTensorMeta(src.dtype(), phi::make_ddim(output_shapes));
-  phi::DenseTensor dst = TensorEmpty(dev_ctx, meta);
+DenseTensor Broadcast(const phi::CustomContext& dev_ctx,
+                      const DenseTensor& src,
+                      const std::vector<int64_t>& output_shapes) {
+  auto meta = DenseTensorMeta(src.dtype(), phi::make_ddim(output_shapes));
+  DenseTensor dst = TensorEmpty(dev_ctx, meta);
   Broadcast(dev_ctx, src, &dst);
   return dst;
 }
 
 namespace {
-bool IsCastSupport(const phi::DataType src_type, const phi::DataType dst_type) {
+bool IsCastSupport(const DataType src_type, const DataType dst_type) {
   static const std::unordered_set<std::string> kSupportedCast = {
       // ******************* bool convert ***************** //
       // bool <--> int32
-      GetDataTypePairKey(phi::DataType::BOOL, phi::DataType::INT32),
-      GetDataTypePairKey(phi::DataType::INT32, phi::DataType::BOOL),
+      GetDataTypePairKey(DataType::BOOL, DataType::INT32),
+      GetDataTypePairKey(DataType::INT32, DataType::BOOL),
       // bool <--> float16
-      GetDataTypePairKey(phi::DataType::BOOL, phi::DataType::FLOAT16),
-      GetDataTypePairKey(phi::DataType::FLOAT16, phi::DataType::BOOL),
+      GetDataTypePairKey(DataType::BOOL, DataType::FLOAT16),
+      GetDataTypePairKey(DataType::FLOAT16, DataType::BOOL),
       // bool <--> float32
-      GetDataTypePairKey(phi::DataType::BOOL, phi::DataType::FLOAT32),
-      GetDataTypePairKey(phi::DataType::FLOAT32, phi::DataType::BOOL),
+      GetDataTypePairKey(DataType::BOOL, DataType::FLOAT32),
+      GetDataTypePairKey(DataType::FLOAT32, DataType::BOOL),
 
       // ******************** 64 bits ******************** //
       // int32 <--> int64
-      GetDataTypePairKey(phi::DataType::INT32, phi::DataType::INT64),
-      GetDataTypePairKey(phi::DataType::INT64, phi::DataType::INT32),
+      GetDataTypePairKey(DataType::INT32, DataType::INT64),
+      GetDataTypePairKey(DataType::INT64, DataType::INT32),
 
       // ***************** int to float16 **************** //
       // int32 <--> float16
-      GetDataTypePairKey(phi::DataType::INT32, phi::DataType::FLOAT16),
-      GetDataTypePairKey(phi::DataType::FLOAT16, phi::DataType::INT32),
+      GetDataTypePairKey(DataType::INT32, DataType::FLOAT16),
+      GetDataTypePairKey(DataType::FLOAT16, DataType::INT32),
 
       // ***************** int to float32 *************** //
       // int8 <--> float32
-      GetDataTypePairKey(phi::DataType::INT8, phi::DataType::FLOAT32),
-      GetDataTypePairKey(phi::DataType::FLOAT32, phi::DataType::INT8),
+      GetDataTypePairKey(DataType::INT8, DataType::FLOAT32),
+      GetDataTypePairKey(DataType::FLOAT32, DataType::INT8),
       // int16 <--> float32
-      GetDataTypePairKey(phi::DataType::INT16, phi::DataType::FLOAT32),
-      GetDataTypePairKey(phi::DataType::FLOAT32, phi::DataType::INT16),
+      GetDataTypePairKey(DataType::INT16, DataType::FLOAT32),
+      GetDataTypePairKey(DataType::FLOAT32, DataType::INT16),
       // int32 <--> float32
-      GetDataTypePairKey(phi::DataType::INT32, phi::DataType::FLOAT32),
-      GetDataTypePairKey(phi::DataType::FLOAT32, phi::DataType::INT32),
+      GetDataTypePairKey(DataType::INT32, DataType::FLOAT32),
+      GetDataTypePairKey(DataType::FLOAT32, DataType::INT32),
 
       // ***************** float convert ***************** //
       // float16 <--> float32
-      GetDataTypePairKey(phi::DataType::FLOAT16, phi::DataType::FLOAT32),
-      GetDataTypePairKey(phi::DataType::FLOAT32, phi::DataType::FLOAT16),
+      GetDataTypePairKey(DataType::FLOAT16, DataType::FLOAT32),
+      GetDataTypePairKey(DataType::FLOAT32, DataType::FLOAT16),
 
       // bfloat16 <--> float32
-      GetDataTypePairKey(phi::DataType::BFLOAT16, phi::DataType::FLOAT32),
-      GetDataTypePairKey(phi::DataType::FLOAT32, phi::DataType::BFLOAT16),
+      GetDataTypePairKey(DataType::BFLOAT16, DataType::FLOAT32),
+      GetDataTypePairKey(DataType::FLOAT32, DataType::BFLOAT16),
 
       // ***************** int convert ****************** //
       // int8 <--> int16
-      GetDataTypePairKey(phi::DataType::INT8, phi::DataType::INT16),
-      GetDataTypePairKey(phi::DataType::INT16, phi::DataType::INT8),
+      GetDataTypePairKey(DataType::INT8, DataType::INT16),
+      GetDataTypePairKey(DataType::INT16, DataType::INT8),
       // int8 <--> int32
-      GetDataTypePairKey(phi::DataType::INT8, phi::DataType::INT32),
-      GetDataTypePairKey(phi::DataType::INT32, phi::DataType::INT8),
+      GetDataTypePairKey(DataType::INT8, DataType::INT32),
+      GetDataTypePairKey(DataType::INT32, DataType::INT8),
       // int16 <--> int32
-      GetDataTypePairKey(phi::DataType::INT16, phi::DataType::INT32),
-      GetDataTypePairKey(phi::DataType::INT32, phi::DataType::INT16),
+      GetDataTypePairKey(DataType::INT16, DataType::INT32),
+      GetDataTypePairKey(DataType::INT32, DataType::INT16),
       // uint8 <--> uint16
-      GetDataTypePairKey(phi::DataType::UINT8, phi::DataType::UINT16),
-      GetDataTypePairKey(phi::DataType::UINT16, phi::DataType::UINT8),
+      GetDataTypePairKey(DataType::UINT8, DataType::UINT16),
+      GetDataTypePairKey(DataType::UINT16, DataType::UINT8),
       // uint8 <--> uint32
-      GetDataTypePairKey(phi::DataType::UINT8, phi::DataType::UINT32),
-      GetDataTypePairKey(phi::DataType::UINT32, phi::DataType::UINT8),
+      GetDataTypePairKey(DataType::UINT8, DataType::UINT32),
+      GetDataTypePairKey(DataType::UINT32, DataType::UINT8),
       // uint16 <--> uint16
-      GetDataTypePairKey(phi::DataType::UINT16, phi::DataType::UINT32),
-      GetDataTypePairKey(phi::DataType::UINT32, phi::DataType::UINT16),
+      GetDataTypePairKey(DataType::UINT16, DataType::UINT32),
+      GetDataTypePairKey(DataType::UINT32, DataType::UINT16),
   };
   return (kSupportedCast.count(GetDataTypePairKey(src_type, dst_type)) > 0);
 }
 
-phi::DataType IntermediateDtypeToCast(const phi::DataType src_type,
-                                      const phi::DataType dst_type) {
-  static const std::unordered_map<std::string, phi::DataType>
+DataType IntermediateDtypeToCast(const DataType src_type,
+                                 const DataType dst_type) {
+  static const std::unordered_map<std::string, DataType>
       kSupportedIndirectCast = {
           // float32 <--> int64
-          {GetDataTypePairKey(phi::DataType::FLOAT32, phi::DataType::INT64),
-           phi::DataType::INT32},
-          {GetDataTypePairKey(phi::DataType::INT64, phi::DataType::FLOAT32),
-           phi::DataType::INT32},
+          {GetDataTypePairKey(DataType::FLOAT32, DataType::INT64),
+           DataType::INT32},
+          {GetDataTypePairKey(DataType::INT64, DataType::FLOAT32),
+           DataType::INT32},
 
           // float16 <--> int64
-          {GetDataTypePairKey(phi::DataType::FLOAT16, phi::DataType::INT64),
-           phi::DataType::INT32},
-          {GetDataTypePairKey(phi::DataType::INT64, phi::DataType::FLOAT16),
-           phi::DataType::INT32},
+          {GetDataTypePairKey(DataType::FLOAT16, DataType::INT64),
+           DataType::INT32},
+          {GetDataTypePairKey(DataType::INT64, DataType::FLOAT16),
+           DataType::INT32},
 
           // bool <--> int64
-          {GetDataTypePairKey(phi::DataType::BOOL, phi::DataType::INT64),
-           phi::DataType::INT32},
-          {GetDataTypePairKey(phi::DataType::INT64, phi::DataType::BOOL),
-           phi::DataType::INT32},
+          {GetDataTypePairKey(DataType::BOOL, DataType::INT64),
+           DataType::INT32},
+          {GetDataTypePairKey(DataType::INT64, DataType::BOOL),
+           DataType::INT32},
 
           // int8 <--> int64
-          {GetDataTypePairKey(phi::DataType::INT8, phi::DataType::INT64),
-           phi::DataType::INT32},
-          {GetDataTypePairKey(phi::DataType::INT64, phi::DataType::INT8),
-           phi::DataType::INT32},
+          {GetDataTypePairKey(DataType::INT8, DataType::INT64),
+           DataType::INT32},
+          {GetDataTypePairKey(DataType::INT64, DataType::INT8),
+           DataType::INT32},
 
           // int16 <--> int64
-          {GetDataTypePairKey(phi::DataType::INT16, phi::DataType::INT64),
-           phi::DataType::INT32},
-          {GetDataTypePairKey(phi::DataType::INT64, phi::DataType::INT16),
-           phi::DataType::INT32},
+          {GetDataTypePairKey(DataType::INT16, DataType::INT64),
+           DataType::INT32},
+          {GetDataTypePairKey(DataType::INT64, DataType::INT16),
+           DataType::INT32},
       };
 
   auto key = GetDataTypePairKey(src_type, dst_type);
   return ((kSupportedIndirectCast.count(key) > 0)
               ? kSupportedIndirectCast.at(key)
-              : phi::DataType::UNDEFINED);
+              : DataType::UNDEFINED);
 }
 
 void CastImpl(const phi::CustomContext& dev_ctx,
-              const phi::DenseTensor& x,
-              const phi::DataType& dtype,
-              phi::DenseTensor* out) {
+              const DenseTensor& x,
+              const DataType& dtype,
+              DenseTensor* out) {
   auto meta = x.meta();
   meta.dtype = dtype;
   out->set_meta(meta);
@@ -286,34 +285,33 @@ void CastImpl(const phi::CustomContext& dev_ctx,
                                       topsaten_format);
 }
 
-#define FOR_EACH_DATA_TYPE(_)                   \
-  _(bool, phi::DataType::BOOL)                  \
-  _(int8_t, phi::DataType::INT8)                \
-  _(uint8_t, phi::DataType::UINT8)              \
-  _(int16_t, phi::DataType::INT16)              \
-  _(uint16_t, phi::DataType::UINT16)            \
-  _(int32_t, phi::DataType::INT32)              \
-  _(uint32_t, phi::DataType::UINT32)            \
-  _(int64_t, phi::DataType::INT64)              \
-  _(uint64_t, phi::DataType::UINT64)            \
-  _(phi::bfloat16, phi::DataType::BFLOAT16)     \
-  _(phi::float16, phi::DataType::FLOAT16)       \
-  _(float, phi::DataType::FLOAT32)              \
-  _(double, phi::DataType::FLOAT64)             \
-  _(phi::complex64, phi::DataType::COMPLEX64)   \
-  _(phi::complex128, phi::DataType::COMPLEX128) \
-  _(phi::pstring, phi::DataType::PSTRING)
+#define FOR_EACH_DATA_TYPE(_)              \
+  _(bool, DataType::BOOL)                  \
+  _(int8_t, DataType::INT8)                \
+  _(uint8_t, DataType::UINT8)              \
+  _(int16_t, DataType::INT16)              \
+  _(uint16_t, DataType::UINT16)            \
+  _(int32_t, DataType::INT32)              \
+  _(uint32_t, DataType::UINT32)            \
+  _(int64_t, DataType::INT64)              \
+  _(uint64_t, DataType::UINT64)            \
+  _(phi::bfloat16, DataType::BFLOAT16)     \
+  _(phi::float16, DataType::FLOAT16)       \
+  _(float, DataType::FLOAT32)              \
+  _(double, DataType::FLOAT64)             \
+  _(phi::complex64, DataType::COMPLEX64)   \
+  _(phi::complex128, DataType::COMPLEX128) \
+  _(phi::pstring, DataType::PSTRING)
 
-#define CALL_CPU_CAST_KERNEL(cpp_type, data_type) \
-  case data_type:                                 \
-    phi::CastKernel<cpp_type, phi::CPUContext>(   \
-        dev_ctx_cpu, x_cpu, dtype, out_cpu);      \
+#define CALL_CPU_CAST_KERNEL(cpp_type, data_type)                              \
+  case data_type:                                                              \
+    phi::CastKernel<cpp_type, CPUContext>(dev_ctx_cpu, x_cpu, dtype, out_cpu); \
     break;
 
-void CallCPUCastImpl(const phi::CPUContext& dev_ctx_cpu,
-                     const phi::DenseTensor& x_cpu,
-                     const phi::DataType& dtype,
-                     phi::DenseTensor* out_cpu) {
+void CallCPUCastImpl(const CPUContext& dev_ctx_cpu,
+                     const DenseTensor& x_cpu,
+                     const DataType& dtype,
+                     DenseTensor* out_cpu) {
   switch (x_cpu.dtype()) { FOR_EACH_DATA_TYPE(CALL_CPU_CAST_KERNEL) }
 }
 
@@ -321,9 +319,9 @@ void CallCPUCastImpl(const phi::CPUContext& dev_ctx_cpu,
 #undef FOR_EACH_DATA_TYPE
 
 void CastCPUImpl(const phi::CustomContext& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DataType& dtype,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 const DataType& dtype,
+                 DenseTensor* out) {
   auto meta = x.meta();
   meta.dtype = dtype;
   out->set_meta(meta);
@@ -335,16 +333,16 @@ void CastCPUImpl(const phi::CustomContext& dev_ctx,
 
   // 1. Copy x to CPU
   ContextPinnedGuard<phi::CustomContext> ctx_pinned_guard(dev_ctx);
-  phi::DenseTensor x_cpu;
+  DenseTensor x_cpu;
   x_cpu.set_meta(x.meta());
-  TensorCopy(dev_ctx, x, false, &x_cpu, phi::CPUPlace());
+  TensorCopy(dev_ctx, x, false, &x_cpu, CPUPlace());
   dev_ctx.Wait();
 
   // 2. Call the CPU implementation
-  phi::CPUContext dev_ctx_cpu;
+  CPUContext dev_ctx_cpu;
   dev_ctx_cpu.SetAllocator(&(dev_ctx.GetHostAllocator()));
   dev_ctx_cpu.SetHostAllocator(&(dev_ctx.GetHostAllocator()));
-  phi::DenseTensor out_cpu;
+  DenseTensor out_cpu;
   out_cpu.set_meta(meta);
   CallCPUCastImpl(dev_ctx_cpu, x_cpu, dtype, &out_cpu);
   dev_ctx.Wait();
@@ -356,9 +354,9 @@ void CastCPUImpl(const phi::CustomContext& dev_ctx,
 }  // namespace
 
 void Cast(const phi::CustomContext& dev_ctx,
-          const phi::DenseTensor& x,
-          const phi::DataType& dtype,
-          phi::DenseTensor* out) {
+          const DenseTensor& x,
+          const DataType& dtype,
+          DenseTensor* out) {
   std::string key = "convert_" + GetDataTypePairKey(x.dtype(), dtype);
   PADDLE_GCU_KERNEL_TRACE(key);
   auto meta = x.meta();
@@ -374,42 +372,40 @@ void Cast(const phi::CustomContext& dev_ctx,
     return;
   }
   auto media_type = IntermediateDtypeToCast(x.dtype(), dtype);
-  if (media_type != phi::DataType::UNDEFINED) {
-    VLOG(3) << "Cast intermediately, convert "
-            << phi::DataTypeToString(x.dtype()) << " to "
-            << phi::DataTypeToString(media_type) << " to "
-            << phi::DataTypeToString(dtype);
-    phi::DenseTensor tmp;
+  if (media_type != DataType::UNDEFINED) {
+    VLOG(3) << "Cast intermediately, convert " << DataTypeToString(x.dtype())
+            << " to " << DataTypeToString(media_type) << " to "
+            << DataTypeToString(dtype);
+    DenseTensor tmp;
     CastImpl(dev_ctx, x, media_type, &tmp);
     CastImpl(dev_ctx, tmp, dtype, out);
   } else {
     VLOG(3) << "[CPU_KERNEL] Use CastCPUImpl, convert "
-            << phi::DataTypeToString(x.dtype()) << " to "
-            << phi::DataTypeToString(dtype);
+            << DataTypeToString(x.dtype()) << " to " << DataTypeToString(dtype);
     CastCPUImpl(dev_ctx, x, dtype, out);
   }
 }
 
-phi::DenseTensor Cast(const phi::CustomContext& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DataType& dtype) {
-  phi::DenseTensor out;
+DenseTensor Cast(const phi::CustomContext& dev_ctx,
+                 const DenseTensor& x,
+                 const DataType& dtype) {
+  DenseTensor out;
   Cast(dev_ctx, x, dtype, &out);
   return out;
 }
 
-phi::DenseTensor CastOrCopyToPinnedMemory(const phi::CustomContext& dev_ctx,
-                                          const phi::DenseTensor& x,
-                                          const phi::DataType& dtype) {
+DenseTensor CastOrCopyToPinnedMemory(const phi::CustomContext& dev_ctx,
+                                     const DenseTensor& x,
+                                     const DataType& dtype) {
   std::string key = "pinned_convert_" + GetDataTypePairKey(x.dtype(), dtype);
   PADDLE_GCU_KERNEL_TRACE(key);
   ContextPinnedGuard<phi::CustomContext> ctx_pinned_guard(dev_ctx);
 
-  //   phi::DenseTensor cast_out = x;
+  //   DenseTensor cast_out = x;
   //   if (x.dtype() != dtype) {
   //     cast_out = custom_kernel::Cast(dev_ctx, x, dtype);
   //   }
-  //   phi::DenseTensor out;
+  //   DenseTensor out;
   //   out.set_meta(cast_out.meta());
   //   dev_ctx.HostAlloc(&out, out.dtype());
 
@@ -426,7 +422,7 @@ phi::DenseTensor CastOrCopyToPinnedMemory(const phi::CustomContext& dev_ctx,
     return x;
   }
 
-  phi::DenseTensor out;
+  DenseTensor out;
   auto meta = x.meta();
   meta.dtype = dtype;
   out.set_meta(meta);
@@ -435,7 +431,7 @@ phi::DenseTensor CastOrCopyToPinnedMemory(const phi::CustomContext& dev_ctx,
 
   //   if (x.dtype() == dtype) {
   //     VLOG(3) << "CastOrCopyToPinnedMemory, will copy D2D, dtype:"
-  //             << phi::DataTypeToString(dtype);
+  //             << DataTypeToString(dtype);
   //     C_Device_st device;
   //     device.id = x.place().GetDeviceId();
   //     C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
@@ -465,56 +461,56 @@ phi::DenseTensor CastOrCopyToPinnedMemory(const phi::CustomContext& dev_ctx,
   return out;
 }
 
-phi::DenseTensor ReshapeWithoutCopy(const phi::DenseTensor& src,
-                                    const std::vector<int64_t>& out_shapes) {
+DenseTensor ReshapeWithoutCopy(const DenseTensor& src,
+                               const std::vector<int64_t>& out_shapes) {
   PADDLE_ENFORCE_EQ(
       src.numel(),
       phi::product(phi::make_ddim(out_shapes)),
       phi::errors::InvalidArgument(
           "The memory size before and after reshape should be the same."));
-  phi::DenseTensor dst(src);
+  DenseTensor dst(src);
   dst.Resize(phi::make_ddim(out_shapes));
   return dst;
 }
 
-phi::DenseTensor TensorEmpty(const phi::CustomContext& dev_ctx,
-                             const phi::DenseTensorMeta& meta) {
-  phi::DenseTensor output_tensor;
+DenseTensor TensorEmpty(const phi::CustomContext& dev_ctx,
+                        const DenseTensorMeta& meta) {
+  DenseTensor output_tensor;
   output_tensor.set_meta(meta);
   dev_ctx.Alloc(&output_tensor, output_tensor.dtype());
   return output_tensor;
 }
 
-phi::DenseTensor TensorOnes(const phi::CustomContext& dev_ctx,
-                            const phi::DenseTensorMeta& meta) {
-  phi::DenseTensor out = TensorEmpty(dev_ctx, meta);
+DenseTensor TensorOnes(const phi::CustomContext& dev_ctx,
+                       const DenseTensorMeta& meta) {
+  DenseTensor out = TensorEmpty(dev_ctx, meta);
   auto shape = phi::vectorize(meta.dims);
   LAUNCH_TOPSATENOP(topsatenOnes, dev_ctx, out, shape, meta.dtype);
   return out;
 }
 
-phi::DenseTensor TensorZeros(const phi::CustomContext& dev_ctx,
-                             const phi::DenseTensorMeta& meta) {
-  phi::DenseTensor out = TensorEmpty(dev_ctx, meta);
+DenseTensor TensorZeros(const phi::CustomContext& dev_ctx,
+                        const DenseTensorMeta& meta) {
+  DenseTensor out = TensorEmpty(dev_ctx, meta);
   auto shape = phi::vectorize(meta.dims);
   LAUNCH_TOPSATENOP(topsatenZeros, dev_ctx, out, shape, meta.dtype);
   return out;
 }
 
-phi::DenseTensor Add(const phi::CustomContext& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     const phi::DenseTensorMeta& out_meta) {
-  phi::DenseTensor out = TensorEmpty(dev_ctx, out_meta);
+DenseTensor Add(const phi::CustomContext& dev_ctx,
+                const DenseTensor& x,
+                const DenseTensor& y,
+                const DenseTensorMeta& out_meta) {
+  DenseTensor out = TensorEmpty(dev_ctx, out_meta);
   phi::Scalar scalar(1.0f);
   LAUNCH_TOPSATENOP(topsatenAdd, dev_ctx, out, x, y, scalar);
   return out;
 }
 
-phi::DenseTensor Add(const phi::CustomContext& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y) {
-  phi::DenseTensor out;
+DenseTensor Add(const phi::CustomContext& dev_ctx,
+                const DenseTensor& x,
+                const DenseTensor& y) {
+  DenseTensor out;
   phi::MetaTensor meta_out(out);
   phi::ElementwiseInferMeta(x, y, &meta_out);
   out.Resize(meta_out.dims());
@@ -524,20 +520,20 @@ phi::DenseTensor Add(const phi::CustomContext& dev_ctx,
   return out;
 }
 
-phi::DenseTensor Subtract(const phi::CustomContext& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y,
-                          const phi::DenseTensorMeta& out_meta) {
-  phi::DenseTensor out = TensorEmpty(dev_ctx, out_meta);
+DenseTensor Subtract(const phi::CustomContext& dev_ctx,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     const DenseTensorMeta& out_meta) {
+  DenseTensor out = TensorEmpty(dev_ctx, out_meta);
   phi::Scalar scalar(1.0f);
   LAUNCH_TOPSATENOP(topsatenSub, dev_ctx, out, x, y, scalar);
   return out;
 }
 
-phi::DenseTensor Subtract(const phi::CustomContext& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y) {
-  phi::DenseTensor out;
+DenseTensor Subtract(const phi::CustomContext& dev_ctx,
+                     const DenseTensor& x,
+                     const DenseTensor& y) {
+  DenseTensor out;
   phi::MetaTensor meta_out(out);
   phi::ElementwiseInferMeta(x, y, &meta_out);
   out.Resize(meta_out.dims());
@@ -548,10 +544,10 @@ phi::DenseTensor Subtract(const phi::CustomContext& dev_ctx,
 }
 
 void SliceBase(const phi::CustomContext& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const std::vector<int64_t>& axes,
                const std::vector<int64_t>& starts,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   std::vector<int64_t> sizes(phi::vectorize(out->dims()));
   std::vector<int64_t> strides(phi::vectorize(x.strides()));
   int64_t offset = 0;
@@ -563,7 +559,7 @@ void SliceBase(const phi::CustomContext& dev_ctx,
     dev_ctx.Alloc(out, out->dtype());
   }
 
-  phi::DenseTensor as_strides_out;
+  DenseTensor as_strides_out;
   auto x_tensor = CreateTopsatenTensor(x);
   auto out_tensor = CreateTopsatenTensor(*out);
   auto view_out_tensor = CreateTopsatenTensor(as_strides_out);

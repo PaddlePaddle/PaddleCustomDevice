@@ -19,16 +19,16 @@ namespace custom_kernel {
 static std::unordered_set<const void*> g_weights_nhwc;
 template <typename T, typename Context>
 extern void AddKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out);
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out);
 
 template <typename T, typename Context>
 void FusedConv2dAddActKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& input,
-                             const phi::DenseTensor& filter,
-                             const phi::DenseTensor& bias,
-                             const paddle::optional<phi::DenseTensor>& residual,
+                             const DenseTensor& input,
+                             const DenseTensor& filter,
+                             const DenseTensor& bias,
+                             const paddle::optional<DenseTensor>& residual,
                              const std::vector<int>& strides,
                              const std::vector<int>& paddings,
                              const std::string& padding_algorithm,
@@ -40,17 +40,17 @@ void FusedConv2dAddActKernel(const Context& dev_ctx,
                              bool exhaustive_search,
                              int workspace_size_MB,
                              float fuse_alpha,
-                             phi::DenseTensor* output,
-                             std::vector<phi::DenseTensor*> outputs) {
+                             DenseTensor* output,
+                             std::vector<DenseTensor*> outputs) {
   PADDLE_GCU_KERNEL_TRACE("fused_conv2d_add_act");
 
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(output);
 
-    phi::DenseTensor input_perm = input;
-    phi::DenseTensor filter_perm = filter;
-    phi::DenseTensor conv_out_perm = *output;
-    phi::DenseTensor residual_perm;
+    DenseTensor input_perm = input;
+    DenseTensor filter_perm = filter;
+    DenseTensor conv_out_perm = *output;
+    DenseTensor residual_perm;
     if (residual) {
       residual_perm = residual.get();
     }
@@ -89,7 +89,7 @@ void FusedConv2dAddActKernel(const Context& dev_ctx,
       PdCustomNHWCRepresentAsAtenNHWC(conv_out_perm, true);
       if (g_weights_nhwc.count(filter.data()) == 0) {
         auto filter_trans = NCHWTransToPdCustomNHWC(dev_ctx, filter);
-        phi::DenseTensor* filter_ptr = const_cast<phi::DenseTensor*>(&filter);
+        DenseTensor* filter_ptr = const_cast<DenseTensor*>(&filter);
         TensorCopy(dev_ctx, filter_trans, false, filter_ptr);
         g_weights_nhwc.emplace(filter.data());
         VLOG(6) << "Transpose debug, trans filter for fused_conv2d_add_act.";

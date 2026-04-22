@@ -19,10 +19,10 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void TrilTriuCommon(const std::string& op_type,
                     const Context& ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     int diagonal,
                     bool lower,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   ctx.template Alloc<T>(out);
 
   TensorNameMap input_names;
@@ -47,10 +47,10 @@ void TrilTriuCommon(const std::string& op_type,
 template <typename T, typename Context>
 void TrilTriuGradCommon(const std::string& op_type,
                         const Context& ctx,
-                        const phi::DenseTensor& out_grad,
+                        const DenseTensor& out_grad,
                         int diagonal,
                         bool lower,
-                        phi::DenseTensor* x_grad) {
+                        DenseTensor* x_grad) {
   ctx.template Alloc<T>(x_grad);
 
   TensorNameMap input_names;
@@ -74,10 +74,10 @@ void TrilTriuGradCommon(const std::string& op_type,
 
 template <typename T, typename Context>
 void TrilTriuKernel(const Context& ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     int diagonal,
                     bool lower,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("tril_triu");
   if (LaunchAOTKernel()) {
     ctx.template Alloc<T>(out);
@@ -95,10 +95,10 @@ void TrilTriuKernel(const Context& ctx,
 
 template <typename T, typename Context>
 void TrilTriuGradKernel(const Context& ctx,
-                        const phi::DenseTensor& out_grad,
+                        const DenseTensor& out_grad,
                         int diagonal,
                         bool lower,
-                        phi::DenseTensor* x_grad) {
+                        DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("tril_triu_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -110,9 +110,9 @@ void TrilTriuGradKernel(const Context& ctx,
 
 template <typename T, typename Context>
 void TrilKernel(const Context& ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 int diagonal,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("tril");
   if (LaunchAOTKernel()) {
     ctx.template Alloc<T>(out);
@@ -126,9 +126,9 @@ void TrilKernel(const Context& ctx,
 
 template <typename T, typename Context>
 void TrilGradKernel(const Context& ctx,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& out_grad,
                     int diagonal,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("tril_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -140,9 +140,9 @@ void TrilGradKernel(const Context& ctx,
 
 template <typename T, typename Context>
 void TriuKernel(const Context& ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 int diagonal,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("triu");
   if (LaunchAOTKernel()) {
     ctx.template Alloc<T>(out);
@@ -156,9 +156,9 @@ void TriuKernel(const Context& ctx,
 
 template <typename T, typename Context>
 void TriuGradKernel(const Context& ctx,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& out_grad,
                     int diagonal,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("triu_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();

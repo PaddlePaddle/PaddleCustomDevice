@@ -17,16 +17,16 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void CumsumKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::Scalar& axis_scalar,
                   bool flatten,
                   bool exclusive,
                   bool reverse,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("cumsum");
   if (LaunchAOTKernel()) {
     auto axis = axis_scalar.to<int>();
-    phi::DenseTensor input_tensor(x);
+    DenseTensor input_tensor(x);
     if (flatten) {
       PADDLE_ENFORCE_EQ(
           axis,
@@ -55,11 +55,11 @@ void CumsumKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CummaxKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   int axis,
-                  phi::DataType dtype,
-                  phi::DenseTensor* out,
-                  phi::DenseTensor* indices) {
+                  DataType dtype,
+                  DenseTensor* out,
+                  DenseTensor* indices) {
   PADDLE_GCU_KERNEL_TRACE("cummax");
   if (LaunchAOTKernel()) {
     if (axis < 0) {
@@ -68,17 +68,16 @@ void CummaxKernel(const Context& dev_ctx,
 
     dev_ctx.template Alloc<T>(out);
 
-    phi::DenseTensor indices_out;
-    if (dtype == phi::DataType::INT64) {
+    DenseTensor indices_out;
+    if (dtype == DataType::INT64) {
       dev_ctx.template Alloc<int64_t>(indices);
       indices_out = MaybeCreateOrTrans64To32bits(dev_ctx, *indices, false);
-    } else if (dtype == phi::DataType::INT32) {
+    } else if (dtype == DataType::INT32) {
       dev_ctx.template Alloc<int32_t>(indices);
       indices_out = *indices;
     } else {
-      PADDLE_THROW(
-          phi::errors::InvalidArgument("Unsupported indices dtype: %s.",
-                                       phi::DataTypeToString(dtype).c_str()));
+      PADDLE_THROW(phi::errors::InvalidArgument(
+          "Unsupported indices dtype: %s.", DataTypeToString(dtype).c_str()));
     }
     LAUNCH_TOPSATENOP(topsatenCummax, dev_ctx, *out, indices_out, x, axis);
     MaybeTransResult(dev_ctx, indices_out, indices);
@@ -90,11 +89,11 @@ void CummaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CumminKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   int axis,
-                  phi::DataType dtype,
-                  phi::DenseTensor* out,
-                  phi::DenseTensor* indices) {
+                  DataType dtype,
+                  DenseTensor* out,
+                  DenseTensor* indices) {
   PADDLE_GCU_KERNEL_TRACE("cummin");
   if (LaunchAOTKernel()) {
     if (axis < 0) {
@@ -103,17 +102,16 @@ void CumminKernel(const Context& dev_ctx,
 
     dev_ctx.template Alloc<T>(out);
 
-    phi::DenseTensor indices_out;
-    if (dtype == phi::DataType::INT64) {
+    DenseTensor indices_out;
+    if (dtype == DataType::INT64) {
       dev_ctx.template Alloc<int64_t>(indices);
       indices_out = MaybeCreateOrTrans64To32bits(dev_ctx, *indices, false);
-    } else if (dtype == phi::DataType::INT32) {
+    } else if (dtype == DataType::INT32) {
       dev_ctx.template Alloc<int32_t>(indices);
       indices_out = *indices;
     } else {
-      PADDLE_THROW(
-          phi::errors::InvalidArgument("Unsupported indices dtype: %s.",
-                                       phi::DataTypeToString(dtype).c_str()));
+      PADDLE_THROW(phi::errors::InvalidArgument(
+          "Unsupported indices dtype: %s.", DataTypeToString(dtype).c_str()));
     }
     LAUNCH_TOPSATENOP(topsatenCummin, dev_ctx, *out, indices_out, x, axis);
     MaybeTransResult(dev_ctx, indices_out, indices);
@@ -125,11 +123,11 @@ void CumminKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CumprodKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& input,
+                   const DenseTensor& input,
                    int dim,
                    bool exclusive,
                    bool reverse,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("cumprod");
   if (LaunchAOTKernel()) {
     if (dim < 0) {

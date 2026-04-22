@@ -60,7 +60,7 @@ bool EnableTransposeOptimize() {
   return false;
 }
 
-void SetLayout(phi::DenseTensor& tensor,  // NOLINT
+void SetLayout(DenseTensor& tensor,  // NOLINT
                const common::DataLayout& layout) {
   auto meta = tensor.meta();
   meta.layout = layout;
@@ -68,23 +68,23 @@ void SetLayout(phi::DenseTensor& tensor,  // NOLINT
 }
 
 void Transpose(const phi::CustomContext& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const std::vector<int64_t>& axis,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   auto x_perm = x;
   PermutedShapeAndStrides(x_perm, axis);
   LAUNCH_TOPSATENOP(topsatenCopy, dev_ctx, *out, x_perm, false);
 }
 
-phi::DenseTensor Transpose(const phi::CustomContext& dev_ctx,
-                           const phi::DenseTensor& x,
-                           const std::vector<int64_t>& axis) {
+DenseTensor Transpose(const phi::CustomContext& dev_ctx,
+                      const DenseTensor& x,
+                      const std::vector<int64_t>& axis) {
   // infer dst shape
   std::vector<int64_t> src_dims = phi::vectorize(x.dims());
   std::vector<int64_t> dst_dims = ReorderVector(src_dims, axis);
 
-  phi::DenseTensor dst_tensor;
-  phi::DenseTensorMeta meta(x.dtype(), phi::make_ddim(dst_dims));
+  DenseTensor dst_tensor;
+  DenseTensorMeta meta(x.dtype(), phi::make_ddim(dst_dims));
   dst_tensor.set_meta(meta);
   dev_ctx.Alloc(&dst_tensor, dst_tensor.dtype());
   Transpose(dev_ctx, x, axis, &dst_tensor);
@@ -111,22 +111,21 @@ phi::DenseTensor Transpose(const phi::CustomContext& dev_ctx,
 // 5. Only the layout of PdCustomNHWC and AtenNHWC is expressed as kNHWC, Note
 //    that the layout of PdOriginNHWC uses the default value kNCHW.
 //
-bool DataPdCustomNHWC(const phi::DenseTensor& tensor) {
+bool DataPdCustomNHWC(const DenseTensor& tensor) {
   return (EnableTransposeOptimize() &&
           tensor.layout() == common::DataLayout::kNHWC);
 }
 
-bool DataPdCustomNHWC(const std::vector<phi::DenseTensor>& tensors) {
+bool DataPdCustomNHWC(const std::vector<DenseTensor>& tensors) {
   return (EnableTransposeOptimize() &&
-          std::any_of(tensors.begin(),
-                      tensors.end(),
-                      [](const phi::DenseTensor& tensor) {
-                        return tensor.layout() == common::DataLayout::kNHWC;
-                      }));
+          std::any_of(
+              tensors.begin(), tensors.end(), [](const DenseTensor& tensor) {
+                return tensor.layout() == common::DataLayout::kNHWC;
+              }));
 }
 
 // ////////////////  Permuted funcs ////////////////
-void PermutedShapeWithcontiguousStrides(phi::DenseTensor& tensor,  // NOLINT
+void PermutedShapeWithcontiguousStrides(DenseTensor& tensor,  // NOLINT
                                         const std::vector<int64_t>& permutation,
                                         const common::DataLayout& layout) {
   auto meta = tensor.meta();
@@ -140,12 +139,12 @@ void PermutedShapeWithcontiguousStrides(phi::DenseTensor& tensor,  // NOLINT
   tensor.set_meta(meta);
 }
 
-void RecoverPdCustomNHWCMeta(phi::DenseTensor& tensor) {  // NOLINT
+void RecoverPdCustomNHWCMeta(DenseTensor& tensor) {  // NOLINT
   PermutedShapeWithcontiguousStrides(
       tensor, layout_trans::kNCHW_to_NHWC, common::DataLayout::kNCHW);
 }
 
-void PermutedStridesWithoutShape(phi::DenseTensor& tensor,  // NOLINT
+void PermutedStridesWithoutShape(DenseTensor& tensor,  // NOLINT
                                  const std::vector<int64_t>& shape_perm,
                                  const std::vector<int64_t>& strides_perm,
                                  const common::DataLayout& layout) {
@@ -165,7 +164,7 @@ void PermutedStridesWithoutShape(phi::DenseTensor& tensor,  // NOLINT
   tensor.set_meta(meta);
 }
 
-void PermutedShapeAndStrides(phi::DenseTensor& tensor,  // NOLINT
+void PermutedShapeAndStrides(DenseTensor& tensor,  // NOLINT
                              const std::vector<int64_t>& permutation,
                              const common::DataLayout& layout) {
   auto meta = tensor.meta();
@@ -184,8 +183,8 @@ void PermutedShapeAndStrides(phi::DenseTensor& tensor,  // NOLINT
 }
 
 // ////////////////  Transpose funcs ////////////////
-phi::DenseTensor NCHWTransToPdOriginNHWC(const phi::CustomContext& dev_ctx,
-                                         const phi::DenseTensor& x) {
+DenseTensor NCHWTransToPdOriginNHWC(const phi::CustomContext& dev_ctx,
+                                    const DenseTensor& x) {
   PADDLE_ENFORCE_EQ(
       x.layout(),
       common::DataLayout::kNCHW,
@@ -194,8 +193,8 @@ phi::DenseTensor NCHWTransToPdOriginNHWC(const phi::CustomContext& dev_ctx,
   return out;  // shape is NHWC, strides is NHWC, contiguous
 }
 
-phi::DenseTensor NCHWTransToPdCustomNHWC(const phi::CustomContext& dev_ctx,
-                                         const phi::DenseTensor& x) {
+DenseTensor NCHWTransToPdCustomNHWC(const phi::CustomContext& dev_ctx,
+                                    const DenseTensor& x) {
   auto out = NCHWTransToPdOriginNHWC(dev_ctx, x);
   auto meta = x.meta();
   meta.layout = common::DataLayout::kNHWC;
@@ -203,28 +202,28 @@ phi::DenseTensor NCHWTransToPdCustomNHWC(const phi::CustomContext& dev_ctx,
   return out;
 }
 
-phi::DenseTensor NCHWTransToAtenNHWC(const phi::CustomContext& dev_ctx,
-                                     const phi::DenseTensor& x) {
+DenseTensor NCHWTransToAtenNHWC(const phi::CustomContext& dev_ctx,
+                                const DenseTensor& x) {
   auto out = NCHWTransToPdCustomNHWC(dev_ctx, x);
   PdCustomNHWCRepresentAsAtenNHWC(out);
   return out;
 }
 
-phi::DenseTensor PdCustomNHWCTransToNCHW(const phi::CustomContext& dev_ctx,
-                                         const phi::DenseTensor& x) {
+DenseTensor PdCustomNHWCTransToNCHW(const phi::CustomContext& dev_ctx,
+                                    const DenseTensor& x) {
   PADDLE_ENFORCE_EQ(
       x.layout(),
       common::DataLayout::kNHWC,
       phi::errors::InvalidArgument("Layout of x should be PdCustomNHWC."));
-  phi::DenseTensor tensor = x;  // shape is NCHW, strides is NCHW, contiguous
+  DenseTensor tensor = x;  // shape is NCHW, strides is NCHW, contiguous
   RecoverPdCustomNHWCMeta(tensor);
   tensor =
       custom_kernel::Transpose(dev_ctx, tensor, layout_trans::kNHWC_to_NCHW);
   return tensor;  // shape is NCHW, strides is NCHW, contiguous
 }
 
-phi::DenseTensor PdOriginNHWCTransToNCHW(const phi::CustomContext& dev_ctx,
-                                         const phi::DenseTensor& x) {
+DenseTensor PdOriginNHWCTransToNCHW(const phi::CustomContext& dev_ctx,
+                                    const DenseTensor& x) {
   PADDLE_ENFORCE_EQ(
       x.layout(),
       common::DataLayout::kNCHW,
@@ -234,18 +233,17 @@ phi::DenseTensor PdOriginNHWCTransToNCHW(const phi::CustomContext& dev_ctx,
 }
 
 // ////////////////  Represent funcs ////////////////
-phi::DenseTensor NoNeedTransNCHWRepresentAsOriginNHWC(
-    const phi::DenseTensor& x) {
+DenseTensor NoNeedTransNCHWRepresentAsOriginNHWC(const DenseTensor& x) {
   PADDLE_ENFORCE_EQ(
       x.layout(),
       common::DataLayout::kNCHW,
       phi::errors::InvalidArgument("Layout of x should be origin NHWC."));
-  phi::DenseTensor tensor = x;
+  DenseTensor tensor = x;
   RecoverPdCustomNHWCMeta(tensor);
   return tensor;
 }
 
-void PdCustomNHWCRepresentAsAtenNHWC(phi::DenseTensor& x,  // NOLINT
+void PdCustomNHWCRepresentAsAtenNHWC(DenseTensor& x,  // NOLINT
                                      bool weight_or_output) {
   if (!weight_or_output) {
     PADDLE_ENFORCE_EQ(
@@ -261,7 +259,7 @@ void PdCustomNHWCRepresentAsAtenNHWC(phi::DenseTensor& x,  // NOLINT
                               common::DataLayout::kNHWC);
 }
 
-void AtenNHWCRepresentAsPdCustomNHWC(phi::DenseTensor& x,  // NOLINT
+void AtenNHWCRepresentAsPdCustomNHWC(DenseTensor& x,  // NOLINT
                                      bool raw_output) {
   if (!raw_output) {
     PADDLE_ENFORCE_EQ(
@@ -277,7 +275,7 @@ void AtenNHWCRepresentAsPdCustomNHWC(phi::DenseTensor& x,  // NOLINT
   x.set_meta(meta);
 }
 
-void OriginNHWCRepresentAsAtenNHWC(phi::DenseTensor& x) {  // NOLINT
+void OriginNHWCRepresentAsAtenNHWC(DenseTensor& x) {  // NOLINT
   //   PADDLE_ENFORCE_EQ(
   //       x.layout(),
   //       common::DataLayout::kNCHW,
@@ -288,7 +286,7 @@ void OriginNHWCRepresentAsAtenNHWC(phi::DenseTensor& x) {  // NOLINT
       x, layout_trans::kNHWC_to_NCHW, common::DataLayout::kNHWC);
 }
 
-void AtenNHWCRepresentAsOriginNHWC(phi::DenseTensor& x) {  // NOLINT
+void AtenNHWCRepresentAsOriginNHWC(DenseTensor& x) {  // NOLINT
   PADDLE_ENFORCE_EQ(
       x.layout(),
       common::DataLayout::kNHWC,
@@ -299,7 +297,7 @@ void AtenNHWCRepresentAsOriginNHWC(phi::DenseTensor& x) {  // NOLINT
       x, layout_trans::kNCHW_to_NHWC, common::DataLayout::kNCHW);
 }
 
-void PdCustomNHWCRepresentAsOriginNHWC(phi::DenseTensor& x,  // NOLINT
+void PdCustomNHWCRepresentAsOriginNHWC(DenseTensor& x,  // NOLINT
                                        bool raw_output) {
   if (!raw_output) {
     PADDLE_ENFORCE_EQ(
@@ -312,7 +310,7 @@ void PdCustomNHWCRepresentAsOriginNHWC(phi::DenseTensor& x,  // NOLINT
   RecoverPdCustomNHWCMeta(x);
 }
 
-void OriginNHWCRepresentAsPdCustomNHWC(phi::DenseTensor& x) {  // NOLINT
+void OriginNHWCRepresentAsPdCustomNHWC(DenseTensor& x) {  // NOLINT
   PADDLE_ENFORCE_EQ(
       x.layout(),
       common::DataLayout::kNCHW,
@@ -323,8 +321,8 @@ void OriginNHWCRepresentAsPdCustomNHWC(phi::DenseTensor& x) {  // NOLINT
       x, layout_trans::kNHWC_to_NCHW, common::DataLayout::kNHWC);
 }
 
-void RepresentPdCustomNHWC(phi::DenseTensor& x) {  // NOLINT
-  x.Resize(x.dims());                              // calc contiguous strides
+void RepresentPdCustomNHWC(DenseTensor& x) {  // NOLINT
+  x.Resize(x.dims());                         // calc contiguous strides
   auto meta = x.meta();
   meta.layout = common::DataLayout::kNHWC;
   x.set_meta(meta);

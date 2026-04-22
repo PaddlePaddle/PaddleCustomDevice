@@ -40,7 +40,7 @@ void TakeAlongAxisKernel(const Context& dev_ctx,
     //                       "axis should be in [-%zu, %zu)!", x_rank, x_rank));
 
     // int64_t axis_64 = axis;
-    // phi::DenseTensor out_tmp = custom_kernel::TensorEmpty(dev_ctx, x.meta());
+    // DenseTensor out_tmp = custom_kernel::TensorEmpty(dev_ctx, x.meta());
     // LAUNCH_TOPSATENOP(
     //     topsatenGather, dev_ctx, out_tmp, x, index, axis_64, false);
 

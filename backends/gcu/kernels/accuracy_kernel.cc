@@ -19,12 +19,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AccuracyRawKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& infer_out,
-                       const phi::DenseTensor& indices,
-                       const phi::DenseTensor& label,
-                       phi::DenseTensor* accuracy,
-                       phi::DenseTensor* correct,
-                       phi::DenseTensor* total) {
+                       const DenseTensor& infer_out,
+                       const DenseTensor& indices,
+                       const DenseTensor& label,
+                       DenseTensor* accuracy,
+                       DenseTensor* correct,
+                       DenseTensor* total) {
   PADDLE_GCU_KERNEL_TRACE("accuracy");
   dev_ctx.template Alloc<float>(accuracy);
   dev_ctx.template Alloc<int>(correct);
@@ -47,36 +47,34 @@ void AccuracyRawKernel(const Context& dev_ctx,
     auto indices_i32 = MaybeCreateOrTrans64To32bits(dev_ctx, indices);
     auto label_i32 = MaybeCreateOrTrans64To32bits(dev_ctx, label);
 
-    phi::DenseTensorMeta equal_out_meta = {phi::DataType::BOOL,
-                                           infer_out.dims()};
+    DenseTensorMeta equal_out_meta = {DataType::BOOL, infer_out.dims()};
     auto equal_out = custom_kernel::TensorEmpty(dev_ctx, equal_out_meta);
 
     LAUNCH_TOPSATENOP(topsatenEq, dev_ctx, equal_out, indices_i32, label_i32);
     auto equal_out_f =
-        custom_kernel::Cast(dev_ctx, equal_out, phi::DataType::FLOAT32);
+        custom_kernel::Cast(dev_ctx, equal_out, DataType::FLOAT32);
 
     // correct: reduce_max + reduce_sum
-    phi::DenseTensorMeta correct_max_meta = {phi::DataType::FLOAT32,
-                                             phi::make_ddim({num_samples})};
+    DenseTensorMeta correct_max_meta = {DataType::FLOAT32,
+                                        phi::make_ddim({num_samples})};
     auto correct_max = custom_kernel::TensorEmpty(dev_ctx, correct_max_meta);
     int axis = 1;
     bool keep_dim = false;
     LAUNCH_TOPSATENOP(
         topsatenMax, dev_ctx, correct_max, equal_out_f, axis, keep_dim);
 
-    phi::DenseTensorMeta correct_sum_meta = {phi::DataType::FLOAT32,
-                                             correct->dims()};
+    DenseTensorMeta correct_sum_meta = {DataType::FLOAT32, correct->dims()};
     auto correct_sum = custom_kernel::TensorEmpty(dev_ctx, correct_sum_meta);
     LAUNCH_TOPSATENOP(
-        topsatenSum, dev_ctx, correct_sum, correct_max, phi::DataType::FLOAT32);
-    custom_kernel::Cast(dev_ctx, correct_sum, phi::DataType::INT32, correct);
+        topsatenSum, dev_ctx, correct_sum, correct_max, DataType::FLOAT32);
+    custom_kernel::Cast(dev_ctx, correct_sum, DataType::INT32, correct);
 
     // total
     FillGcuTensorWithConstant<int>(
         total, dev_ctx, static_cast<int>(num_samples));
 
     // accuracy
-    phi::DenseTensorMeta total_f_meta = {phi::DataType::FLOAT32, total->dims()};
+    DenseTensorMeta total_f_meta = {DataType::FLOAT32, total->dims()};
     auto total_f = custom_kernel::TensorEmpty(dev_ctx, total_f_meta);
     FillGcuTensorWithConstant<float>(
         &total_f, dev_ctx, static_cast<float>(num_samples));

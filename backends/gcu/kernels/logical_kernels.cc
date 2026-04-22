@@ -18,20 +18,20 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void LogicalAndKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("logical_and");
   dev_ctx.template Alloc<bool>(out);
 
   if (LaunchAOTKernel()) {
-    // phi::DenseTensor real_x = x;
-    // phi::DenseTensor real_y = y;
-    // if (x.dtype() != phi::DataType::BOOL) {
-    //   real_x = custom_kernel::Cast(dev_ctx, x, phi::DataType::BOOL);
+    // DenseTensor real_x = x;
+    // DenseTensor real_y = y;
+    // if (x.dtype() != DataType::BOOL) {
+    //   real_x = custom_kernel::Cast(dev_ctx, x, DataType::BOOL);
     // }
-    // if (y.dtype() != phi::DataType::BOOL) {
-    //   real_y = custom_kernel::Cast(dev_ctx, y, phi::DataType::BOOL);
+    // if (y.dtype() != DataType::BOOL) {
+    //   real_y = custom_kernel::Cast(dev_ctx, y, DataType::BOOL);
     // }
     // LAUNCH_TOPSATENOP(topsatenBitwiseAnd, dev_ctx, *out, real_x, real_y);
     LAUNCH_TOPSATENOP(topsatenLogicalAnd, dev_ctx, *out, x, y);
@@ -65,15 +65,15 @@ void LogicalAndKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogicalNotKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("logical_not");
   dev_ctx.template Alloc<bool>(out);
 
   if (LaunchAOTKernel()) {
-    // phi::DenseTensor real_x = x;
-    // if (x.dtype() != phi::DataType::BOOL) {
-    //   real_x = custom_kernel::Cast(dev_ctx, x, phi::DataType::BOOL);
+    // DenseTensor real_x = x;
+    // if (x.dtype() != DataType::BOOL) {
+    //   real_x = custom_kernel::Cast(dev_ctx, x, DataType::BOOL);
     // }
     // LAUNCH_TOPSATENOP(topsatenBitwiseNot, dev_ctx, *out, real_x);
     LAUNCH_TOPSATENOP(topsatenLogicalNot, dev_ctx, *out, x);
@@ -105,20 +105,20 @@ void LogicalNotKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogicalOrKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("logical_or");
   dev_ctx.template Alloc<bool>(out);
 
   if (LaunchAOTKernel()) {
-    // phi::DenseTensor real_x = x;
-    // phi::DenseTensor real_y = y;
-    // if (x.dtype() != phi::DataType::BOOL) {
-    //   real_x = custom_kernel::Cast(dev_ctx, x, phi::DataType::BOOL);
+    // DenseTensor real_x = x;
+    // DenseTensor real_y = y;
+    // if (x.dtype() != DataType::BOOL) {
+    //   real_x = custom_kernel::Cast(dev_ctx, x, DataType::BOOL);
     // }
-    // if (y.dtype() != phi::DataType::BOOL) {
-    //   real_y = custom_kernel::Cast(dev_ctx, y, phi::DataType::BOOL);
+    // if (y.dtype() != DataType::BOOL) {
+    //   real_y = custom_kernel::Cast(dev_ctx, y, DataType::BOOL);
     // }
     // LAUNCH_TOPSATENOP(topsatenBitwiseOr, dev_ctx, *out, real_x, real_y);
     LAUNCH_TOPSATENOP(topsatenLogicalOr, dev_ctx, *out, x, y);
@@ -130,20 +130,20 @@ void LogicalOrKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogicalXorKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("logical_xor");
   dev_ctx.template Alloc<bool>(out);
 
   if (LaunchAOTKernel()) {
-    // phi::DenseTensor real_x = x;
-    // phi::DenseTensor real_y = y;
-    // if (x.dtype() != phi::DataType::BOOL) {
-    //   real_x = custom_kernel::Cast(dev_ctx, x, phi::DataType::BOOL);
+    // DenseTensor real_x = x;
+    // DenseTensor real_y = y;
+    // if (x.dtype() != DataType::BOOL) {
+    //   real_x = custom_kernel::Cast(dev_ctx, x, DataType::BOOL);
     // }
-    // if (y.dtype() != phi::DataType::BOOL) {
-    //   real_y = custom_kernel::Cast(dev_ctx, y, phi::DataType::BOOL);
+    // if (y.dtype() != DataType::BOOL) {
+    //   real_y = custom_kernel::Cast(dev_ctx, y, DataType::BOOL);
     // }
     // LAUNCH_TOPSATENOP(topsatenBitwiseOr, dev_ctx, *out, real_x, real_y);
     LAUNCH_TOPSATENOP(topsatenLogicalXor, dev_ctx, *out, x, y);

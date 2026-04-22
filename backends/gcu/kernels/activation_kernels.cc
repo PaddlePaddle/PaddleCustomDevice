@@ -19,38 +19,37 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 extern void ScaleKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         const phi::Scalar& in_scale,
                         const phi::Scalar& in_bias,
                         bool bias_after_scale,
-                        phi::DenseTensor* out);
+                        DenseTensor* out);
 
 template <typename T, typename Context>
 extern void ClipKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        const phi::Scalar& min,
                        const phi::Scalar& max,
-                       phi::DenseTensor* out);
+                       DenseTensor* out);
 
-#define DEFINE_UNARY_AOT_ACTIVATION_KERNEL(name, functor_prefix)     \
-  template <typename T, typename Context>                            \
-  void functor_prefix##Kernel(const Context& dev_ctx,                \
-                              const phi::DenseTensor& x,             \
-                              phi::DenseTensor* out) {               \
-    PADDLE_GCU_KERNEL_TRACE(#name);                                  \
-    if (LaunchAOTKernel()) {                                         \
-      dev_ctx.template Alloc<T>(out);                                \
-      LAUNCH_TOPSATENOP(topsaten##functor_prefix, dev_ctx, *out, x); \
-    } else { /* kernel impl base on JIT */                           \
-      THROW_JIT_UNIMPLEMENTED();                                     \
-    }                                                                \
+#define DEFINE_UNARY_AOT_ACTIVATION_KERNEL(name, functor_prefix)        \
+  template <typename T, typename Context>                               \
+  void functor_prefix##Kernel(                                          \
+      const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) { \
+    PADDLE_GCU_KERNEL_TRACE(#name);                                     \
+    if (LaunchAOTKernel()) {                                            \
+      dev_ctx.template Alloc<T>(out);                                   \
+      LAUNCH_TOPSATENOP(topsaten##functor_prefix, dev_ctx, *out, x);    \
+    } else { /* kernel impl base on JIT */                              \
+      THROW_JIT_UNIMPLEMENTED();                                        \
+    }                                                                   \
   }
 
 template <typename T, typename Context>
 void ActivationBaseKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
+                          const DenseTensor& x,
                           const GcuAttributeMap& attrs,
-                          phi::DenseTensor* out,
+                          DenseTensor* out,
                           const std::string& op_type) {
   dev_ctx.template Alloc<T>(out);
 
@@ -73,10 +72,10 @@ void ActivationBaseKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void ActivationGradBaseKernel(const Context& dev_ctx,
                               const std::string& x_name,
-                              const phi::DenseTensor& x,
-                              const phi::DenseTensor& dout,
+                              const DenseTensor& x,
+                              const DenseTensor& dout,
                               const GcuAttributeMap& attrs,
-                              phi::DenseTensor* dx,
+                              DenseTensor* dx,
                               const std::string& op_type) {
   dev_ctx.template Alloc<T>(dx);
 
@@ -99,9 +98,7 @@ void ActivationGradBaseKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void AbsKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void AbsKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("abs");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -114,9 +111,9 @@ void AbsKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AbsGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("abs_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -127,9 +124,7 @@ void AbsGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void CosKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void CosKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("cos");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -142,9 +137,9 @@ void CosKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CosGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("cos_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -155,9 +150,7 @@ void CosGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SinKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void SinKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("sin");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -170,8 +163,8 @@ void SinKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AtanKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("atan");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -184,9 +177,9 @@ void AtanKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AtanGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& x,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("atan_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -197,9 +190,7 @@ void AtanGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ExpKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void ExpKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("exp");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -212,9 +203,9 @@ void ExpKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ExpGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& out,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& out,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("exp_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -226,8 +217,8 @@ void ExpGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("floor");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -240,8 +231,8 @@ void FloorKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("floor_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -267,8 +258,8 @@ void FloorGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CeilKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("ceil");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -281,8 +272,8 @@ void CeilKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SwishKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("swish");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -294,9 +285,9 @@ void SwishKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SwishGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& x,
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("swish_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -311,8 +302,8 @@ void SwishGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ReluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("relu");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -324,9 +315,9 @@ void ReluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ReluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& out,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("relu_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -338,8 +329,8 @@ void ReluGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Relu6Kernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("relu6");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -351,9 +342,9 @@ void Relu6Kernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Relu6GradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& out,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& out,
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("relu6_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -365,9 +356,9 @@ void Relu6GradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LeakyReluKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      double alpha,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("leaky_relu");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -385,10 +376,10 @@ void LeakyReluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LeakyReluGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& dout,
+                         const DenseTensor& x,
+                         const DenseTensor& dout,
                          double alpha,
-                         phi::DenseTensor* dx) {
+                         DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("leaky_relu_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -403,9 +394,9 @@ void LeakyReluGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GeluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 bool approximate,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("gelu");
   if (LaunchAOTKernel()) {
     const char* gelu_approximate = "none";
@@ -427,10 +418,10 @@ void GeluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GeluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
+                    const DenseTensor& x,
+                    const DenseTensor& dout,
                     bool approximate,
-                    phi::DenseTensor* dx) {
+                    DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("gelu_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -447,8 +438,8 @@ void GeluGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TanhKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("tanh");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -461,9 +452,9 @@ void TanhKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TanhGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& out,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("tanh_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -475,8 +466,8 @@ void TanhGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SigmoidKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("sigmoid");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -488,9 +479,9 @@ void SigmoidKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SigmoidGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& out,
-                       const phi::DenseTensor& dout,
-                       phi::DenseTensor* dx) {
+                       const DenseTensor& out,
+                       const DenseTensor& dout,
+                       DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("sigmoid_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -502,8 +493,8 @@ void SigmoidGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SqrtKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("sqrt");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -515,9 +506,7 @@ void SqrtKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LogKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void LogKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("log");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -530,9 +519,9 @@ void LogKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("log_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -544,9 +533,9 @@ void LogGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void PowKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::Scalar& factor_scalar,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("pow");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -561,10 +550,10 @@ void PowKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void PowGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
                    const phi::Scalar& factor_scalar,
-                   phi::DenseTensor* dx) {
+                   DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("pow_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -578,8 +567,8 @@ void PowGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SquareKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("square");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -592,9 +581,9 @@ void SquareKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SquareGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& dout,
-                      phi::DenseTensor* dx) {
+                      const DenseTensor& x,
+                      const DenseTensor& dout,
+                      DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("square_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -606,10 +595,10 @@ void SquareGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Hard_SigmoidKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         float slope,
                         float offset,
-                        phi::DenseTensor* out) {
+                        DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("hard_sigmoid");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -630,21 +619,21 @@ void Hard_SigmoidKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSigmoidKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        float slope,
                        float offset,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("hardsigmoid");
   Hard_SigmoidKernel<T, Context>(dev_ctx, x, slope, offset, out);
 }
 
 template <typename T, typename Context>
 void HardSigmoidGradKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& out,
-                           const phi::DenseTensor& dout,
+                           const DenseTensor& out,
+                           const DenseTensor& dout,
                            float slope,
                            float offset,
-                           phi::DenseTensor* dx) {
+                           DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("hard_sigmoid_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -660,8 +649,8 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSwishKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("hard_swish");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -673,9 +662,9 @@ void HardSwishKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSwishGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& dout,
-                         phi::DenseTensor* dx) {
+                         const DenseTensor& x,
+                         const DenseTensor& dout,
+                         DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("hard_swish_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -694,9 +683,9 @@ void HardSwishGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogitKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  float eps,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("logit");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -710,9 +699,9 @@ void LogitKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CeluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 float alpha,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("celu");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -726,9 +715,9 @@ void CeluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardShrinkKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
+                      const DenseTensor& x,
                       float threshold,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("hard_shrink");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -742,9 +731,9 @@ void HardShrinkKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SoftShrinkKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
+                      const DenseTensor& x,
                       float lambda,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("softshrink");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -758,10 +747,10 @@ void SoftShrinkKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SoftplusKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     double beta,
                     double threshold,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("softplus");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -776,10 +765,10 @@ void SoftplusKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardtanhKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     float t_min,
                     float t_max,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("hardtanh");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -794,9 +783,9 @@ void HardtanhKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void EluKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                float alpha,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("elu");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -813,9 +802,9 @@ void EluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RoundKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const int decimals,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("round");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);

@@ -20,13 +20,13 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void SliceKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const std::vector<int64_t>& axes_t,
                  const phi::IntArray& starts_array,
                  const phi::IntArray& ends_array,
                  const std::vector<int64_t>& infer_flags,
                  const std::vector<int64_t>& decrease_axis,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("slice");
   if (LaunchAOTKernel()) {
     auto axes = axes_t;
@@ -70,7 +70,7 @@ void SliceKernel(const Context& dev_ctx,
     if (out->data() == x.data()) {
       *out = TensorEmpty(dev_ctx, out->meta());
     }
-    phi::DenseTensor input_x;
+    DenseTensor input_x;
     if (x.place().GetType() == phi::AllocationType::CPU) {
       TensorCopy(dev_ctx, x, false, &input_x);
     } else {
@@ -128,14 +128,14 @@ void SliceKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SliceGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& out_grad,
+                     const DenseTensor& x,
+                     const DenseTensor& out_grad,
                      const std::vector<int64_t>& axes_t,
                      const phi::IntArray& starts_array,
                      const phi::IntArray& ends_array,
                      const std::vector<int64_t>& infer_flags,
                      const std::vector<int64_t>& decrease_axis,
-                     phi::DenseTensor* x_grad) {
+                     DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("slice_grad");
   std::vector<int> axes(axes_t.begin(), axes_t.end());
   auto starts_int = starts_array.GetData();

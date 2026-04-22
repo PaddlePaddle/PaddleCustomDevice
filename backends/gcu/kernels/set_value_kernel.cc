@@ -19,23 +19,23 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 extern void IndexPutKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
-                           const std::vector<const phi::DenseTensor*>& indices,
-                           const phi::DenseTensor& value,
+                           const DenseTensor& x,
+                           const std::vector<const DenseTensor*>& indices,
+                           const DenseTensor& value,
                            bool accumulate,
-                           phi::DenseTensor* out);
+                           DenseTensor* out);
 
 template <typename T, typename Context>
 void SetTensorValueKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& value,
+                          const DenseTensor& x,
+                          const DenseTensor& value,
                           const phi::IntArray& starts,
                           const phi::IntArray& ends,
                           const phi::IntArray& steps,
                           const std::vector<int64_t>& axes,
                           const std::vector<int64_t>& decrease_axes,
                           const std::vector<int64_t>& none_axes,
-                          phi::DenseTensor* out) {
+                          DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("set_value_with_tensor");
   dev_ctx.template Alloc<T>(out);
 
@@ -122,7 +122,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
     // create index tensor.
     std::vector<int64_t> index_shape = {
         static_cast<int64_t>(index_indices.size())};
-    phi::DenseTensor index_tensor;
+    DenseTensor index_tensor;
     index_tensor.Resize(phi::make_ddim(index_shape));
     TensorFromVector(dev_ctx, index_indices, dev_ctx, &index_tensor);
 
@@ -147,7 +147,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
             "larger than or equal the rank of value shape. "));
 
     // Processing value_tensor data.
-    phi::DenseTensor value_tensor(value);
+    DenseTensor value_tensor(value);
     if (slice_dims_for_assign_v != phi::vectorize(value_tensor.dims()) &&
         value_tensor.numel() == 1) {
       std::vector<int64_t> broadcast_shape = {
@@ -156,10 +156,10 @@ void SetTensorValueKernel(const Context& dev_ctx,
     }
 
     std::vector<int64_t> reshape_shape = {static_cast<int64_t>(x.numel())};
-    phi::DenseTensor reshape_x = ReshapeWithoutCopy(x, reshape_shape);
-    phi::DenseTensor reshape_updates =
+    DenseTensor reshape_x = ReshapeWithoutCopy(x, reshape_shape);
+    DenseTensor reshape_updates =
         ReshapeWithoutCopy(value_tensor, {value_tensor.numel()});
-    phi::DenseTensor reshape_out = ReshapeWithoutCopy(*out, reshape_shape);
+    DenseTensor reshape_out = ReshapeWithoutCopy(*out, reshape_shape);
 
     custom_kernel::IndexPutKernel<T, Context>(dev_ctx,
                                               reshape_x,
@@ -176,7 +176,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SetValueKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     const phi::IntArray& starts,
                     const phi::IntArray& ends,
                     const phi::IntArray& steps,
@@ -185,14 +185,14 @@ void SetValueKernel(const Context& dev_ctx,
                     const std::vector<int64_t>& none_axes,
                     const std::vector<int64_t>& shape,
                     const std::vector<phi::Scalar>& values,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("set_value");
   std::vector<T, PinnedAllocatorForSTL<T>> assgin_values;
   assgin_values.reserve(values.size());
   for (const auto& val : values) {
     assgin_values.push_back(val.to<T>());
   }
-  phi::DenseTensor value_tensor;
+  DenseTensor value_tensor;
   value_tensor.Resize(phi::make_ddim(shape));
   TensorFromVector(dev_ctx, assgin_values, dev_ctx, &value_tensor);
   value_tensor.Resize(phi::make_ddim(shape));

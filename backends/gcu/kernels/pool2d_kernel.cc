@@ -70,7 +70,7 @@ inline void UpdatePadding(std::vector<T>* paddings,
 
 template <typename T, typename Context>
 void Pool2dKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& in_x,
+                  const DenseTensor& in_x,
                   const phi::IntArray& kernel_size,
                   const std::vector<int64_t>& strides_t,
                   const std::vector<int64_t>& paddings_t,
@@ -81,7 +81,7 @@ void Pool2dKernel(const Context& dev_ctx,
                   bool global_pooling,
                   bool adaptive,
                   const std::string& padding_algorithm,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("pool2d");
   dev_ctx.template Alloc<T>(out);
   std::vector<int> ksize(kernel_size.GetData().begin(),
@@ -107,7 +107,7 @@ void Pool2dKernel(const Context& dev_ctx,
           << ", padding_algorithm:" << padding_algorithm
           << ", global_pooling:" << global_pooling << ", adaptive:" << adaptive;
 
-  phi::DenseTensor in_x_tensor(in_x), out_tensor(*out);
+  DenseTensor in_x_tensor(in_x), out_tensor(*out);
   std::vector<int> ksize_vec(4, 1);
   std::vector<int> strides_vec(4, 1);
 
@@ -118,9 +118,9 @@ void Pool2dKernel(const Context& dev_ctx,
     ksize_vec[2] = ksize[1];
     strides_vec[1] = strides[0];
     strides_vec[2] = strides[1];
-    phi::DenseTensorMeta in_x_meta = {
+    DenseTensorMeta in_x_meta = {
         in_x_tensor.dtype(), in_x_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta out_meta = {
+    DenseTensorMeta out_meta = {
         out_tensor.dtype(), out_tensor.dims(), phi::DataLayout::kNHWC};
     in_x_tensor.set_meta(in_x_meta);
     out_tensor.set_meta(out_meta);
@@ -147,9 +147,8 @@ void Pool2dKernel(const Context& dev_ctx,
                 ksize);
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, in_x);
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, in_x);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
     std::vector<int64_t> strides_v = {strides_t.begin(), strides_t.end()};
     std::vector<int64_t> paddings_v = {
@@ -283,9 +282,9 @@ void Pool2dKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Pool2dGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& in_x,
-                      const phi::DenseTensor& out,
-                      const phi::DenseTensor& out_grad,
+                      const DenseTensor& in_x,
+                      const DenseTensor& out,
+                      const DenseTensor& out_grad,
                       const phi::IntArray& kernel_size,
                       const std::vector<int64_t>& strides_t,
                       const std::vector<int64_t>& paddings_t,
@@ -296,7 +295,7 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       bool global_pooling,
                       bool adaptive,
                       const std::string& padding_algorithm,
-                      phi::DenseTensor* in_x_grad) {
+                      DenseTensor* in_x_grad) {
   PADDLE_GCU_KERNEL_TRACE("pool2d_grad");
   dev_ctx.template Alloc<T>(in_x_grad);
 

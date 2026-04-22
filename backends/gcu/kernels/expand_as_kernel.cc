@@ -21,16 +21,16 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 extern void ExpandKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
+                         const DenseTensor& x,
                          const phi::IntArray& shape,
-                         phi::DenseTensor* out);
+                         DenseTensor* out);
 
 template <typename T, typename Context>
 void ExpandAsKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const paddle::optional<phi::DenseTensor>& y,
+                    const DenseTensor& x,
+                    const paddle::optional<DenseTensor>& y,
                     const std::vector<int64_t>& target_shape_64,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   std::vector<int> target_shape =
       std::vector<int>(target_shape_64.begin(), target_shape_64.end());
   PADDLE_GCU_KERNEL_TRACE("expand_as");

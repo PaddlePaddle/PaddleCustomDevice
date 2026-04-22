@@ -22,15 +22,15 @@ static std::unordered_set<const void*> g_depthwise_conv2d_weights_nhwc;
 
 template <typename T, typename Context>
 void GcuConvKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& input,
-                   const phi::DenseTensor& filter,
+                   const DenseTensor& input,
+                   const DenseTensor& filter,
                    const std::vector<int>& strides,
                    const std::vector<int>& paddings,
                    const std::string& padding_algorithm,
                    int groups,
                    const std::vector<int>& dilations,
                    const std::string& data_format,
-                   phi::DenseTensor* out,
+                   DenseTensor* out,
                    const std::string& op_type) {
   dev_ctx.template Alloc<T>(out);
 
@@ -62,17 +62,17 @@ void GcuConvKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GcuConvGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& input,
-                       const phi::DenseTensor& filter,
-                       const phi::DenseTensor& out_grad,
+                       const DenseTensor& input,
+                       const DenseTensor& filter,
+                       const DenseTensor& out_grad,
                        const std::vector<int>& strides,
                        const std::vector<int>& paddings,
                        const std::string& padding_algorithm,
                        int groups,
                        const std::vector<int>& dilations,
                        const std::string& data_format,
-                       phi::DenseTensor* input_grad,
-                       phi::DenseTensor* filter_grad,
+                       DenseTensor* input_grad,
+                       DenseTensor* filter_grad,
                        const std::string& op_type) {
   TensorNameMap input_names;
   input_names["Input"] = {"input"};
@@ -113,7 +113,7 @@ template <typename T, typename Context>
 void Conv2dBiasKernel(const Context& dev_ctx,
                       const DenseTensor& input,
                       const DenseTensor& filter,
-                      const paddle::optional<phi::DenseTensor>& bias,
+                      const paddle::optional<DenseTensor>& bias,
                       const std::vector<int>& strides,
                       const std::vector<int>& paddings,
                       const std::string& padding_algorithm,
@@ -123,18 +123,17 @@ void Conv2dBiasKernel(const Context& dev_ctx,
                       DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("conv2d_bias");
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, input);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, input);
     // if (data_format == "NHWC") {
     //   input_x = custom_kernel::Transpose(dev_ctx, input, {0, 3, 1, 2});
     // }
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor filter_x = MaybeCreateOrTrans64To32bits(dev_ctx, filter);
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor filter_x = MaybeCreateOrTrans64To32bits(dev_ctx, filter);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
-    // phi::DenseTensor input_x = input;
-    // phi::DenseTensor filter_x = filter;
-    // phi::DenseTensor output = *out;
+    // DenseTensor input_x = input;
+    // DenseTensor filter_x = filter;
+    // DenseTensor output = *out;
 
     // update paddings and dilations according to padding_algorithm
     std::vector<int> paddings_vec = paddings;
@@ -166,7 +165,7 @@ void Conv2dBiasKernel(const Context& dev_ctx,
       PdCustomNHWCRepresentAsAtenNHWC(output, true);
       if (g_conv2d_weights_nhwc.count(filter.data()) == 0) {
         auto filter_trans = NCHWTransToPdCustomNHWC(dev_ctx, filter);
-        phi::DenseTensor* filter_ptr = const_cast<phi::DenseTensor*>(&filter);
+        DenseTensor* filter_ptr = const_cast<DenseTensor*>(&filter);
         TensorCopy(dev_ctx, filter_trans, false, filter_ptr);
         g_conv2d_weights_nhwc.emplace(filter.data());
         VLOG(6) << "Transpose debug, trans filter for conv2d.";
@@ -179,12 +178,12 @@ void Conv2dBiasKernel(const Context& dev_ctx,
       }
     }
 
-    phi::DenseTensor input_bias;
+    DenseTensor input_bias;
     if (bias) {
       input_bias = bias.get();
     } else {
-      auto meta = phi::DenseTensorMeta(input.dtype(),
-                                       phi::make_ddim({filter_x.dims().at(0)}));
+      auto meta = DenseTensorMeta(input.dtype(),
+                                  phi::make_ddim({filter_x.dims().at(0)}));
       input_bias = TensorZeros(dev_ctx, meta);
     }
 
@@ -249,33 +248,32 @@ void Conv2dKernel(const Context& dev_ctx,
                   const std::string& data_format,
                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("conv2d");
-  custom_kernel::Conv2dBiasKernel<T, Context>(
-      dev_ctx,
-      input,
-      filter,
-      paddle::optional<phi::DenseTensor>(),
-      strides,
-      paddings,
-      padding_algorithm,
-      dilations,
-      groups,
-      data_format,
-      out);
+  custom_kernel::Conv2dBiasKernel<T, Context>(dev_ctx,
+                                              input,
+                                              filter,
+                                              paddle::optional<DenseTensor>(),
+                                              strides,
+                                              paddings,
+                                              padding_algorithm,
+                                              dilations,
+                                              groups,
+                                              data_format,
+                                              out);
 }
 
 template <typename T, typename Context>
 void Conv2DGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& input,
-                      const phi::DenseTensor& filter,
-                      const phi::DenseTensor& output_grad,
+                      const DenseTensor& input,
+                      const DenseTensor& filter,
+                      const DenseTensor& output_grad,
                       const std::vector<int>& strides,
                       const std::vector<int>& paddings,
                       const std::string& padding_algorithm,
                       const std::vector<int>& dilations,
                       int groups,
                       const std::string& data_format,
-                      phi::DenseTensor* input_grad,
-                      phi::DenseTensor* filter_grad) {
+                      DenseTensor* input_grad,
+                      DenseTensor* filter_grad) {
   PADDLE_GCU_KERNEL_TRACE("conv2d_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -298,29 +296,29 @@ void Conv2DGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DepthwiseConv2dKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& input,
-                           const phi::DenseTensor& filter,
+                           const DenseTensor& input,
+                           const DenseTensor& filter,
                            const std::vector<int>& strides,
                            const std::vector<int>& paddings,
                            const std::string& padding_algorithm,
                            int groups,
                            const std::vector<int>& dilations,
                            const std::string& data_format,
-                           phi::DenseTensor* out) {
+                           DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("depthwise_conv2d");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    // phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, input);
+    // DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, input);
     // if (data_format == "NHWC") {
     //   input_x = custom_kernel::Transpose(dev_ctx, input, {0, 3, 1, 2});
     // }
-    // phi::DenseTensor filter_x = MaybeCreateOrTrans64To32bits(dev_ctx,
-    // filter); phi::DenseTensor output =
+    // DenseTensor filter_x = MaybeCreateOrTrans64To32bits(dev_ctx,
+    // filter); DenseTensor output =
     //     MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
-    phi::DenseTensor input_x = input;
-    phi::DenseTensor filter_x = filter;
-    phi::DenseTensor output = *out;
+    DenseTensor input_x = input;
+    DenseTensor filter_x = filter;
+    DenseTensor output = *out;
 
     // update paddings and dilations according to padding_algorithm
     std::vector<int> paddings_vec = paddings;
@@ -352,7 +350,7 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
       PdCustomNHWCRepresentAsAtenNHWC(output, true);
       if (g_depthwise_conv2d_weights_nhwc.count(filter.data()) == 0) {
         auto filter_trans = NCHWTransToPdCustomNHWC(dev_ctx, filter);
-        phi::DenseTensor* filter_ptr = const_cast<phi::DenseTensor*>(&filter);
+        DenseTensor* filter_ptr = const_cast<DenseTensor*>(&filter);
         TensorCopy(dev_ctx, filter_trans, false, filter_ptr);
         g_depthwise_conv2d_weights_nhwc.emplace(filter.data());
         VLOG(6) << "Transpose debug, trans filter for depthwise_conv2d.";
@@ -365,8 +363,8 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
       }
     }
 
-    auto meta = phi::DenseTensorMeta(input.dtype(),
-                                     phi::make_ddim({filter.dims().at(0)}));
+    auto meta =
+        DenseTensorMeta(input.dtype(), phi::make_ddim({filter.dims().at(0)}));
     auto bias = TensorZeros(dev_ctx, meta);
 
     std::vector<int64_t> strides_v = {strides.begin(), strides.end()};
@@ -411,17 +409,17 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DepthwiseConv2dGradKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& input,
-                               const phi::DenseTensor& filter,
-                               const phi::DenseTensor& out_grad,
+                               const DenseTensor& input,
+                               const DenseTensor& filter,
+                               const DenseTensor& out_grad,
                                const std::vector<int>& strides,
                                const std::vector<int>& paddings,
                                const std::string& padding_algorithm,
                                int groups,
                                const std::vector<int>& dilations,
                                const std::string& data_format,
-                               phi::DenseTensor* input_grad,
-                               phi::DenseTensor* filter_grad) {
+                               DenseTensor* input_grad,
+                               DenseTensor* filter_grad) {
   PADDLE_GCU_KERNEL_TRACE("depthwise_conv2d_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -444,22 +442,21 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Conv3dKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& input,
-                  const phi::DenseTensor& filter,
+                  const DenseTensor& input,
+                  const DenseTensor& filter,
                   const std::vector<int>& strides,
                   const std::vector<int>& paddings,
                   const std::string& padding_algorithm,
                   int groups,
                   const std::vector<int>& dilations,
                   const std::string& data_format,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("conv3d");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, input);
-    phi::DenseTensor filter_x = MaybeCreateOrTrans64To32bits(dev_ctx, filter);
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, input);
+    DenseTensor filter_x = MaybeCreateOrTrans64To32bits(dev_ctx, filter);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
     // update paddings and dilations according to padding_algorithm
     std::vector<int> paddings_vec = paddings;
@@ -491,7 +488,7 @@ void Conv3dKernel(const Context& dev_ctx,
       PdCustomNHWCRepresentAsAtenNHWC(output, true);
       if (g_conv3d_weights_nhwc.count(filter.data()) == 0) {
         auto filter_trans = NCHWTransToPdCustomNHWC(dev_ctx, filter);
-        phi::DenseTensor* filter_ptr = const_cast<phi::DenseTensor*>(&filter);
+        DenseTensor* filter_ptr = const_cast<DenseTensor*>(&filter);
         TensorCopy(dev_ctx, filter_trans, false, filter_ptr);
         g_conv3d_weights_nhwc.emplace(filter.data());
         VLOG(6) << "Transpose debug, trans filter for conv3d.";
@@ -504,8 +501,8 @@ void Conv3dKernel(const Context& dev_ctx,
       }
     }
 
-    auto meta = phi::DenseTensorMeta(input.dtype(),
-                                     phi::make_ddim({filter_x.dims().at(0)}));
+    auto meta =
+        DenseTensorMeta(input.dtype(), phi::make_ddim({filter_x.dims().at(0)}));
     auto bias = TensorZeros(dev_ctx, meta);
 
     std::vector<int64_t> strides_v = {strides.begin(), strides.end()};
@@ -561,17 +558,17 @@ void Conv3dKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Conv3dGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& input,
-                      const phi::DenseTensor& filter,
-                      const phi::DenseTensor& out_grad,
+                      const DenseTensor& input,
+                      const DenseTensor& filter,
+                      const DenseTensor& out_grad,
                       const std::vector<int>& strides,
                       const std::vector<int>& paddings,
                       const std::string& padding_algorithm,
                       int groups,
                       const std::vector<int>& dilations,
                       const std::string& data_format,
-                      phi::DenseTensor* input_grad,
-                      phi::DenseTensor* filter_grad) {
+                      DenseTensor* input_grad,
+                      DenseTensor* filter_grad) {
   PADDLE_GCU_KERNEL_TRACE("conv3d_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();

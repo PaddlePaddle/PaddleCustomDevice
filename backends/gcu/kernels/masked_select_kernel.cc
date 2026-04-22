@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MaskedSelectKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& mask,
-                        phi::DenseTensor* out) {
+                        const DenseTensor& x,
+                        const DenseTensor& mask,
+                        DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("masked_select");
   if (LaunchAOTKernel()) {
     // topsatenMaskedSelect does not refresh the meta information of output.
@@ -85,10 +85,10 @@ void MaskedSelectKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MaskedSelectGradKernel(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
-                            const phi::DenseTensor& mask,
-                            const phi::DenseTensor& out_grad,
-                            phi::DenseTensor* x_grad) {
+                            const DenseTensor& x,
+                            const DenseTensor& mask,
+                            const DenseTensor& out_grad,
+                            DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("masked_select_grad");
 
   if (LaunchAOTKernel()) {

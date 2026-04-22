@@ -19,23 +19,23 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void RmspropDenseKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& param,
-                        const phi::DenseTensor& mean_square,
-                        const phi::DenseTensor& grad,
-                        const phi::DenseTensor& moment,
-                        const phi::DenseTensor& learning_rate,
-                        const paddle::optional<phi::DenseTensor>& mean_grad,
-                        const paddle::optional<phi::DenseTensor>& master_param,
+                        const DenseTensor& param,
+                        const DenseTensor& mean_square,
+                        const DenseTensor& grad,
+                        const DenseTensor& moment,
+                        const DenseTensor& learning_rate,
+                        const paddle::optional<DenseTensor>& mean_grad,
+                        const paddle::optional<DenseTensor>& master_param,
                         float epsilon,
                         float decay,
                         float momentum,
                         bool centered,
                         bool multi_precision,
-                        phi::DenseTensor* param_out,
-                        phi::DenseTensor* moment_out,
-                        phi::DenseTensor* mean_square_out,
-                        phi::DenseTensor* mean_grad_out,
-                        phi::DenseTensor* master_param_outs) {
+                        DenseTensor* param_out,
+                        DenseTensor* moment_out,
+                        DenseTensor* mean_square_out,
+                        DenseTensor* mean_grad_out,
+                        DenseTensor* master_param_outs) {
   PADDLE_GCU_KERNEL_TRACE("rmsprop");
   PADDLE_ENFORCE_EQ(
       multi_precision,
@@ -63,19 +63,19 @@ void RmspropDenseKernel(const Context& dev_ctx,
     inputs["MeanSquare"] = {const_cast<DenseTensor*>(&mean_square)};
     inputs["MeanGrad"] = {const_cast<DenseTensor*>(&(*mean_grad))};
 
-    phi::DenseTensor param_out_tmp;
+    DenseTensor param_out_tmp;
     param_out_tmp.set_meta(param_out->meta());
     dev_ctx.template Alloc<T>(&param_out_tmp);
 
-    phi::DenseTensor moment_out_tmp;
+    DenseTensor moment_out_tmp;
     moment_out_tmp.set_meta(moment_out->meta());
     dev_ctx.template Alloc<T>(&moment_out_tmp);
 
-    phi::DenseTensor mean_square_out_tmp;
+    DenseTensor mean_square_out_tmp;
     mean_square_out_tmp.set_meta(mean_square_out->meta());
     dev_ctx.template Alloc<T>(&mean_square_out_tmp);
 
-    phi::DenseTensor mean_grad_out_tmp;
+    DenseTensor mean_grad_out_tmp;
     mean_grad_out_tmp.set_meta(mean_grad_out->meta());
     dev_ctx.template Alloc<T>(&mean_grad_out_tmp);
 

@@ -18,14 +18,14 @@
 
 namespace custom_kernel {
 
-using Tensor = phi::DenseTensor;
+using Tensor = DenseTensor;
 
 template <typename T, typename Context>
 void LogLossKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& input,
-                   const phi::DenseTensor& label,
+                   const DenseTensor& input,
+                   const DenseTensor& label,
                    float epsilon,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("log_loss");
   dev_ctx.template Alloc<T>(out);
 
@@ -72,11 +72,11 @@ void LogLossKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogLossGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& input,
-                       const phi::DenseTensor& label,
-                       const phi::DenseTensor& out_grad,
+                       const DenseTensor& input,
+                       const DenseTensor& label,
+                       const DenseTensor& out_grad,
                        float epsilon,
-                       phi::DenseTensor* in_grad) {
+                       DenseTensor* in_grad) {
   PADDLE_GCU_KERNEL_TRACE("log_loss_grad");
   dev_ctx.template Alloc<T>(in_grad);
 

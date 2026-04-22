@@ -19,12 +19,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ArgsortKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    int axis,
                    bool descending,
                    bool stable,
-                   phi::DenseTensor* output,
-                   phi::DenseTensor* indices) {
+                   DenseTensor* output,
+                   DenseTensor* indices) {
   PADDLE_GCU_KERNEL_TRACE("argsort");
   dev_ctx.template Alloc<T>(output);
   dev_ctx.template Alloc<int64_t>(indices);
@@ -34,7 +34,7 @@ void ArgsortKernel(const Context& dev_ctx,
       axis += x.dims().size();
     }
 
-    phi::DenseTensor indices_out =
+    DenseTensor indices_out =
         MaybeCreateOrTrans64To32bits(dev_ctx, *indices, false);
 
     LAUNCH_TOPSATENOP(topsatenSort,
@@ -75,13 +75,13 @@ void ArgsortKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ArgsortGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& indices,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& out_grad,
+                       const DenseTensor& indices,
+                       const DenseTensor& x,
+                       const DenseTensor& out_grad,
                        int axis,
                        bool descending,
                        bool stable,
-                       phi::DenseTensor* x_grad) {
+                       DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("argsort_grad");
   dev_ctx.template Alloc<T>(x_grad);
   if (LaunchAOTKernel()) {

@@ -18,9 +18,9 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void CholeskyKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     bool upper,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("cholesky");
 
   if (LaunchAOTKernel()) {

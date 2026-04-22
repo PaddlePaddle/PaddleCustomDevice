@@ -22,13 +22,13 @@
 #include "runtime/runtime.h"
 
 namespace custom_kernel {
-void *GcuDataPtr(const phi::DenseTensor &tensor);
+void *GcuDataPtr(const DenseTensor &tensor);
 
-std::string TensorToString(const phi::DenseTensor &tensor);
+std::string TensorToString(const DenseTensor &tensor);
 
-std::string TensorVectorToString(const std::vector<phi::DenseTensor> &tensors);
+std::string TensorVectorToString(const std::vector<DenseTensor> &tensors);
 
-std::string TensorDetailsToString(const phi::DenseTensor &tensor);
+std::string TensorDetailsToString(const DenseTensor &tensor);
 
 std::string ScalarToString(const phi::Scalar &scalar_value);
 
@@ -38,7 +38,7 @@ std::vector<int64_t> InferSize(const std::vector<int64_t> &a,
                                const std::vector<int64_t> &b);
 
 std::vector<int64_t> ComputeBroadcastShape(
-    const std::vector<phi::DenseTensor> operands);
+    const std::vector<DenseTensor> operands);
 
 void GcuOpMaybeStreamSync(const phi::DeviceContext &dev_ctx);
 
@@ -54,9 +54,8 @@ struct aot_op_variable_info {
 };
 
 template <>
-struct aot_op_variable_info<phi::DenseTensor> {
-  aot_op_variable_info(const phi::DenseTensor &tensor,
-                       const std::string &name) {
+struct aot_op_variable_info<DenseTensor> {
+  aot_op_variable_info(const DenseTensor &tensor, const std::string &name) {
     std::stringstream ss;
     ss << "[" << name << ":" << TensorToString(tensor) << "]; ";
     info = ss.str();
@@ -66,12 +65,12 @@ struct aot_op_variable_info<phi::DenseTensor> {
 };
 
 template <>
-struct aot_op_variable_info<paddle::optional<phi::DenseTensor>> {
-  aot_op_variable_info(const paddle::optional<phi::DenseTensor> &opt_tensor,
+struct aot_op_variable_info<paddle::optional<DenseTensor>> {
+  aot_op_variable_info(const paddle::optional<DenseTensor> &opt_tensor,
                        const std::string &name) {
     std::stringstream ss;
     if (opt_tensor) {
-      ss << aot_op_variable_info<phi::DenseTensor>(opt_tensor.get(), name).info;
+      ss << aot_op_variable_info<DenseTensor>(opt_tensor.get(), name).info;
     } else {
       ss << "OPTIONAL_NULLPTR_TENSOR";
     }
@@ -82,15 +81,14 @@ struct aot_op_variable_info<paddle::optional<phi::DenseTensor>> {
 };
 
 template <>
-struct aot_op_variable_info<std::vector<phi::DenseTensor>> {
-  aot_op_variable_info(const std::vector<phi::DenseTensor> &tensor_list,
+struct aot_op_variable_info<std::vector<DenseTensor>> {
+  aot_op_variable_info(const std::vector<DenseTensor> &tensor_list,
                        const std::string &name) {
     std::stringstream ss;
     ss << "[" << name << ":{";
     for (int64_t i = 0; i < tensor_list.size(); ++i) {
       std::string tensor_name = "list_tensor_" + std::to_string(i);
-      ss << aot_op_variable_info<phi::DenseTensor>(tensor_list[i], tensor_name)
-                .info;
+      ss << aot_op_variable_info<DenseTensor>(tensor_list[i], tensor_name).info;
     }
     ss << "}]; ";
     info = ss.str();
@@ -100,15 +98,15 @@ struct aot_op_variable_info<std::vector<phi::DenseTensor>> {
 };
 
 template <>
-struct aot_op_variable_info<std::vector<phi::DenseTensor *> *> {
-  aot_op_variable_info(const std::vector<phi::DenseTensor *> *tensor_list,
+struct aot_op_variable_info<std::vector<DenseTensor *> *> {
+  aot_op_variable_info(const std::vector<DenseTensor *> *tensor_list,
                        const std::string &name) {
     std::stringstream ss;
     ss << "[" << name << ":{";
     for (int64_t i = 0; i < tensor_list->size(); ++i) {
       std::string tensor_name = "list_tensor_" + std::to_string(i);
-      ss << aot_op_variable_info<phi::DenseTensor>(*(tensor_list->at(i)),
-                                                   tensor_name)
+      ss << aot_op_variable_info<DenseTensor>(*(tensor_list->at(i)),
+                                              tensor_name)
                 .info;
     }
     ss << "}]; ";
@@ -201,11 +199,10 @@ struct aot_op_variable_info<std::vector<int>> {
 };
 
 template <>
-struct aot_op_variable_info<phi::DataType> {
-  aot_op_variable_info(const phi::DataType &data_type,
-                       const std::string &name) {
+struct aot_op_variable_info<DataType> {
+  aot_op_variable_info(const DataType &data_type, const std::string &name) {
     std::stringstream ss;
-    ss << "[" << name << ":" << phi::DataTypeToString(data_type) << "]; ";
+    ss << "[" << name << ":" << DataTypeToString(data_type) << "]; ";
     info = ss.str();
   }
 
@@ -239,8 +236,8 @@ struct aot_op_abstract_info {
 };
 
 template <>
-struct aot_op_abstract_info<phi::DenseTensor> {
-  explicit aot_op_abstract_info(const phi::DenseTensor &tensor) {
+struct aot_op_abstract_info<DenseTensor> {
+  explicit aot_op_abstract_info(const DenseTensor &tensor) {
     std::stringstream ss;
     ss << "DenseTensor<";
     if (tensor.initialized()) {
@@ -256,12 +253,12 @@ struct aot_op_abstract_info<phi::DenseTensor> {
 };
 
 template <>
-struct aot_op_abstract_info<paddle::optional<phi::DenseTensor>> {
+struct aot_op_abstract_info<paddle::optional<DenseTensor>> {
   explicit aot_op_abstract_info(
-      const paddle::optional<phi::DenseTensor> &opt_tensor) {
+      const paddle::optional<DenseTensor> &opt_tensor) {
     std::stringstream ss;
     if (opt_tensor) {
-      ss << aot_op_abstract_info<phi::DenseTensor>(opt_tensor.get()).info;
+      ss << aot_op_abstract_info<DenseTensor>(opt_tensor.get()).info;
     } else {
       ss << "<OPTIONAL_NULLPTR_TENSOR>; ";
     }
@@ -272,13 +269,12 @@ struct aot_op_abstract_info<paddle::optional<phi::DenseTensor>> {
 };
 
 template <>
-struct aot_op_abstract_info<std::vector<phi::DenseTensor>> {
-  explicit aot_op_abstract_info(
-      const std::vector<phi::DenseTensor> &tensor_list) {
+struct aot_op_abstract_info<std::vector<DenseTensor>> {
+  explicit aot_op_abstract_info(const std::vector<DenseTensor> &tensor_list) {
     std::stringstream ss;
     ss << "ListTensor<";
     for (int64_t i = 0; i < tensor_list.size(); ++i) {
-      ss << aot_op_abstract_info<phi::DenseTensor>(tensor_list[i]).info;
+      ss << aot_op_abstract_info<DenseTensor>(tensor_list[i]).info;
     }
     ss << ">; ";
     info = ss.str();
@@ -288,13 +284,13 @@ struct aot_op_abstract_info<std::vector<phi::DenseTensor>> {
 };
 
 template <>
-struct aot_op_abstract_info<std::vector<const phi::DenseTensor *>> {
+struct aot_op_abstract_info<std::vector<const DenseTensor *>> {
   explicit aot_op_abstract_info(
-      const std::vector<const phi::DenseTensor *> &tensor_list) {
+      const std::vector<const DenseTensor *> &tensor_list) {
     std::stringstream ss;
     ss << "ListTensor<";
     for (int64_t i = 0; i < tensor_list.size(); ++i) {
-      ss << aot_op_abstract_info<phi::DenseTensor>(*(tensor_list[i])).info;
+      ss << aot_op_abstract_info<DenseTensor>(*(tensor_list[i])).info;
     }
     ss << ">; ";
     info = ss.str();
@@ -304,13 +300,12 @@ struct aot_op_abstract_info<std::vector<const phi::DenseTensor *>> {
 };
 
 template <>
-struct aot_op_abstract_info<std::vector<phi::DenseTensor *>> {
-  explicit aot_op_abstract_info(
-      const std::vector<phi::DenseTensor *> &tensor_list) {
+struct aot_op_abstract_info<std::vector<DenseTensor *>> {
+  explicit aot_op_abstract_info(const std::vector<DenseTensor *> &tensor_list) {
     std::stringstream ss;
     ss << "ListTensor<";
     for (int64_t i = 0; i < tensor_list.size(); ++i) {
-      ss << aot_op_abstract_info<phi::DenseTensor>(*(tensor_list[i])).info;
+      ss << aot_op_abstract_info<DenseTensor>(*(tensor_list[i])).info;
     }
     ss << ">; ";
     info = ss.str();
@@ -396,10 +391,10 @@ struct aot_op_abstract_info<std::vector<int>> {
 };
 
 template <>
-struct aot_op_abstract_info<phi::DataType> {
-  explicit aot_op_abstract_info(const phi::DataType &data_type) {
+struct aot_op_abstract_info<DataType> {
+  explicit aot_op_abstract_info(const DataType &data_type) {
     std::stringstream ss;
-    ss << "DType<" << phi::DataTypeToString(data_type) << ">; ";
+    ss << "DType<" << DataTypeToString(data_type) << ">; ";
     info = ss.str();
   }
 
@@ -449,18 +444,18 @@ inline std::string GetAbstractInfo(const std::string &op_name,
   return op_info;
 }
 
-inline bool IsNarrowType(const phi::DataType &dtype) {
-  return dtype == phi::DataType::FLOAT64 || dtype == phi::DataType::INT64;
+inline bool IsNarrowType(const DataType &dtype) {
+  return dtype == DataType::FLOAT64 || dtype == DataType::INT64;
 }
 
-inline void WarnTypeNarrow(const phi::DataType &dtype) {
-  if (dtype == phi::DataType::FLOAT64) {
+inline void WarnTypeNarrow(const DataType &dtype) {
+  if (dtype == DataType::FLOAT64) {
     LOG_FIRST_N(WARNING, 1)
-        << "GCU not support " << phi::DataTypeToString(dtype)
+        << "GCU not support " << DataTypeToString(dtype)
         << ", use float32 replace, maybe lead to unexpected overflow issues.";
-  } else if (dtype == phi::DataType::INT64) {
+  } else if (dtype == DataType::INT64) {
     LOG_FIRST_N(WARNING, 1)
-        << "GCU not support " << phi::DataTypeToString(dtype)
+        << "GCU not support " << DataTypeToString(dtype)
         << ", use int32 replace, maybe lead to unexpected overflow issues.";
   }
 }

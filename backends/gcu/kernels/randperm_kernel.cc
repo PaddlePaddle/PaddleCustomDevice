@@ -19,14 +19,14 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void RandpermRawKernel(const Context& dev_ctx,
                        int n,
-                       phi::DataType dtype,
+                       DataType dtype,
                        unsigned int seed,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("randperm_raw");
   ContextPinnedGuard<Context> ctx_pinned_guard(dev_ctx);
   VLOG(6) << "[HOST_KERNEL] Impl on host for randperm";
   VLOG(6) << "Enter RandpermRawKernel with n:" << n << ", seed:" << seed
-          << ", dtype:" << phi::DataTypeToString(dtype);
+          << ", dtype:" << DataTypeToString(dtype);
 
   std::shared_ptr<std::mt19937_64> engine;
 
@@ -45,7 +45,7 @@ void RandpermRawKernel(const Context& dev_ctx,
     std::shuffle(out_data, out_data + n, *engine);
   } else {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor tmp_tensor;
+    DenseTensor tmp_tensor;
     tmp_tensor.Resize(phi::make_ddim({n}));
     T* tmp_data = dev_ctx.template HostAlloc<T>(&tmp_tensor);
     for (int i = 0; i < n; ++i) {
@@ -59,8 +59,8 @@ void RandpermRawKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void RandpermKernel(const Context& dev_ctx,
                     int n,
-                    phi::DataType dtype,
-                    phi::DenseTensor* out) {
+                    DataType dtype,
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("randperm");
   custom_kernel::RandpermRawKernel<T, Context>(dev_ctx, n, dtype, 0, out);
 }

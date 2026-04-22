@@ -16,15 +16,14 @@
 #include "kernels/funcs/gcu_kernel_funcs.h"
 
 namespace custom_kernel {
-static void CheckInputs(
-    const std::vector<const phi::DenseTensor*>& param,
-    const std::vector<const phi::DenseTensor*>& grad,
-    const std::vector<const phi::DenseTensor*>& velocity,
-    const std::vector<const phi::DenseTensor*>& learning_rate,
-    const std::vector<std::string>& regularization_method,
-    const std::vector<float>& regularization_coeff,
-    std::vector<phi::DenseTensor*> param_out,
-    std::vector<phi::DenseTensor*> velocity_out) {
+static void CheckInputs(const std::vector<const DenseTensor*>& param,
+                        const std::vector<const DenseTensor*>& grad,
+                        const std::vector<const DenseTensor*>& velocity,
+                        const std::vector<const DenseTensor*>& learning_rate,
+                        const std::vector<std::string>& regularization_method,
+                        const std::vector<float>& regularization_coeff,
+                        std::vector<DenseTensor*> param_out,
+                        std::vector<DenseTensor*> velocity_out) {
   size_t param_num = param.size();
   PADDLE_ENFORCE_GT(param_num, 0);
   PADDLE_ENFORCE_EQ(
@@ -98,20 +97,20 @@ static void CheckInputs(
 template <typename T, typename Context>
 void MergedMomentumKernel(
     const Context& dev_ctx,
-    const std::vector<const phi::DenseTensor*>& param,
-    const std::vector<const phi::DenseTensor*>& grad,
-    const std::vector<const phi::DenseTensor*>& velocity,
-    const std::vector<const phi::DenseTensor*>& learning_rate,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& master_param,
+    const std::vector<const DenseTensor*>& param,
+    const std::vector<const DenseTensor*>& grad,
+    const std::vector<const DenseTensor*>& velocity,
+    const std::vector<const DenseTensor*>& learning_rate,
+    const paddle::optional<std::vector<const DenseTensor*>>& master_param,
     float mu,
     bool use_nesterov,
     const std::vector<std::string>& regularization_method,
     const std::vector<float>& regularization_coeff,
     bool multi_precision,
     float rescale_grad,
-    std::vector<phi::DenseTensor*> param_out,
-    std::vector<phi::DenseTensor*> velocity_out,
-    std::vector<phi::DenseTensor*> master_param_out) {
+    std::vector<DenseTensor*> param_out,
+    std::vector<DenseTensor*> velocity_out,
+    std::vector<DenseTensor*> master_param_out) {
   PADDLE_GCU_KERNEL_TRACE("merged_momentum");
   CheckInputs(param,
               grad,
@@ -142,8 +141,8 @@ void MergedMomentumKernel(
     output_names["ParamOut"].reserve(param_num);
     outputs["VelocityOut"].reserve(param_num);
     outputs["ParamOut"].reserve(param_num);
-    std::vector<std::shared_ptr<phi::DenseTensor>> param_outs_tmp;
-    std::vector<std::shared_ptr<phi::DenseTensor>> velocity_outs_tmp;
+    std::vector<std::shared_ptr<DenseTensor>> param_outs_tmp;
+    std::vector<std::shared_ptr<DenseTensor>> velocity_outs_tmp;
     param_outs_tmp.reserve(param_num);
     velocity_outs_tmp.reserve(param_num);
 
@@ -168,12 +167,12 @@ void MergedMomentumKernel(
       output_names["VelocityOut"].emplace_back(std::string("velocity_out") +
                                                std::to_string(i));
 
-      auto param_out_tmp = std::make_shared<phi::DenseTensor>();
+      auto param_out_tmp = std::make_shared<DenseTensor>();
       param_out_tmp->set_meta(param_out[i]->meta());
       dev_ctx.template Alloc<T>(param_out_tmp.get());
       param_outs_tmp.emplace_back(param_out_tmp);
 
-      auto velocity_out_tmp = std::make_shared<phi::DenseTensor>();
+      auto velocity_out_tmp = std::make_shared<DenseTensor>();
       velocity_out_tmp->set_meta(velocity_out[i]->meta());
       dev_ctx.template Alloc<T>(velocity_out_tmp.get());
       velocity_outs_tmp.emplace_back(velocity_out_tmp);

@@ -18,8 +18,8 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void TruncKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("trunc");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {

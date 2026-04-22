@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AddNKernel(const Context& dev_ctx,
-                const std::vector<const phi::DenseTensor*>& x,
-                phi::DenseTensor* out) {
+                const std::vector<const DenseTensor*>& x,
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("add_n");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
@@ -40,7 +40,7 @@ void AddNKernel(const Context& dev_ctx,
     TensorValueMap inputs;
     std::vector<std::string> names;
     names.reserve(x.size());
-    std::vector<phi::DenseTensor*> values;
+    std::vector<DenseTensor*> values;
     values.reserve(x.size());
     for (size_t i = 0; i < x.size(); ++i) {
       names.emplace_back(std::string("x_") + std::to_string(i));

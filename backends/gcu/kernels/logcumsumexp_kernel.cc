@@ -18,15 +18,15 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void LogcumsumexpKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         int axis,
                         bool flatten,
                         bool exclusive,
                         bool reverse,
-                        phi::DenseTensor* out) {
+                        DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("logcumsumexp");
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_tensor(x);
+    DenseTensor input_tensor(x);
     if (flatten) {
       PADDLE_ENFORCE_EQ(
           axis,

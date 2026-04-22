@@ -18,15 +18,15 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void DiagonalKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     int offset,
                     int axis1,
                     int axis2,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("diagonal");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
-    phi::DenseTensor out_tmp;
+    DenseTensor out_tmp;
     out_tmp.set_meta(out->meta());
 
     auto out_tmp_tensor = CreateTopsatenTensorWithoutInitialized(out_tmp);

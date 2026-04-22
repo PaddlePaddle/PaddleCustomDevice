@@ -124,11 +124,11 @@ void InterpolateKernel(
     dim_out = {n, out_h, out_w, c};
   }
 
-  phi::DenseTensorMeta out_meta(output->dtype(), dim_out);
+  DenseTensorMeta out_meta(output->dtype(), dim_out);
   output->set_meta(out_meta);
   ctx.template Alloc<T>(output);
   if (LaunchAOTKernel()) {
-    phi::DenseTensor output_perm = *output;
+    DenseTensor output_perm = *output;
     if (DataPdCustomNHWC(x)) {
       PADDLE_ENFORCE_EQ(data_layout,
                         "NCHW",
@@ -280,7 +280,7 @@ void InterpolateGradKernel(
     auto tensors = size_tensor.get();
     std::vector<std::string> in_names;
     in_names.reserve(tensors.size());
-    std::vector<phi::DenseTensor*> in_tensors;
+    std::vector<DenseTensor*> in_tensors;
     in_tensors.reserve(tensors.size());
     for (size_t i = 0; i < tensors.size(); ++i) {
       in_names.emplace_back(std::string("size_tensor_") + std::to_string(i));

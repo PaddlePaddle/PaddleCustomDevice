@@ -18,21 +18,21 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void IscloseKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
+                   const DenseTensor& x,
+                   const DenseTensor& y,
                    const phi::Scalar& rtol,
                    const phi::Scalar& atol,
                    bool equal_nan,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("isclose");
   PADDLE_ENFORCE_EQ(
       rtol.dtype(),
-      phi::DataType::FLOAT64,
+      DataType::FLOAT64,
       phi::errors::InvalidArgument("Input(Rtol) type must be double"));
 
   PADDLE_ENFORCE_EQ(
       atol.dtype(),
-      phi::DataType::FLOAT64,
+      DataType::FLOAT64,
       phi::errors::InvalidArgument("Input(Atol) type must be double"));
 
   dev_ctx.template Alloc<bool>(out);

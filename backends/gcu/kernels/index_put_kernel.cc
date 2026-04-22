@@ -17,15 +17,15 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void IndexPutKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const std::vector<const phi::DenseTensor*>& indices,
-                    const phi::DenseTensor& value,
+                    const DenseTensor& x,
+                    const std::vector<const DenseTensor*>& indices,
+                    const DenseTensor& value,
                     bool accumulate,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("index_put");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
-    std::vector<phi::DenseTensor> input_indices;
+    std::vector<DenseTensor> input_indices;
     for (const auto& index : indices) {
       input_indices.emplace_back(MaybeCreateOrTrans64To32bits(dev_ctx, *index));
     }
@@ -33,12 +33,11 @@ void IndexPutKernel(const Context& dev_ctx,
     for (const auto& tensor : input_indices) {
       indices_tensors.emplace_back(CreateTopsatenTensor(tensor));
     }
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_value = MaybeCreateOrTrans64To32bits(dev_ctx, value);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_value = MaybeCreateOrTrans64To32bits(dev_ctx, value);
     auto input_tensor = CreateTopsatenTensor(input_x);
     auto value_tensor = CreateTopsatenTensor(input_value);
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     auto out_tensor = CreateTopsatenTensor(output);
     std::string abstract_info =
         custom_kernel::GetAbstractInfo("topsatenIndexPut",

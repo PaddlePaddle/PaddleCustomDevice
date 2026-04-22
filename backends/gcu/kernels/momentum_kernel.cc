@@ -18,20 +18,20 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void MomentumKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& param,
-                    const phi::DenseTensor& grad,
-                    const phi::DenseTensor& velocity,
-                    const phi::DenseTensor& learning_rate,
-                    const paddle::optional<phi::DenseTensor>& master_param,
+                    const DenseTensor& param,
+                    const DenseTensor& grad,
+                    const DenseTensor& velocity,
+                    const DenseTensor& learning_rate,
+                    const paddle::optional<DenseTensor>& master_param,
                     float mu_f,
                     bool use_nesterov,
                     const std::string& regularization_method,
                     float regularization_coeff,
                     bool multi_precision,
                     float rescale_grad,
-                    phi::DenseTensor* param_out,
-                    phi::DenseTensor* velocity_out,
-                    phi::DenseTensor* master_param_out) {
+                    DenseTensor* param_out,
+                    DenseTensor* velocity_out,
+                    DenseTensor* master_param_out) {
   PADDLE_GCU_KERNEL_TRACE("momentum");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -51,11 +51,11 @@ void MomentumKernel(const Context& dev_ctx,
     inputs["Velocity"] = {const_cast<DenseTensor*>(&velocity)};
     inputs["LearningRate"] = {const_cast<DenseTensor*>(&learning_rate)};
 
-    phi::DenseTensor param_out_tmp;
+    DenseTensor param_out_tmp;
     param_out_tmp.set_meta(param_out->meta());
     dev_ctx.template Alloc<T>(&param_out_tmp);
 
-    phi::DenseTensor velocity_out_tmp;
+    DenseTensor velocity_out_tmp;
     velocity_out_tmp.set_meta(velocity_out->meta());
     dev_ctx.template Alloc<T>(&velocity_out_tmp);
 

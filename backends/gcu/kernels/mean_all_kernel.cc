@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MeanAllKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("mean_all");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
@@ -51,9 +51,9 @@ void MeanAllKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanAllGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& grad,
-                       phi::DenseTensor* x_grad) {
+                       const DenseTensor& x,
+                       const DenseTensor& grad,
+                       DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("mean_all_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();

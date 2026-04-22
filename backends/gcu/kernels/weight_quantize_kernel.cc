@@ -234,9 +234,9 @@ template <typename DeviceContext,
           int bits,
           typename ScaleT = T>
 void quant_compute(const DeviceContext& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out,
-                   phi::DenseTensor* scale,
+                   const DenseTensor& x,
+                   DenseTensor* out,
+                   DenseTensor* scale,
                    const std::string& algo,
                    const int32_t arch,
                    const int32_t group_size) {
@@ -253,14 +253,14 @@ void quant_compute(const DeviceContext& dev_ctx,
   const T* x_data = x.data<T>();
   ScaleT* scale_data = scale->data<ScaleT>();
 
-  phi::DenseTensorMeta out_meta = out->meta();
-  phi::DenseTensor x_int;
+  DenseTensorMeta out_meta = out->meta();
+  DenseTensor x_int;
   x_int.set_meta(out_meta);
   x_int.Resize({static_cast<int64_t>(m), static_cast<int64_t>(n)});
   dev_ctx.template Alloc<D>(&x_int);
   D* x_int_data = x_int.data<D>();
 
-  phi::DenseTensor x_int_tmp;
+  DenseTensor x_int_tmp;
   x_int_tmp.set_meta(out_meta);
   x_int_tmp.Resize({static_cast<int64_t>(m), static_cast<int64_t>(n / 2)});
   dev_ctx.template Alloc<D>(&x_int_tmp);
@@ -295,38 +295,38 @@ void quant_compute(const DeviceContext& dev_ctx,
 
 template <typename T, typename Context>
 void WeightQuantizeKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
+                          const DenseTensor& x,
                           const std::string& algo,
                           const int32_t arch,
                           const int32_t group_size,
-                          phi::DenseTensor* out,
-                          phi::DenseTensor* scale) {
+                          DenseTensor* out,
+                          DenseTensor* scale) {
   PADDLE_GCU_KERNEL_TRACE("weight_quantize");
-  phi::DenseTensor x_cpu;
-  phi::DenseTensor out_cpu;
-  phi::DenseTensor scale_cpu;
-  phi::CPUContext dev_ctx_cpu;
+  DenseTensor x_cpu;
+  DenseTensor out_cpu;
+  DenseTensor scale_cpu;
+  CPUContext dev_ctx_cpu;
   dev_ctx_cpu.SetAllocator(&(dev_ctx.GetHostAllocator()));
   dev_ctx_cpu.SetHostAllocator(&(dev_ctx.GetHostAllocator()));
-  TensorCopy(dev_ctx, x, true, &x_cpu, phi::CPUPlace());
+  TensorCopy(dev_ctx, x, true, &x_cpu, CPUPlace());
   dev_ctx.Wait();
 
-  phi::DenseTensorMeta out_meta = out->meta();
+  DenseTensorMeta out_meta = out->meta();
   out_cpu.set_meta(out_meta);
   dev_ctx_cpu.template Alloc<int8_t>(&out_cpu);
-  phi::DenseTensorMeta scale_meta = scale->meta();
+  DenseTensorMeta scale_meta = scale->meta();
   scale_cpu.set_meta(scale_meta);
   if (algo == "weight_only_int8") {
     dev_ctx_cpu.template Alloc<T>(&scale_cpu);
-    quant_compute<phi::CPUContext, T, int8_t, 8>(
+    quant_compute<CPUContext, T, int8_t, 8>(
         dev_ctx_cpu, x_cpu, &out_cpu, &scale_cpu, algo, arch, group_size);
   } else if (algo == "llm.int8") {
     dev_ctx_cpu.template Alloc<float>(&scale_cpu);
-    quant_compute<phi::CPUContext, T, int8_t, 8, float>(
+    quant_compute<CPUContext, T, int8_t, 8, float>(
         dev_ctx_cpu, x_cpu, &out_cpu, &scale_cpu, algo, arch, group_size);
   } else if (algo == "weight_only_int4") {
     dev_ctx_cpu.template Alloc<T>(&scale_cpu);
-    quant_compute<phi::CPUContext, T, int8_t, 4>(
+    quant_compute<CPUContext, T, int8_t, 4>(
         dev_ctx_cpu, x_cpu, &out_cpu, &scale_cpu, algo, arch, group_size);
   } else {
     common::errors::Unimplemented(

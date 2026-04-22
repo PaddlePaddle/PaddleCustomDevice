@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void FlipKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const std::vector<int>& axis,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("flip");
   dev_ctx.template Alloc<T>(out);
 

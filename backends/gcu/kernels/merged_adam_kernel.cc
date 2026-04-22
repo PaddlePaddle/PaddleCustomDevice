@@ -16,19 +16,18 @@
 #include "kernels/funcs/gcu_kernel_funcs.h"
 
 namespace custom_kernel {
-static void CheckInputs(
-    const std::vector<const phi::DenseTensor*>& param,
-    const std::vector<const phi::DenseTensor*>& grad,
-    const std::vector<const phi::DenseTensor*>& learning_rate,
-    const std::vector<const phi::DenseTensor*>& moment1,
-    const std::vector<const phi::DenseTensor*>& moment2,
-    const std::vector<const phi::DenseTensor*>& beta1_pow,
-    const std::vector<const phi::DenseTensor*>& beta2_pow,
-    std::vector<phi::DenseTensor*> param_out,
-    std::vector<phi::DenseTensor*> moment1_out,
-    std::vector<phi::DenseTensor*> moment2_out,
-    std::vector<phi::DenseTensor*> beta1_pow_out,
-    std::vector<phi::DenseTensor*> beta2_pow_out) {
+static void CheckInputs(const std::vector<const DenseTensor*>& param,
+                        const std::vector<const DenseTensor*>& grad,
+                        const std::vector<const DenseTensor*>& learning_rate,
+                        const std::vector<const DenseTensor*>& moment1,
+                        const std::vector<const DenseTensor*>& moment2,
+                        const std::vector<const DenseTensor*>& beta1_pow,
+                        const std::vector<const DenseTensor*>& beta2_pow,
+                        std::vector<DenseTensor*> param_out,
+                        std::vector<DenseTensor*> moment1_out,
+                        std::vector<DenseTensor*> moment2_out,
+                        std::vector<DenseTensor*> beta1_pow_out,
+                        std::vector<DenseTensor*> beta2_pow_out) {
   size_t param_num = param.size();
   PADDLE_ENFORCE_GT(param_num, 0);
   PADDLE_ENFORCE_EQ(
@@ -128,25 +127,25 @@ static void CheckInputs(
 template <typename T, typename Context>
 void MergedAdamKernel(
     const Context& dev_ctx,
-    const std::vector<const phi::DenseTensor*>& param,
-    const std::vector<const phi::DenseTensor*>& grad,
-    const std::vector<const phi::DenseTensor*>& learning_rate,
-    const std::vector<const phi::DenseTensor*>& moment1,
-    const std::vector<const phi::DenseTensor*>& moment2,
-    const std::vector<const phi::DenseTensor*>& beta1_pow,
-    const std::vector<const phi::DenseTensor*>& beta2_pow,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& master_param,
+    const std::vector<const DenseTensor*>& param,
+    const std::vector<const DenseTensor*>& grad,
+    const std::vector<const DenseTensor*>& learning_rate,
+    const std::vector<const DenseTensor*>& moment1,
+    const std::vector<const DenseTensor*>& moment2,
+    const std::vector<const DenseTensor*>& beta1_pow,
+    const std::vector<const DenseTensor*>& beta2_pow,
+    const paddle::optional<std::vector<const DenseTensor*>>& master_param,
     const phi::Scalar& beta1,
     const phi::Scalar& beta2,
     const phi::Scalar& epsilon,
     bool multi_precision,
     bool use_global_beta_pow,
-    std::vector<phi::DenseTensor*> param_out,
-    std::vector<phi::DenseTensor*> moment1_out,
-    std::vector<phi::DenseTensor*> moment2_out,
-    std::vector<phi::DenseTensor*> beta1_pow_out,
-    std::vector<phi::DenseTensor*> beta2_pow_out,
-    std::vector<phi::DenseTensor*> master_param_out) {
+    std::vector<DenseTensor*> param_out,
+    std::vector<DenseTensor*> moment1_out,
+    std::vector<DenseTensor*> moment2_out,
+    std::vector<DenseTensor*> beta1_pow_out,
+    std::vector<DenseTensor*> beta2_pow_out,
+    std::vector<DenseTensor*> master_param_out) {
   PADDLE_GCU_KERNEL_TRACE("merged_adam");
   CheckInputs(param,
               grad,
@@ -167,10 +166,10 @@ void MergedAdamKernel(
     size_t param_num = param.size();
 
     // beta1_pow and beta2_pow may on CPU and not transform place.
-    std::vector<std::shared_ptr<phi::DenseTensor>> beta1_pow_gcu;
+    std::vector<std::shared_ptr<DenseTensor>> beta1_pow_gcu;
     if (beta1_pow[0]->place().GetType() == phi::AllocationType::CPU) {
       for (size_t i = 0; i < param_num; ++i) {
-        auto beta1_pow_tmp = std::make_shared<phi::DenseTensor>();
+        auto beta1_pow_tmp = std::make_shared<DenseTensor>();
         T beta1 = *(beta1_pow[i]->data<T>());
         beta1_pow_tmp->Resize({1});
         dev_ctx.template Alloc<T>(beta1_pow_tmp.get());
@@ -179,10 +178,10 @@ void MergedAdamKernel(
       }
     }
 
-    std::vector<std::shared_ptr<phi::DenseTensor>> beta2_pow_gcu;
+    std::vector<std::shared_ptr<DenseTensor>> beta2_pow_gcu;
     if (beta2_pow[0]->place().GetType() == phi::AllocationType::CPU) {
       for (size_t i = 0; i < param_num; ++i) {
-        auto beta2_pow_tmp = std::make_shared<phi::DenseTensor>();
+        auto beta2_pow_tmp = std::make_shared<DenseTensor>();
         T beta2 = *(beta2_pow[i]->data<T>());
         beta2_pow_tmp->Resize({1});
         dev_ctx.template Alloc<T>(beta2_pow_tmp.get());
@@ -221,11 +220,11 @@ void MergedAdamKernel(
     outputs["Beta1PowOut"].reserve(param_num);
     outputs["Beta2PowOut"].reserve(param_num);
 
-    std::vector<std::shared_ptr<phi::DenseTensor>> param_outs_tmp;
-    std::vector<std::shared_ptr<phi::DenseTensor>> moment1_outs_tmp;
-    std::vector<std::shared_ptr<phi::DenseTensor>> moment2_outs_tmp;
-    std::vector<std::shared_ptr<phi::DenseTensor>> beta1_pow_outs_tmp;
-    std::vector<std::shared_ptr<phi::DenseTensor>> beta2_pow_outs_tmp;
+    std::vector<std::shared_ptr<DenseTensor>> param_outs_tmp;
+    std::vector<std::shared_ptr<DenseTensor>> moment1_outs_tmp;
+    std::vector<std::shared_ptr<DenseTensor>> moment2_outs_tmp;
+    std::vector<std::shared_ptr<DenseTensor>> beta1_pow_outs_tmp;
+    std::vector<std::shared_ptr<DenseTensor>> beta2_pow_outs_tmp;
     param_outs_tmp.reserve(param_num);
     moment1_outs_tmp.reserve(param_num);
     moment2_outs_tmp.reserve(param_num);
@@ -276,27 +275,27 @@ void MergedAdamKernel(
       output_names["Beta2PowOut"].emplace_back(std::string("beta2_pow_out") +
                                                std::to_string(i));
 
-      auto param_out_tmp = std::make_shared<phi::DenseTensor>();
+      auto param_out_tmp = std::make_shared<DenseTensor>();
       param_out_tmp->set_meta(param_out[i]->meta());
       dev_ctx.template Alloc<T>(param_out_tmp.get());
       param_outs_tmp.emplace_back(param_out_tmp);
 
-      auto moment1_out_tmp = std::make_shared<phi::DenseTensor>();
+      auto moment1_out_tmp = std::make_shared<DenseTensor>();
       moment1_out_tmp->set_meta(moment1_out[i]->meta());
       dev_ctx.template Alloc<T>(moment1_out_tmp.get());
       moment1_outs_tmp.emplace_back(moment1_out_tmp);
 
-      auto moment2_out_tmp = std::make_shared<phi::DenseTensor>();
+      auto moment2_out_tmp = std::make_shared<DenseTensor>();
       moment2_out_tmp->set_meta(moment2_out[i]->meta());
       dev_ctx.template Alloc<T>(moment2_out_tmp.get());
       moment2_outs_tmp.emplace_back(moment2_out_tmp);
 
-      auto beta1_pow_out_tmp = std::make_shared<phi::DenseTensor>();
+      auto beta1_pow_out_tmp = std::make_shared<DenseTensor>();
       beta1_pow_out_tmp->set_meta(beta1_pow_out[i]->meta());
       dev_ctx.template Alloc<T>(beta1_pow_out_tmp.get());
       beta1_pow_outs_tmp.emplace_back(beta1_pow_out_tmp);
 
-      auto beta2_pow_out_tmp = std::make_shared<phi::DenseTensor>();
+      auto beta2_pow_out_tmp = std::make_shared<DenseTensor>();
       beta2_pow_out_tmp->set_meta(beta2_pow_out[i]->meta());
       dev_ctx.template Alloc<T>(beta2_pow_out_tmp.get());
       beta2_pow_outs_tmp.emplace_back(beta2_pow_out_tmp);

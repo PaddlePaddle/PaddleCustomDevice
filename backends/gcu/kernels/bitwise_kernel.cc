@@ -18,9 +18,9 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void BitwiseAndKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("bitwise_and");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
@@ -33,8 +33,8 @@ void BitwiseAndKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BitwiseNotKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("bitwise_not");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
@@ -69,9 +69,9 @@ void BitwiseNotKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BitwiseOrKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("bitwise_or");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
@@ -84,9 +84,9 @@ void BitwiseOrKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BitwiseXorKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("bitwise_xor");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
@@ -99,10 +99,10 @@ void BitwiseXorKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BitwiseLeftShiftKernel(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
-                            const phi::DenseTensor& y,
+                            const DenseTensor& x,
+                            const DenseTensor& y,
                             bool is_arithmetic,
-                            phi::DenseTensor* out) {
+                            DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("bitwise_left_shift");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
@@ -115,10 +115,10 @@ void BitwiseLeftShiftKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BitwiseRightShiftKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& y,
+                             const DenseTensor& x,
+                             const DenseTensor& y,
                              bool is_arithmetic,
-                             phi::DenseTensor* out) {
+                             DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("bitwise_right_shift");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {

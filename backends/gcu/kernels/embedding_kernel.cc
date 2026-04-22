@@ -20,31 +20,31 @@ template <typename T, typename Context>
 void FullKernel(const Context& dev_ctx,
                 const phi::IntArray& shape,
                 const phi::Scalar& val,
-                phi::DataType dtype,
-                phi::DenseTensor* out);
+                DataType dtype,
+                DenseTensor* out);
 template <typename T, typename Context>
 void EqualKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out);
+                 const DenseTensor& x,
+                 const DenseTensor& y,
+                 DenseTensor* out);
 template <typename T, typename Context>
 void WhereKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& condition,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out);
+                 const DenseTensor& condition,
+                 const DenseTensor& x,
+                 const DenseTensor& y,
+                 DenseTensor* out);
 
 template <typename T, typename Context>
 void EmbeddingKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& inputx,
-                     const phi::DenseTensor& weight,
+                     const DenseTensor& inputx,
+                     const DenseTensor& weight,
                      int64_t padding_idx,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("embedding");
   dev_ctx.template Alloc<T>(out);
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor x = MaybeCreateOrTrans64To32bits(dev_ctx, inputx);
+    DenseTensor x = MaybeCreateOrTrans64To32bits(dev_ctx, inputx);
     LAUNCH_TOPSATENOP(
         topsatenEmbedding, dev_ctx, *out, weight, x, -1, false, false);
     if (padding_idx == -1) {
@@ -52,38 +52,37 @@ void EmbeddingKernel(const Context& dev_ctx,
     }
     PADDLE_ENFORCE_EQ(
         x.dtype(),
-        phi::DataType::INT32,
+        DataType::INT32,
         phi::errors::Unimplemented(
             "The input tensor's dtype should be INT32 but get %s.",
-            phi::DataTypeToString(x.dtype()).c_str()));
+            DataTypeToString(x.dtype()).c_str()));
     // padding_idx is not -1
     // implement padding_idx by using where kernel
     // out = x_brd == padding_idx ? 0 : topsatenEmbedding(weight, x, -1)
-    phi::DenseTensor pad_tensor;
-    phi::DenseTensor zero_tensor;
-    phi::DenseTensor mask_tensor;
+    DenseTensor pad_tensor;
+    DenseTensor zero_tensor;
+    DenseTensor mask_tensor;
     phi::IntArray shape(common::vectorize<int64_t>(out->dims()));
-    phi::DenseTensorMeta meta_info = x.meta();
+    DenseTensorMeta meta_info = x.meta();
     meta_info.dims = out->dims();
-    meta_info.strides = phi::DenseTensorMeta::calc_strides(meta_info.dims);
+    meta_info.strides = DenseTensorMeta::calc_strides(meta_info.dims);
     pad_tensor.set_meta(meta_info);
     zero_tensor.set_meta(meta_info);
     custom_kernel::FullKernel<int32_t, phi::CustomContext>(
         dev_ctx, shape, phi::Scalar(padding_idx), x.dtype(), &pad_tensor);
     custom_kernel::FullKernel<T, phi::CustomContext>(
         dev_ctx, shape, phi::Scalar(0), x.dtype(), &zero_tensor);
-    meta_info.dtype = phi::DataType::BOOL;
+    meta_info.dtype = DataType::BOOL;
     mask_tensor.set_meta(meta_info);
-    phi::DenseTensor x_brd;
+    DenseTensor x_brd;
     // x firstly expand to the same shape with pad_tensor for broadcast by
     // adding a new dimension on last
-    phi::DenseTensor x_expand = x;
+    DenseTensor x_expand = x;
     auto x_expand_meta = x_expand.meta();
     auto x_expand_shape = common::vectorize<int64_t>(x_expand_meta.dims);
     x_expand_shape.push_back(1);
     x_expand_meta.dims = common::make_ddim(x_expand_shape);
-    x_expand_meta.strides =
-        phi::DenseTensorMeta::calc_strides(x_expand_meta.dims);
+    x_expand_meta.strides = DenseTensorMeta::calc_strides(x_expand_meta.dims);
     x_expand.set_meta(x_expand_meta);
     x_brd.set_meta(pad_tensor.meta());
     dev_ctx.Alloc(&x_brd, x_brd.dtype());
@@ -125,11 +124,11 @@ void EmbeddingKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void EmbeddingGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& input,
-                         const phi::DenseTensor& weight,
-                         const phi::DenseTensor& out_grad,
+                         const DenseTensor& input,
+                         const DenseTensor& weight,
+                         const DenseTensor& out_grad,
                          int64_t padding_idx,
-                         phi::DenseTensor* weight_grad) {
+                         DenseTensor* weight_grad) {
   PADDLE_GCU_KERNEL_TRACE("embedding_grad");
   dev_ctx.template Alloc<T>(weight_grad);
 

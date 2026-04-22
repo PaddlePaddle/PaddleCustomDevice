@@ -19,55 +19,55 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 extern void FCKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& input,
-                     const phi::DenseTensor& w,
-                     const paddle::optional<phi::DenseTensor>& bias,
+                     const DenseTensor& input,
+                     const DenseTensor& w,
+                     const paddle::optional<DenseTensor>& bias,
                      const int in_num_col_dims,
                      const std::string& activation_type,
                      const bool padding_weights,
-                     phi::DenseTensor* out);
+                     DenseTensor* out);
 
 template <typename T, typename Context>
 extern void AddKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out);
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out);
 
 template <typename T, typename Context>
 void LayerNormKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const paddle::optional<phi::DenseTensor>& scale_opt,
-                     const paddle::optional<phi::DenseTensor>& bias_opt,
+                     const DenseTensor& x,
+                     const paddle::optional<DenseTensor>& scale_opt,
+                     const paddle::optional<DenseTensor>& bias_opt,
                      float epsilon,
                      int begin_norm_axis,
-                     phi::DenseTensor* out,
-                     phi::DenseTensor* mean,
-                     phi::DenseTensor* variance);
+                     DenseTensor* out,
+                     DenseTensor* mean,
+                     DenseTensor* variance);
 
 template <typename T, typename Context>
 void FusedFCElementwiseLayerNormKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const phi::DenseTensor& w,
-    const phi::DenseTensor& y,
-    const paddle::optional<phi::DenseTensor>& bias0,
-    const paddle::optional<phi::DenseTensor>& scale,
-    const paddle::optional<phi::DenseTensor>& bias1,
+    const DenseTensor& x,
+    const DenseTensor& w,
+    const DenseTensor& y,
+    const paddle::optional<DenseTensor>& bias0,
+    const paddle::optional<DenseTensor>& scale,
+    const paddle::optional<DenseTensor>& bias1,
     const int x_num_col_dims,
     const std::string& activation_type,
     const float epsilon,
     const int begin_norm_axis,
-    phi::DenseTensor* out,
-    phi::DenseTensor* mean,
-    phi::DenseTensor* variance) {
+    DenseTensor* out,
+    DenseTensor* mean,
+    DenseTensor* variance) {
   PADDLE_GCU_KERNEL_TRACE("fused_fc_elementwise_layernorm");
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor fc_out = TensorEmpty(dev_ctx, out->meta());
+    DenseTensor fc_out = TensorEmpty(dev_ctx, out->meta());
     custom_kernel::FCKernel<T, Context>(
         dev_ctx, x, w, bias0, x_num_col_dims, activation_type, false, &fc_out);
     if (mean != nullptr && variance != nullptr) {
-      phi::DenseTensor add_out = TensorEmpty(dev_ctx, out->meta());
+      DenseTensor add_out = TensorEmpty(dev_ctx, out->meta());
       custom_kernel::AddKernel<T, Context>(dev_ctx, y, fc_out, &add_out);
       custom_kernel::LayerNormKernel<T, Context>(dev_ctx,
                                                  add_out,

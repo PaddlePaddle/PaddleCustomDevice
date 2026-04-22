@@ -17,7 +17,7 @@
 
 namespace custom_kernel {
 namespace {
-void AdjustStrides(phi::DenseTensor& tensor) {  // NOLINT
+void AdjustStrides(DenseTensor& tensor) {  // NOLINT
   size_t rank = tensor.dims().size();
   if (rank <= 1) {
     return;
@@ -32,18 +32,18 @@ void AdjustStrides(phi::DenseTensor& tensor) {  // NOLINT
 
 template <typename T, typename Context>
 void FCKernel(const Context& dev_ctx,
-              const phi::DenseTensor& input,
-              const phi::DenseTensor& w,
-              const paddle::optional<phi::DenseTensor>& bias,
+              const DenseTensor& input,
+              const DenseTensor& w,
+              const paddle::optional<DenseTensor>& bias,
               const int in_num_col_dims,
               const std::string& activation_type,
               const bool padding_weights,
-              phi::DenseTensor* out) {
+              DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("fc");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
 
-    const phi::DenseTensor x_matrix =
+    const DenseTensor x_matrix =
         input.dims().size() > 2 ? phi::ReshapeToMatrix(input, in_num_col_dims)
                                 : input;
 
@@ -55,12 +55,12 @@ void FCKernel(const Context& dev_ctx,
     auto w_trans = w;
     AdjustStrides(w_trans);
 
-    phi::DenseTensor fc_bias;
+    DenseTensor fc_bias;
     if (bias) {
       fc_bias = bias.get();
     } else {
       auto meta =
-          phi::DenseTensorMeta(input.dtype(), phi::make_ddim({w.dims().at(0)}));
+          DenseTensorMeta(input.dtype(), phi::make_ddim({w.dims().at(0)}));
       fc_bias = TensorZeros(dev_ctx, meta);
     }
     LAUNCH_TOPSATENOP(

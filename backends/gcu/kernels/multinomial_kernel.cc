@@ -17,10 +17,10 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void MultinomialKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        const phi::Scalar& num,
                        bool replacement,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("multinomial");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<int64_t>(out);
@@ -30,7 +30,7 @@ void MultinomialKernel(const Context& dev_ctx,
     // seed_offset.first = gen->GetCurrentSeed();
     // seed_offset.second = 0;
     // auto num_samples = num.to<int64_t>();
-    // phi::DenseTensor output =
+    // DenseTensor output =
     //     MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     // LAUNCH_TOPSATENOP(topsatenMultinomial,
     //                   dev_ctx,
@@ -46,31 +46,31 @@ void MultinomialKernel(const Context& dev_ctx,
     VLOG(6) << "[CPU_KERNEL] Call CPU kernel for multinomial(float16)";
     PADDLE_ENFORCE_EQ(
         x.dtype(),
-        phi::DataType::FLOAT16,
+        DataType::FLOAT16,
         phi::errors::InvalidArgument("Only float16 is supported, but got % s.",
-                                     phi::DataTypeToString(x.dtype()).c_str()));
+                                     DataTypeToString(x.dtype()).c_str()));
 
-    phi::DenseTensor x_gcu_f32;
-    phi::DenseTensor x_cpu_f32;
-    phi::DenseTensor out_cpu_int64;
+    DenseTensor x_gcu_f32;
+    DenseTensor x_cpu_f32;
+    DenseTensor out_cpu_int64;
 
     // convert input
-    phi::DenseTensorMeta gcu_meta = x.meta();
-    gcu_meta.dtype = phi::DataType::FLOAT32;
+    DenseTensorMeta gcu_meta = x.meta();
+    gcu_meta.dtype = DataType::FLOAT32;
     x_gcu_f32.set_meta(gcu_meta);
-    custom_kernel::Cast(dev_ctx, x, phi::DataType::FLOAT32, &x_gcu_f32);
-    TensorCopy(dev_ctx, x_gcu_f32, false, &x_cpu_f32, phi::CPUPlace());
+    custom_kernel::Cast(dev_ctx, x, DataType::FLOAT32, &x_gcu_f32);
+    TensorCopy(dev_ctx, x_gcu_f32, false, &x_cpu_f32, CPUPlace());
 
     // Wait for conversion
     dev_ctx.Wait();
 
     // call the CPU implementation
-    phi::CPUContext dev_ctx_cpu;
+    CPUContext dev_ctx_cpu;
     dev_ctx_cpu.SetAllocator(&(dev_ctx.GetHostAllocator()));
     dev_ctx_cpu.SetHostAllocator(&(dev_ctx.GetHostAllocator()));
     dev_ctx_cpu.SetHostGenerator(dev_ctx.GetHostGenerator());
     out_cpu_int64.set_meta(out->meta());
-    phi::MultinomialKernel<float, phi::CPUContext>(
+    phi::MultinomialKernel<float, CPUContext>(
         dev_ctx_cpu, x_cpu_f32, num, replacement, &out_cpu_int64);
     dev_ctx.Wait();
 

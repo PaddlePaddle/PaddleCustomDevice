@@ -18,35 +18,35 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void CastKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DataType dtype,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DataType dtype,
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("cast");
   if (LaunchAOTKernel()) {
     custom_kernel::Cast(dev_ctx, x, dtype, out);
 
   } else {  // kernel impl base on JIT
-    if (dtype == phi::DataType::FLOAT32) {
+    if (dtype == DataType::FLOAT32) {
       dev_ctx.template Alloc<float>(out);
-    } else if (dtype == phi::DataType::FLOAT64) {
+    } else if (dtype == DataType::FLOAT64) {
       dev_ctx.template Alloc<double>(out);
-    } else if (dtype == phi::DataType::FLOAT16) {
+    } else if (dtype == DataType::FLOAT16) {
       dev_ctx.template Alloc<phi::dtype::float16>(out);
-    } else if (dtype == phi::DataType::INT16) {
+    } else if (dtype == DataType::INT16) {
       dev_ctx.template Alloc<int16_t>(out);
-    } else if (dtype == phi::DataType::INT32) {
+    } else if (dtype == DataType::INT32) {
       dev_ctx.template Alloc<int32_t>(out);
-    } else if (dtype == phi::DataType::INT64) {
+    } else if (dtype == DataType::INT64) {
       dev_ctx.template Alloc<int64_t>(out);
-    } else if (dtype == phi::DataType::BOOL) {
+    } else if (dtype == DataType::BOOL) {
       dev_ctx.template Alloc<bool>(out);
-    } else if (dtype == phi::DataType::UINT8) {
+    } else if (dtype == DataType::UINT8) {
       dev_ctx.template Alloc<uint8_t>(out);
-    } else if (dtype == phi::DataType::INT8) {
+    } else if (dtype == DataType::INT8) {
       dev_ctx.template Alloc<int8_t>(out);
-    } else if (dtype == phi::DataType::COMPLEX64) {
+    } else if (dtype == DataType::COMPLEX64) {
       dev_ctx.template Alloc<phi::dtype::complex<float>>(out);
-    } else if (dtype == phi::DataType::COMPLEX128) {
+    } else if (dtype == DataType::COMPLEX128) {
       dev_ctx.template Alloc<phi::dtype::complex<double>>(out);
     } else {
       phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);

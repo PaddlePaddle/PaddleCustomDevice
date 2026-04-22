@@ -19,11 +19,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ReduceBaseKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
+                      const DenseTensor& x,
                       const phi::IntArray& dims,
                       bool keep_dim,
                       bool reduce_all,
-                      phi::DenseTensor* out,
+                      DenseTensor* out,
                       const std::string& op_type) {
   dev_ctx.template Alloc<T>(out);
 
@@ -51,12 +51,12 @@ void ReduceBaseKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ReduceGradBaseKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& out_grad,
+                          const DenseTensor& x,
+                          const DenseTensor& out_grad,
                           const phi::IntArray& dims_array,
                           bool keep_dim,
                           bool reduce_all,
-                          phi::DenseTensor* x_grad,
+                          DenseTensor* x_grad,
                           const std::string& op_type) {
   dev_ctx.template Alloc<T>(x_grad);
 
@@ -86,10 +86,10 @@ void ReduceGradBaseKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AnyKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const std::vector<int64_t>& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("any");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -103,18 +103,18 @@ void AnyKernel(const Context& dev_ctx,
       ContextPinnedGuard<Context> ctx_pinned_guard(dev_ctx);
       // fallback to CPU
       // 1. Copy x to CPU
-      phi::DenseTensor x_cpu;
+      DenseTensor x_cpu;
       x_cpu.set_meta(x.meta());
-      TensorCopy(dev_ctx, x, false, &x_cpu, phi::CPUPlace());
+      TensorCopy(dev_ctx, x, false, &x_cpu, CPUPlace());
       dev_ctx.Wait();
 
       // 2. Call the CPU implementation
-      phi::CPUContext dev_ctx_cpu;
+      CPUContext dev_ctx_cpu;
       dev_ctx_cpu.SetAllocator(&(dev_ctx.GetHostAllocator()));
       dev_ctx_cpu.SetHostAllocator(&(dev_ctx.GetHostAllocator()));
-      phi::DenseTensor out_cpu;
+      DenseTensor out_cpu;
       out_cpu.set_meta(out->meta());
-      phi::AnyKernel<T, phi::CPUContext>(
+      phi::AnyKernel<T, CPUContext>(
           dev_ctx_cpu, x_cpu, dims, keep_dim, &out_cpu);
       dev_ctx.Wait();
 
@@ -130,10 +130,10 @@ void AnyKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AllKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const std::vector<int64_t>& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("all");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -158,10 +158,10 @@ void AllKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MaxKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::IntArray& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("max");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -178,9 +178,8 @@ void MaxKernel(const Context& dev_ctx,
       }
     }
 
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     LAUNCH_TOPSATENOP(
         topsatenMax, dev_ctx, output, input_x, reduce_axis, keep_dim);
     MaybeTransResult(dev_ctx, output, out);
@@ -198,10 +197,10 @@ void MaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MinKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::IntArray& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("min");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -218,9 +217,8 @@ void MinKernel(const Context& dev_ctx,
       }
     }
 
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     LAUNCH_TOPSATENOP(
         topsatenMin, dev_ctx, output, input_x, reduce_axis, keep_dim);
     MaybeTransResult(dev_ctx, output, out);
@@ -238,11 +236,11 @@ void MinKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ProdKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::IntArray& axes,
                 bool keep_dim,
                 bool reduce_all,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("prod");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -269,11 +267,11 @@ void ProdKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SumKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::IntArray& dims,
-               phi::DataType out_dtype,
+               DataType out_dtype,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("sum");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -290,12 +288,12 @@ void SumKernel(const Context& dev_ctx,
       }
     }
 
-    phi::DenseTensor input_x;
-    phi::DenseTensor output;
-    if (x.dtype() == phi::DataType::BOOL) {
-      custom_kernel::Cast(dev_ctx, x, phi::DataType::INT32, &input_x);
+    DenseTensor input_x;
+    DenseTensor output;
+    if (x.dtype() == DataType::BOOL) {
+      custom_kernel::Cast(dev_ctx, x, DataType::INT32, &input_x);
       auto meta = out->meta();
-      meta.dtype = phi::DataType::INT32;
+      meta.dtype = DataType::INT32;
       output = custom_kernel::TensorEmpty(dev_ctx, meta);
     } else {
       input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
@@ -324,12 +322,12 @@ void SumKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SumGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& out_grad,
+                   const DenseTensor& x,
+                   const DenseTensor& out_grad,
                    const phi::IntArray& dims_array,
                    bool keep_dim,
                    bool reduce_all,
-                   phi::DenseTensor* x_grad) {
+                   DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("sum_grad");
   if (x.dims().size() == 0) {
     TensorCopy(dev_ctx, out_grad, true, x_grad);
@@ -353,10 +351,10 @@ void SumGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::IntArray& dims,
                 bool keep_dim,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("mean");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -388,12 +386,12 @@ void MeanKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& x,
+                    const DenseTensor& out_grad,
                     const phi::IntArray& axes,
                     bool keep_dim,
                     bool reduce_all,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("mean_grad");
   dev_ctx.template Alloc<T>(x_grad);
   if (x.dims().size() == 0) {
@@ -416,10 +414,10 @@ void MeanGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AMaxKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const std::vector<int64_t>& dims,
                 bool keep_dim,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("amax");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
@@ -444,10 +442,10 @@ void AMaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AMinKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const std::vector<int64_t>& dims,
                 bool keep_dim,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("amin");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);

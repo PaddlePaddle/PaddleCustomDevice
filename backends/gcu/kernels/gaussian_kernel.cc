@@ -24,8 +24,8 @@ void GaussianKernel(const Context& ctx,
                     float mean,
                     float std,
                     int seed,
-                    phi::DataType dtype,
-                    phi::DenseTensor* out) {
+                    DataType dtype,
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("gaussian");
 
   if (LaunchAOTKernel()) {
@@ -45,11 +45,11 @@ void GaussianKernel(const Context& ctx,
     ContextPinnedGuard<Context> ctx_pinned_guard(ctx);
     VLOG(6) << "[HOST_KERNEL] Impl on host for gaussian";
     VLOG(6) << "Enter GaussianKernel with mean:" << mean << ", std:" << std
-            << ", seed:" << seed << ", dtype:" << phi::DataTypeToString(dtype);
+            << ", seed:" << seed << ", dtype:" << DataTypeToString(dtype);
     ctx.template Alloc<T>(out);
 
-    phi::DenseTensor cpu_tensor;
-    phi::DenseTensorMeta cpu_meta = {out->dtype(), out->dims()};
+    DenseTensor cpu_tensor;
+    DenseTensorMeta cpu_meta = {out->dtype(), out->dims()};
     cpu_tensor.set_meta(cpu_meta);
     T* cpu_data = ctx.template HostAlloc<T>(&cpu_tensor);
     std::normal_distribution<typename phi::dtype::MPTypeTrait<T>::Type> dist(

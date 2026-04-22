@@ -246,12 +246,12 @@ static void StridedSliceFunctor(int64_t* starts,
 
 template <typename T, typename Context>
 void StridedSliceKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         const std::vector<int>& axes,
                         const phi::IntArray& starts,
                         const phi::IntArray& ends,
                         const phi::IntArray& strides,
-                        phi::DenseTensor* out) {
+                        DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("strided_slice");
   dev_ctx.template Alloc<T>(out);
 
@@ -315,7 +315,7 @@ void StridedSliceKernel(const Context& dev_ctx,
         offset += slice_info.starts_[i] * x_strides[i];
       }
 
-      phi::DenseTensor as_strides_out;
+      DenseTensor as_strides_out;
       auto x_tensor = CreateTopsatenTensor(x);
       auto out_tensor = CreateTopsatenTensor(*out);
       auto view_out_tensor = CreateTopsatenTensor(as_strides_out);

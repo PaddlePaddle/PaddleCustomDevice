@@ -780,12 +780,43 @@ __device__ inline argidx_fp32_i64 cinn_discrete_reduce_min_argidx_fp32_i64(
   CINN_DISCRETE_REDUCE_IMPL(min_argidx_fp32_i64, value);
 }
 
+// ===============================================================
+// Grid-wide Barrier (emulates cooperative_groups::this_grid().sync())
+// Uses a sense-reversing barrier so it works correctly when called
+// multiple times within the same kernel.
+// REQUIREMENT: all thread blocks must be co-resident on the GPU.
+// ===============================================================
+__device__ unsigned int __cinn_grid_barrier_count[8192];
+__device__ unsigned int __cinn_grid_barrier_flag[8192];
+
+__device__ inline void __cinn_grid_sync() {
+  __threadfence();
+  __syncthreads();
+  if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+    unsigned int expected =
+        atomicAdd(&__cinn_grid_barrier_flag[blockIdx.x], 0u);
+    unsigned int arrived =
+        atomicAdd(&__cinn_grid_barrier_count[blockIdx.x], 1u) + 1u;
+    if (arrived == (unsigned int)gridDim.y) {
+      atomicExch(&__cinn_grid_barrier_count[blockIdx.x], 0u);
+      __threadfence();
+      atomicExch(&__cinn_grid_barrier_flag[blockIdx.x], 1u - expected);
+      __threadfence();
+    } else {
+      while (atomicAdd(&__cinn_grid_barrier_flag[blockIdx.x], 0u) ==
+             expected) {
+      }
+    }
+  }
+  __syncthreads();
+}
+
 #define CINN_GRID_REDUCE_IMPL(REDUCE_TYPE, init_value, DTYPE)               \
-  DTYPE tmp_val = init_value;                                               \
-  for (int y = 0; y < gridDim.y; y++) {                                     \
-    tmp_val =                                                               \
-        cinn_##REDUCE_TYPE(tmp_val, mem[y * spatial_size + spatial_index]); \
-  }                                                                         \
+  __cinn_grid_sync();                                                        \
+  DTYPE tmp_val = init_value;                                                \
+  for (int y = 0; y < gridDim.y; y++) {                                      \
+    tmp_val = cinn_##REDUCE_TYPE(tmp_val, mem[y * spatial_size + spatial_index]); \
+  }                                                                          \
   return tmp_val;
 
 #define CINN_GRID_REDUCE_MACRO(REDUCE_TYPE, INIT_VAL, DTYPE)           \

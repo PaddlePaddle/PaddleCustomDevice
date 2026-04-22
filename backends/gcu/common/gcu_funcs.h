@@ -21,10 +21,15 @@
 #include "runtime/runtime.h"
 
 namespace custom_kernel {
-// using Tensor = phi::DenseTensor;
-// using Context = phi::CustomContext;
-// using DataType = phi::DataType;
-// using DataLayout = phi::DataLayout;
+using DenseTensor = phi::DenseTensor;
+using DenseTensorMeta = phi::DenseTensorMeta;
+using DataType = phi::DataType;
+using Place = phi::Place;
+using CPUPlace = phi::CPUPlace;
+using CPUContext = phi::CPUContext;
+using CustomContext = phi::CustomContext;
+using phi::DataTypeToString;
+
 /**
  * CPU -> GCU
  * GCU -> CPU

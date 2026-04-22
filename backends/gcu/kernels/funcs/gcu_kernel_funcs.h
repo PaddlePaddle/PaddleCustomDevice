@@ -15,7 +15,6 @@
 #pragma once
 
 #include "common/gcu_funcs.h"
-#include "common/gcu_op_runner.h"
 #include "common/utils.h"
 #include "kernels/funcs/common_ops.h"
 #include "kernels/funcs/gcu_layout_funcs.h"

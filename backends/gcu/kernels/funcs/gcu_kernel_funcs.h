@@ -15,6 +15,7 @@
 #pragma once
 
 #include "common/gcu_funcs.h"
+#include "common/gcu_op_runner.h"
 #include "common/utils.h"
 #include "kernels/funcs/common_ops.h"
 #include "kernels/funcs/gcu_layout_funcs.h"
@@ -29,7 +30,6 @@
                                           __FUNCTION__))
 
 namespace custom_kernel {
-using DenseTensor = phi::DenseTensor;
 using TensorNameMap = std::map<std::string, std::vector<std::string>>;
 using TensorValueMap = std::map<std::string, std::vector<DenseTensor*>>;
 

@@ -84,7 +84,7 @@ class TestRNN(TestAPIBase):
             self.input_size,
             self.hidden_size,
             self.num_layers,
-            self.direction,
+            direction=self.direction,
             time_major=False,
             weight_ih_attr=weight_ih_attr,
             weight_hh_attr=weight_hh_attr,

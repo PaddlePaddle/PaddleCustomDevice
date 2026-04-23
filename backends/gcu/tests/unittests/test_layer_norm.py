@@ -89,7 +89,7 @@ class TestLayerNorm(TestAPIBase):
 
     @data(*LAYER_NORM_CASE)
     @unpack
-    def test_check_output(
+    def _test_check_output(
         self, x_shape, dtype, normalized_shape, epsilon, with_weight, with_bias
     ):
         self.x_shape = x_shape

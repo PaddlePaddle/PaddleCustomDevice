@@ -281,8 +281,8 @@ void FlashAttnGradKernel(const Context& ctx,
   // // printf("params.dq dims[2]:%d, params.dk dims[2]:%d, params.dv
   // dims[2]:%d\n", params.dq->head_num, params.dk->head_num,
   // params.dv->head_num);
-  print_tensor_info(params.dq);
-  print_tensor_info(params.dk);
+  // print_tensor_info(params.dq);
+  // print_tensor_info(params.dk);
   // print_tensor_info(params.dv);
   mcflashattnStatus_t succ = phi::dynload::mha_bwd(params.batch_size,
                                                    params.seqlen_q,

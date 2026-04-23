@@ -198,19 +198,19 @@ index d970878dc2..fe0382ccad 100644
      x = *reinterpret_cast<uint16_t*>(&tmp);
  
 diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
-index 024a7de73e..66b373d698 100644
+index d07575028c..ec262da03a 100644
 --- a/paddle/phi/core/enforce.h
 +++ b/paddle/phi/core/enforce.h
 @@ -97,7 +97,7 @@ inline bool is_error(bool stat) { return !stat; }
  
- void ThrowWarnInternal(const std::string& message);
+ PADDLE_API void ThrowWarnInternal(const std::string& message);
  
 -#if defined(__CUDA_ARCH__)
 +#if defined(__CUDACC__)
  // For cuda, the assertions can affect performance and it is therefore
  // recommended to disable them in production code
  // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#assertion
-@@ -109,7 +109,7 @@ void ThrowWarnInternal(const std::string& message);
+@@ -109,7 +109,7 @@ PADDLE_API void ThrowWarnInternal(const std::string& message);
               __LINE__,                                             \
               #_IS_NOT_ERROR,                                       \
               ##__VA_ARGS__);                                       \
@@ -916,45 +916,6 @@ index 75a8f71d8c..cb21e9e301 100644
  #include "paddle/phi/kernels/impl/qr_kernel_impl.h"
  #include "paddle/phi/kernels/impl/tril_triu_kernel_impl.h"
  #include "paddle/phi/kernels/lstsq_kernel.h"
-diff --git a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h b/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
-index 4a28600c38..d96495b7aa 100644
---- a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
-@@ -56,8 +56,8 @@ HOSTDEVICE T igam(const T a, const T x) {
- 
- template <typename T>
- HOSTDEVICE T igamc(const T a, const T x) {
--  static T big = 4.503599627370496e15;
--  static T biginv = 2.22044604925031308085e-16;
-+  const static T big = 4.503599627370496e15;
-+  const static T biginv = 2.22044604925031308085e-16;
- 
-   if ((x <= T{0}) || (a <= T{0})) return (T{1.0});
- 
-diff --git a/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h b/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
-index c627cc1264..b3941570ee 100644
---- a/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
-+++ b/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
-@@ -20,8 +20,8 @@
- namespace phi {
- template <typename T>
- HOSTDEVICE T digamma_positive_domain(T x) {
--  static T c = T{8.5};
--  static T euler_mascheroni = T{0.57721566490153286060};
-+  const static T c = T{8.5};
-+  const static T euler_mascheroni = T{0.57721566490153286060};
-   T r;
-   T value;
-   T x2;
-@@ -54,7 +54,7 @@ HOSTDEVICE T digamma_positive_domain(T x) {
- 
- template <typename T>
- HOSTDEVICE T digamma(T x) {
--  static T pi = T{3.14159265358979323846};
-+  const static T pi = T{3.14159265358979323846};
- 
-   if (x == T{0.0}) {
-     T inf = std::numeric_limits<T>::infinity();
 
 diff --git a/paddle/phi/kernels/gpudnn/softmax_gpudnn.h b/paddle/phi/kernels/gpudnn/softmax_gpudnn.h
 index be6ee4f854..1f507c99f4 100644
@@ -1056,19 +1017,6 @@ index be6ee4f854..1f507c99f4 100644
    } else {
      LaunchNormalSoftmaxForward<T, IndexType, LogMode>(
 
-diff --git a/paddle/phi/kernels/gpu/cross_entropy_grad_kernel.cu b/paddle/phi/kernels/gpu/cross_entropy_grad_kernel.cu
-index 0a415200df..b0732e28f3 100644
---- a/paddle/phi/kernels/gpu/cross_entropy_grad_kernel.cu
-+++ b/paddle/phi/kernels/gpu/cross_entropy_grad_kernel.cu
-@@ -147,7 +147,7 @@ void CrossEntropyWithSoftmaxGradGPUKernel(const GPUContext& dev_ctx,
-                                           DenseTensor* logits_grad) {
-   PADDLE_ENFORCE_EQ(
-       dev_ctx.GetPlace().GetType(),
--      AllocationType::GPU,
-+      AllocationType::CUSTOM,
-       common::errors::Unavailable("softmax_with_cross_entropy operator's "
-                                   "CUDA kernel only runs on GPU device."));
-   const T* loss_grad_data = loss_grad.data<T>();
 diff --git a/paddle/phi/kernels/funcs/cublaslt.h b/paddle/phi/kernels/funcs/cublaslt.h
 index d8bc15926b..6071baf340 100644
 --- a/paddle/phi/kernels/funcs/cublaslt.h
@@ -1102,3 +1050,70 @@ index d8bc15926b..6071baf340 100644
      PADDLE_ENFORCE_EQ(
          status,
          
+diff --git a/paddle/phi/kernels/funcs/top_k_cuda_kernel.h b/paddle/phi/kernels/funcs/top_k_cuda_kernel.h
+index 368cb21c21..f0f99fbd2f 100644
+--- a/paddle/phi/kernels/funcs/top_k_cuda_kernel.h
++++ b/paddle/phi/kernels/funcs/top_k_cuda_kernel.h
+@@ -167,7 +167,7 @@ struct Bitfield<unsigned int> {
+                                                              int pos,
+                                                              int len) {
+     unsigned int ret;
+-#if defined(__HIPCC__)
++#if defined(PADDLE_WITH_CUDA)
+     ret = (val >> pos) & ((1u << len) - 1u);
+ #else
+     asm("bfe.u32 %0, %1, %2, %3;" : "=r"(ret) : "r"(val), "r"(pos), "r"(len));
+@@ -178,7 +178,7 @@ struct Bitfield<unsigned int> {
+   static __device__ __forceinline__ unsigned int setBitfield(
+       unsigned int val, unsigned int to_insert, int pos, int len) {
+     unsigned int ret;
+-#if defined(__HIPCC__)
++#if defined(PADDLE_WITH_CUDA)
+     unsigned int mask = ((1u << len) - 1u) << pos;
+     ret = (val & ~mask) | ((to_insert << pos) & mask);
+ #else
+@@ -196,7 +196,7 @@ struct Bitfield<uint64_t> {
+                                                          int pos,
+                                                          int len) {
+     uint64_t ret;
+-#if defined(__HIPCC__)
++#if defined(PADDLE_WITH_CUDA)
+     ret = (val >> pos) & ((1ULL << len) - 1ULL);
+ #else
+     asm("bfe.u64 %0, %1, %2, %3;" : "=l"(ret) : "l"(val), "r"(pos), "r"(len));
+@@ -209,7 +209,7 @@ struct Bitfield<uint64_t> {
+                                                          int pos,
+                                                          int len) {
+     uint64_t ret;
+-#if defined(__HIPCC__)
++#if defined(PADDLE_WITH_CUDA)
+     uint64_t mask = ((1ULL << len) - 1ULL) << pos;
+     ret = (val & ~mask) | ((to_insert << pos) & mask);
+ #else
+@@ -223,7 +223,7 @@ struct Bitfield<uint64_t> {
+ 
+ // --- getLaneId / getLaneMaskLe ---
+ __device__ __forceinline__ int getLaneId() {
+-#if defined(__HIPCC__)
++#if defined(PADDLE_WITH_CUDA)
+   return __lane_id();
+ #else
+   int laneId;
+@@ -233,7 +233,7 @@ __device__ __forceinline__ int getLaneId() {
+ }
+ 
+ __device__ __forceinline__ unsigned getLaneMaskLe() {
+-#if defined(__HIPCC__)
++#if defined(PADDLE_WITH_CUDA)
+   // HIP warp size is 64, construct mask for lanes <= current lane
+   return (getLaneId() == 63) ? 0xFFFFFFFFFFFFFFFFULL
+                              : (1ULL << (getLaneId() + 1)) - 1ULL;
+@@ -245,7 +245,7 @@ __device__ __forceinline__ unsigned getLaneMaskLe() {
+ }
+ 
+ __device__ __forceinline__ unsigned getLaneMaskLt() {
+-#if defined(__HIPCC__)
++#if defined(PADDLE_WITH_CUDA)
+   return (getLaneId() == 0) ? 0ULL : (1ULL << getLaneId()) - 1ULL;
+ #else
+   unsigned mask;

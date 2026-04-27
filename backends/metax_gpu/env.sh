@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+export MXCC_OVERRIDE_OPTIONS="+-mllvm +-metaxgpu-inline-branch-fold-bias=10000"
 DEFAULT_DIR="/opt/maca"
 export MACA_PATH=${1:-$DEFAULT_DIR}
 export CUDA_PATH=/usr/local/cuda

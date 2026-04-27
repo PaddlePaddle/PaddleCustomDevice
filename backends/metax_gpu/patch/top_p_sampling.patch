@@ -1,0 +1,136 @@
+diff --git a/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu b/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu
+index 73da8a62b4..b7ec9080b1 100644
+--- a/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu
++++ b/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu
+@@ -257,64 +257,40 @@ __device__ __forceinline__ void BlockReduce(Pair<T> shared_max[],
+                                             Pair<T> topk[],
+                                             Pair<T> beam_max[],
+                                             int* beam,
+-                                            int* k,
+                                             int* count,
+                                             const int tid,
+                                             const int wid,
+                                             const int lane) {
+-  while (true) {
+-    __syncthreads();
+-    Pair<T> input_now = topk[0];
+-    input_now = WarpReduce(input_now);
++  __syncthreads();
++  Pair<T> input_now = topk[0];
++  input_now = WarpReduce(input_now);
+ 
+-    if (lane == 0) {
+-      shared_max[wid] = input_now;
+-    }
+-    __syncthreads();
+-    input_now = (tid < BlockSize / WARP_SIZE)
+-                    ? shared_max[lane]
+-                    : Pair<T>(std::numeric_limits<T>::min(), -1);
+-    if (wid == 0) {
+-      input_now = WarpReduce(input_now);
+-      if (lane == 0) shared_max[0] = input_now;
+-    }
+-    __syncthreads();
+-    if (tid == 0) {
+-      beam_max[*count] = shared_max[0];
+-      (*count)++;
+-    }
+-    int tid_max = shared_max[0].id % BlockSize;
+-    if (tid == tid_max) {
+-      (*beam)++;
+-    }
+-    if (--(*k) == 0) break;
+-    __syncthreads();
++  if (lane == 0) {
++    shared_max[wid] = input_now;
++  }
++  __syncthreads();
++  input_now = (tid < BlockSize / WARP_SIZE)
++                  ? shared_max[lane]
++                  : Pair<T>(std::numeric_limits<T>::min(), -1);
++  if (wid == 0) {
++    input_now = WarpReduce(input_now);
++    if (lane == 0) shared_max[0] = input_now;
++  }
++  __syncthreads();
++  if (tid == 0) {
++    beam_max[*count] = shared_max[0];
++    (*count)++;
++  }
++  int tid_max = shared_max[0].id % BlockSize;
++  if (tid == tid_max) {
++    (*beam)++;
++  }
+ 
+-    if (tid == tid_max) {
+-      if (*beam < MaxLength) {
+-        topk[0] = topk[*beam];
+-      }
+-    }
++  __syncthreads();
+ 
+-    if (MaxLength < 5) {
+-      if (*beam >= MaxLength) break;
+-    } else {
+-#ifdef PADDLE_WITH_HIP
+-      uint64_t mask = 0u;
+-      mask = __ballot(true);
+-      if (tid_max / WARP_SIZE == wid) {
+-        if (__shfl_down(*beam, tid_max % WARP_SIZE, WARP_SIZE) == MaxLength)
+-          break;
+-      }
+-#else
+-      unsigned mask = 0u;
+-      mask = __ballot_sync(FINAL_MASK, true);
+-      if (tid_max / WARP_SIZE == wid) {
+-        if (__shfl_down_sync(
+-                FINAL_MASK, *beam, tid_max % WARP_SIZE, WARP_SIZE) == MaxLength)
+-          break;
+-      }
+-#endif
++  if (tid == tid_max) {
++    if (*beam < MaxLength) {
++      topk[0] = topk[*beam];
+     }
+   }
+ }
+@@ -385,7 +361,7 @@ __global__ void KeMatrixTopPBeamTopK(const T* src,
+     topk[j].set(std::numeric_limits<T>::min(), -1);
+   }
+ 
+-  while (top_num) {
++  for (int iter = 0; iter < TopPBeamTopK; ++iter) {
+     ThreadGetTopK<T, MaxLength, BlockSize>(topk,
+                                            &beam,
+                                            TopPBeamTopK,
+@@ -396,7 +372,7 @@ __global__ void KeMatrixTopPBeamTopK(const T* src,
+                                            vocab_size,
+                                            tid);
+     BlockReduce<T, MaxLength, BlockSize>(
+-        shared_max, topk, beam_max, &beam, &top_num, &count, tid, wid, lane);
++        shared_max, topk, beam_max, &beam, &count, tid, wid, lane);
+   }
+   if (tid == 0) {
+     count_iter_begin[bid] = count_iter[bid];
+@@ -488,18 +464,18 @@ __global__ void KeMatrixTopPBeamTopKFt(const T* src,
+     topk[j].set(std::numeric_limits<T>::min(), -1);
+   }
+ 
+-  while (top_num) {
++  for (int iter = 0; iter < TopPBeamTopK; ++iter) {
+     ThreadGetTopK<T, MaxLength, BlockSize>(topk,
+                                            &beam,
+                                            TopPBeamTopK,
+-                                           src + bid * vocab_size,
++                                           src + offset,
+                                            &firststep,
+                                            &is_empty,
+                                            &max,
+                                            vocab_size,
+                                            tid);
+     BlockReduce<T, MaxLength, BlockSize>(
+-        shared_max, topk, beam_max, &beam, &top_num, &count, tid, wid, lane);
++        shared_max, topk, beam_max, &beam, &count, tid, wid, lane);
+   }
+   if (tid == 0) {
+     count_iter_begin[bid] = count_iter[bid];

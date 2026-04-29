@@ -1269,6 +1269,10 @@ C_Status MetaxCompile(void* dev_ptr,
     src_file << code;
     src_file.close();
   }
+  // std::cout << "[MetaX] src_file content written to: " << src_path
+  //             << "\n--- BEGIN src_file ---\n"
+  //             << kMacaRuntimeSource << "\n" << code
+  //             << "\n--- END src_file ---" << std::endl;
 
   // 2. Resolve compiler binary path
   const char* maca_path_env = std::getenv("MACA_PATH");

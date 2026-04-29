@@ -32,9 +32,9 @@ if [ ! -f Ascend-cann-toolkit_${CANN_VERSION}_linux-$(uname -m).run ]; then
   exit 1
 fi
 
-sed "s#<baseimg>#registry.baidubce.com/device/paddle-cpu:ubuntu20-npu-base-$(uname -m)-gcc84#g" Dockerfile.npu.ubuntu20.gcc84 > Dockerfile.npu.ubuntu20.gcc84.test
-#docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-npu-base-$(uname -m)-gcc84
-docker build --network=host -f Dockerfile.npu.ubuntu20.gcc84.test \
+sed "s#<baseimg>#registry.baidubce.com/device/paddle-cpu:ubuntu24-npu-base-$(uname -m)-gcc133#g" Dockerfile.npu.ubuntu24.gcc133 > Dockerfile.npu.ubuntu24.gcc133.test
+#docker pull registry.baidubce.com/device/paddle-cpu:ubuntu24-npu-base-$(uname -m)-gcc133
+docker build --network=host -f Dockerfile.npu.ubuntu24.gcc133.test \
   --build-arg CANN_VERSION=${CANN_VERSION} \
   --build-arg SYSTEM=${SYSTEM} \
   --build-arg NPU_VERSION=${NPU_VERSION} \
@@ -42,6 +42,6 @@ docker build --network=host -f Dockerfile.npu.ubuntu20.gcc84.test \
   --build-arg https_proxy=${proxy} \
   --build-arg ftp_proxy=${proxy} \
   --build-arg no_proxy=bcebos.com \
-  -t ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-ubuntu20-npu-${NPU_VERSION}-base-$(uname -m)-gcc84 .
-docker push ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-ubuntu20-npu-${NPU_VERSION}-base-$(uname -m)-gcc84
-rm -rf Dockerfile.npu.ubuntu20.gcc84.test
+  -t ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-ubuntu24-npu-${NPU_VERSION}-base-$(uname -m)-gcc133 .
+docker push ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-ubuntu24-npu-${NPU_VERSION}-base-$(uname -m)-gcc133
+rm -rf Dockerfile.npu.ubuntu24.gcc133.test

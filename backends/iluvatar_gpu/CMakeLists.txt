@@ -815,8 +815,19 @@ list(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/sparse/gpu/sparse_attention_kernel.cu)
 
 file(
+  GLOB
+  AP_CC_SRCS
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/axpr/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/fs/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/code_module/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/code_gen/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/kernel_dispatch/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/*.cc)
+
+file(
   GLOB_RECURSE CC_SRCS
   RELATIVE ${CMAKE_SOURCE_DIR}
+  ${AP_CC_SRCS}
   runtime/runtime.cc
   runtime/iluvatar_context.cc
   common/*.cc

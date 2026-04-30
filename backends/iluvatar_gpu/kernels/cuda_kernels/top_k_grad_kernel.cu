@@ -14,7 +14,6 @@
 
 #include "../funcs/top_k_function_cuda.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
-#include "paddle/phi/common/bfloat16.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/top_k_grad_kernel.h"
@@ -31,6 +30,11 @@ void TopkGradKernel(const Context& dev_ctx,
                     bool largest,
                     bool sorted,
                     DenseTensor* x_grad) {
+  if (x_grad && x_grad->numel() == 0) {
+    dev_ctx.template Alloc<T>(x_grad);
+    return;
+  }
+
   const auto& in_dims = x.dims();
   const auto& out_dims = indices.dims();
 
@@ -40,7 +44,6 @@ void TopkGradKernel(const Context& dev_ctx,
   if (axis < 0) {
     axis += in_dims.size();
   }
-  const int& raw_height = in_dims[axis];
 
   // allocate the cuda memory for the x_grad
   T* x_grad_data = dev_ctx.template Alloc<T>(x_grad);
@@ -48,15 +51,15 @@ void TopkGradKernel(const Context& dev_ctx,
   const int64_t* indices_data = indices.data<int64_t>();
 
   if (in_dims.size() == 0) {
-    phi::Copy<Context>(dev_ctx, out_grad, dev_ctx.GetPlace(), false, x_grad);
+    Copy<Context>(dev_ctx, out_grad, dev_ctx.GetPlace(), false, x_grad);
     return;
   }
 
-  int pre, n, post;
-  phi::funcs::GetDims(in_dims, axis, &pre, &n, &post);
+  int64_t pre, n, post;
+  funcs::GetDims(in_dims, axis, &pre, &n, &post);
 
   // calculate the block and grid num
-  auto ComputeBlockSize = [](int col) {
+  auto ComputeBlockSize = [](int64_t col) {
     if (col > 512)
       return 1024;
     else if (col > 256 && col <= 512)
@@ -70,11 +73,11 @@ void TopkGradKernel(const Context& dev_ctx,
   };
   int block_size = ComputeBlockSize(post * k);
   int max_threads = dev_ctx.GetMaxPhysicalThreadCount();
-  const int max_blocks = std::max(((max_threads - 1) / block_size + 1), 1);
+  const int64_t max_blocks = std::max(((max_threads - 1) / block_size + 1), 1);
   int grid_size = std::min(max_blocks, pre);
 
   // launch the cuda kernel to assign the grad
-  phi::funcs::AssignGradWithAxis<T>
+  funcs::AssignGradWithAxis<T>
       <<<grid_size, block_size, 64 * 4, dev_ctx.stream()>>>(
           out_grad_data, indices_data, x_grad_data, pre, post, n, k);
 }
@@ -98,8 +101,8 @@ PD_REGISTER_PLUGIN_KERNEL(topk_grad,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(topk_v1_grad,
                           iluvatar_gpu,
@@ -108,5 +111,5 @@ PD_REGISTER_PLUGIN_KERNEL(topk_v1_grad,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

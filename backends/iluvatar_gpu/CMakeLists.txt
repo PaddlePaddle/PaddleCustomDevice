@@ -17,6 +17,8 @@ project(${PROJ_NAME} CXX C CUDA)
 
 set(TARGET_NAME ${PROJ_NAME})
 
+option(WITH_CINN "Compile with CINN support" ON)
+
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
@@ -27,6 +29,14 @@ set(CMAKE_INSTALL_RPATH "")
 set(WITH_MKLML ON)
 
 include(paddle)
+
+# 【修改点 1】: 添加 CINN 子目录编译
+if(WITH_CINN)
+  message(STATUS "[Iluvatar] CINN enabled, adding subdirectory: cinn")
+  add_definitions(-DWITH_CINN)
+  add_subdirectory(cinn)
+endif()
+
 set(THIRD_PARTY_PATH
     "${PADDLE_SOURCE_DIR}/build/third_party"
     CACHE PATH "Third party libraries directory.")
@@ -37,6 +47,7 @@ include(external/eigen)
 include(external/xxhash)
 include(external/zlib)
 include(external/protobuf)
+include(external/warpctc)
 if(WITH_FLAGCX)
   add_definitions("-DPADDLE_WITH_FLAGCX")
   include(external/flagcx)
@@ -670,6 +681,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unstack_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unstack_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/viterbi_decode_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/warpctc_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/warpctc_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/warprnnt_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/weighted_sample_neighbors_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/where_grad_kernel.cu
@@ -795,15 +808,15 @@ list(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/dgc_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/fused_adam_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/huber_loss_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/huber_loss_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/histogram_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/huber_loss_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/histogram_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/load_combine_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/load_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/kthvalue_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/kthvalue_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/lstsq_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mode_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mode_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mode_grad_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mode_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/save_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/save_combine_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_k_grad_kernel.cu
@@ -840,11 +853,19 @@ set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS})
 set_source_files_properties(${CUSTOM_DEVICE_SRCS} PROPERTIES LANGUAGE CUDA)
 
 add_library(${TARGET_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
-add_dependencies(${TARGET_NAME} external_deps)
+add_dependencies(${TARGET_NAME} external_deps extern_warpctc)
+
+# 【修改点 2】: 添加 CINN 接口的头文件搜索路径 这样 runtime/runtime.cc 里的 #include
+# "../cinn/cinn_interface.h" 才能生效
+if(WITH_CINN)
+  target_include_directories(${TARGET_NAME}
+                             PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/cinn")
+endif()
 
 target_include_directories(
   ${TARGET_NAME} PRIVATE ${PADDLE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}
-                         ${CMAKE_SOURCE_DIR}/kernels ${CUDA_INCLUDE_DIRS})
+                         ${CMAKE_SOURCE_DIR}/kernels ${CUDA_INCLUDE_DIRS}
+                         ${WARPCTC_INCLUDE_DIR})
 
 target_link_libraries(
   ${TARGET_NAME}
@@ -859,8 +880,16 @@ target_link_libraries(
           cuinfer
           ixattnbkd
           nccl
+          ${WARPCTC_LIBRARIES}
           # change nccl to ${FLAGCX_LIB} if compiling with FlagCX ${FLAGCX_LIB}
 )
+
+# 【修改点 3】: 将 CINN 编译出的对象文件链接进最终的 .so 只有这样，Plugin 加载时才能找到 InitCinnInterface 等符号
+if(WITH_CINN)
+  message(STATUS "[Iluvatar] Linking CINN object library")
+  target_link_libraries(${TARGET_NAME}
+                        PRIVATE $<TARGET_OBJECTS:iluvatar_cinn_obj>)
+endif()
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 include_directories(BEFORE ${CMAKE_SOURCE_DIR}/headers)

@@ -817,6 +817,12 @@ list(
 file(
   GLOB_RECURSE CC_SRCS
   RELATIVE ${CMAKE_SOURCE_DIR}
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/axpr/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/fs/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/code_module/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/code_gen/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/kernel_dispatch/*.cc
+  ${PADDLE_SOURCE_DIR}/paddle/ap/src/paddle/phi/*.cc
   runtime/runtime.cc
   runtime/iluvatar_context.cc
   common/*.cc

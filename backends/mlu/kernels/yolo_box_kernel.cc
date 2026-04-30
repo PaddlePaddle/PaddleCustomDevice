@@ -15,8 +15,8 @@ limitations under the License. */
 namespace custom_kernel {
 template <typename T, typename Context>
 void YoloBoxKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& img_size,
+                   const DenseTensor& x,
+                   const DenseTensor& img_size,
                    const std::vector<int>& anchors,
                    int class_num,
                    float conf_thresh,
@@ -25,8 +25,8 @@ void YoloBoxKernel(const Context& dev_ctx,
                    float scale_x_y,
                    bool iou_aware,
                    float iou_aware_factor,
-                   phi::DenseTensor* boxes,
-                   phi::DenseTensor* scores) {
+                   DenseTensor* boxes,
+                   DenseTensor* scores) {
   int anchor_num = anchors.size() / 2;
   int64_t size = anchors.size();
   auto dim_x = x.dims();
@@ -47,11 +47,11 @@ void YoloBoxKernel(const Context& dev_ctx,
   std::vector<int64_t> boxes_out_dim({n, s, h * w, 4});
   std::vector<int64_t> scores_out_dim({n, s, h * w, class_num});
 
-  phi::DenseTensor boxes_tensor_mluops;
+  DenseTensor boxes_tensor_mluops;
   boxes_tensor_mluops.Resize({n, s, 4, h * w});
   dev_ctx.template Alloc<T>(&boxes_tensor_mluops);
 
-  phi::DenseTensor scores_tensor_mluops;
+  DenseTensor scores_tensor_mluops;
   scores_tensor_mluops.Resize({n, s, class_num, h * w});
   dev_ctx.template Alloc<T>(&scores_tensor_mluops);
 

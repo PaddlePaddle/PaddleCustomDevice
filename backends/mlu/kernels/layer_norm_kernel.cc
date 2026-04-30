@@ -18,14 +18,14 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void LayerNormKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const paddle::optional<phi::DenseTensor>& scale_opt,
-                     const paddle::optional<phi::DenseTensor>& bias_opt,
+                     const DenseTensor& x,
+                     const paddle::optional<DenseTensor>& scale_opt,
+                     const paddle::optional<DenseTensor>& bias_opt,
                      float epsilon,
                      int begin_norm_axis,
-                     phi::DenseTensor* out,
-                     phi::DenseTensor* mean,
-                     phi::DenseTensor* variance) {
+                     DenseTensor* out,
+                     DenseTensor* mean,
+                     DenseTensor* variance) {
   auto* scale = scale_opt.get_ptr();
   auto* bias = bias_opt.get_ptr();
 
@@ -142,17 +142,17 @@ void LayerNormKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LayerNormGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const paddle::optional<phi::DenseTensor>& scale_opt,
-                         const paddle::optional<phi::DenseTensor>& bias,
-                         const phi::DenseTensor& mean,
-                         const phi::DenseTensor& variance,
-                         const phi::DenseTensor& out_grad,
+                         const DenseTensor& x,
+                         const paddle::optional<DenseTensor>& scale_opt,
+                         const paddle::optional<DenseTensor>& bias,
+                         const DenseTensor& mean,
+                         const DenseTensor& variance,
+                         const DenseTensor& out_grad,
                          float epsilon,
                          int begin_norm_axis,
-                         phi::DenseTensor* x_grad,
-                         phi::DenseTensor* scale_grad,
-                         phi::DenseTensor* bias_grad) {
+                         DenseTensor* x_grad,
+                         DenseTensor* scale_grad,
+                         DenseTensor* bias_grad) {
   auto* scale = scale_opt.get_ptr();
   dev_ctx.template Alloc<T>(x_grad);
 

@@ -18,15 +18,15 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void Conv2dKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& input,
-                  const phi::DenseTensor& filter,
+                  const DenseTensor& input,
+                  const DenseTensor& filter,
                   const std::vector<int>& strides_t,
                   const std::vector<int>& paddings_t,
                   const std::string& padding_algorithm,
                   const std::vector<int>& dilations_t,
                   int groups,
                   const std::string& data_format,
-                  phi::DenseTensor* output) {
+                  DenseTensor* output) {
   dev_ctx.template Alloc<T>(output);
   auto strides = strides_t;
   auto paddings = paddings_t;
@@ -37,8 +37,8 @@ void Conv2dKernel(const Context& dev_ctx,
   auto in_dims = input.dims();
   auto filter_dims = filter.dims();
   auto in_dims_size = in_dims.size();
-  phi::DDim in_data_dims;
-  phi::DDim filter_data_dims;
+  DDim in_data_dims;
+  DDim filter_data_dims;
 
   if (channel_last) {
     in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
@@ -118,17 +118,17 @@ void Conv2dKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Conv2dGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& input,
-                      const phi::DenseTensor& filter,
-                      const phi::DenseTensor& output_grad,
+                      const DenseTensor& input,
+                      const DenseTensor& filter,
+                      const DenseTensor& output_grad,
                       const std::vector<int>& strides_t,
                       const std::vector<int>& paddings_t,
                       const std::string& padding_algorithm,
                       const std::vector<int>& dilations_t,
                       int groups,
                       const std::string& data_format,
-                      phi::DenseTensor* input_grad,
-                      phi::DenseTensor* filter_grad) {
+                      DenseTensor* input_grad,
+                      DenseTensor* filter_grad) {
   auto strides = strides_t;
   auto paddings = paddings_t;
   auto dilations = dilations_t;
@@ -137,8 +137,8 @@ void Conv2dGradKernel(const Context& dev_ctx,
   auto in_dims = input.dims();
   auto filter_dims = filter.dims();
   auto in_dims_size = in_dims.size();
-  phi::DDim in_data_dims;
-  phi::DDim filter_data_dims;
+  DDim in_data_dims;
+  DDim filter_data_dims;
 
   if (channel_last) {
     in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
@@ -274,15 +274,15 @@ void Conv2dGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DepthwiseConv2dKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& input,
-                           const phi::DenseTensor& filter,
+                           const DenseTensor& input,
+                           const DenseTensor& filter,
                            const std::vector<int>& stride,
                            const std::vector<int>& paddings_in,
                            const std::string& padding_algorithm,
                            int groups,
                            const std::vector<int>& dilations_in,
                            const std::string& data_format,
-                           phi::DenseTensor* out) {
+                           DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   std::vector<int> strides = stride;
@@ -294,8 +294,8 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
   auto in_dims = input.dims();
   auto filter_dims = filter.dims();
   auto in_dims_size = in_dims.size();
-  phi::DDim in_data_dims;
-  phi::DDim filter_data_dims;
+  DDim in_data_dims;
+  DDim filter_data_dims;
 
   if (channel_last) {
     in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
@@ -377,17 +377,17 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DepthwiseConv2dGradKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& input,
-                               const phi::DenseTensor& filter,
-                               const phi::DenseTensor& out_grad,
+                               const DenseTensor& input,
+                               const DenseTensor& filter,
+                               const DenseTensor& out_grad,
                                const std::vector<int>& stride,
                                const std::vector<int>& paddings_in,
                                const std::string& padding_algorithm,
                                int groups,
                                const std::vector<int>& dilations_in,
                                const std::string& data_format,
-                               phi::DenseTensor* input_grad,
-                               phi::DenseTensor* filter_grad) {
+                               DenseTensor* input_grad,
+                               DenseTensor* filter_grad) {
   std::vector<int> strides = stride;
   std::vector<int> paddings = paddings_in;
   std::vector<int> dilations = dilations_in;
@@ -397,8 +397,8 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
   auto in_dims = input.dims();
   auto filter_dims = filter.dims();
   auto in_dims_size = in_dims.size();
-  phi::DDim in_data_dims;
-  phi::DDim filter_data_dims;
+  DDim in_data_dims;
+  DDim filter_data_dims;
 
   if (channel_last) {
     in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
@@ -539,15 +539,15 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Conv3dKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& input,
-                  const phi::DenseTensor& filter,
+                  const DenseTensor& input,
+                  const DenseTensor& filter,
                   const std::vector<int>& strides_t,
                   const std::vector<int>& paddings_t,
                   const std::string& padding_algorithm,
                   int groups,
                   const std::vector<int>& dilations_t,
                   const std::string& data_format,
-                  phi::DenseTensor* output) {
+                  DenseTensor* output) {
   dev_ctx.template Alloc<T>(output);
   auto strides = strides_t;
   auto paddings = paddings_t;
@@ -557,8 +557,8 @@ void Conv3dKernel(const Context& dev_ctx,
   auto in_dims = input.dims();
   auto filter_dims = filter.dims();
   auto in_dims_size = in_dims.size();
-  phi::DDim in_data_dims;
-  phi::DDim filter_data_dims;
+  DDim in_data_dims;
+  DDim filter_data_dims;
 
   if (channel_last) {  // NDHWC -> DHW
     in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
@@ -641,17 +641,17 @@ void Conv3dKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Conv3dGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& input,
-                      const phi::DenseTensor& filter,
-                      const phi::DenseTensor& out_grad,
+                      const DenseTensor& input,
+                      const DenseTensor& filter,
+                      const DenseTensor& out_grad,
                       const std::vector<int>& strides,
                       const std::vector<int>& paddings,
                       const std::string& padding_algorithm,
                       int groups,
                       const std::vector<int>& dilations,
                       const std::string& data_format,
-                      phi::DenseTensor* input_grad,
-                      phi::DenseTensor* filter_grad) {
+                      DenseTensor* input_grad,
+                      DenseTensor* filter_grad) {
   const bool channel_last = data_format == "NDHWC";
   auto in_dims = input.dims();
   auto filter_dims = filter.dims();
@@ -659,8 +659,8 @@ void Conv3dGradKernel(const Context& dev_ctx,
 
   auto updated_paddings = paddings;
   auto updated_dilations = dilations;
-  phi::DDim in_data_dims;
-  phi::DDim filter_data_dims;
+  DDim in_data_dims;
+  DDim filter_data_dims;
   if (channel_last) {
     in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
   } else {

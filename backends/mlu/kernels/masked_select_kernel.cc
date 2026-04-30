@@ -20,9 +20,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MaskedSelectKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& mask,
-                        phi::DenseTensor* out) {
+                        const DenseTensor& x,
+                        const DenseTensor& mask,
+                        DenseTensor* out) {
   auto input_dim = x.dims();
   auto mask_dim = mask.dims();
   PADDLE_ENFORCE_EQ(input_dim,
@@ -117,10 +117,10 @@ void MaskedSelectKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MaskedSelectGradKernel(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
-                            const phi::DenseTensor& mask,
-                            const phi::DenseTensor& out_grad,
-                            phi::DenseTensor* x_grad) {
+                            const DenseTensor& x,
+                            const DenseTensor& mask,
+                            const DenseTensor& out_grad,
+                            DenseTensor* x_grad) {
   C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
   Tensor mask_tensor, mask_valid_num_tensor;
   std::vector<int32_t> mask_valid_num_vec;

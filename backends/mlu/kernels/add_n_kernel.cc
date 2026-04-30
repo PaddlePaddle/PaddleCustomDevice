@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AddNKernel(const Context& dev_ctx,
-                const std::vector<const phi::DenseTensor*>& x,
-                phi::DenseTensor* out) {
+                const std::vector<const DenseTensor*>& x,
+                DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 

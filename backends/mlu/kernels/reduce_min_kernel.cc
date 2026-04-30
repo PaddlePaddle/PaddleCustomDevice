@@ -18,21 +18,21 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MinRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   MLUReduceOp<T>(
       dev_ctx, x, axes.GetData(), keep_dim, reduce_all, "reduce_min", out);
 }
 
 template <typename T, typename Context>
 void MinKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::IntArray& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   bool reduce_all = false;
   if (dims.size() == 0) {
     reduce_all = true;

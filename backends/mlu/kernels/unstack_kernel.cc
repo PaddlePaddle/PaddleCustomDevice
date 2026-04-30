@@ -18,10 +18,10 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void UnStackKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    int axis,
                    int num,
-                   std::vector<phi::DenseTensor*> outs) {
+                   std::vector<DenseTensor*> outs) {
   if (axis < 0) axis += x.dims().size();
   num = x.dims()[axis];
 
@@ -50,9 +50,9 @@ void UnStackKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UnStackGradKernel(const Context& dev_ctx,
-                       const std::vector<const phi::DenseTensor*>& x,
+                       const std::vector<const DenseTensor*>& x,
                        int axis,
-                       phi::DenseTensor* outs) {
+                       DenseTensor* outs) {
   dev_ctx.template Alloc<T>(outs);
 
   if (axis < 0) axis += (x[0]->dims().size() + 1);

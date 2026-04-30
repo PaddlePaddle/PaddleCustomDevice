@@ -18,31 +18,31 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void DivideRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
                      int axis,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   MLUBinaryOp<DIV, T>(dev_ctx, x, y, axis, out);
 }
 
 template <typename T, typename Context>
 void DivideKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  const DenseTensor& y,
+                  DenseTensor* out) {
   int axis = -1;
   custom_kernel::DivideRawKernel<T>(dev_ctx, x, y, axis, out);
 }
 
 template <typename T, typename Context>
 void DivideGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      const phi::DenseTensor& out,
-                      const phi::DenseTensor& dout,
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      const DenseTensor& out,
+                      const DenseTensor& dout,
                       int axis,
-                      phi::DenseTensor* dx,
-                      phi::DenseTensor* dy) {
+                      DenseTensor* dx,
+                      DenseTensor* dy) {
   Tensor x_t, y_t;
   x_t = x;
   y_t = y;

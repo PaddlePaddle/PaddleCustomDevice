@@ -22,7 +22,7 @@ static void StridedSliceOutDims(const std::vector<int64_t>& starts,
                                 const std::vector<int64_t>& strides,
                                 const std::vector<int>& axes,
                                 const std::vector<int>& infer_flags,
-                                const phi::DDim in_dims,
+                                const DDim in_dims,
                                 const std::vector<int>& decrease_axis,
                                 int64_t* out_dims_vector,
                                 const size_t size,
@@ -94,7 +94,7 @@ static void StridedSliceFunctor(int64_t* starts,
                                 int64_t* strides,
                                 const int* axes,
                                 int* reverse_axis,
-                                const phi::DDim dims,
+                                const DDim dims,
                                 const std::vector<int>& infer_flags,
                                 const std::vector<int>& decrease_axis,
                                 const size_t size) {
@@ -162,14 +162,14 @@ static void StridedSliceFunctor(int64_t* starts,
 
 template <typename T, typename Context, size_t D>
 void StridedSliceCompute(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
+                         const DenseTensor& x,
                          const std::vector<int>& axes,
                          const phi::IntArray& starts_array,
                          const phi::IntArray& ends_array,
                          const phi::IntArray& strides_array,
                          const std::vector<int>& infer_flags,
                          const std::vector<int>& decrease_axis,
-                         phi::DenseTensor* out) {
+                         DenseTensor* out) {
   auto in_dims = x.dims();
   // list<int>
   auto starts = starts_array.GetData();
@@ -188,7 +188,7 @@ void StridedSliceCompute(const Context& dev_ctx,
                                      out_dims_vector.data(),
                                      axes.size(),
                                      false);
-  phi::DDim out_dims(phi::make_ddim(out_dims_vector));
+  DDim out_dims(phi::make_ddim(out_dims_vector));
 
   // check whether need to reverse (false: stride > 0; true: stride < 0)
   std::vector<int> reverse_vector(starts.size(), 0);
@@ -264,12 +264,12 @@ void StridedSliceCompute(const Context& dev_ctx,
                         GetBasePtr(out));
 
   if (need_reverse) {
-    phi::DenseTensor out_tmp;
+    DenseTensor out_tmp;
     out_tmp.Resize(out_dims);
     dev_ctx.template Alloc<T>(&out_tmp);
     TensorCopy(dev_ctx, *out, false, &out_tmp);
 
-    phi::DenseTensor reverse_axis;
+    DenseTensor reverse_axis;
     std::vector<int> reverse_axis_vector;
     for (size_t axis = 0; axis < axes.size(); axis++) {
       if (reverse_vector[axis] == 1) {
@@ -298,14 +298,14 @@ void StridedSliceCompute(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void StridedSliceRawKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
+                           const DenseTensor& x,
                            const std::vector<int>& axes,
                            const phi::IntArray& starts,
                            const phi::IntArray& ends,
                            const phi::IntArray& strides,
                            const std::vector<int>& infer_flags,
                            const std::vector<int>& decrease_axis,
-                           phi::DenseTensor* out) {
+                           DenseTensor* out) {
   int rank = x.dims().size();
   switch (rank) {
     case 1:
@@ -405,15 +405,15 @@ void StridedSliceRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context, size_t D>
 void StridedSliceGradCompute(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& out_grad,
+                             const DenseTensor& x,
+                             const DenseTensor& out_grad,
                              const std::vector<int>& axes,
                              const phi::IntArray& starts_array,
                              const phi::IntArray& ends_array,
                              const phi::IntArray& strides_array,
                              const std::vector<int>& infer_flags,
                              const std::vector<int>& decrease_axis,
-                             phi::DenseTensor* x_grad) {
+                             DenseTensor* x_grad) {
   auto input_dims = x.dims();
   x_grad->Resize(input_dims);
   dev_ctx.template Alloc<T>(x_grad);
@@ -471,7 +471,7 @@ void StridedSliceGradCompute(const Context& dev_ctx,
   }
 
   if (need_reverse) {
-    phi::DenseTensor reverse_axis;
+    DenseTensor reverse_axis;
     std::vector<int> reverse_axis_vector;
     for (size_t axis = 0; axis < axes.size(); axis++) {
       if (reverse_vector[axis] == 1) {
@@ -480,7 +480,7 @@ void StridedSliceGradCompute(const Context& dev_ctx,
     }
     TensorFromVector<int>(dev_ctx, reverse_axis_vector, dev_ctx, &reverse_axis);
 
-    phi::DenseTensor out_grad_tmp;
+    DenseTensor out_grad_tmp;
     out_grad_tmp.Resize(out_grad.dims());
     dev_ctx.template Alloc<T>(&out_grad_tmp);
     MLUCnnlTensorDesc input_desc(out_grad);
@@ -520,15 +520,15 @@ void StridedSliceGradCompute(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void StridedSliceRawGradKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& x,
-                               const phi::DenseTensor& out_grad,
+                               const DenseTensor& x,
+                               const DenseTensor& out_grad,
                                const std::vector<int>& axes,
                                const phi::IntArray& starts,
                                const phi::IntArray& ends,
                                const phi::IntArray& strides,
                                const std::vector<int>& infer_flags,
                                const std::vector<int>& decrease_axis,
-                               phi::DenseTensor* x_grad) {
+                               DenseTensor* x_grad) {
   int rank = x.dims().size();
 
   switch (rank) {
@@ -637,12 +637,12 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void StridedSliceKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         const std::vector<int>& axes,
                         const phi::IntArray& starts,
                         const phi::IntArray& ends,
                         const phi::IntArray& strides,
-                        phi::DenseTensor* out) {
+                        DenseTensor* out) {
   std::vector<int> infer_flags(axes.size(), 1);
   std::vector<int> decrease_axis;
   custom_kernel::StridedSliceRawKernel<T, Context>(
@@ -651,13 +651,13 @@ void StridedSliceKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void StridedSliceGradKernel(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
-                            const phi::DenseTensor& out_grad,
+                            const DenseTensor& x,
+                            const DenseTensor& out_grad,
                             const std::vector<int>& axes,
                             const phi::IntArray& starts,
                             const phi::IntArray& ends,
                             const phi::IntArray& strides,
-                            phi::DenseTensor* x_grad) {
+                            DenseTensor* x_grad) {
   std::vector<int> infer_flags(axes.size(), 1);
   std::vector<int> decrease_axis;
   custom_kernel::StridedSliceRawGradKernel<T, Context>(dev_ctx,

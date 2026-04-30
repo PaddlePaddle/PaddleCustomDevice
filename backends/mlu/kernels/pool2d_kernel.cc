@@ -44,7 +44,7 @@ inline void UpdatePadding(std::vector<T>* paddings,
                           const bool global_pooling,
                           const bool adaptive,
                           const std::string padding_algorithm,
-                          const phi::DDim data_dims,
+                          const DDim data_dims,
                           const std::vector<T>& strides,
                           const std::vector<T>& kernel_size) {
   // set padding size == data_dims.size() * 2
@@ -92,7 +92,7 @@ inline void UpdatePadding(std::vector<T>* paddings,
 
 template <typename T = int>
 inline void UpdateKernelSize(std::vector<T>* kernel_size,
-                             const phi::DDim data_dims) {
+                             const DDim data_dims) {
   kernel_size->resize(static_cast<size_t>(data_dims.size()));
   for (size_t i = 0; i < kernel_size->size(); ++i) {
     *(kernel_size->begin() + i) = static_cast<T>(data_dims[i]);
@@ -101,7 +101,7 @@ inline void UpdateKernelSize(std::vector<T>* kernel_size,
 
 template <typename T, typename Context>
 void Pool2dKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& in_x,
+                  const DenseTensor& in_x,
                   const phi::IntArray& kernel_size,
                   const std::vector<int64_t>& strides_t_64,
                   const std::vector<int64_t>& paddings_t_64,
@@ -112,7 +112,7 @@ void Pool2dKernel(const Context& dev_ctx,
                   bool global_pooling,
                   bool adaptive,
                   const std::string& padding_algorithm,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   std::vector<int> strides_t =
       std::vector<int>(strides_t_64.begin(), strides_t_64.end());
   std::vector<int> paddings_t =
@@ -131,7 +131,7 @@ void Pool2dKernel(const Context& dev_ctx,
   int64_t out_h = out_dims[2];
   int64_t out_w = out_dims[3];
   auto in_x_dims = in_x.dims();
-  phi::DDim data_dims = phi::slice_ddim(in_x_dims, 2, in_x_dims.size());
+  DDim data_dims = phi::slice_ddim(in_x_dims, 2, in_x_dims.size());
 
   if (channel_last) {
     cnnl_layout = CNNL_LAYOUT_NHWC;
@@ -170,7 +170,7 @@ void Pool2dKernel(const Context& dev_ctx,
     std::vector<int> perm{0, 2, 3, 1};
     TransposeFromMLUTensor<T>(
         dev_ctx, perm, &in_x, &trans_in_x, true /*need_reshape_or_alloc*/);
-    phi::DDim trans_out_dims =
+    DDim trans_out_dims =
         phi::make_ddim({out_dims[0], out_dims[2], out_dims[3], out_dims[1]});
     trans_out.Resize(trans_out_dims);
     dev_ctx.template Alloc<T>(&trans_out);
@@ -264,9 +264,9 @@ void Pool2dKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Pool2dGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& in_x,
-                      const phi::DenseTensor& out,
-                      const phi::DenseTensor& out_grad,
+                      const DenseTensor& in_x,
+                      const DenseTensor& out,
+                      const DenseTensor& out_grad,
                       const phi::IntArray& kernel_size,
                       const std::vector<int64_t>& strides_t_64,
                       const std::vector<int64_t>& paddings_t_64,
@@ -277,7 +277,7 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       bool global_pooling,
                       bool adaptive,
                       const std::string& padding_algorithm,
-                      phi::DenseTensor* in_x_grad) {
+                      DenseTensor* in_x_grad) {
   std::vector<int> strides_t =
       std::vector<int>(strides_t_64.begin(), strides_t_64.end());
   std::vector<int> paddings_t =
@@ -292,7 +292,7 @@ void Pool2dGradKernel(const Context& dev_ctx,
   const bool channel_last = data_format == "NHWC";
 
   auto in_x_dims = in_x.dims();
-  phi::DDim data_dims = phi::slice_ddim(in_x_dims, 2, in_x_dims.size());
+  DDim data_dims = phi::slice_ddim(in_x_dims, 2, in_x_dims.size());
   if (channel_last) {
     data_dims = phi::slice_ddim(in_x_dims, 1, in_x_dims.size() - 1);
   }
@@ -328,10 +328,10 @@ void Pool2dGradKernel(const Context& dev_ctx,
                               &trans_out_grad,
                               true /*need_reshape_or_alloc*/);
     auto in_x_grad_dims = in_x_grad->dims();
-    phi::DDim trans_in_grad_dims = phi::make_ddim({in_x_grad_dims[0],
-                                                   in_x_grad_dims[2],
-                                                   in_x_grad_dims[3],
-                                                   in_x_grad_dims[1]});
+    DDim trans_in_grad_dims = phi::make_ddim({in_x_grad_dims[0],
+                                              in_x_grad_dims[2],
+                                              in_x_grad_dims[3],
+                                              in_x_grad_dims[1]});
     trans_in_x_grad.Resize(trans_in_grad_dims);
     dev_ctx.template Alloc<T>(&trans_in_x_grad);
   }

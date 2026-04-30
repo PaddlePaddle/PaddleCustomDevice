@@ -21,10 +21,10 @@ namespace custom_kernel {
 
 template <typename Context>
 void MLULogicOp(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::DenseTensor& y,
+                const DenseTensor& x,
+                const DenseTensor& y,
                 const std::string& logic_name,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
 
   MLUCnnlTensorDesc input_x(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));

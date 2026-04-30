@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TransposeKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const std::vector<int>& axis,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   TransposeFromMLUTensor<T>(
@@ -30,9 +30,9 @@ void TransposeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TransposeGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& dout,
+                         const DenseTensor& dout,
                          const std::vector<int>& axis,
-                         phi::DenseTensor* dx) {
+                         DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   std::vector<int> reversed_axis(axis);

@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GatherKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& index,
-                  const phi::Scalar& axis,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  const DenseTensor& index,
+                  const Scalar& axis,
+                  DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   PADDLE_ENFORCE_EQ(
@@ -76,11 +76,11 @@ void GatherKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GatherGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& index,
-                      const phi::DenseTensor& out_grad,
-                      const phi::Scalar& axis,
-                      phi::DenseTensor* x_grad) {
+                      const DenseTensor& x,
+                      const DenseTensor& index,
+                      const DenseTensor& out_grad,
+                      const Scalar& axis,
+                      DenseTensor* x_grad) {
   dev_ctx.template Alloc<T>(x_grad);
 
   const auto index_dims = index.dims();

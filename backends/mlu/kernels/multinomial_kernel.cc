@@ -18,10 +18,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MultinomialKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::Scalar& num,
+                       const DenseTensor& x,
+                       const Scalar& num,
                        bool replacement,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   dev_ctx.template Alloc<int64_t>(out);
   MLUCnnlTensorDesc desc_x(x);
   MLUCnnlTensorDesc desc_out(*out);

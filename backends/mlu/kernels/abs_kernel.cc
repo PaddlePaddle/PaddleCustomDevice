@@ -18,9 +18,7 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AbsKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void AbsKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -34,9 +32,9 @@ void AbsKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AbsGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   MLUCnnlTensorDesc input_desc(x);

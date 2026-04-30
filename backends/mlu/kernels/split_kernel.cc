@@ -18,10 +18,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void SplitKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const phi::IntArray& num_or_sections,
-                 const phi::Scalar& axis_scalar,
-                 std::vector<phi::DenseTensor*> outs) {
+                 const Scalar& axis_scalar,
+                 std::vector<DenseTensor*> outs) {
   // init parameter
   if (num_or_sections.FromTensor() || axis_scalar.FromTensor()) {
     std::vector<phi::MetaTensor> out_metas;
@@ -71,10 +71,10 @@ void SplitKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SplitWithNumKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         int num,
-                        const phi::Scalar& axis_scalar,
-                        std::vector<phi::DenseTensor*> outs) {
+                        const Scalar& axis_scalar,
+                        std::vector<DenseTensor*> outs) {
   int axis_value = axis_scalar.to<int>();
   auto input_axis_dim = x.dims().at(axis_value);
   std::vector<int64_t> sections_vec;

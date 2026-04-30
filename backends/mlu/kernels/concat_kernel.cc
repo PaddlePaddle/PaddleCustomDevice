@@ -33,9 +33,9 @@ static inline int64_t ComputeAxis(int64_t axis, int64_t rank) {
 
 template <typename T, typename Context>
 void ConcatKernel(const Context& dev_ctx,
-                  const std::vector<const phi::DenseTensor*>& ins,
-                  const phi::Scalar& axis_scalar,
-                  phi::DenseTensor* out) {
+                  const std::vector<const DenseTensor*>& ins,
+                  const Scalar& axis_scalar,
+                  DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto axis = axis_scalar.to<int>();
   auto ins_size = ins.size();
@@ -76,10 +76,10 @@ void ConcatKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ConcatGradKernel(const Context& dev_ctx,
-                      const std::vector<const phi::DenseTensor*>& ins,
-                      const phi::DenseTensor& dout,
-                      const phi::Scalar& axis_scalar,
-                      std::vector<phi::DenseTensor*> outs) {
+                      const std::vector<const DenseTensor*>& ins,
+                      const DenseTensor& dout,
+                      const Scalar& axis_scalar,
+                      std::vector<DenseTensor*> outs) {
   auto axis = axis_scalar.to<int>();
   int split_num = ins.size();
 

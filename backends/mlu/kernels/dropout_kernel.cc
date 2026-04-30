@@ -18,7 +18,7 @@
 namespace custom_kernel {
 
 void GetSeed(const phi::DeviceContext& dev_ctx,
-             const paddle::optional<phi::DenseTensor>& seed_tensor,
+             const paddle::optional<DenseTensor>& seed_tensor,
              int seed,
              bool fix_seed,
              int* seed_out) {
@@ -34,15 +34,15 @@ void GetSeed(const phi::DeviceContext& dev_ctx,
 
 template <typename T, typename Context>
 void DropoutRawKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const paddle::optional<phi::DenseTensor>& seed_tensor,
-                      const phi::Scalar& p,
+                      const DenseTensor& x,
+                      const paddle::optional<DenseTensor>& seed_tensor,
+                      const Scalar& p,
                       bool is_test,
                       const std::string& mode,
                       int seed,
                       bool fix_seed,
-                      phi::DenseTensor* out,
-                      phi::DenseTensor* mask) {
+                      DenseTensor* out,
+                      DenseTensor* mask) {
   dev_ctx.template Alloc<T>(out);
 
   auto dropout_prob = p.to<float>();
@@ -126,12 +126,12 @@ void DropoutRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DropoutGradRawKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& mask,
-                          const phi::DenseTensor& dout,
-                          const phi::Scalar& p,
+                          const DenseTensor& mask,
+                          const DenseTensor& dout,
+                          const Scalar& p,
                           bool is_test,
                           const std::string& mode,
-                          phi::DenseTensor* dx) {
+                          DenseTensor* dx) {
   PADDLE_ENFORCE_EQ(is_test,
                     false,
                     phi::errors::InvalidArgument(

@@ -19,11 +19,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void OneHotRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::Scalar& depth_scalar,
+                     const DenseTensor& x,
+                     const Scalar& depth_scalar,
                      phi::DataType dtype,
                      bool allow_out_of_range,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   int depth = depth_scalar.to<int>();
   auto out_dims = out->dims();
   out_dims[out_dims.size() - 1] = depth;
@@ -33,7 +33,7 @@ void OneHotRawKernel(const Context& dev_ctx,
 
   float on_value = 1.0f, off_value = 0.0f;
   std::vector<int> in_off_dim_vec(1, 1);
-  phi::DDim in_out_dims = phi::make_ddim(in_off_dim_vec);
+  DDim in_out_dims = phi::make_ddim(in_off_dim_vec);
 
   Tensor on_value_tensor, off_value_tensor;
   on_value_tensor.Resize(in_out_dims);
@@ -81,9 +81,9 @@ void OneHotRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void OneHotKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::Scalar& num_classes_s,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  const Scalar& num_classes_s,
+                  DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   custom_kernel::OneHotRawKernel<T, Context>(

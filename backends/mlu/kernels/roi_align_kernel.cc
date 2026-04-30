@@ -18,18 +18,18 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void RoiAlignKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& boxes,
-                    const paddle::optional<phi::DenseTensor>& boxes_num,
+                    const DenseTensor& x,
+                    const DenseTensor& boxes,
+                    const paddle::optional<DenseTensor>& boxes_num,
                     int pooled_height,
                     int pooled_width,
                     float spatial_scale,
                     int sampling_ratio,
                     bool aligned,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  phi::DenseTensor out_tensor(*out);
-  phi::DenseTensorMeta out_meta = {
+  DenseTensor out_tensor(*out);
+  DenseTensorMeta out_meta = {
       out->dtype(), out->dims(), phi::DataLayout::kNHWC};
   out_tensor.set_meta(out_meta);
   const auto& in_dims = x.dims();
@@ -169,16 +169,16 @@ void RoiAlignKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RoiAlignGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& boxes,
-                        const paddle::optional<phi::DenseTensor>& boxes_num,
-                        const phi::DenseTensor& out_grad,
+                        const DenseTensor& x,
+                        const DenseTensor& boxes,
+                        const paddle::optional<DenseTensor>& boxes_num,
+                        const DenseTensor& out_grad,
                         int pooled_height,
                         int pooled_width,
                         float spatial_scale,
                         int sampling_ratio,
                         bool aligned,
-                        phi::DenseTensor* dx) {
+                        DenseTensor* dx) {
   int rois_num = boxes.dims()[0];
   if (!dx) {
     return;

@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void Conv2dTransposeKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
-                           const phi::DenseTensor& filter,
+                           const DenseTensor& x,
+                           const DenseTensor& filter,
                            const std::vector<int>& strides,
                            const std::vector<int>& padding,
                            const std::vector<int>& out_padding,
@@ -29,7 +29,7 @@ void Conv2dTransposeKernel(const Context& dev_ctx,
                            int groups,
                            const std::vector<int>& dilation,
                            const std::string& data_format,
-                           phi::DenseTensor* out) {
+                           DenseTensor* out) {
   auto paddings = padding;
   auto dilations = dilation;
   auto output_padding = out_padding;
@@ -39,8 +39,8 @@ void Conv2dTransposeKernel(const Context& dev_ctx,
   auto in_dims = x.dims();
   auto filter_dims = filter.dims();
   auto in_dims_size = in_dims.size();
-  phi::DDim in_data_dims;
-  phi::DDim filter_data_dims;
+  DDim in_data_dims;
+  DDim filter_data_dims;
 
   if (channel_last) {
     in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
@@ -117,9 +117,9 @@ void Conv2dTransposeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Conv2dTransposeGradKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& x,
-                               const phi::DenseTensor& filter,
-                               const phi::DenseTensor& dout,
+                               const DenseTensor& x,
+                               const DenseTensor& filter,
+                               const DenseTensor& dout,
                                const std::vector<int>& strides,
                                const std::vector<int>& padding,
                                const std::vector<int>& output_padding,
@@ -128,8 +128,8 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
                                int groups,
                                const std::vector<int>& dilation,
                                const std::string& data_format,
-                               phi::DenseTensor* dx,
-                               phi::DenseTensor* dfilter) {
+                               DenseTensor* dx,
+                               DenseTensor* dfilter) {
   auto paddings = padding;
   auto dilations = dilation;
   if ((!dx) && (!dfilter)) return;
@@ -141,14 +141,13 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
 
   const bool channel_last = (data_layout == DataLayout::kNHWC);
 
-  phi::DDim in_data_dims;
+  DDim in_data_dims;
   if (channel_last) {
     in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
   } else {
     in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
   }
-  phi::DDim filter_data_dims =
-      phi::slice_ddim(filter_dims, 2, filter_dims.size());
+  DDim filter_data_dims = phi::slice_ddim(filter_dims, 2, filter_dims.size());
   std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
   UpdatePaddingAndDilation(
       &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);

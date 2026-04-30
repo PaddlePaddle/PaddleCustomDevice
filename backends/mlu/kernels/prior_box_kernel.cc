@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void PriorBoxKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& input,
-                    const phi::DenseTensor& image,
+                    const DenseTensor& input,
+                    const DenseTensor& image,
                     const std::vector<float>& min_sizes,
                     const std::vector<float>& max_sizes,
                     const std::vector<float>& aspect_ratios,
@@ -31,8 +31,8 @@ void PriorBoxKernel(const Context& dev_ctx,
                     float step_h,
                     float offset,
                     bool min_max_aspect_ratios_order,
-                    phi::DenseTensor* out,
-                    phi::DenseTensor* var) {
+                    DenseTensor* out,
+                    DenseTensor* var) {
   int im_width = image.dims()[3];
   int im_height = image.dims()[2];
 
@@ -41,22 +41,22 @@ void PriorBoxKernel(const Context& dev_ctx,
 
   std::vector<float> new_aspect_ratios;
   phi::ExpandAspectRatios(aspect_ratios, flip, &new_aspect_ratios);
-  phi::DenseTensor ratios;
+  DenseTensor ratios;
   TensorFromVector(dev_ctx, new_aspect_ratios, dev_ctx, &ratios);
   dev_ctx.Wait();
   MLUOpTensorDesc new_aspect_ratios_desc(ratios);
 
-  phi::DenseTensor min;
+  DenseTensor min;
   TensorFromVector(dev_ctx, min_sizes, dev_ctx, &min);
   dev_ctx.Wait();
   MLUOpTensorDesc min_sizes_desc(min);
 
-  phi::DenseTensor max;
+  DenseTensor max;
   TensorFromVector(dev_ctx, max_sizes, dev_ctx, &max);
   dev_ctx.Wait();
   MLUOpTensorDesc max_sizes_desc(max);
 
-  phi::DenseTensor var_tensor;
+  DenseTensor var_tensor;
   TensorFromVector(dev_ctx, variances, dev_ctx, &var_tensor);
   dev_ctx.Wait();
   MLUOpTensorDesc variances_attr_desc(var_tensor);

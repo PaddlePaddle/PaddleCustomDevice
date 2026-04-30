@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MemcpyKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   int dst_place_type,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   if (!x.initialized()) {
     return;
   }
@@ -41,26 +41,26 @@ void MemcpyKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MemcpyH2DKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      int dst_place_type,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   TensorCopy(dev_ctx, x, false, out, dev_ctx.GetPlace());
 }
 
 // used in new executor, for memory copy from device to host
 template <typename T, typename Context>
 void MemcpyD2HKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      int dst_place_type,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   TensorCopy(dev_ctx, x, true, out, phi::CPUPlace());
 }
 
 template <typename T, typename Context>
 void MemcpyD2HMultiIOKernel(const Context& dev_ctx,
-                            const std::vector<const phi::DenseTensor*>& array,
+                            const std::vector<const DenseTensor*>& array,
                             int dst_place_type,
-                            std::vector<phi::DenseTensor*> out_array) {
+                            std::vector<DenseTensor*> out_array) {
   PADDLE_ENFORCE_EQ(
       array.size(),
       out_array.size(),

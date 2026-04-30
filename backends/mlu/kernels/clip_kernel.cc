@@ -18,10 +18,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ClipKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::Scalar& min,
-                const phi::Scalar& max,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                const Scalar& min,
+                const Scalar& max,
+                DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto min_val = min.to<T>();
@@ -40,11 +40,11 @@ void ClipKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ClipGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
-                    const phi::Scalar& min,
-                    const phi::Scalar& max,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& x,
+                    const DenseTensor& dout,
+                    const Scalar& min,
+                    const Scalar& max,
+                    DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   auto min_val = min.to<T>();

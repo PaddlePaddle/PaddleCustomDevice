@@ -17,8 +17,8 @@
 
 namespace custom_kernel {
 
-inline phi::DDim GetUnsqueezeShape(const std::vector<int> unsqz_dims,
-                                   const phi::DDim& in_dims) {
+inline DDim GetUnsqueezeShape(const std::vector<int> unsqz_dims,
+                              const DDim& in_dims) {
   int output_size = in_dims.size() + static_cast<int>(unsqz_dims.size());
   int cur_output_size = in_dims.size();
   std::vector<int64_t> output_shape(output_size, 0);
@@ -68,9 +68,9 @@ inline phi::DDim GetUnsqueezeShape(const std::vector<int> unsqz_dims,
 
 template <typename T, typename Context>
 void UnsqueezeKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const phi::IntArray& axes,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   auto x_dims = x.dims();
   auto out_dims = out->dims();
 
@@ -89,18 +89,18 @@ void UnsqueezeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UnsqueezeWithXShapeKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& x,
+                               const DenseTensor& x,
                                const phi::IntArray& axes,
-                               phi::DenseTensor* out,
-                               phi::DenseTensor* xshape) {
+                               DenseTensor* out,
+                               DenseTensor* xshape) {
   custom_kernel::UnsqueezeKernel<T, Context>(dev_ctx, x, axes, out);
 }
 
 template <typename T, typename Context>
 void UnsqueezeGradMLUKernel(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
-                            const phi::DenseTensor& dout,
-                            phi::DenseTensor* dx) {
+                            const DenseTensor& x,
+                            const DenseTensor& dout,
+                            DenseTensor* dx) {
   auto x_dims = dx->dims();
 
   dev_ctx.template Alloc<T>(dx);

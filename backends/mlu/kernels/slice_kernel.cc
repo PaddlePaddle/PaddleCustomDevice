@@ -175,7 +175,7 @@ void normalize_interval(
   }
 }
 
-void UpdateAttr(const phi::DDim& in_dims,
+void UpdateAttr(const DDim& in_dims,
                 const std::vector<int> axes,
                 const std::vector<int> starts,
                 const std::vector<int> ends,
@@ -208,7 +208,7 @@ void UpdateAttr(const phi::DDim& in_dims,
 }
 
 template <typename T = int64_t>
-inline void CheckAndUpdateSliceAttrs(const phi::DDim in_dims,
+inline void CheckAndUpdateSliceAttrs(const DDim in_dims,
                                      const std::vector<T>& axes,
                                      std::vector<T>* starts,
                                      std::vector<T>* ends,
@@ -257,13 +257,13 @@ inline void CheckAndUpdateSliceAttrs(const phi::DDim in_dims,
 }
 
 template <typename T = int64_t>
-inline phi::DDim GetSliceDims(const phi::DDim in_dims,
-                              const std::vector<T>& axes,
-                              const std::vector<T>& starts,
-                              const std::vector<T>& ends,
-                              std::vector<T>* steps = nullptr,
-                              std::vector<T>* infer_flags = nullptr) {
-  phi::DDim slice_dims(in_dims);
+inline DDim GetSliceDims(const DDim in_dims,
+                         const std::vector<T>& axes,
+                         const std::vector<T>& starts,
+                         const std::vector<T>& ends,
+                         std::vector<T>* steps = nullptr,
+                         std::vector<T>* infer_flags = nullptr) {
+  DDim slice_dims(in_dims);
 
   for (size_t i = 0; i < axes.size(); ++i) {
     T axis = axes[i];
@@ -286,10 +286,10 @@ inline phi::DDim GetSliceDims(const phi::DDim in_dims,
 }
 
 template <typename T = int64_t>
-inline phi::DDim GetDecreasedDims(const phi::DDim slice_dims,
-                                  const std::vector<T>& decrease_axes,
-                                  std::vector<T>* infer_flags = nullptr) {
-  phi::DDim decreased_dims(slice_dims);
+inline DDim GetDecreasedDims(const DDim slice_dims,
+                             const std::vector<T>& decrease_axes,
+                             std::vector<T>* infer_flags = nullptr) {
+  DDim decreased_dims(slice_dims);
   std::vector<uint8_t> decrease_flag(slice_dims.size(), 0);
   if (decrease_axes.size() > 0) {
     for (size_t i = 0; i < decrease_axes.size(); ++i) {
@@ -318,13 +318,13 @@ inline phi::DDim GetDecreasedDims(const phi::DDim slice_dims,
 
 template <typename T, typename Context>
 void SliceRawKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     const std::vector<int64_t>& axes_t,
                     const phi::IntArray& starts_array,
                     const phi::IntArray& ends_array,
                     const std::vector<int64_t>& infer_flags,
                     const std::vector<int64_t>& decrease_axis,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   std::vector<int> axes(axes_t.begin(), axes_t.end());
   auto starts_int = starts_array.GetData();
   auto ends_int = ends_array.GetData();
@@ -402,14 +402,14 @@ void SliceRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SliceGradRawKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& out_grad,
+                        const DenseTensor& x,
+                        const DenseTensor& out_grad,
                         const std::vector<int64_t>& axes_t,
                         const phi::IntArray& starts_array,
                         const phi::IntArray& ends_array,
                         const std::vector<int64_t>& infer_flags,
                         const std::vector<int64_t>& decrease_axis,
-                        phi::DenseTensor* x_grad) {
+                        DenseTensor* x_grad) {
   std::vector<int> axes(axes_t.begin(), axes_t.end());
   auto starts_int = starts_array.GetData();
   auto ends_int = ends_array.GetData();

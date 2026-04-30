@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void LogSoftmaxKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
+                      const DenseTensor& x,
                       int axis,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   const int rank = x.dims().size();
@@ -65,10 +65,10 @@ void LogSoftmaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogSoftmaxGradKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& out,
-                          const phi::DenseTensor& dout,
+                          const DenseTensor& out,
+                          const DenseTensor& dout,
                           int axis,
-                          phi::DenseTensor* dx) {
+                          DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   const int rank = dout.dims().size();

@@ -18,9 +18,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void BCELossKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& labels,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   const DenseTensor& labels,
+                   DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc x_desc(x);
@@ -40,10 +40,10 @@ void BCELossKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BCELossGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& labels,
-                       const phi::DenseTensor& dout,
-                       phi::DenseTensor* dx) {
+                       const DenseTensor& x,
+                       const DenseTensor& labels,
+                       const DenseTensor& dout,
+                       DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   MLUCnnlTensorDesc x_desc(x);

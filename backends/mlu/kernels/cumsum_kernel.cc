@@ -18,12 +18,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void CumsumKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::Scalar& axis_scalar,
+                  const DenseTensor& x,
+                  const Scalar& axis_scalar,
                   bool flatten,
                   bool exclusive,
                   bool reverse,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto axis = axis_scalar.to<int>();

@@ -18,33 +18,32 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AdamKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& param,
-    const phi::DenseTensor& grad,
-    const phi::DenseTensor& learning_rate,
-    const phi::DenseTensor& moment1,
-    const phi::DenseTensor& moment2,
-    const paddle::optional<phi::DenseTensor>& moment2_max,  // UNUSED
-    const phi::DenseTensor& beta1_pow_in,
-    const phi::DenseTensor& beta2_pow_in,
-    const paddle::optional<phi::DenseTensor>& master_param,
-    const paddle::optional<phi::DenseTensor>& skip_update,
-    const phi::Scalar& beta1_in,
-    const phi::Scalar& beta2_in,
-    const phi::Scalar& epsilon_in,
-    bool lazy_mode,
-    int64_t min_row_size_to_use_multithread,
-    bool multi_precision,
-    bool use_global_beta_pow,
-    bool amsgrad,  // UNUSED
-    phi::DenseTensor* param_out,
-    phi::DenseTensor* moment1_out,
-    phi::DenseTensor* moment2_out,
-    phi::DenseTensor* moment2_max_out,  // UNUSED
-    phi::DenseTensor* beta1_pow_out,
-    phi::DenseTensor* beta2_pow_out,
-    phi::DenseTensor* master_param_out) {
+void AdamKernel(const Context& dev_ctx,
+                const DenseTensor& param,
+                const DenseTensor& grad,
+                const DenseTensor& learning_rate,
+                const DenseTensor& moment1,
+                const DenseTensor& moment2,
+                const paddle::optional<DenseTensor>& moment2_max,  // UNUSED
+                const DenseTensor& beta1_pow_in,
+                const DenseTensor& beta2_pow_in,
+                const paddle::optional<DenseTensor>& master_param,
+                const paddle::optional<DenseTensor>& skip_update,
+                const Scalar& beta1_in,
+                const Scalar& beta2_in,
+                const Scalar& epsilon_in,
+                bool lazy_mode,
+                int64_t min_row_size_to_use_multithread,
+                bool multi_precision,
+                bool use_global_beta_pow,
+                bool amsgrad,  // UNUSED
+                DenseTensor* param_out,
+                DenseTensor* moment1_out,
+                DenseTensor* moment2_out,
+                DenseTensor* moment2_max_out,  // UNUSED
+                DenseTensor* beta1_pow_out,
+                DenseTensor* beta2_pow_out,
+                DenseTensor* master_param_out) {
   PADDLE_ENFORCE_NE(
       amsgrad,
       true,
@@ -78,8 +77,8 @@ void AdamKernel(
     return;
   }
 
-  phi::DenseTensor* beta1_pow = const_cast<phi::DenseTensor*>(&beta1_pow_in);
-  phi::DenseTensor* beta2_pow = const_cast<phi::DenseTensor*>(&beta2_pow_in);
+  DenseTensor* beta1_pow = const_cast<DenseTensor*>(&beta1_pow_in);
+  DenseTensor* beta2_pow = const_cast<DenseTensor*>(&beta2_pow_in);
 
   VLOG(4) << "use_global_beta_pow:" << use_global_beta_pow;
 
@@ -88,8 +87,8 @@ void AdamKernel(
   *moment1_out = moment1;
   *moment2_out = moment2;
 
-  phi::DenseTensor beta1_pow_tmp;
-  phi::DenseTensor beta2_pow_tmp;
+  DenseTensor beta1_pow_tmp;
+  DenseTensor beta2_pow_tmp;
   if (beta1_pow->place().GetType() == phi::AllocationType::CPU) {
     MPDType beta1 = *beta1_pow->data<MPDType>();
     beta1_pow_tmp.Resize({1});
@@ -123,14 +122,14 @@ void AdamKernel(
                         "value is:%d.",
                         beta2_pow_out->numel()));
 
-  const phi::DenseTensor* beta1_tensor = nullptr;
-  const phi::DenseTensor* beta2_tensor = nullptr;
-  const phi::DenseTensor* epsilon_tensor = nullptr;
+  const DenseTensor* beta1_tensor = nullptr;
+  const DenseTensor* beta2_tensor = nullptr;
+  const DenseTensor* epsilon_tensor = nullptr;
 
-  phi::DenseTensor beta1_tmp;
-  phi::DenseTensor beta2_tmp;
-  phi::DenseTensor epsilon_tmp;
-  phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, {1}};
+  DenseTensor beta1_tmp;
+  DenseTensor beta2_tmp;
+  DenseTensor epsilon_tmp;
+  DenseTensorMeta meta = {phi::DataType::FLOAT32, {1}};
   beta1_tmp.Resize({1});
   beta2_tmp.Resize({1});
   epsilon_tmp.Resize({1});
@@ -215,7 +214,7 @@ void AdamKernel(
 
   if (param.dtype() != phi::DataType::FLOAT32) {
     // 1. cast param_in_out(MPDType) to param_out(T) anyway.
-    phi::DenseTensorMeta meta = {param.dtype(), param.dims()};
+    DenseTensorMeta meta = {param.dtype(), param.dims()};
     param_out->set_meta(meta);
     dev_ctx.template Alloc<T>(param_out);
     MLUCnnlTensorDesc param_out_desc(*param_out);
@@ -272,36 +271,35 @@ void AdamKernel(
 }
 
 template <typename T, typename Context>
-void AdamWKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& param,
-    const phi::DenseTensor& grad,
-    const phi::DenseTensor& learning_rate,
-    const phi::DenseTensor& moment1,
-    const phi::DenseTensor& moment2,
-    const paddle::optional<phi::DenseTensor>& moment2_max,  // UNUSED
-    const phi::DenseTensor& beta1_pow,
-    const phi::DenseTensor& beta2_pow,
-    const paddle::optional<phi::DenseTensor>& master_param,
-    const paddle::optional<phi::DenseTensor>& skip_update,
-    const phi::Scalar& beta1,
-    const phi::Scalar& beta2,
-    const phi::Scalar& epsilon,
-    float lr_ratio,
-    float coeff,
-    bool with_decay,
-    bool lazy_mode,
-    int64_t min_row_size_to_use_multithread,
-    bool multi_precision,
-    bool use_global_beta_pow,
-    bool amsgrad,  // UNUSED
-    phi::DenseTensor* param_out,
-    phi::DenseTensor* moment1_out,
-    phi::DenseTensor* moment2_out,
-    phi::DenseTensor* moment2_max_out,  // UNUSED
-    phi::DenseTensor* beta1_pow_out,
-    phi::DenseTensor* beta2_pow_out,
-    phi::DenseTensor* master_param_outs) {
+void AdamWKernel(const Context& dev_ctx,
+                 const DenseTensor& param,
+                 const DenseTensor& grad,
+                 const DenseTensor& learning_rate,
+                 const DenseTensor& moment1,
+                 const DenseTensor& moment2,
+                 const paddle::optional<DenseTensor>& moment2_max,  // UNUSED
+                 const DenseTensor& beta1_pow,
+                 const DenseTensor& beta2_pow,
+                 const paddle::optional<DenseTensor>& master_param,
+                 const paddle::optional<DenseTensor>& skip_update,
+                 const Scalar& beta1,
+                 const Scalar& beta2,
+                 const Scalar& epsilon,
+                 float lr_ratio,
+                 float coeff,
+                 bool with_decay,
+                 bool lazy_mode,
+                 int64_t min_row_size_to_use_multithread,
+                 bool multi_precision,
+                 bool use_global_beta_pow,
+                 bool amsgrad,  // UNUSED
+                 DenseTensor* param_out,
+                 DenseTensor* moment1_out,
+                 DenseTensor* moment2_out,
+                 DenseTensor* moment2_max_out,  // UNUSED
+                 DenseTensor* beta1_pow_out,
+                 DenseTensor* beta2_pow_out,
+                 DenseTensor* master_param_outs) {
   PADDLE_ENFORCE_NE(
       amsgrad,
       true,
@@ -416,28 +414,28 @@ void AdamWKernel(
 template <typename T, typename Context>
 void MergedAdamKernel(
     const Context& dev_ctx,
-    const std::vector<const phi::DenseTensor*>& param,
-    const std::vector<const phi::DenseTensor*>& grad,
-    const std::vector<const phi::DenseTensor*>& learning_rate,
-    const std::vector<const phi::DenseTensor*>& moment1,
-    const std::vector<const phi::DenseTensor*>& moment2,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& moment2_max,
-    const std::vector<const phi::DenseTensor*>& beta1_pow,
-    const std::vector<const phi::DenseTensor*>& beta2_pow,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& master_param,
-    const phi::Scalar& beta1,
-    const phi::Scalar& beta2,
-    const phi::Scalar& epsilon,
+    const std::vector<const DenseTensor*>& param,
+    const std::vector<const DenseTensor*>& grad,
+    const std::vector<const DenseTensor*>& learning_rate,
+    const std::vector<const DenseTensor*>& moment1,
+    const std::vector<const DenseTensor*>& moment2,
+    const paddle::optional<std::vector<const DenseTensor*>>& moment2_max,
+    const std::vector<const DenseTensor*>& beta1_pow,
+    const std::vector<const DenseTensor*>& beta2_pow,
+    const paddle::optional<std::vector<const DenseTensor*>>& master_param,
+    const Scalar& beta1,
+    const Scalar& beta2,
+    const Scalar& epsilon,
     bool multi_precision,
     bool use_global_beta_pow,
     bool amsgrad,
-    std::vector<phi::DenseTensor*> param_out,
-    std::vector<phi::DenseTensor*> moment1_out,
-    std::vector<phi::DenseTensor*> moment2_out,
-    std::vector<phi::DenseTensor*> moment2_max_out,
-    std::vector<phi::DenseTensor*> beta1_pow_out,
-    std::vector<phi::DenseTensor*> beta2_pow_out,
-    std::vector<phi::DenseTensor*> master_param_out) {
+    std::vector<DenseTensor*> param_out,
+    std::vector<DenseTensor*> moment1_out,
+    std::vector<DenseTensor*> moment2_out,
+    std::vector<DenseTensor*> moment2_max_out,
+    std::vector<DenseTensor*> beta1_pow_out,
+    std::vector<DenseTensor*> beta2_pow_out,
+    std::vector<DenseTensor*> master_param_out) {
   size_t param_num = param.size();
   PADDLE_ENFORCE_EQ(param_num,
                     grad.size(),
@@ -495,14 +493,14 @@ void MergedAdamKernel(
       true,
       phi::errors::Unimplemented("Operation amsgrad is not supported yet."));
 
-  const phi::DenseTensor* beta1_tensor = nullptr;
-  const phi::DenseTensor* beta2_tensor = nullptr;
-  const phi::DenseTensor* epsilon_tensor = nullptr;
+  const DenseTensor* beta1_tensor = nullptr;
+  const DenseTensor* beta2_tensor = nullptr;
+  const DenseTensor* epsilon_tensor = nullptr;
 
-  phi::DenseTensor beta1_tmp;
-  phi::DenseTensor beta2_tmp;
-  phi::DenseTensor epsilon_tmp;
-  phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, {1}};
+  DenseTensor beta1_tmp;
+  DenseTensor beta2_tmp;
+  DenseTensor epsilon_tmp;
+  DenseTensorMeta meta = {phi::DataType::FLOAT32, {1}};
   beta1_tmp.set_meta(meta);
   beta2_tmp.set_meta(meta);
   epsilon_tmp.set_meta(meta);
@@ -528,12 +526,10 @@ void MergedAdamKernel(
     *moment1_out[idx] = *moment1[idx];
     *moment2_out[idx] = *moment2[idx];
 
-    phi::DenseTensor* beta1_pow_tensor =
-        const_cast<phi::DenseTensor*>(beta1_pow[idx]);
-    phi::DenseTensor* beta2_pow_tensor =
-        const_cast<phi::DenseTensor*>(beta2_pow[idx]);
-    phi::DenseTensor beta1_pow_tmp;
-    phi::DenseTensor beta2_pow_tmp;
+    DenseTensor* beta1_pow_tensor = const_cast<DenseTensor*>(beta1_pow[idx]);
+    DenseTensor* beta2_pow_tensor = const_cast<DenseTensor*>(beta2_pow[idx]);
+    DenseTensor beta1_pow_tmp;
+    DenseTensor beta2_pow_tmp;
     if (beta1_pow_tensor->place().GetType() == phi::AllocationType::CPU) {
       T beta1_pow_ = *beta1_pow_tensor->data<T>();
       beta1_pow_tmp.Resize({1});

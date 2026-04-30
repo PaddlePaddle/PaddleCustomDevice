@@ -18,9 +18,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void FillKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x UNUSED,
-                const phi::Scalar& val,
-                phi::DenseTensor* out) {
+                const DenseTensor& x UNUSED,
+                const Scalar& val,
+                DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   T value = val.to<T>();

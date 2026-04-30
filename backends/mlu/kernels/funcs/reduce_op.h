@@ -21,12 +21,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MLUReduceOp(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const std::vector<int64_t>& axes,
                  bool keep_dim,
                  bool reduce_all,
                  const std::string& reduce_name,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   if (x.dims().size() == 0) {
     TensorCopy(dev_ctx, x, true, out);

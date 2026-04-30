@@ -18,12 +18,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GridSampleKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& grid,
+                      const DenseTensor& x,
+                      const DenseTensor& grid,
                       const std::string& mode,
                       const std::string& padding_mode,
                       bool align_corners,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   int n = x.dims()[0];
@@ -80,14 +80,14 @@ void GridSampleKernel(const Context& dev_ctx,
 }
 template <typename T, typename Context>
 void GridSampleGradKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& grid,
-                          const phi::DenseTensor& out_grad,
+                          const DenseTensor& x,
+                          const DenseTensor& grid,
+                          const DenseTensor& out_grad,
                           const std::string& mode,
                           const std::string& padding_mode,
                           bool align_corners,
-                          phi::DenseTensor* x_grad,
-                          phi::DenseTensor* grid_grad) {
+                          DenseTensor* x_grad,
+                          DenseTensor* grid_grad) {
   const int n = grid.dims()[0];
   const int out_h = grid.dims()[1];
   const int out_w = grid.dims()[2];

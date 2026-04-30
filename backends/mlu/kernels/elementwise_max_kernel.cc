@@ -18,29 +18,29 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MaximumRawKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
+                      const DenseTensor& x,
+                      const DenseTensor& y,
                       int axis,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   MLUBinaryOp<MAXIMUM, T>(dev_ctx, x, y, axis, out);
 }
 
 template <typename T, typename Context>
 void MaximumKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   DenseTensor* out) {
   int axis = -1;
   custom_kernel::MaximumRawKernel<T>(dev_ctx, x, y, axis, out);
 }
 
 template <typename T, typename Context>
 void MaximumGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       const phi::DenseTensor& dout,
-                       phi::DenseTensor* dx,
-                       phi::DenseTensor* dy) {
+                       const DenseTensor& x,
+                       const DenseTensor& y,
+                       const DenseTensor& dout,
+                       DenseTensor* dx,
+                       DenseTensor* dy) {
   int axis = -1;
   MLUMinMaxGradHelper<MAXIMUM_GRAD, T>(dev_ctx, x, y, dout, axis, dx, dy);
 }

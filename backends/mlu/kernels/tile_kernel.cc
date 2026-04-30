@@ -19,10 +19,10 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void TileKernelImpl(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     std::vector<int64_t> repeat_times,
                     int rank,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   auto in_dims = x.dims();
   for (size_t i = 0; i < repeat_times.size(); ++i) {
     PADDLE_ENFORCE_GT(
@@ -66,8 +66,8 @@ void TileKernelImpl(const Context& dev_ctx,
       out->Resize({1});
     }
   } else {
-    phi::DDim new_in_dims = phi::make_ddim(vec_in_dims);
-    phi::DDim out_dims(new_in_dims);
+    DDim new_in_dims = phi::make_ddim(vec_in_dims);
+    DDim out_dims(new_in_dims);
     for (size_t i = 0; i < repeat_times.size(); ++i) {
       out_dims[i] *= repeat_times[i];
     }
@@ -82,9 +82,9 @@ void TileKernelImpl(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TileKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::IntArray& repeat_times,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   int rank = static_cast<int>(x.dims().size());
   PADDLE_ENFORCE_GE(rank,
                     0,
@@ -123,10 +123,10 @@ void TileKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TileGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& x,
+                    const DenseTensor& out_grad,
                     const phi::IntArray& repeat_times,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   auto x_dims = x.dims();
   auto vec_x_dims = phi::vectorize<int>(x_dims);
   std::vector<int> origin_x_dims = vec_x_dims;
@@ -211,7 +211,7 @@ void TileGradKernel(const Context& dev_ctx,
                           MAX_RANK_SUPPORTED,
                           dims));
     dev_ctx.template Alloc<T>(x_grad);
-    phi::DenseTensor dout(out_grad);
+    DenseTensor dout(out_grad);
     dout.Resize(phi::make_ddim(reshape_dims_vec));
 
     std::string reduce_name = "reduce_sum";

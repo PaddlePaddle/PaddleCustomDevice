@@ -23,7 +23,7 @@ namespace custom_kernel {
 static std::vector<cnnlTensorLayout_t> supported_input_layout = {
     CNNL_LAYOUT_NC, CNNL_LAYOUT_NLC, CNNL_LAYOUT_NHWC, CNNL_LAYOUT_NDHWC};
 
-inline void ExtractNCWHD(const phi::DDim& dims,
+inline void ExtractNCWHD(const DDim& dims,
                          const DataLayout& data_layout,
                          int* N,
                          int* C,
@@ -50,23 +50,23 @@ inline void ExtractNCWHD(const phi::DDim& dims,
 
 template <typename T, typename Context>
 void SyncBatchNormKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& mean,
-                         const phi::DenseTensor& variance,
-                         const phi::DenseTensor& scale,
-                         const phi::DenseTensor& bias,
+                         const DenseTensor& x,
+                         const DenseTensor& mean,
+                         const DenseTensor& variance,
+                         const DenseTensor& scale,
+                         const DenseTensor& bias,
                          bool is_test,
                          float momentum,
                          float epsilon_f,
                          const std::string& data_layout_str,
                          bool use_global_stats,
                          bool trainable_statistics,
-                         phi::DenseTensor* y,
-                         phi::DenseTensor* mean_out,
-                         phi::DenseTensor* variance_out,
-                         phi::DenseTensor* saved_mean,
-                         phi::DenseTensor* saved_variance,
-                         phi::DenseTensor* reserve_space) {
+                         DenseTensor* y,
+                         DenseTensor* mean_out,
+                         DenseTensor* variance_out,
+                         DenseTensor* saved_mean,
+                         DenseTensor* saved_variance,
+                         DenseTensor* reserve_space) {
   const DataLayout layout = StringToDataLayout(data_layout_str);
   PADDLE_ENFORCE_EQ(use_global_stats,
                     false,
@@ -291,24 +291,23 @@ void SyncBatchNormKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SyncBatchNormGradKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const phi::DenseTensor& scale,
-    const phi::DenseTensor& bias,
-    const phi::DenseTensor& saved_mean,
-    const phi::DenseTensor& saved_variance,
-    const paddle::optional<phi::DenseTensor>& reserve_space,
-    const phi::DenseTensor& y_grad,
-    float momentum,
-    float epsilon_f,
-    const std::string& data_layout_str,
-    bool is_test,
-    bool use_global_stats,
-    bool trainable_statistics,
-    phi::DenseTensor* x_grad,
-    phi::DenseTensor* scale_grad,
-    phi::DenseTensor* bias_grad) {
+void SyncBatchNormGradKernel(const Context& dev_ctx,
+                             const DenseTensor& x,
+                             const DenseTensor& scale,
+                             const DenseTensor& bias,
+                             const DenseTensor& saved_mean,
+                             const DenseTensor& saved_variance,
+                             const paddle::optional<DenseTensor>& reserve_space,
+                             const DenseTensor& y_grad,
+                             float momentum,
+                             float epsilon_f,
+                             const std::string& data_layout_str,
+                             bool is_test,
+                             bool use_global_stats,
+                             bool trainable_statistics,
+                             DenseTensor* x_grad,
+                             DenseTensor* scale_grad,
+                             DenseTensor* bias_grad) {
   const DataLayout layout = StringToDataLayout(data_layout_str);
   const auto& x_dims = x.dims();
   PADDLE_ENFORCE_GE(x_dims.size(),

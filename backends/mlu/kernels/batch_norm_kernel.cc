@@ -19,23 +19,23 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void BatchNormKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& running_mean,
-                     const phi::DenseTensor& running_var,
-                     const paddle::optional<phi::DenseTensor>& scale,
-                     const paddle::optional<phi::DenseTensor>& bias,
+                     const DenseTensor& x,
+                     const DenseTensor& running_mean,
+                     const DenseTensor& running_var,
+                     const paddle::optional<DenseTensor>& scale,
+                     const paddle::optional<DenseTensor>& bias,
                      bool is_test,
                      float momentum,
                      float epsilon,
                      const std::string& data_layout_str,
                      bool use_global_stats,
                      bool trainable_stats,
-                     phi::DenseTensor* y,
-                     phi::DenseTensor* mean_out,
-                     phi::DenseTensor* variance_out,
-                     phi::DenseTensor* saved_mean,
-                     phi::DenseTensor* saved_variance,
-                     phi::DenseTensor* reserve_space) {
+                     DenseTensor* y,
+                     DenseTensor* mean_out,
+                     DenseTensor* variance_out,
+                     DenseTensor* saved_mean,
+                     DenseTensor* saved_variance,
+                     DenseTensor* reserve_space) {
   bool test_mode = is_test && (!trainable_stats);
   bool global_stats = test_mode || use_global_stats;
 
@@ -64,7 +64,7 @@ void BatchNormKernel(const Context& dev_ctx,
   auto* Scale = scale.get_ptr();
   auto* Bias = bias.get_ptr();
 
-  phi::DenseTensor new_scale, new_bias;
+  DenseTensor new_scale, new_bias;
   if (Scale) {
     new_scale = scale.get();
   } else {
@@ -104,9 +104,9 @@ void BatchNormKernel(const Context& dev_ctx,
   bool need_transpose =
       (data_layout == DataLayout::kNCHW && x_dims.size() != 2);
   if (need_transpose) {
-    transformed_x.Resize(phi::DDim(transformed_shape, transformed_dim_size));
+    transformed_x.Resize(DDim(transformed_shape, transformed_dim_size));
     dev_ctx.template Alloc<T>(&transformed_x);
-    transformed_y.Resize(phi::DDim(transformed_shape, transformed_dim_size));
+    transformed_y.Resize(DDim(transformed_shape, transformed_dim_size));
     dev_ctx.template Alloc<T>(&transformed_y);
 
     const std::vector<int> perm = {0, 2, 3, 1};
@@ -172,26 +172,25 @@ void BatchNormKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void BatchNormGradKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& scale,
-    const paddle::optional<phi::DenseTensor>& bias,
-    const paddle::optional<phi::DenseTensor>& mean,
-    const paddle::optional<phi::DenseTensor>& variance,
-    const phi::DenseTensor& saved_mean,
-    const phi::DenseTensor& saved_inv_variance,
-    const paddle::optional<phi::DenseTensor>& reserve_space,
-    const phi::DenseTensor& d_y,
-    float momentum,
-    float epsilon,
-    const std::string& data_layout_str,
-    bool is_test,
-    bool use_global_stats,
-    bool trainable_statistics,
-    phi::DenseTensor* d_x,
-    phi::DenseTensor* d_scale,
-    phi::DenseTensor* d_bias) {
+void BatchNormGradKernel(const Context& dev_ctx,
+                         const DenseTensor& x,
+                         const paddle::optional<DenseTensor>& scale,
+                         const paddle::optional<DenseTensor>& bias,
+                         const paddle::optional<DenseTensor>& mean,
+                         const paddle::optional<DenseTensor>& variance,
+                         const DenseTensor& saved_mean,
+                         const DenseTensor& saved_inv_variance,
+                         const paddle::optional<DenseTensor>& reserve_space,
+                         const DenseTensor& d_y,
+                         float momentum,
+                         float epsilon,
+                         const std::string& data_layout_str,
+                         bool is_test,
+                         bool use_global_stats,
+                         bool trainable_statistics,
+                         DenseTensor* d_x,
+                         DenseTensor* d_scale,
+                         DenseTensor* d_bias) {
   const auto& x_dims = x.dims();
   PADDLE_ENFORCE_GE(
       x_dims.size(),
@@ -217,7 +216,7 @@ void BatchNormGradKernel(
   auto* Scale = scale.get_ptr();
   auto* Bias = bias.get_ptr();
 
-  phi::DenseTensor new_scale, new_bias;
+  DenseTensor new_scale, new_bias;
   if (Scale) {
     new_scale = scale.get();
   } else {
@@ -272,11 +271,11 @@ void BatchNormGradKernel(
   bool need_transpose =
       (data_layout == DataLayout::kNCHW && x_dims.size() != 2);
   if (need_transpose) {
-    transformed_d_y.Resize(phi::DDim(transformed_shape, transformed_dim_size));
+    transformed_d_y.Resize(DDim(transformed_shape, transformed_dim_size));
     dev_ctx.template Alloc<T>(&transformed_d_y);
-    transformed_x.Resize(phi::DDim(transformed_shape, transformed_dim_size));
+    transformed_x.Resize(DDim(transformed_shape, transformed_dim_size));
     dev_ctx.template Alloc<T>(&transformed_x);
-    transformed_d_x.Resize(phi::DDim(transformed_shape, transformed_dim_size));
+    transformed_d_x.Resize(DDim(transformed_shape, transformed_dim_size));
     dev_ctx.template Alloc<T>(&transformed_d_x);
 
     const int org_reshaped[] = {N, C, sample_size, 1};
@@ -372,17 +371,17 @@ void BatchNormGradKernel(
 
 template <typename T, typename Context>
 void BatchNormInferKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& mean,
-                          const phi::DenseTensor& variance,
-                          const phi::DenseTensor& scale,
-                          const phi::DenseTensor& bias,
+                          const DenseTensor& x,
+                          const DenseTensor& mean,
+                          const DenseTensor& variance,
+                          const DenseTensor& scale,
+                          const DenseTensor& bias,
                           float momentum,
                           float epsilon,
                           const std::string& data_layout_str,
-                          phi::DenseTensor* y,
-                          phi::DenseTensor* mean_out,
-                          phi::DenseTensor* variance_out) {
+                          DenseTensor* y,
+                          DenseTensor* mean_out,
+                          DenseTensor* variance_out) {
   DataLayout data_layout = StringToDataLayout(data_layout_str);
 
   const auto& x_dims = x.dims();
@@ -426,9 +425,9 @@ void BatchNormInferKernel(const Context& dev_ctx,
   bool need_transpose =
       (data_layout == DataLayout::kNCHW && x_dims.size() != 2);
   if (need_transpose) {
-    transformed_x.Resize(phi::DDim(transformed_shape, transformed_dim_size));
+    transformed_x.Resize(DDim(transformed_shape, transformed_dim_size));
     dev_ctx.template Alloc<T>(&transformed_x);
-    transformed_y.Resize(phi::DDim(transformed_shape, transformed_dim_size));
+    transformed_y.Resize(DDim(transformed_shape, transformed_dim_size));
     dev_ctx.template Alloc<T>(&transformed_y);
 
     const std::vector<int> perm = {0, 2, 3, 1};

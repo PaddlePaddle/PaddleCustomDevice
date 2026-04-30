@@ -16,25 +16,25 @@
 
 namespace custom_kernel {
 
-#define DEFINE_BITWISE_KERNEL(op_type)                     \
-  template <typename T, typename Context>                  \
-  void Bitwise##op_type##Kernel(const Context& dev_ctx,    \
-                                const phi::DenseTensor& x, \
-                                const phi::DenseTensor& y, \
-                                phi::DenseTensor* out) {   \
-    dev_ctx.template Alloc<T>(out);                        \
-    MLUCnnlTensorDesc x_desc(x);                           \
-    MLUCnnlTensorDesc y_desc(y);                           \
-    MLUCnnlTensorDesc out_desc(*out);                      \
-    cnnlBitComputeOp_t type = CNNL_CYCLE_B##op_type##_OP;  \
-    MLUCnnl::BitWise(dev_ctx,                              \
-                     type,                                 \
-                     x_desc.get(),                         \
-                     GetBasePtr(&x),                       \
-                     y_desc.get(),                         \
-                     GetBasePtr(&y),                       \
-                     out_desc.get(),                       \
-                     GetBasePtr(out));                     \
+#define DEFINE_BITWISE_KERNEL(op_type)                    \
+  template <typename T, typename Context>                 \
+  void Bitwise##op_type##Kernel(const Context& dev_ctx,   \
+                                const DenseTensor& x,     \
+                                const DenseTensor& y,     \
+                                DenseTensor* out) {       \
+    dev_ctx.template Alloc<T>(out);                       \
+    MLUCnnlTensorDesc x_desc(x);                          \
+    MLUCnnlTensorDesc y_desc(y);                          \
+    MLUCnnlTensorDesc out_desc(*out);                     \
+    cnnlBitComputeOp_t type = CNNL_CYCLE_B##op_type##_OP; \
+    MLUCnnl::BitWise(dev_ctx,                             \
+                     type,                                \
+                     x_desc.get(),                        \
+                     GetBasePtr(&x),                      \
+                     y_desc.get(),                        \
+                     GetBasePtr(&y),                      \
+                     out_desc.get(),                      \
+                     GetBasePtr(out));                    \
   }
 
 DEFINE_BITWISE_KERNEL(AND)
@@ -44,8 +44,8 @@ DEFINE_BITWISE_KERNEL(XOR)
 
 template <typename T, typename Context>
 void BitwiseNOTKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc out_desc(*out);

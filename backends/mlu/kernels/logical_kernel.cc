@@ -18,33 +18,33 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void LogicalNotMLUKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         phi::DenseTensor* out) {
+                         const DenseTensor& x,
+                         DenseTensor* out) {
   // LogicalNot only has one input x, set y = x also for cnnl computation
   MLULogicOp(dev_ctx, x, x, "not", out);
 }
 
 template <typename T, typename Context>
 void LogicalAndMLUKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& y,
-                         phi::DenseTensor* out) {
+                         const DenseTensor& x,
+                         const DenseTensor& y,
+                         DenseTensor* out) {
   MLULogicOp(dev_ctx, x, y, "and", out);
 }
 
 template <typename T, typename Context>
 void LogicalOrMLUKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        phi::DenseTensor* out) {
+                        const DenseTensor& x,
+                        const DenseTensor& y,
+                        DenseTensor* out) {
   MLULogicOp(dev_ctx, x, y, "or", out);
 }
 
 template <typename T, typename Context>
 void LogicalXorMLUKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& y,
-                         phi::DenseTensor* out) {
+                         const DenseTensor& x,
+                         const DenseTensor& y,
+                         DenseTensor* out) {
   MLULogicOp(dev_ctx, x, y, "xor", out);
 }
 }  // namespace custom_kernel

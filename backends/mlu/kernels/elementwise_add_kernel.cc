@@ -19,30 +19,30 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AddRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   int axis,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   MLUOpTensorKernel<T>(dev_ctx, x, y, axis, CNNL_OP_TENSOR_ADD, out);
 }
 
 template <typename T, typename Context>
 void AddKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const phi::DenseTensor& y,
-               phi::DenseTensor* out) {
+               const DenseTensor& x,
+               const DenseTensor& y,
+               DenseTensor* out) {
   int axis = -1;
   custom_kernel::AddRawKernel<T>(dev_ctx, x, y, axis, out);
 }
 
 template <typename T, typename Context>
 void AddGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   const phi::DenseTensor& dout,
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   const DenseTensor& dout,
                    int axis,
-                   phi::DenseTensor* dx,
-                   phi::DenseTensor* dy) {
+                   DenseTensor* dx,
+                   DenseTensor* dy) {
   axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
   MLUCnnlTensorDesc dout_desc(dout);
   if (dx) {

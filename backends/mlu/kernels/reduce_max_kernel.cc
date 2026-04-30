@@ -19,11 +19,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MaxRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   Tensor in_t, out_t;
   auto need_cast_flag =
       x.dtype() == phi::DataType::INT64 || x.dtype() == phi::DataType::BOOL
@@ -71,10 +71,10 @@ void MaxRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MaxKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::IntArray& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   bool reduce_all = false;
   if (dims.size() == 0) {
     reduce_all = true;
@@ -84,13 +84,13 @@ void MaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MaxGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& out,
-                   const phi::DenseTensor& out_grad,
+                   const DenseTensor& x,
+                   const DenseTensor& out,
+                   const DenseTensor& out_grad,
                    const phi::IntArray& reduce_dims_in,
                    bool keep_dim,
                    bool reduce_all,
-                   phi::DenseTensor* x_grad) {
+                   DenseTensor* x_grad) {
   auto reduce_dims = reduce_dims_in.GetData();
   auto need_cast_for_int64 = x.dtype() == phi::DataType::INT64 ? true : false;
   dev_ctx.template Alloc<T>(x_grad);
@@ -160,14 +160,13 @@ void MaxGradKernel(const Context& dev_ctx,
   tmp_out.Resize(phi::make_ddim(tmp_out_dims_vec));
   tmp_out_grad.Resize(phi::make_ddim(tmp_out_dims_vec));
 
-  phi::DenseTensor transformed_out;
+  DenseTensor transformed_out;
   if (need_cast_for_int64) {
-    phi::DenseTensorMeta meta = {phi::DataType::INT32,
-                                 phi::make_ddim(x_dims_vec)};
+    DenseTensorMeta meta = {phi::DataType::INT32, phi::make_ddim(x_dims_vec)};
     transformed_out.set_meta(meta);
     dev_ctx.template Alloc<int>(&transformed_out);
   } else {
-    phi::DenseTensorMeta meta = {x.dtype(), phi::make_ddim(x_dims_vec)};
+    DenseTensorMeta meta = {x.dtype(), phi::make_ddim(x_dims_vec)};
     transformed_out.set_meta(meta);
     dev_ctx.template Alloc<T>(&transformed_out);
   }
@@ -180,14 +179,13 @@ void MaxGradKernel(const Context& dev_ctx,
                        transformed_out_desc.get(),
                        GetBasePtr(&transformed_out));
 
-  phi::DenseTensor transformed_out_grad;
+  DenseTensor transformed_out_grad;
   if (need_cast_for_int64) {
-    phi::DenseTensorMeta meta = {phi::DataType::INT32,
-                                 phi::make_ddim(x_dims_vec)};
+    DenseTensorMeta meta = {phi::DataType::INT32, phi::make_ddim(x_dims_vec)};
     transformed_out_grad.set_meta(meta);
     dev_ctx.template Alloc<int>(&transformed_out_grad);
   } else {
-    phi::DenseTensorMeta meta = {x.dtype(), phi::make_ddim(x_dims_vec)};
+    DenseTensorMeta meta = {x.dtype(), phi::make_ddim(x_dims_vec)};
     transformed_out_grad.set_meta(meta);
     dev_ctx.template Alloc<T>(&transformed_out_grad);
   }
@@ -200,7 +198,7 @@ void MaxGradKernel(const Context& dev_ctx,
                        transformed_out_grad_desc.get(),
                        GetBasePtr(&transformed_out_grad));
   // compare
-  phi::DenseTensor equal_cond;
+  DenseTensor equal_cond;
   equal_cond.Resize(x_grad->dims());
   dev_ctx.template Alloc<bool>(&equal_cond);
   MLUCnnlTensorDesc x_desc(tmp_x);
@@ -215,7 +213,7 @@ void MaxGradKernel(const Context& dev_ctx,
                  GetBasePtr(&equal_cond));
 
   // select
-  phi::DenseTensor t_zero;
+  DenseTensor t_zero;
   t_zero.Resize(x_grad->dims());
   if (need_cast_for_int64) {
     dev_ctx.template Alloc<int>(&t_zero);

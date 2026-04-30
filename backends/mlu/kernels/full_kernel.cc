@@ -20,9 +20,9 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void FullKernel(const Context& dev_ctx,
                 const phi::IntArray& shape,
-                const phi::Scalar& val,
+                const Scalar& val,
                 phi::DataType dtype,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   auto shape_vec = shape.GetData();
   out->ResizeAndAllocate(phi::make_ddim(shape_vec));
   dev_ctx.template Alloc<T>(out);
@@ -37,10 +37,10 @@ void FullKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FullLikeKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::Scalar& val,
+                    const DenseTensor& x,
+                    const Scalar& val,
                     phi::DataType dtype,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   auto value = val.to<double>();
   using CommonType = typename std::common_type<
       float,
@@ -90,13 +90,13 @@ void FullLikeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FullBatchSizeLikeKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
+                             const DenseTensor& x,
                              const std::vector<int>& shape,
-                             const phi::Scalar& val,
+                             const Scalar& val,
                              phi::DataType dtype,
                              int x_batch_size_dim,
                              int out_batch_size_dim,
-                             phi::DenseTensor* out) {
+                             DenseTensor* out) {
   if (x.lod().size() && x_batch_size_dim == 0) {
     // set the correct batch size for the DenseTensor.
     auto odims = out->dims();
@@ -109,13 +109,13 @@ void FullBatchSizeLikeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FullWithTensorKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& value,
+                          const DenseTensor& value,
                           const phi::IntArray& shape,
                           DataType dtype,
-                          phi::DenseTensor* out) {
+                          DenseTensor* out) {
   out->Resize(common::make_ddim(shape.GetData()));
   custom_kernel::FullKernel<T, Context>(
-      dev_ctx, shape, phi::Scalar(value), dtype, out);
+      dev_ctx, shape, Scalar(value), dtype, out);
 }
 
 }  // namespace custom_kernel

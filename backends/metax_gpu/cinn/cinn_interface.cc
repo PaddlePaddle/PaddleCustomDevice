@@ -68,8 +68,15 @@ extern C_Status MetaxLaunchKernel(void* dev_ptr,
                                   void* stream);
 
 // --- From passes/pass_manager.cc ---
-// Applies custom graph optimization passes
-extern C_Status MetaxApplyCustomPass(void* dev_ptr, void* ir_module);
+// Applies a vendor-specific custom pass identified by name
+extern C_Status MetaxApplyCustomPass(void* dev_ptr,
+                                     const char* pass_name,
+                                     void* ir_func);
+
+// Queries the vendor's desired ordered pass pipeline
+extern C_Status MetaxQueryPassPipeline(void* dev_ptr,
+                                       char pass_names[][128],
+                                       int* count);
 
 // ============================================================
 // Interface Initialization
@@ -102,6 +109,7 @@ void InitCinnInterface(C_DeviceInterface* device_interface) {
 
   // 6. Register Compilation Strategy interface
   metax_cinn_impl.apply_custom_pass = MetaxApplyCustomPass;
+  metax_cinn_impl.query_pass_pipeline = MetaxQueryPassPipeline;
 
   // 7. Attach the populated dispatch table to the Paddle device interface
   if (device_interface) {

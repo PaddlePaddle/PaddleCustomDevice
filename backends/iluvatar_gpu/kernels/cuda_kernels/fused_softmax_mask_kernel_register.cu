@@ -21,4 +21,4 @@ PD_CUSTOM_KERNEL_REGISTER(fused_softmax_mask,
                           ALL_LAYOUT,
                           phi::fusion::FusedSoftmaxMaskKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

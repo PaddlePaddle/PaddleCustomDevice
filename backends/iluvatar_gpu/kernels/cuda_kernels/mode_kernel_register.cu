@@ -23,7 +23,7 @@ PD_CUSTOM_KERNEL_REGISTER(mode,
                           double,
                           int32_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
 }

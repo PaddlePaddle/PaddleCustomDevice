@@ -25,8 +25,8 @@ PD_CUSTOM_KERNEL_REGISTER(rprop,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::RpropKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           float,
                           double) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16 ||
@@ -41,7 +41,7 @@ PD_CUSTOM_KERNEL_REGISTER(rprop,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::RpropKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           float,
                           double) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {

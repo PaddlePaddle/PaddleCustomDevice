@@ -20,13 +20,13 @@ PD_CUSTOM_KERNEL_REGISTER(dropout_grad,
                           ALL_LAYOUT,
                           phi::DropoutGradRawKernel,
                           float,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+                          phi::bfloat16,
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(dropout_nd_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::DropoutNdGradKernel,
                           float,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+                          phi::bfloat16,
+                          phi::float16) {}

@@ -1106,8 +1106,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn_unpadded,
 #ifdef PADDLE_WITH_COREX
                           float,
 #endif
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(5).SetBackend(
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }
@@ -1119,8 +1119,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn_varlen_qkvpacked,
 #ifdef PADDLE_WITH_COREX
                           float,
 #endif
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(3).SetBackend(
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }
@@ -1132,8 +1132,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn,
 #ifdef PADDLE_WITH_COREX
                           float,
 #endif
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(3).SetBackend(
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }
@@ -1145,8 +1145,8 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn_qkvpacked,
 #ifdef PADDLE_WITH_COREX
                           float,
 #endif
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetBackend(
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }
@@ -1155,8 +1155,8 @@ PD_REGISTER_PLUGIN_KERNEL(flashmask_attention,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FlashMaskKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(4).SetBackend(
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }

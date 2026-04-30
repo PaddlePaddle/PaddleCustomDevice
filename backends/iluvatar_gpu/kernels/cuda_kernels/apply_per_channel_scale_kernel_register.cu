@@ -19,5 +19,5 @@ PD_CUSTOM_KERNEL_REGISTER(apply_per_channel_scale,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::ApplyPerChannelScaleKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

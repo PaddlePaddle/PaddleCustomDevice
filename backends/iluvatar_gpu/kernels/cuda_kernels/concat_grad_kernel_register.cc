@@ -26,6 +26,6 @@ PD_CUSTOM_KERNEL_REGISTER(concat_grad,
                           uint8_t,
                           int8_t,
                           int16_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           phi::dtype::complex<float>) {}

@@ -21,6 +21,6 @@ PD_CUSTOM_KERNEL_REGISTER(embedding,
                           phi::EmbeddingKernel,
                           float,
                           int8_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           phi::dtype::complex<float>) {}

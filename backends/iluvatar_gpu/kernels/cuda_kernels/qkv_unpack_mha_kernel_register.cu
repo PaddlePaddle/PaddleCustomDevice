@@ -21,4 +21,4 @@ PD_CUSTOM_KERNEL_REGISTER(qkv_unpack_mha,
                           ALL_LAYOUT,
                           phi::fusion::QKVMMHAKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

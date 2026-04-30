@@ -28,8 +28,8 @@ PD_CUSTOM_KERNEL_REGISTER(logcumsumexp_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LogcumsumexpGradKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           float,
                           double,
-                          phi::dtype::bfloat16) {}
+                          phi::bfloat16) {}
 #endif

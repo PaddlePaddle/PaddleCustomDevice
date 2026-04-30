@@ -20,37 +20,37 @@ PD_CUSTOM_KERNEL_REGISTER(conv2d_grad,
                           ALL_LAYOUT,
                           phi::ConvCudnnGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(conv3d_grad,
                           GPUDNN,
                           ALL_LAYOUT,
                           phi::Conv3DCudnnGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(conv2d_double_grad,
                           GPUDNN,
                           ALL_LAYOUT,
                           phi::ConvCudnnGradGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(conv3d_double_grad,
                           GPUDNN,
                           ALL_LAYOUT,
                           phi::Conv3DCudnnDoubleGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(depthwise_conv2d_double_grad,
                           GPUDNN,
                           ALL_LAYOUT,
                           phi::DepthwiseConvDoubleGradGPUDNNKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

@@ -46,8 +46,8 @@ PD_REGISTER_KERNEL(
 }
 #else
 
-using float16 = phi::dtype::float16;
-using bfloat16 = phi::dtype::bfloat16;
+using float16 = phi::float16;
+using bfloat16 = phi::bfloat16;
 using complex64 = ::phi::dtype::complex<float>;
 using complex128 = ::phi::dtype::complex<double>;
 

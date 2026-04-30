@@ -20,8 +20,8 @@ PD_CUSTOM_KERNEL_REGISTER(check_finite_and_unscale,
                           ALL_LAYOUT,
                           phi::CheckFiniteAndUnscaleKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->OutputAt(1).SetDataType(phi::DataType::BOOL);
 }
 
@@ -30,8 +30,8 @@ PD_CUSTOM_KERNEL_REGISTER(update_loss_scaling,
                           ALL_LAYOUT,
                           phi::UpdateLossScalingKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
   if (kernel_key.dtype() == phi::DataType::FLOAT16 ||
       kernel_key.dtype() == phi::DataType::BFLOAT16) {

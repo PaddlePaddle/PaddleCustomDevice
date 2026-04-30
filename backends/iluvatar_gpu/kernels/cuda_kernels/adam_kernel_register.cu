@@ -21,8 +21,8 @@ PD_CUSTOM_KERNEL_REGISTER(adam,
                           ALL_LAYOUT,
                           phi::AdamDenseKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   // Skip beta1_pow, beta2_pow, skip_update data transform
   kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(7).SetBackend(phi::Backend::ALL_BACKEND);
@@ -46,8 +46,8 @@ PD_CUSTOM_KERNEL_REGISTER(merged_adam,
                           ALL_LAYOUT,
                           phi::MergedAdamKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          phi::float16,
+                          phi::bfloat16) {
   // Skip beta1_pow, beta2_pow data transform
   kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(7).SetBackend(phi::Backend::ALL_BACKEND);

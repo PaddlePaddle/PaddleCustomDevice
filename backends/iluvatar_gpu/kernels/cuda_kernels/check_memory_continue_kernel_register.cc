@@ -19,7 +19,7 @@ PD_CUSTOM_KERNEL_REGISTER(check_memory_continue,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::CheckMemoryContinueKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           int,
                           float,
                           double) {}

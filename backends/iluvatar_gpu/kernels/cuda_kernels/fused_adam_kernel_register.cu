@@ -19,8 +19,8 @@ PD_CUSTOM_KERNEL_REGISTER(fused_adam,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FusedAdamKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           float,
                           double) {
   // Skip beta1_pow, beta2_pow, skip_update data transform

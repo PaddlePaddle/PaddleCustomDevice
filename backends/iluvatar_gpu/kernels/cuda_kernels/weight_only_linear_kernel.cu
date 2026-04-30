@@ -67,9 +67,9 @@ void WeightOnlyLinearKernel(const Context& dev_ctx,
     PADDLE_THROW(common::errors::Unimplemented("Unsupported weight dtype %s.",
                                                weight_dtype));
   }
-  if (std::is_same<T, phi::dtype::float16>::value) {
+  if (std::is_same<T, phi::float16>::value) {
     bc_type = CUDA_R_16F;
-  } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
+  } else if (std::is_same<T, phi::bfloat16>::value) {
     bc_type = CUDA_R_16BF;
   } else {
     PADDLE_THROW(common::errors::Unimplemented("Unsupported input dtype."));
@@ -178,5 +178,5 @@ PD_REGISTER_PLUGIN_KERNEL(weight_only_linear,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::WeightOnlyLinearKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

@@ -21,7 +21,7 @@
                             iluvatar_gpu,                          \
                             ALL_LAYOUT,                            \
                             phi::sparse::prefix##CooKernel,        \
-                            phi::dtype::float16,                   \
+                            phi::float16,                          \
                             float,                                 \
                             double) {                              \
     kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_COO); \
@@ -31,7 +31,7 @@
                             iluvatar_gpu,                          \
                             ALL_LAYOUT,                            \
                             phi::sparse::prefix##CsrKernel,        \
-                            phi::dtype::float16,                   \
+                            phi::float16,                          \
                             float,                                 \
                             double) {                              \
     kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_CSR); \
@@ -42,7 +42,7 @@
                             iluvatar_gpu,                              \
                             ALL_LAYOUT,                                \
                             phi::sparse::prefix##CooKernel,            \
-                            phi::dtype::float16,                       \
+                            phi::float16,                              \
                             float,                                     \
                             double,                                    \
                             phi::dtype::complex<float>,                \
@@ -54,7 +54,7 @@
                             iluvatar_gpu,                              \
                             ALL_LAYOUT,                                \
                             phi::sparse::prefix##CsrKernel,            \
-                            phi::dtype::float16,                       \
+                            phi::float16,                              \
                             float,                                     \
                             double,                                    \
                             phi::dtype::complex<float>,                \
@@ -84,7 +84,7 @@ PD_CUSTOM_KERNEL_REGISTER(cast_coo,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::sparse::CastCooKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           float,
                           double,
                           int8_t,
@@ -98,7 +98,7 @@ PD_CUSTOM_KERNEL_REGISTER(cast_csr,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::sparse::CastCsrKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           float,
                           double,
                           int8_t,
@@ -114,7 +114,7 @@ PD_CUSTOM_KERNEL_REGISTER(isnan_coo,
                           phi::sparse::IsnanCooKernel,
                           float,
                           double,
-                          phi::dtype::float16,
+                          phi::float16,
                           int,
                           int64_t) {
   kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_COO);
@@ -126,7 +126,7 @@ PD_CUSTOM_KERNEL_REGISTER(isnan_csr,
                           phi::sparse::IsnanCsrKernel,
                           float,
                           double,
-                          phi::dtype::float16,
+                          phi::float16,
                           int,
                           int64_t) {
   kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_CSR);

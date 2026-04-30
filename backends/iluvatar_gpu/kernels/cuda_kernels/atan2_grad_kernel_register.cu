@@ -21,5 +21,5 @@ PD_CUSTOM_KERNEL_REGISTER(atan2_grad,
                           phi::Atan2GradKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

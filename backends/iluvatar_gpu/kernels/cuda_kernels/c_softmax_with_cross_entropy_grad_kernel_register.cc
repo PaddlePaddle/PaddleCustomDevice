@@ -20,4 +20,4 @@ PD_CUSTOM_KERNEL_REGISTER(c_softmax_with_cross_entropy_grad,
                           ALL_LAYOUT,
                           phi::CSoftmaxWithCrossEntropyGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

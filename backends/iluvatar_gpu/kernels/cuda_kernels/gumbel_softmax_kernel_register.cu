@@ -19,6 +19,6 @@ PD_CUSTOM_KERNEL_REGISTER(gumbel_softmax,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::GumbelSoftmaxKernel,
-                          phi::dtype::float16,
+                          phi::float16,
                           float,
                           double) {}

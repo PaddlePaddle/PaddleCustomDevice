@@ -21,5 +21,5 @@ PD_CUSTOM_KERNEL_REGISTER(masked_multihead_attention,
                           ALL_LAYOUT,
                           phi::fusion::MMHAKernel,
                           float,
-                          phi::dtype::float16,
+                          phi::float16,
                           int32_t) {}

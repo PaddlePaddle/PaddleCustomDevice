@@ -26,8 +26,8 @@ PD_CUSTOM_KERNEL_REGISTER(split,
                           uint8_t,
                           int8_t,
                           int16_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           phi::complex64) {}
 
 PD_CUSTOM_KERNEL_REGISTER(split_with_num,
@@ -40,5 +40,5 @@ PD_CUSTOM_KERNEL_REGISTER(split_with_num,
                           bool,
                           uint8_t,
                           int8_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

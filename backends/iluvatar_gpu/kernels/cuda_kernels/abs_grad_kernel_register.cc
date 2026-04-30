@@ -25,8 +25,8 @@ PD_CUSTOM_KERNEL_REGISTER(abs_grad,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           complex<float>) {
   kernel->InputAt(1).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
 }
@@ -38,8 +38,8 @@ PD_CUSTOM_KERNEL_REGISTER(abs_double_grad,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           complex<float>) {
   kernel->InputAt(1).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
 }

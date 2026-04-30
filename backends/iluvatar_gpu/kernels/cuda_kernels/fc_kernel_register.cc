@@ -16,9 +16,5 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/impl/fc_kernel_impl.h"
 
-PD_CUSTOM_KERNEL_REGISTER(fc,
-                          iluvatar_gpu,
-                          ALL_LAYOUT,
-                          phi::fusion::FCKernel,
-                          float,
-                          phi::dtype::float16) {}
+PD_CUSTOM_KERNEL_REGISTER(
+    fc, iluvatar_gpu, ALL_LAYOUT, phi::fusion::FCKernel, float, phi::float16) {}

@@ -20,5 +20,5 @@ PD_CUSTOM_KERNEL_REGISTER(nop,
                           ALL_LAYOUT,
                           phi::NopKernel,
                           float,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+                          phi::bfloat16,
+                          phi::float16) {}

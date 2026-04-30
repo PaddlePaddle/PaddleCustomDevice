@@ -20,5 +20,5 @@ PD_CUSTOM_KERNEL_REGISTER(fused_rotary_position_embedding,
                           ALL_LAYOUT,
                           phi::fusion::FusedRopeKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16){};
+                          phi::float16,
+                          phi::bfloat16){};

@@ -20,8 +20,8 @@ PD_CUSTOM_KERNEL_REGISTER(dropout,
                           ALL_LAYOUT,
                           phi::DropoutRawKernel,
                           float,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {
+                          phi::bfloat16,
+                          phi::float16) {
   kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
 }
@@ -31,8 +31,8 @@ PD_CUSTOM_KERNEL_REGISTER(dropout_nd,
                           ALL_LAYOUT,
                           phi::DropoutNdKernel,
                           float,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {
+                          phi::bfloat16,
+                          phi::float16) {
   kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
 }

@@ -21,11 +21,11 @@ PD_CUSTOM_KERNEL_REGISTER(conv2d_transpose,
                           phi::Conv2dTransposeGPUDNNKernel,
                           float,
                           float16,
-                          phi::dtype::bfloat16) {}
+                          phi::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(conv3d_transpose,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::Conv3dTransposeGPUDNNKernel,
                           float,
                           float16,
-                          phi::dtype::bfloat16) {}
+                          phi::bfloat16) {}

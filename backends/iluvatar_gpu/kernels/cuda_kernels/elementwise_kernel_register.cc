@@ -15,8 +15,8 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/kps/elementwise_kernel.cu"  // NOLINT
 
-using float16 = phi::dtype::float16;
-using bfloat16 = phi::dtype::bfloat16;
+using float16 = phi::float16;
+using bfloat16 = phi::bfloat16;
 using complex64 = ::phi::dtype::complex<float>;
 
 PD_CUSTOM_KERNEL_REGISTER(maximum,

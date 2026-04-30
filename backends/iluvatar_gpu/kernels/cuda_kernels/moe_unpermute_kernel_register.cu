@@ -21,4 +21,4 @@ PD_CUSTOM_KERNEL_REGISTER(moe_unpermute,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MoeUnpermuteKernel,
-                          phi::dtype::bfloat16) {}
+                          phi::bfloat16) {}

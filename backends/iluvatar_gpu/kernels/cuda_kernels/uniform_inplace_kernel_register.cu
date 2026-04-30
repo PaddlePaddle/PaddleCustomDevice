@@ -20,5 +20,5 @@ PD_CUSTOM_KERNEL_REGISTER(uniform_inplace,
                           phi::UniformInplaceKernel,
                           float,
                           double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

@@ -21,7 +21,7 @@ PD_CUSTOM_KERNEL_REGISTER(rmsprop,
                           phi::RmspropDenseKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(rmsprop_dense_param_sparse_grad,
                           iluvatar_gpu,
@@ -29,4 +29,4 @@ PD_CUSTOM_KERNEL_REGISTER(rmsprop_dense_param_sparse_grad,
                           phi::RmspropSparseKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

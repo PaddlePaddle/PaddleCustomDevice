@@ -30,6 +30,6 @@ PD_CUSTOM_KERNEL_REGISTER(all_gather,
                           int16_t,
                           int64_t,
                           bool,
-                          phi::dtype::float16,
+                          phi::float16,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>) {}

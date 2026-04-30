@@ -135,8 +135,8 @@ PD_CUSTOM_KERNEL_REGISTER(accuracy,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::AccuracyKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::float16,
+                          phi::bfloat16,
                           float) {
   kernel->InputAt(1).SetDataType(phi::DataType::INT32);
   kernel->InputAt(2).SetDataType(phi::DataType::INT32);

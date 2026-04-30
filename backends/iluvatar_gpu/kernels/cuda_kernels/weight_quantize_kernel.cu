@@ -58,5 +58,5 @@ PD_REGISTER_PLUGIN_KERNEL(weight_quantize,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::WeightQuantizeKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

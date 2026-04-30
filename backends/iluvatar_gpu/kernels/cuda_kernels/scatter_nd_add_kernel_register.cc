@@ -22,5 +22,5 @@ PD_CUSTOM_KERNEL_REGISTER(scatter_nd_add,
                           float,
                           int64_t,
                           int,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

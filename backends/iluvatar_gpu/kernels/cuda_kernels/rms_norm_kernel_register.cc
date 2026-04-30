@@ -42,5 +42,5 @@ PD_CUSTOM_KERNEL_REGISTER(fused_rms_norm_quant,
                           ALL_LAYOUT,
                           phi::RmsNormQuantKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

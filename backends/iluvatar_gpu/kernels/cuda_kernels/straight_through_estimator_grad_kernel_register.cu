@@ -19,4 +19,4 @@ PD_CUSTOM_KERNEL_REGISTER(straight_through_estimator_grad,
                           ALL_LAYOUT,
                           phi::StraightThroughEstimatorGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::float16) {}

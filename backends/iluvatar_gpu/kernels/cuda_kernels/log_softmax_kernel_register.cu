@@ -20,5 +20,5 @@ PD_CUSTOM_KERNEL_REGISTER(log_softmax,
                           ALL_LAYOUT,
                           phi::LogSoftmaxKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::float16,
+                          phi::bfloat16) {}

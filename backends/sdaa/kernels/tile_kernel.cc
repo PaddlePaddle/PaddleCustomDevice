@@ -34,9 +34,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TileKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::IntArray& repeat_times,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA TileKernel";
   auto rank = x.dims().size();
   auto& repeat_times_data = repeat_times.GetData();

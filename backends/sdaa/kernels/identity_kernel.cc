@@ -33,9 +33,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void NPUIdentityKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        const int format,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   PADDLE_ENFORCE_EQ(
       format == -1 || format == 0,
       true,
@@ -50,7 +50,7 @@ void NPUIdentityKernel(const Context& dev_ctx,
     }
     auto storages = x.storage_properties<SDAAStorageProperties>();
     phi::DDim x_dims = storages.storage_dims;  // CHWN
-    phi::DenseTensorMeta out_meta;
+    DenseTensorMeta out_meta;
     out_meta = {x.dtype(), {x_dims[3], x_dims[0], x_dims[1], x_dims[2]}};
     out->set_meta(out_meta);
     dev_ctx.template Alloc<T>(out, x.numel() * sizeof(T));

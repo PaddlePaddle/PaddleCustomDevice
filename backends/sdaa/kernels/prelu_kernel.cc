@@ -31,11 +31,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void PReluKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& alpha,
+                 const DenseTensor& x,
+                 const DenseTensor& alpha,
                  const std::string& data_format,
                  const std::string& mode,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   VLOG(4) << "CALL SDAA PReluKernel";
 
   if (1 == alpha.numel()) {

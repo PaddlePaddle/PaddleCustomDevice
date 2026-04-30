@@ -20,8 +20,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AssignKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  DenseTensor* out) {
   VLOG(4) << "Call SDAA AssignKernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -30,8 +30,8 @@ void AssignKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AssignRawKernel(const Context& dev_ctx,
-                     const paddle::optional<phi::DenseTensor>& x,
-                     phi::DenseTensor* out) {
+                     const paddle::optional<DenseTensor>& x,
+                     DenseTensor* out) {
   if (x) {
     if (!x->initialized()) {
       return;
@@ -43,8 +43,8 @@ void AssignRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AssignArrayKernel(const Context& dev_ctx,
-                       const std::vector<const phi::DenseTensor*>& x,
-                       std::vector<phi::DenseTensor*> out) {
+                       const std::vector<const DenseTensor*>& x,
+                       std::vector<DenseTensor*> out) {
   for (size_t i = 0; i < x.size(); ++i) {
     custom_kernel::AssignKernel<T, Context>(dev_ctx, *x[i], out.at(i));
   }
@@ -54,7 +54,7 @@ template <typename T, typename Context>
 typename std::enable_if<std::is_same<T, bool>::value>::type CopyVectorToTensor(
     const Context& dev_ctx,
     const std::vector<phi::Scalar>& values,
-    phi::DenseTensor* out) {
+    DenseTensor* out) {
   // If attribute value dtype is vector<bool>, it will be converted to
   // vector<int>. at the same time, we can not use vector<bool> to hold
   // the value, because the c++ use bit value to replace byte value.
@@ -78,7 +78,7 @@ template <typename T, typename Context>
 typename std::enable_if<!std::is_same<T, bool>::value>::type CopyVectorToTensor(
     const Context& dev_ctx,
     const std::vector<phi::Scalar>& values,
-    phi::DenseTensor* out) {
+    DenseTensor* out) {
   std::vector<T> assign_values;
   assign_values.reserve(values.size());
   for (const auto& val : values) {
@@ -92,7 +92,7 @@ void AssignValueKernel(const Context& dev_ctx,
                        const std::vector<int>& shape,
                        phi::DataType dtype,
                        const std::vector<phi::Scalar>& values,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   auto template_dtype = phi::CppTypeToDataType<T>::Type();
   PADDLE_ENFORCE_EQ(
       dtype,

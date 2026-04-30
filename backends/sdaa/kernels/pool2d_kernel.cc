@@ -126,13 +126,13 @@ tecodnnPoolingMode_t GetTecodnnPoolingMode(const std::string& pooling_type,
 /*The tensor format of this function must be NHWC*/
 template <typename T, typename Context>
 void doPoolingForward(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
+                      const DenseTensor& x,
                       const std::string& pooling_type,
                       const std::vector<int>& pool2dParameters,
                       bool adaptive,
                       bool exclusive,
                       bool ceil_mode,
-                      phi::DenseTensor* out) {
+                      DenseTensor* out) {
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
 
@@ -200,15 +200,15 @@ void doPoolingForward(const Context& dev_ctx,
 /*The tensor format of this function must be NHWC*/
 template <typename T, typename Context>
 void doPoolingBackward(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& out,
-                       const phi::DenseTensor& out_grad,
+                       const DenseTensor& x,
+                       const DenseTensor& out,
+                       const DenseTensor& out_grad,
                        const std::string& pooling_type,
                        const std::vector<int>& pool2dParameters,
                        bool adaptive,
                        bool exclusive,
                        bool ceil_mode,
-                       phi::DenseTensor* x_grad) {
+                       DenseTensor* x_grad) {
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> out_dims = phi::vectorize<int>(out.dims());
   std::vector<int> out_grad_dims = phi::vectorize<int>(out_grad.dims());
@@ -289,7 +289,7 @@ void doPoolingBackward(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Pool2dKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& in_x,
+                  const DenseTensor& in_x,
                   const phi::IntArray& kernel_size,
                   const std::vector<int64_t>& strides_t_64,
                   const std::vector<int64_t>& paddings_t_64,
@@ -300,7 +300,7 @@ void Pool2dKernel(const Context& dev_ctx,
                   bool global_pooling,
                   bool adaptive,
                   const std::string& padding_algorithm,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "CALL SDAA Pool2dKernel";
   std::vector<int> strides_t =
       std::vector<int>(strides_t_64.begin(), strides_t_64.end());
@@ -400,9 +400,9 @@ void Pool2dKernel(const Context& dev_ctx,
     phi::DDim out_NHWC_dims =
         sdaa_ops::doDimPermute(*out, Convert_TF::NCHW2NHWC);
 
-    phi::DenseTensor in_x_NHWC, out_NHWC;
-    phi::DenseTensorMeta in_x_NHWC_meta = {in_x.dtype(), in_x_NHWC_dims};
-    phi::DenseTensorMeta out_NHWC_meta = {out->dtype(), out_NHWC_dims};
+    DenseTensor in_x_NHWC, out_NHWC;
+    DenseTensorMeta in_x_NHWC_meta = {in_x.dtype(), in_x_NHWC_dims};
+    DenseTensorMeta out_NHWC_meta = {out->dtype(), out_NHWC_dims};
     in_x_NHWC.set_meta(in_x_NHWC_meta);
     out_NHWC.set_meta(out_NHWC_meta);
 
@@ -436,9 +436,9 @@ void Pool2dKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Pool2dGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& in_x,
-                      const phi::DenseTensor& out,
-                      const phi::DenseTensor& out_grad,
+                      const DenseTensor& in_x,
+                      const DenseTensor& out,
+                      const DenseTensor& out_grad,
                       const phi::IntArray& kernel_size,
                       const std::vector<int>& strides_t,
                       const std::vector<int>& paddings_t,
@@ -449,7 +449,7 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       bool global_pooling,
                       bool adaptive,
                       const std::string& padding_algorithm,
-                      phi::DenseTensor* in_x_grad) {
+                      DenseTensor* in_x_grad) {
   VLOG(4) << "CALL SDAA Pool2dGradKernel";
 
   dev_ctx.template Alloc<T>(in_x_grad);
@@ -552,13 +552,12 @@ void Pool2dGradKernel(const Context& dev_ctx,
     phi::DDim in_x_grad_NHWC_dims =
         sdaa_ops::doDimPermute(*in_x_grad, Convert_TF::NCHW2NHWC);
 
-    phi::DenseTensor in_x_NHWC, in_x_grad_NHWC, out_NHWC, out_grad_NHWC;
-    phi::DenseTensorMeta in_x_NHWC_meta = {in_x.dtype(), in_x_NHWC_dims};
-    phi::DenseTensorMeta out_NHWC_meta = {out_NHWC.dtype(), out_NHWC_dims};
-    phi::DenseTensorMeta out_grad_NHWC_meta = {out_grad.dtype(),
-                                               out_grad_NHWC_dims};
-    phi::DenseTensorMeta in_x_grad_NHWC_meta = {in_x_grad->dtype(),
-                                                in_x_grad_NHWC_dims};
+    DenseTensor in_x_NHWC, in_x_grad_NHWC, out_NHWC, out_grad_NHWC;
+    DenseTensorMeta in_x_NHWC_meta = {in_x.dtype(), in_x_NHWC_dims};
+    DenseTensorMeta out_NHWC_meta = {out_NHWC.dtype(), out_NHWC_dims};
+    DenseTensorMeta out_grad_NHWC_meta = {out_grad.dtype(), out_grad_NHWC_dims};
+    DenseTensorMeta in_x_grad_NHWC_meta = {in_x_grad->dtype(),
+                                           in_x_grad_NHWC_dims};
 
     in_x_NHWC.set_meta(in_x_NHWC_meta);
     out_NHWC.set_meta(out_NHWC_meta);

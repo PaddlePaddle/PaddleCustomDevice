@@ -33,15 +33,15 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void IncrementKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      float value,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   VLOG(4) << "CALL SDAA IncrementKernel.";
 
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor value_tensor;
-  phi::DenseTensorMeta meta = {x.dtype(), {1}};
+  DenseTensor value_tensor;
+  DenseTensorMeta meta = {x.dtype(), {1}};
   value_tensor.set_meta(meta);
   dev_ctx.template Alloc<T>(&value_tensor);
 

@@ -20,14 +20,14 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void DropoutNVAlign(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const paddle::optional<phi::DenseTensor>& seed_tensor,
+                    const DenseTensor& x,
+                    const paddle::optional<DenseTensor>& seed_tensor,
                     float p,
                     int seed,
                     bool fix_seed,
                     const char* mode,
-                    phi::DenseTensor* out,
-                    phi::DenseTensor* mask) {
+                    DenseTensor* out,
+                    DenseTensor* mask) {
   // Align sdaa with NV device
   uint64_t seed_data;
   uint64_t increment;
@@ -54,7 +54,7 @@ void DropoutNVAlign(const Context& dev_ctx,
           << ", increment=" << offset;
   sdaaStream_t custom_stream = GetStreamFromCTX(dev_ctx);
 
-  phi::DenseTensor x_temp, out_temp;
+  DenseTensor x_temp, out_temp;
   x_temp = x;
   out_temp = *out;
 
@@ -72,15 +72,15 @@ void DropoutNVAlign(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DropoutKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const paddle::optional<phi::DenseTensor>& seed_tensor,
+                   const DenseTensor& x,
+                   const paddle::optional<DenseTensor>& seed_tensor,
                    const phi::Scalar& p,
                    bool is_test,
                    const std::string& mode,
                    int seed,
                    bool fix_seed,
-                   phi::DenseTensor* out,
-                   phi::DenseTensor* mask) {
+                   DenseTensor* out,
+                   DenseTensor* mask) {
   VLOG(4) << "Call SDAA DropoutKernel";
 
   dev_ctx.template Alloc<T>(out);
@@ -159,10 +159,10 @@ void DropoutKernel(const Context& dev_ctx,
   // set states
   size_t act_statesSize = 4 * 1024 * sizeof(int);
   TECODNN_CHECK(tecodnnDropoutGetStatesSize(tecodnnHandle, &act_statesSize));
-  phi::DenseTensorMeta meta = {phi::DataType::INT8,
-                               {static_cast<int>(act_statesSize)}};
+  DenseTensorMeta meta = {phi::DataType::INT8,
+                          {static_cast<int>(act_statesSize)}};
 
-  phi::DenseTensor states;
+  DenseTensor states;
   states.set_meta(meta);
   dev_ctx.template Alloc<int8_t>(&states);
 
@@ -192,12 +192,12 @@ void DropoutKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DropoutGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& mask,
-                       const phi::DenseTensor& dout,
+                       const DenseTensor& mask,
+                       const DenseTensor& dout,
                        const phi::Scalar& p,
                        bool is_test,
                        const std::string& mode,
-                       phi::DenseTensor* dx) {
+                       DenseTensor* dx) {
   VLOG(4) << "Call SDAA DropoutGradKernel";
 
   PADDLE_ENFORCE_EQ(
@@ -222,9 +222,9 @@ void DropoutGradKernel(const Context& dev_ctx,
   // set states
   size_t act_statesSize = 4 * 1024 * sizeof(int);
   TECODNN_CHECK(tecodnnDropoutGetStatesSize(tecodnnHandle, &act_statesSize));
-  phi::DenseTensorMeta meta = {phi::DataType::INT8,
-                               {static_cast<int>(act_statesSize)}};
-  phi::DenseTensor states;
+  DenseTensorMeta meta = {phi::DataType::INT8,
+                          {static_cast<int>(act_statesSize)}};
+  DenseTensor states;
   states.set_meta(meta);
   dev_ctx.template Alloc<int8_t>(&states);
 

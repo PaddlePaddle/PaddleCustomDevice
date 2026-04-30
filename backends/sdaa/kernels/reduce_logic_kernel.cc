@@ -22,9 +22,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void logic_kernel_impl(const Context& ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        const std::vector<int64_t>& dims,
-                       phi::DenseTensor* out,
+                       DenseTensor* out,
                        TensorLogicType tlt) {
   VLOG(4) << "Call SDAA LogicKernel";
 
@@ -42,10 +42,10 @@ void logic_kernel_impl(const Context& ctx,
 #define DEFINE_TECODNN_LOGIC_KERNEL(logic_kernel, logic_type)         \
   template <typename T, typename Context>                             \
   void logic_kernel(const Context& dev_ctx,                           \
-                    const phi::DenseTensor& x,                        \
+                    const DenseTensor& x,                             \
                     const std::vector<int64_t>& dims,                 \
                     bool keep_dim,                                    \
-                    phi::DenseTensor* out) {                          \
+                    DenseTensor* out) {                               \
     logic_kernel_impl<T, Context>(dev_ctx, x, dims, out, logic_type); \
   }
 DEFINE_TECODNN_LOGIC_KERNEL(AllKernel, TensorLogicType::all);
@@ -55,11 +55,11 @@ DEFINE_TECODNN_LOGIC_KERNEL(AnyKernel, TensorLogicType::any);
 #define DEFINE_TECODNN_LOGIC_RAW_KERNEL(logic_raw_kernel, logic_type) \
   template <typename T, typename Context>                             \
   void logic_raw_kernel(const Context& dev_ctx,                       \
-                        const phi::DenseTensor& x,                    \
+                        const DenseTensor& x,                         \
                         const std::vector<int64_t>& dims,             \
                         bool keep_dim,                                \
                         bool reduce_all,                              \
-                        phi::DenseTensor* out) {                      \
+                        DenseTensor* out) {                           \
     logic_kernel_impl<T, Context>(dev_ctx, x, dims, out, logic_type); \
   }
 DEFINE_TECODNN_LOGIC_RAW_KERNEL(AllRawKernel, TensorLogicType::all);

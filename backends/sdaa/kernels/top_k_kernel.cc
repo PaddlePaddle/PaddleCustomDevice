@@ -20,13 +20,13 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TopkKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::Scalar& k_scalar,
                 int axis,
                 bool largest,
                 bool sorted,
-                phi::DenseTensor* out,
-                phi::DenseTensor* indices) {
+                DenseTensor* out,
+                DenseTensor* indices) {
   VLOG(4) << "Call SDAA TopkKernel";
   int xDims = x.dims().size();
   if (axis < 0) {
@@ -64,7 +64,7 @@ void TopkKernel(const Context& dev_ctx,
     std::vector<int> y_dimensions = phi::vectorize<int>(output_dims);
     std::vector<int> indices_dimensions = phi::vectorize<int>(output_dims);
 
-    phi::DenseTensor* in = const_cast<phi::DenseTensor*>(&x);
+    DenseTensor* in = const_cast<DenseTensor*>(&x);
 
     tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
 
@@ -93,7 +93,7 @@ void TopkKernel(const Context& dev_ctx,
     tecodnnGetTopkWorkspaceSize(
         topk_Desc, x_Desc, y_Desc, indices_Desc, &workspace_size);
 
-    phi::DenseTensor dev_workspace;
+    DenseTensor dev_workspace;
     dev_workspace.Resize(
         phi::make_ddim({static_cast<int64_t>(workspace_size)}));
     dev_ctx.Alloc(&dev_workspace, phi::DataType::INT8);
@@ -117,14 +117,14 @@ void TopkKernel(const Context& dev_ctx,
   }
 
   // the indices param in the tecodnnTopk is int.
-  phi::DenseTensor indices_int;
+  DenseTensor indices_int;
   indices_int.Resize(indices->dims());
   dev_ctx.template Alloc<int32_t>(&indices_int);
 
   std::vector<int> x_dimensions = phi::vectorize<int>(x.dims());
   std::vector<int> y_dimensions = phi::vectorize<int>(output_dims);
 
-  phi::DenseTensor* in = const_cast<phi::DenseTensor*>(&x);
+  DenseTensor* in = const_cast<DenseTensor*>(&x);
 
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
 
@@ -153,14 +153,14 @@ void TopkKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TopkGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& indices,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& x,
+                    const DenseTensor& indices,
+                    const DenseTensor& out_grad,
                     const phi::Scalar& k_scalar,
                     int axis,
                     bool largest UNUSED,
                     bool sorted UNUSED,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   VLOG(4) << "Call SDAA TopkGradKernel";
   const auto& in_dim_size = x.dims().size();
   // axis < 0, get the real axis
@@ -193,7 +193,7 @@ void TopkGradKernel(const Context& dev_ctx,
   std::vector<int> out_grad_dimensions = phi::vectorize<int>(out_grad.dims());
   std::vector<int> x_grad_dimensions = phi::vectorize<int>(x_grad->dims());
 
-  phi::DenseTensor* in = const_cast<phi::DenseTensor*>(&x);
+  DenseTensor* in = const_cast<DenseTensor*>(&x);
 
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
 

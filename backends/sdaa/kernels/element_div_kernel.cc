@@ -20,10 +20,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void DivideRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
                      int axis,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   VLOG(4) << "Call SDAA DivideRawKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doElementDiv(dev_ctx, x, y, axis, out);
@@ -31,22 +31,22 @@ void DivideRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DivideKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  const DenseTensor& y,
+                  DenseTensor* out) {
   int axis = -1;
   custom_kernel::DivideRawKernel<T>(dev_ctx, x, y, axis, out);
 }
 
 template <typename T, typename Context>
 void DivideGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      const phi::DenseTensor& out,
-                      const phi::DenseTensor& dout,
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      const DenseTensor& out,
+                      const DenseTensor& dout,
                       int axis,
-                      phi::DenseTensor* dx,
-                      phi::DenseTensor* dy) {
+                      DenseTensor* dx,
+                      DenseTensor* dy) {
   VLOG(4) << "Call SDAA DivideGradKernel";
 
   auto out_dims_vec = phi::vectorize<int64_t>(dout.dims());
@@ -54,8 +54,8 @@ void DivideGradKernel(const Context& dev_ctx,
   broadcastDims<int64_t>(x.dims(), y.dims(), axis, &x_dims_vec, &y_dims_vec);
   if (dy) {
     dev_ctx.template Alloc<T>(dy);
-    phi::DenseTensor temp_out;
-    phi::DenseTensorMeta temp_out_meta = {dout.dtype(), dout.dims()};
+    DenseTensor temp_out;
+    DenseTensorMeta temp_out_meta = {dout.dtype(), dout.dims()};
     temp_out.set_meta(temp_out_meta);
     dev_ctx.template Alloc<T>(&temp_out);
     sdaa_ops::doElementMul(dev_ctx, dout, out, -1, &temp_out);
@@ -70,13 +70,13 @@ void DivideGradKernel(const Context& dev_ctx,
   }
   if (dx) {
     dev_ctx.template Alloc<T>(dx);
-    phi::DenseTensor y_temp(y);
+    DenseTensor y_temp(y);
     y_temp.Resize(phi::make_ddim(y_dims_vec));
 
     if (dx->dims() == dout.dims()) {
       sdaa_ops::doElementDiv(dev_ctx, dout, y_temp, -1, dx);
     } else {
-      phi::DenseTensor x_temp;
+      DenseTensor x_temp;
       x_temp.Resize(phi::make_ddim(out_dims_vec));
       dev_ctx.template Alloc<T>(&x_temp);
       sdaa_ops::doElementDiv(dev_ctx, dout, y_temp, -1, &x_temp);

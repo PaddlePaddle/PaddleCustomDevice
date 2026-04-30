@@ -33,15 +33,15 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void LabelSmoothKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const paddle::optional<phi::DenseTensor>& dist,
+                       const DenseTensor& x,
+                       const paddle::optional<DenseTensor>& dist,
                        float epsilon,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   VLOG(4) << "Call SDAA LabelSmoothKernel";
   auto label_dim = x.dims()[x.dims().size() - 1];
   dev_ctx.template Alloc<T>(out);
   // (1 − epsilon) ∗ x
-  phi::DenseTensor x_temp;
+  DenseTensor x_temp;
   x_temp.Resize(x.dims());
   dev_ctx.template Alloc<T>(&x_temp);
   sdaa_ops::doUnaryOpTensor(
@@ -50,7 +50,7 @@ void LabelSmoothKernel(const Context& dev_ctx,
   if (dist) {
     // epsilon * dist
     auto& dist_tensor = dist.get();
-    phi::DenseTensor dist_temp;
+    DenseTensor dist_temp;
     dist_temp.Resize({1, label_dim});
     dev_ctx.template Alloc<T>(&dist_temp);
     sdaa_ops::doUnaryOpTensor(
@@ -65,9 +65,9 @@ void LabelSmoothKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LabelSmoothGradKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& dout,
+                           const DenseTensor& dout,
                            float epsilon,
-                           phi::DenseTensor* dx) {
+                           DenseTensor* dx) {
   VLOG(4) << "Call SDAA LabelSmoothGradKernel";
   dev_ctx.template Alloc<T>(dx);
   sdaa_ops::doUnaryOpTensor(dev_ctx, dout, 1 - epsilon, UnaryOpMode::MUL_A, dx);

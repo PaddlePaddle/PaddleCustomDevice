@@ -20,10 +20,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MultiplyRawKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        int axis,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   VLOG(4) << "Call SDAA MultiplyKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doElementMul(dev_ctx, x, y, axis, out);
@@ -31,9 +31,9 @@ void MultiplyRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MultiplyKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    const DenseTensor& y,
+                    DenseTensor* out) {
   if (isEnvEnable("HIGH_PERFORMANCE_CONV") &&
       (&x != out && x.storage_properties_initialized() &&
        !out->storage_properties_initialized())) {
@@ -58,12 +58,12 @@ void MultiplyKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MultiplyGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        const phi::DenseTensor& dout,
+                        const DenseTensor& x,
+                        const DenseTensor& y,
+                        const DenseTensor& dout,
                         int axis,
-                        phi::DenseTensor* dx,
-                        phi::DenseTensor* dy) {
+                        DenseTensor* dx,
+                        DenseTensor* dy) {
   VLOG(4) << "Call SDAA MultiplyGradKernel";
 
   auto out_dims_vec = phi::vectorize<int64_t>(dout.dims());
@@ -74,7 +74,7 @@ void MultiplyGradKernel(const Context& dev_ctx,
     if (dy->dims() == dout.dims()) {
       sdaa_ops::doElementMul(dev_ctx, dout, x, axis, dy);
     } else {
-      phi::DenseTensor y_temp;
+      DenseTensor y_temp;
       y_temp.Resize(dout.dims());
       dev_ctx.template Alloc<T>(&y_temp);
       sdaa_ops::doElementMul(dev_ctx,
@@ -91,7 +91,7 @@ void MultiplyGradKernel(const Context& dev_ctx,
     if (dx->dims() == dout.dims()) {
       sdaa_ops::doElementMul(dev_ctx, dout, y, axis, dx);
     } else {
-      phi::DenseTensor x_temp;
+      DenseTensor x_temp;
       x_temp.Resize(dout.dims());
       dev_ctx.template Alloc<T>(&x_temp);
       sdaa_ops::doElementMul(dev_ctx,

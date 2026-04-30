@@ -30,8 +30,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void Conv2dTransposeKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
-                           const phi::DenseTensor& filter,
+                           const DenseTensor& x,
+                           const DenseTensor& filter,
                            const std::vector<int>& strides,
                            const std::vector<int>& padding,
                            const std::vector<int>& output_padding,
@@ -40,7 +40,7 @@ void Conv2dTransposeKernel(const Context& dev_ctx,
                            int groups,
                            const std::vector<int>& dilation,
                            const std::string& data_format,
-                           phi::DenseTensor* out) {
+                           DenseTensor* out) {
   VLOG(4) << "CALL SDAA Conv2dTransposeKernel";
 
   PADDLE_ENFORCE_EQ(
@@ -74,9 +74,9 @@ void Conv2dTransposeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Conv2dTransposeGradKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& x,
-                               const phi::DenseTensor& filter,
-                               const phi::DenseTensor& dout,
+                               const DenseTensor& x,
+                               const DenseTensor& filter,
+                               const DenseTensor& dout,
                                const std::vector<int>& strides,
                                const std::vector<int>& padding,
                                const std::vector<int>& output_padding,
@@ -85,8 +85,8 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
                                int groups,
                                const std::vector<int>& dilation,
                                const std::string& data_format,
-                               phi::DenseTensor* dx,
-                               phi::DenseTensor* dfilter) {
+                               DenseTensor* dx,
+                               DenseTensor* dfilter) {
   VLOG(4) << "CALL SDAA Conv2dTransposeGardKernel";
 
   if (!dx && !dfilter) return;

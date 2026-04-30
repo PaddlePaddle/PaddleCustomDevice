@@ -35,8 +35,8 @@ namespace sdaa_copy {
 class CopyStrideContiguousOpt : public ContiguousOpt {
  public:
   bool Optimize(const Context& dev_ctx,
-                const phi::DenseTensor& src,
-                phi::DenseTensor* dst) override {
+                const DenseTensor& src,
+                DenseTensor* dst) override {
     VLOG(1) << "SDAA use CopyStride to complete the strided_copy.";
     auto shape = phi::vectorize<int>(src.dims());
     auto src_stride = phi::vectorize<int>(src.strides());
@@ -49,8 +49,8 @@ class CopyStrideContiguousOpt : public ContiguousOpt {
   }
 
   bool CanOptimize(const Context& dev_ctx,
-                   const phi::DenseTensor& src,
-                   phi::DenseTensor* dst) override {
+                   const DenseTensor& src,
+                   DenseTensor* dst) override {
     if (!check_CopyStride_dtype(src) || !check_CopyStride_dtype(*dst)) {
       return false;
     }
@@ -63,7 +63,7 @@ class CopyStrideContiguousOpt : public ContiguousOpt {
       return false;
     }
 
-    auto is_bad_case = [](const phi::DenseTensor& t) {
+    auto is_bad_case = [](const DenseTensor& t) {
       int64_vec stride = phi::vectorize<int64_t>(t.strides());
       return std::find(stride.begin(), stride.end(), 0) != stride.end();
     };
@@ -77,7 +77,7 @@ class CopyStrideContiguousOpt : public ContiguousOpt {
   }
 
  private:
-  bool check_CopyStride_dtype(const phi::DenseTensor& t) {
+  bool check_CopyStride_dtype(const DenseTensor& t) {
     static std::vector<phi::DataType> CopyStrideDtype = {
         phi::DataType::FLOAT64,
         phi::DataType::FLOAT32,

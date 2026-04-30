@@ -41,7 +41,7 @@ void UniformRandomRawKernel(const Context& dev_ctx,
                             int diag_num,
                             int diag_step,
                             float diag_val,
-                            phi::DenseTensor* out) {
+                            DenseTensor* out) {
   VLOG(4) << "CALL SDAA UniformRandomRawKernel";
   out->Resize(phi::make_ddim(shape.GetData()));
   VLOG(4) << out->dims();
@@ -49,8 +49,8 @@ void UniformRandomRawKernel(const Context& dev_ctx,
   auto size = out->numel();
 
   // 1.CPU implement
-  phi::DenseTensor cpu_out;
-  phi::DenseTensorMeta cpu_out_meta = {out->dtype(), out->dims()};
+  DenseTensor cpu_out;
+  DenseTensorMeta cpu_out_meta = {out->dtype(), out->dims()};
   cpu_out.set_meta(cpu_out_meta);
   T* cpu_data = dev_ctx.template HostAlloc<T>(&cpu_out);
 
@@ -74,7 +74,7 @@ void UniformRandomKernel(const Context& dev_ctx,
                          const phi::Scalar& min,
                          const phi::Scalar& max,
                          int seed,
-                         phi::DenseTensor* out) {
+                         DenseTensor* out) {
   VLOG(4) << "CALL SDAA UniformRandomKernel";
   custom_kernel::UniformRandomRawKernel<T>(
       dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);

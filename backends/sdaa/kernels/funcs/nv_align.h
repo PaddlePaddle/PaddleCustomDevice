@@ -39,7 +39,7 @@ static const char* ALIGN_NV = "RANDOM_ALIGN_NV_DEVICE";
 namespace custom_kernel {
 
 inline void GetSeed(const phi::CustomContext& dev_ctx,
-                    const paddle::optional<phi::DenseTensor>& seed_tensor,
+                    const paddle::optional<DenseTensor>& seed_tensor,
                     int seed,
                     bool fix_seed,
                     const int offset,

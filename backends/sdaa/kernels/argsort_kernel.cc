@@ -36,12 +36,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ArgsortKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& in,
+                   const DenseTensor& in,
                    int axis,
                    bool descending,
                    bool stable,
-                   phi::DenseTensor* output,
-                   phi::DenseTensor* indices) {
+                   DenseTensor* output,
+                   DenseTensor* indices) {
   VLOG(4) << "call sdaa ArgsortKernel";
   PADDLE_ENFORCE_EQ(
       descending,

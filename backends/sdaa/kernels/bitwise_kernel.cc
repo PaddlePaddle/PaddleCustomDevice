@@ -31,13 +31,13 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void BitwiseOrKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     DenseTensor* out) {
   VLOG(4) << "CALL SDAA BitwiseOrKernel";
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor x_temp(x), y_temp(y), out_temp(*out);
+  DenseTensor x_temp(x), y_temp(y), out_temp(*out);
   if (x.dims().size() == 0 && y.dims().size() == 0) {
     x_temp.Resize(phi::make_ddim({1}));
     y_temp.Resize(phi::make_ddim({1}));
@@ -50,12 +50,12 @@ void BitwiseOrKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BitwiseNotKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      DenseTensor* out) {
   VLOG(4) << "CALL SDAA BitwiseNotKernel";
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor x_temp(x), out_temp(*out);
+  DenseTensor x_temp(x), out_temp(*out);
   if (x.dims().size() == 0) {
     x_temp.Resize(phi::make_ddim({1}));
     out_temp.Resize(phi::make_ddim({1}));
@@ -67,13 +67,13 @@ void BitwiseNotKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BitwiseAndKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out) {
   VLOG(4) << "CALL SDAA BitwiseAndKernel";
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor x_temp(x), y_temp(y), out_temp(*out);
+  DenseTensor x_temp(x), y_temp(y), out_temp(*out);
   if (x.dims().size() == 0 && y.dims().size() == 0) {
     x_temp.Resize(phi::make_ddim({1}));
     y_temp.Resize(phi::make_ddim({1}));
@@ -86,13 +86,13 @@ void BitwiseAndKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BitwiseXorKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out) {
   VLOG(4) << "CALL SDAA BitwiseXorKernel";
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor x_temp(x), y_temp(y), out_temp(*out);
+  DenseTensor x_temp(x), y_temp(y), out_temp(*out);
   if (x.dims().size() == 0 && y.dims().size() == 0) {
     x_temp.Resize(phi::make_ddim({1}));
     y_temp.Resize(phi::make_ddim({1}));

@@ -181,14 +181,14 @@ static void ProcessStridedSliceParams(
 
 template <typename T, typename Context>
 void StridedSliceRawKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
+                           const DenseTensor& x,
                            const std::vector<int>& axes,
                            const phi::IntArray& starts,
                            const phi::IntArray& ends,
                            const phi::IntArray& strides,
                            const std::vector<int>& infer_flags,
                            const std::vector<int>& decrease_axis,
-                           phi::DenseTensor* out) {
+                           DenseTensor* out) {
   VLOG(4) << "CALL SDAA StridedSliceRawKernel";
 
   auto x_dims = x.dims();
@@ -274,12 +274,12 @@ void StridedSliceRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void StridedSliceKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         const std::vector<int>& axes,
                         const phi::IntArray& starts,
                         const phi::IntArray& ends,
                         const phi::IntArray& strides,
-                        phi::DenseTensor* out) {
+                        DenseTensor* out) {
   VLOG(4) << "CALL SDAA StridedSliceKernel";
   std::vector<int> infer_flags(axes.size(), 1);
   std::vector<int> decrease_axis;

@@ -50,12 +50,12 @@ void CheckAttrs(bool normalize, int ignore_index) {
 template <typename T, typename Context>
 void SigmoidCrossEntropyWithLogitsKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const phi::DenseTensor& label,
-    const paddle::optional<phi::DenseTensor>& pos_weight,
+    const DenseTensor& x,
+    const DenseTensor& label,
+    const paddle::optional<DenseTensor>& pos_weight,
     bool normalize,
     int ignore_index,
-    phi::DenseTensor* out) {
+    DenseTensor* out) {
   VLOG(4) << "Call SDAA SigmoidCrossEntropyWithLogitsKernel";
   CheckAttrs(normalize, ignore_index);
 
@@ -66,14 +66,14 @@ void SigmoidCrossEntropyWithLogitsKernel(
     n *= x.dims()[i];
   }
   int d = x.dims()[x_size - 1];
-  phi::DenseTensor w;
+  DenseTensor w;
   std::vector<int> w_dims = {n, d};
   phi::DDim w_dim = phi::make_ddim(w_dims);
-  phi::DenseTensorMeta w_meta = {x.dtype(), w_dim};
+  DenseTensorMeta w_meta = {x.dtype(), w_dim};
   w.set_meta(w_meta);
   dev_ctx.template Alloc<T>(&w);
   sdaa_ops::doFillTensor<T>(dev_ctx, static_cast<T>(1), x.dtype(), &w);
-  phi::DenseTensor p_w;
+  DenseTensor p_w;
   w_dims = {d};
   w_dim = phi::make_ddim(w_dims);
   w_meta = {x.dtype(), w_dim};
@@ -116,13 +116,13 @@ void SigmoidCrossEntropyWithLogitsKernel(
 template <typename T, typename Context>
 void SigmoidCrossEntropyWithLogitsGradKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const phi::DenseTensor& label,
-    const paddle::optional<phi::DenseTensor>& pos_weight,
-    const phi::DenseTensor& dout,
+    const DenseTensor& x,
+    const DenseTensor& label,
+    const paddle::optional<DenseTensor>& pos_weight,
+    const DenseTensor& dout,
     bool normalize,
     int ignore_index,
-    phi::DenseTensor* dx) {
+    DenseTensor* dx) {
   VLOG(4) << "Call SDAA SigmoidCrossEntropyWithLogitsGradKernel";
   CheckAttrs(normalize, ignore_index);
 
@@ -133,14 +133,14 @@ void SigmoidCrossEntropyWithLogitsGradKernel(
     n *= x.dims()[i];
   }
   int d = x.dims()[x_size - 1];
-  phi::DenseTensor w;
+  DenseTensor w;
   std::vector<int> w_dims = {n, d};
   phi::DDim w_dim = phi::make_ddim(w_dims);
-  phi::DenseTensorMeta w_meta = {x.dtype(), w_dim};
+  DenseTensorMeta w_meta = {x.dtype(), w_dim};
   w.set_meta(w_meta);
   dev_ctx.template Alloc<T>(&w);
   sdaa_ops::doFillTensor<T>(dev_ctx, static_cast<T>(1), x.dtype(), &w);
-  phi::DenseTensor p_w;
+  DenseTensor p_w;
   w_dims = {d};
   w_dim = phi::make_ddim(w_dims);
   w_meta = {x.dtype(), w_dim};

@@ -44,14 +44,14 @@ void TruncatedGaussianRandomKernel(const Context& dev_ctx,
                                    float a,
                                    float b,
                                    phi::DataType dtype,
-                                   phi::DenseTensor* out) {
+                                   DenseTensor* out) {
   VLOG(4) << "Call SDAA TruncatedGaussianRandomKernel";
   T* data = dev_ctx.template Alloc<T>(out);
   auto size = out->numel();
 
   // 1.CPU implement
-  phi::DenseTensor cpu_out;
-  phi::DenseTensorMeta cpu_out_meta = {out->dtype(), out->dims()};
+  DenseTensor cpu_out;
+  DenseTensorMeta cpu_out_meta = {out->dtype(), out->dims()};
   cpu_out.set_meta(cpu_out_meta);
   T* cpu_data = dev_ctx.template HostAlloc<T>(&cpu_out);
 

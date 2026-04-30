@@ -63,7 +63,7 @@ void doArangeTensor(const Context& dev_ctx,
                     const T& start,
                     const T& end,
                     const T& step,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
 
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
@@ -77,10 +77,10 @@ void doArangeTensor(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ArangeTensorKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& start_t,
-                        const phi::DenseTensor& end_t,
-                        const phi::DenseTensor& step_t,
-                        phi::DenseTensor* out) {
+                        const DenseTensor& start_t,
+                        const DenseTensor& end_t,
+                        const DenseTensor& step_t,
+                        DenseTensor* out) {
   VLOG(4) << "CALL SDAA ArangeTensorKernel";
 
   T start_value = phi::GetValue<T, Context>(dev_ctx, start_t);
@@ -101,7 +101,7 @@ void ArangeTensorKernel(const Context& dev_ctx,
 //                   const phi::Scalar& start,
 //                   const phi::Scalar& end,
 //                   const phi::Scalar& step,
-//                   phi::DenseTensor* out) {
+//                   DenseTensor* out) {
 //   T start_value = start.to<T>();
 //   T end_value = end.to<T>();
 //   T step_value = step.to<T>();

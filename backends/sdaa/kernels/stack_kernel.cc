@@ -31,9 +31,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void StackKernel(const Context& dev_ctx,
-                 const std::vector<const phi::DenseTensor*>& x,
+                 const std::vector<const DenseTensor*>& x,
                  int axis,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   VLOG(4) << "CALL SDAA StackKernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -43,16 +43,16 @@ void StackKernel(const Context& dev_ctx,
   PADDLE_ENFORCE_GT(
       num, 0, phi::errors::InvalidArgument("number of input Tensor <= 0"));
 
-  std::vector<phi::DenseTensor*> x_;
+  std::vector<DenseTensor*> x_;
   std::vector<int> input_dims = phi::vectorize<int>(x[0]->dims());
   input_dims.insert(input_dims.begin() + axis, 1);
 
   for (int i = 0; i < num; i++) {
-    x_.push_back(const_cast<phi::DenseTensor*>(x[i]));
+    x_.push_back(const_cast<DenseTensor*>(x[i]));
     x_[i]->Resize(phi::make_ddim(input_dims));
   }
 
-  std::vector<const phi::DenseTensor*> x_temp;
+  std::vector<const DenseTensor*> x_temp;
   for (int i = 0; i < num; i++) {
     x_temp.push_back(x_[i]);
   }
@@ -62,9 +62,9 @@ void StackKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void StackGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& dy,
+                     const DenseTensor& dy,
                      int axis,
-                     std::vector<phi::DenseTensor*> dx) {
+                     std::vector<DenseTensor*> dx) {
   VLOG(4) << "CALL SDAA StackGradKernel";
 
   // get dx dims
@@ -96,18 +96,18 @@ void StackGradKernel(const Context& dev_ctx,
   std::vector<int> input_dims_origin(input_dims);
   input_dims.insert(input_dims.begin() + axis, 1);
 
-  std::vector<phi::DenseTensor> tmp_outputs_vec;
+  std::vector<DenseTensor> tmp_outputs_vec;
   tmp_outputs_vec.resize(dx.size());
-  std::vector<phi::DenseTensor*> dx_;
+  std::vector<DenseTensor*> dx_;
 
-  const phi::DenseTensorMeta meta_data(dy.dtype(), phi::make_ddim(input_dims));
+  const DenseTensorMeta meta_data(dy.dtype(), phi::make_ddim(input_dims));
   for (int i = 0; i < dx.size(); ++i) {
     if (dx[i]) {
       dev_ctx.template Alloc<T>(dx[i]);
       dx_.push_back(dx[i]);
       dx_[i]->Resize(phi::make_ddim(input_dims));
     } else {
-      phi::DenseTensor tmp_tensor;
+      DenseTensor tmp_tensor;
       tmp_tensor.set_meta(meta_data);
       dev_ctx.template Alloc<T>(&tmp_tensor);
       tmp_outputs_vec[i] = std::move(tmp_tensor);

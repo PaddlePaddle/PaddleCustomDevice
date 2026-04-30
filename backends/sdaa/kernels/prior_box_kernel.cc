@@ -57,8 +57,8 @@ inline void ExpandAspectRatios(const std::vector<float>& input_aspect_ratior,
 
 template <typename T, typename Context>
 void PriorBoxKernel(const Context& ctx,
-                    const phi::DenseTensor& input,
-                    const phi::DenseTensor& image,
+                    const DenseTensor& input,
+                    const DenseTensor& image,
                     const std::vector<float>& min_sizes,
                     const std::vector<float>& max_sizes,
                     const std::vector<float>& aspect_ratios,
@@ -69,8 +69,8 @@ void PriorBoxKernel(const Context& ctx,
                     float step_h,
                     float offset,
                     bool min_max_aspect_ratios_order,
-                    phi::DenseTensor* out,
-                    phi::DenseTensor* var) {
+                    DenseTensor* out,
+                    DenseTensor* var) {
   VLOG(4) << "Call SDAA PriorBoxKernel";
   std::vector<float> new_aspect_ratios;
   ExpandAspectRatios(aspect_ratios, flip, &new_aspect_ratios);
@@ -97,28 +97,28 @@ void PriorBoxKernel(const Context& ctx,
   ctx.template Alloc<T>(out);
   ctx.template Alloc<T>(var);
 
-  phi::DenseTensor r;
+  DenseTensor r;
   phi::TensorFromVector(new_aspect_ratios, ctx, &r);
   auto aspect_ratios_desc = sdaa_ops::GetTecodnnTensorDesc(
       {static_cast<int>(new_aspect_ratios.size())},
       r.dtype(),
       TensorFormat::Undefined);
 
-  phi::DenseTensor min;
+  DenseTensor min;
   phi::TensorFromVector(min_sizes, ctx, &min);
   auto min_desc =
       sdaa_ops::GetTecodnnTensorDesc({static_cast<int>(min_sizes.size())},
                                      min.dtype(),
                                      TensorFormat::Undefined);
 
-  phi::DenseTensor max;
+  DenseTensor max;
   phi::TensorFromVector(max_sizes, ctx, &max);
   auto max_desc =
       sdaa_ops::GetTecodnnTensorDesc({static_cast<int>(max_sizes.size())},
                                      max.dtype(),
                                      TensorFormat::Undefined);
 
-  phi::DenseTensor v;
+  DenseTensor v;
   phi::TensorFromVector(variances, ctx, &v);
   auto variances_desc = sdaa_ops::GetTecodnnTensorDesc(
       {static_cast<int>(variances.size())}, v.dtype(), TensorFormat::Undefined);

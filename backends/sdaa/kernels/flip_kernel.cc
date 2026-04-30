@@ -33,9 +33,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void FlipKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const std::vector<int>& axis,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   VLOG(4) << "CALL SDAA FlipKernel.";
 
   dev_ctx.template Alloc<T>(out);

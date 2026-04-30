@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void SquaredL2NormKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         phi::DenseTensor* out) {
+                         const DenseTensor& x,
+                         DenseTensor* out) {
   VLOG(4) << "Call SDAA SquaredL2NormKernel";
   dev_ctx.template Alloc<T>(out);
 

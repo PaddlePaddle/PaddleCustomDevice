@@ -63,7 +63,7 @@ void FullKernel(const Context& dev_ctx,
                 const phi::IntArray& shape,
                 const phi::Scalar& val,
                 phi::DataType dtype,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA FullKernel";
 
   CheckLimitCommon<T>(val);
@@ -80,10 +80,10 @@ void FullKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FullLikeKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     const phi::Scalar& val,
                     phi::DataType dtype,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   VLOG(4) << "Call SDAA FullLikeKernel";
 
   CheckLimitCommon<T>(val);
@@ -96,13 +96,13 @@ void FullLikeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FullBatchSizeLikeKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
+                             const DenseTensor& x,
                              const std::vector<int>& shape,
                              const phi::Scalar& val,
                              phi::DataType dtype,
                              int x_batch_size_dim,
                              int out_batch_size_dim,
-                             phi::DenseTensor* out) {
+                             DenseTensor* out) {
   if (x.lod().size() && x_batch_size_dim == 0) {
     // set the correct batch size for the DenseTensor.
     auto odims = out->dims();

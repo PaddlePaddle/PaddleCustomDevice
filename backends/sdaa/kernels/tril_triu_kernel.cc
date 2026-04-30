@@ -31,10 +31,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TrilTriuKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     int diagonal,
                     bool lower,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   VLOG(4) << "CALL SDAA TrilTriuKernel";
   dev_ctx.template Alloc<T>(out);
   auto x_dims = x.dims();
@@ -52,17 +52,17 @@ void TrilTriuKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TrilKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 int diagonal,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   custom_kernel::TrilTriuKernel<T, Context>(dev_ctx, x, diagonal, true, out);
 }
 
 template <typename T, typename Context>
 void TriuKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 int diagonal,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   custom_kernel::TrilTriuKernel<T, Context>(dev_ctx, x, diagonal, false, out);
 }
 

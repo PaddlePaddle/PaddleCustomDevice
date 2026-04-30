@@ -21,9 +21,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void SoftmaxKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    int axis,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   VLOG(4) << "Call SDAA SoftmaxKernel";
 
   dev_ctx.template Alloc<T>(out);
@@ -46,8 +46,8 @@ void SoftmaxKernel(const Context& dev_ctx,
     axis += x.dims().size();
   }
   if (axis != x.dims().size() - 1) {
-    phi::DenseTensor x_temp;
-    phi::DenseTensor out_temp;
+    DenseTensor x_temp;
+    DenseTensor out_temp;
     std::vector<int> x_dims = phi::vectorize<int>(x.dims());
     std::vector<int> axis_vec(x.dims().size());
     std::iota(axis_vec.begin(), axis_vec.end(), 0);
@@ -80,10 +80,10 @@ void SoftmaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SoftmaxGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& out,
-                       const phi::DenseTensor& out_grad,
+                       const DenseTensor& out,
+                       const DenseTensor& out_grad,
                        int axis,
-                       phi::DenseTensor* x_grad) {
+                       DenseTensor* x_grad) {
   VLOG(4) << "Call SDAA SoftmaxGradKernel";
 
   dev_ctx.template Alloc<T>(x_grad);
@@ -109,9 +109,9 @@ void SoftmaxGradKernel(const Context& dev_ctx,
   if (is_in_high_precision_op_list("softmax_grad")) high_precision = true;
 
   if (axis != out.dims().size() - 1) {
-    phi::DenseTensor out_temp;
-    phi::DenseTensor out_grad_temp;
-    phi::DenseTensor x_grad_temp;
+    DenseTensor out_temp;
+    DenseTensor out_grad_temp;
+    DenseTensor x_grad_temp;
 
     std::vector<int> out_dims = phi::vectorize<int>(out.dims());
     std::vector<int> axis_vec(out.dims().size());

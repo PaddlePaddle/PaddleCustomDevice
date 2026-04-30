@@ -17,11 +17,11 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void MaxRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "Call SDAA MaxRawKernel";
   auto dims = axes.GetData();
   std::vector<int64_t> reduce_dims;
@@ -46,10 +46,10 @@ void MaxRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MaxKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::IntArray& dims,
                bool keep_dim,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   VLOG(4) << "Call SDAA MaxKernel";
   bool reduce_all = false;
   if (dims.size() == 0) {

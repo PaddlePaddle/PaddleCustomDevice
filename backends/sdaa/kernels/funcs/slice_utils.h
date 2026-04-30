@@ -30,9 +30,9 @@
 
 namespace custom_kernel {
 
-inline phi::DenseTensor Slice(const phi::DenseTensor& src,
-                              int64_t begin_index,
-                              int64_t end_index) {
+inline DenseTensor Slice(const DenseTensor& src,
+                         int64_t begin_index,
+                         int64_t end_index) {
   auto meta = src.meta();
   PADDLE_ENFORCE_GE(
       begin_index,
@@ -57,13 +57,12 @@ inline phi::DenseTensor Slice(const phi::DenseTensor& src,
     return src;
   } else {
     size_t base = src.numel() / meta.dims[0];
-    phi::DenseTensor dst(src);
+    DenseTensor dst(src);
     phi::DDim dst_dims = meta.dims;
     dst_dims[0] = end_index - begin_index;
     size_t dst_offset =
         meta.offset + begin_index * base * phi::SizeOf(meta.dtype);
-    phi::DenseTensorMeta dst_meta = {
-        meta.dtype, dst_dims, meta.layout, dst_offset};
+    DenseTensorMeta dst_meta = {meta.dtype, dst_dims, meta.layout, dst_offset};
     dst.set_meta(dst_meta);
     return dst;
   }

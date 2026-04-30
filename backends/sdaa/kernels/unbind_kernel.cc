@@ -33,9 +33,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void UnbindKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   int axis,
-                  std::vector<phi::DenseTensor*> outs) {
+                  std::vector<DenseTensor*> outs) {
   VLOG(4) << "CALL SDAA UnbindKernel.";
 
   auto x_dims = x.dims();

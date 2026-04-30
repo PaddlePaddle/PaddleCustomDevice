@@ -20,10 +20,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void cumsum(const Context& dev_ctx,
-            const phi::DenseTensor& x,
+            const DenseTensor& x,
             const std::vector<int>& x_dims,
             int axis,
-            phi::DenseTensor* out) {
+            DenseTensor* out) {
   VLOG(4) << "tecodnn cumsum tensor called";
 
   int x_size = x_dims.size();
@@ -39,12 +39,12 @@ void cumsum(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CumsumKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::Scalar& axis_scalar,
                   bool flatten,
                   bool exclusive,
                   bool reverse,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "Call SDAA CumsumKernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -78,16 +78,16 @@ void CumsumKernel(const Context& dev_ctx,
   if (reverse) {
     std::vector<int> reduce_dims = xdims;
     reduce_dims[axis] = 1;
-    phi::DenseTensor Sn;
+    DenseTensor Sn;
     phi::DDim Sn_dims = phi::make_ddim(reduce_dims);
-    phi::DenseTensorMeta Sn_meta = {x.dtype(), Sn_dims};
+    DenseTensorMeta Sn_meta = {x.dtype(), Sn_dims};
     Sn.set_meta(Sn_meta);
     dev_ctx.template Alloc<T>(&Sn);
     std::vector<int64_t> reduce_axis = {static_cast<int64_t>(axis)};
     sdaa_ops::doSumTensor(dev_ctx, x, reduce_axis, &Sn);
 
-    phi::DenseTensor Sm;
-    phi::DenseTensorMeta Sm_meta = {x.dtype(), x.dims()};
+    DenseTensor Sm;
+    DenseTensorMeta Sm_meta = {x.dtype(), x.dims()};
     Sm.set_meta(Sm_meta);
     dev_ctx.template Alloc<T>(&Sm);
     sdaa_ops::doElementSub(dev_ctx, Sn, *out, -1, &Sm);

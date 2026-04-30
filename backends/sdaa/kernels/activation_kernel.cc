@@ -21,8 +21,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ReluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA ReluKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doActivationForward(dev_ctx,
@@ -35,9 +35,9 @@ void ReluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ReluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& out,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   VLOG(4) << "Call SDAA ReluGradKernel";
   dev_ctx.template Alloc<T>(dx);
   sdaa_ops::doActivationBackward(dev_ctx,
@@ -51,8 +51,8 @@ void ReluGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Relu6Kernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   VLOG(4) << "Call SDAA Relu6Kernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doActivationForward(dev_ctx,
@@ -65,9 +65,9 @@ void Relu6Kernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Relu6GradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& out,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& out,
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   VLOG(4) << "Call SDAA Relu6GradKernel";
   dev_ctx.template Alloc<T>(dx);
   sdaa_ops::doActivationBackward(dev_ctx,
@@ -81,8 +81,8 @@ void Relu6GradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SigmoidKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& x,
+                   DenseTensor* out) {
   VLOG(4) << "Call SDAA SigmoidKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doActivationForward(dev_ctx,
@@ -95,9 +95,9 @@ void SigmoidKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SigmoidGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& out,
-                       const phi::DenseTensor& dout,
-                       phi::DenseTensor* dx) {
+                       const DenseTensor& out,
+                       const DenseTensor& dout,
+                       DenseTensor* dx) {
   VLOG(4) << "Call SDAA SigmoidGradKernel";
   dev_ctx.template Alloc<T>(dx);
   sdaa_ops::doActivationBackward(dev_ctx,
@@ -111,8 +111,8 @@ void SigmoidGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TanhKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA TanhKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doActivationForward(dev_ctx,
@@ -125,9 +125,9 @@ void TanhKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TanhGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& out,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   VLOG(4) << "Call SDAA TanhGradKernel";
   dev_ctx.template Alloc<T>(dx);
   sdaa_ops::doActivationBackward(dev_ctx,
@@ -141,9 +141,9 @@ void TanhGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void EluKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                float alpha,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   VLOG(4) << "Call SDAA ELUKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doActivationForward(dev_ctx,
@@ -156,11 +156,11 @@ void EluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void EluGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x UNUSED,
-                   const phi::DenseTensor& out,
-                   const phi::DenseTensor& dout,
+                   const DenseTensor& x UNUSED,
+                   const DenseTensor& out,
+                   const DenseTensor& dout,
                    float alpha,
-                   phi::DenseTensor* dx) {
+                   DenseTensor* dx) {
   VLOG(4) << "Call SDAA EluGradKernel";
   dev_ctx.template Alloc<T>(dx);
   sdaa_ops::doActivationBackward(dev_ctx,
@@ -173,9 +173,7 @@ void EluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ExpKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void ExpKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   VLOG(4) << "Call SDAA ExpKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doUnaryOpTensor(dev_ctx, x, 1.0, UnaryOpMode::EXP, out);
@@ -183,9 +181,9 @@ void ExpKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ExpGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& out,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& out,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   VLOG(4) << "Call SDAA ExpGradKernel";
   dev_ctx.template Alloc<T>(dx);
 
@@ -194,9 +192,9 @@ void ExpGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GeluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 bool approximate,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   VLOG(4) << "CALL SDAA GeluKernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -219,10 +217,10 @@ void GeluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GeluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& out,
+                    const DenseTensor& out_grad,
                     bool approximate,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   VLOG(4) << "Call SDAA GeluGradKernel";
   dev_ctx.template Alloc<T>(x_grad);
   if (approximate) {
@@ -244,9 +242,7 @@ void GeluGradKernel(const Context& dev_ctx,
   }
 }
 template <typename T, typename Context>
-void ErfKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void ErfKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   VLOG(4) << "CALL SDAA ErfKernel";
   int64_t numel = x.numel();
   std::vector<T> dataTemp;
@@ -269,9 +265,9 @@ void ErfKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LeakyReluKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      double alpha,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   VLOG(4) << "Call SDAA LeakyReluKernel";
   dev_ctx.template Alloc<T>(out);
   float alp = static_cast<float>(alpha);
@@ -285,10 +281,10 @@ void LeakyReluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LeakyReluGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& dout,
+                         const DenseTensor& x,
+                         const DenseTensor& dout,
                          double alpha,
-                         phi::DenseTensor* dx) {
+                         DenseTensor* dx) {
   VLOG(4) << "Call SDAA LeakyReluGradKernel";
   dev_ctx.template Alloc<T>(dx);
   float alp = static_cast<float>(alpha);
@@ -303,9 +299,9 @@ void LeakyReluGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SqrtGrad(const Context& dev_ctx,
-              const phi::DenseTensor& out,
-              const phi::DenseTensor& dout,
-              phi::DenseTensor* dx) {
+              const DenseTensor& out,
+              const DenseTensor& dout,
+              DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   // dx = 0.5 * dout / out
   sdaa_ops::doElementDiv(dev_ctx, dout, out, -1, dx);
@@ -316,8 +312,8 @@ void SqrtGrad(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SqrtKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA SqrtKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doUnaryOpTensor(dev_ctx, x, 1.0, UnaryOpMode::SQRT, out);
@@ -325,18 +321,18 @@ void SqrtKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SqrtGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& out,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   VLOG(4) << "Call SDAA SqrtGradKernel";
   SqrtGrad<T>(dev_ctx, out, dout, dx);
 }
 
 template <typename T, typename Context>
 void RsqrtGrad(const Context& dev_ctx,
-               const phi::DenseTensor& out,
-               const phi::DenseTensor& dout,
-               phi::DenseTensor* dx) {
+               const DenseTensor& out,
+               const DenseTensor& dout,
+               DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   // dx = -0.5 * dout * out * out * out
   float alpha = -0.5f;
@@ -348,8 +344,8 @@ void RsqrtGrad(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RsqrtKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   VLOG(4) << "Call SDAA RsqrtKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doUnaryOpTensor(dev_ctx, x, 1.0, UnaryOpMode::RSQRT, out);
@@ -357,18 +353,18 @@ void RsqrtKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RsqrtGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& out,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& out,
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   VLOG(4) << "Call SDAA RsqrtGradKernel";
   RsqrtGrad<T>(dev_ctx, out, dout, dx);
 }
 
 template <typename T, typename Context>
 void PowKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const phi::Scalar& factor_scalar,
-               phi::DenseTensor* out) {
+               DenseTensor* out) {
   VLOG(4) << "Call SDAA PowKernel";
   auto factor = factor_scalar.to<float>();
   dev_ctx.template Alloc<T>(out);
@@ -377,18 +373,18 @@ void PowKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void PowGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
                    const phi::Scalar& factor_scalar,
-                   phi::DenseTensor* dx) {
+                   DenseTensor* dx) {
   VLOG(4) << "Call SDAA PowGradKernel";
   auto factor = factor_scalar.to<float>();
   auto x_dims = x.dims();
 
   // dx = dout * factor * x.pow(factor - 1)
   // step 1: compute x_pow = x.pow(factor - 1)
-  phi::DenseTensor x_pow;
-  phi::DenseTensorMeta x_pow_meta = {x.dtype(), x_dims};
+  DenseTensor x_pow;
+  DenseTensorMeta x_pow_meta = {x.dtype(), x_dims};
   x_pow.set_meta(x_pow_meta);
   dev_ctx.template Alloc<T>(&x_pow);
   float factor_x_pow = factor - static_cast<float>(1);
@@ -403,9 +399,7 @@ void PowGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LogKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void LogKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   VLOG(4) << "Call SDAA LogKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doUnaryOpTensor(dev_ctx, x, 1.0, UnaryOpMode::LOG, out);
@@ -413,12 +407,12 @@ void LogKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   VLOG(4) << "Call SDAA LogGradKernel";
   dev_ctx.template Alloc<T>(dx);
-  phi::DenseTensor dx_temp;
+  DenseTensor dx_temp;
   dx_temp.Resize(dx->dims());
   dev_ctx.template Alloc<T>(&dx_temp);
 
@@ -429,8 +423,8 @@ void LogGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ReciprocalKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      DenseTensor* out) {
   VLOG(4) << "Call SDAA ReciprocalKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doReciprocalTensor(dev_ctx, x, out);
@@ -438,13 +432,13 @@ void ReciprocalKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ReciprocalGradKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& out,
-                          const phi::DenseTensor& dout,
-                          phi::DenseTensor* dx) {
+                          const DenseTensor& out,
+                          const DenseTensor& dout,
+                          DenseTensor* dx) {
   VLOG(4) << "Call SDAA ReciprocalGradKernel";
 
   dev_ctx.template Alloc<T>(dx);
-  phi::DenseTensor out_temp;
+  DenseTensor out_temp;
   out_temp.Resize(out.dims());
   dev_ctx.template Alloc<T>(&out_temp);
 
@@ -455,8 +449,8 @@ void ReciprocalGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SiluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   VLOG(4) << "CALL SDAA SiluKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doActivationForward(dev_ctx,
@@ -469,10 +463,10 @@ void SiluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SiluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& x,
+                    const DenseTensor& out,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   VLOG(4) << "CALL SDAA SiluGradKernel";
   dev_ctx.template Alloc<T>(dx);
   sdaa_ops::doActivationBackward(dev_ctx,
@@ -486,15 +480,15 @@ void SiluGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void doHardSwish(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   float threshold = 6;
   float scale = 6;
   float offset = 3;
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
 
-  phi::DenseTensor* x_ = const_cast<phi::DenseTensor*>(&x);
+  DenseTensor* x_ = const_cast<DenseTensor*>(&x);
 
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   tecodnnTensorDescriptor_t Desc = sdaa_ops::GetTecodnnTensorDesc(
@@ -512,16 +506,16 @@ void doHardSwish(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void doHardSwishGrad(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& x,
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   float threshold = 6;
   float scale = 6;
   float offset = 3;
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
-  phi::DenseTensor* x_ = const_cast<phi::DenseTensor*>(&x);
-  phi::DenseTensor* dout_ = const_cast<phi::DenseTensor*>(&dout);
+  DenseTensor* x_ = const_cast<DenseTensor*>(&x);
+  DenseTensor* dout_ = const_cast<DenseTensor*>(&dout);
 
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   tecodnnTensorDescriptor_t Desc = sdaa_ops::GetTecodnnTensorDesc(
@@ -541,8 +535,8 @@ void doHardSwishGrad(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSwishKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     DenseTensor* out) {
   VLOG(4) << "CALL SDAA HardSwishKernel";
 
   dev_ctx.template Alloc<T>(out);
@@ -552,9 +546,9 @@ void HardSwishKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSwishGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& dout,
-                         phi::DenseTensor* dx) {
+                         const DenseTensor& x,
+                         const DenseTensor& dout,
+                         DenseTensor* dx) {
   VLOG(4) << "CALL SDAA HardSwishGradKernel";
   dev_ctx.template Alloc<T>(dx);
 
@@ -563,10 +557,10 @@ void HardSwishGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSigmoidKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
+                       const DenseTensor& x,
                        float slope,
                        float offset,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   VLOG(4) << "Call SDAA HardSigmoidKernel";
 
   dev_ctx.template Alloc<T>(out);
@@ -586,11 +580,11 @@ void HardSigmoidKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSigmoidGradKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& out,
-                           const phi::DenseTensor& dout,
+                           const DenseTensor& out,
+                           const DenseTensor& dout,
                            float slope,
                            float offset,
-                           phi::DenseTensor* dx) {
+                           DenseTensor* dx) {
   VLOG(4) << "Call SDAA HardSigmoidGradKernel";
 
   dev_ctx.template Alloc<T>(dx);
@@ -617,8 +611,8 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SoftsignKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    DenseTensor* out) {
   VLOG(4) << "Call SDAA SoftsignKernel";
 
   int N = 1, C = x.numel(), H = 1, W = 1;
@@ -640,9 +634,9 @@ void SoftsignKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SoftsignGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& dout,
-                        phi::DenseTensor* dx) {
+                        const DenseTensor& x,
+                        const DenseTensor& dout,
+                        DenseTensor* dx) {
   VLOG(4) << "Call SDAA SoftsignGradKernel";
 
   int N = 1, C = x.numel(), H = 1, W = 1;
@@ -671,10 +665,10 @@ void SoftsignGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SoftplusKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     double beta,
                     double threshold,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   VLOG(4) << "Call SDAA SoftplusKernel";
 
   int N = 1, C = x.numel(), H = 1, W = 1;
@@ -705,11 +699,11 @@ void SoftplusKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SoftplusGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& dout,
+                        const DenseTensor& x,
+                        const DenseTensor& dout,
                         double beta,
                         double threshold,
-                        phi::DenseTensor* dx) {
+                        DenseTensor* dx) {
   VLOG(4) << "Call SDAA SoftplusGradKernel";
 
   int N = 1, C = x.numel(), H = 1, W = 1;
@@ -741,9 +735,7 @@ void SoftplusGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SinKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void SinKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   VLOG(4) << "Call SDAA SinKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doUnaryOpTensor(dev_ctx, x, 0.0, UnaryOpMode::SIN, out);
@@ -751,12 +743,12 @@ void SinKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SinGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   VLOG(4) << "Call SDAA SinGradKernel";
-  phi::DenseTensor x_cos;
-  phi::DenseTensorMeta x_cos_meta = {x.dtype(), x.dims()};
+  DenseTensor x_cos;
+  DenseTensorMeta x_cos_meta = {x.dtype(), x.dims()};
   x_cos.set_meta(x_cos_meta);
 
   dev_ctx.template Alloc<T>(&x_cos);
@@ -767,9 +759,7 @@ void SinGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void CosKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void CosKernel(const Context& dev_ctx, const DenseTensor& x, DenseTensor* out) {
   VLOG(4) << "Call SDAA CosKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doUnaryOpTensor(dev_ctx, x, 0.0, UnaryOpMode::COS, out);
@@ -777,12 +767,12 @@ void CosKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CosGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                   const DenseTensor& x,
+                   const DenseTensor& dout,
+                   DenseTensor* dx) {
   VLOG(4) << "Call SDAA CosGradKernel";
-  phi::DenseTensor x_sin;
-  phi::DenseTensorMeta x_sin_meta = {x.dtype(), x.dims()};
+  DenseTensor x_sin;
+  DenseTensorMeta x_sin_meta = {x.dtype(), x.dims()};
   x_sin.set_meta(x_sin_meta);
 
   dev_ctx.template Alloc<T>(&x_sin);
@@ -796,8 +786,8 @@ void CosGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SquareKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  DenseTensor* out) {
   VLOG(4) << "Call SDAA SquareKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doUnaryOpTensor(dev_ctx, x, 0.0, UnaryOpMode::SQUARE, out);
@@ -805,11 +795,11 @@ void SquareKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SquareGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& dout,
-                      phi::DenseTensor* dx) {
+                      const DenseTensor& x,
+                      const DenseTensor& dout,
+                      DenseTensor* dx) {
   VLOG(4) << "Call SDAA SquareGradKernel";
-  phi::DenseTensor double_x;
+  DenseTensor double_x;
   double_x.set_meta(x.meta());
   dev_ctx.template Alloc<T>(&double_x);
   sdaa_ops::doUnaryOpTensor(dev_ctx, x, 2.0, UnaryOpMode::MUL_A, &double_x);
@@ -820,8 +810,8 @@ void SquareGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AtanKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA AtanKernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -837,18 +827,18 @@ void AtanKernel(const Context& dev_ctx,
 // dx = dout * 1 / (1 + x.pow(2))
 template <typename T, typename Context>
 void AtanGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& x,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   VLOG(4) << "Call SDAA AtanGradKernel";
   // Step1: Compute x_pow = x.pow(2)
-  phi::DenseTensor x_pow;
+  DenseTensor x_pow;
   x_pow.Resize(x.dims());
   dev_ctx.template Alloc<T>(&x_pow);
   sdaa_ops::doUnaryOpTensor(dev_ctx, x, 0.0, UnaryOpMode::SQUARE, &x_pow);
 
   // Step2: x_pow_1 = x_pow + 1
-  phi::DenseTensor x_pow_1;
+  DenseTensor x_pow_1;
   x_pow_1.Resize(x.dims());
   dev_ctx.template Alloc<T>(&x_pow_1);
   sdaa_ops::doUnaryOpTensor(dev_ctx, x_pow, 1.0, UnaryOpMode::ADD_A, &x_pow_1);
@@ -860,8 +850,8 @@ void AtanGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CeilKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA CeilKernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -876,8 +866,8 @@ void CeilKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CeilGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   VLOG(4) << "CALL SDAA CeilGradKernel.";
 
   dev_ctx.template Alloc<T>(dx);
@@ -886,9 +876,9 @@ void CeilGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SwishRawKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     float beta,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   VLOG(4) << "Call SDAA SwishRawKernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -903,17 +893,17 @@ void SwishRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SwishKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   VLOG(4) << "Call SDAA SwishKernel";
   custom_kernel::SwishRawKernel<T, Context>(dev_ctx, x, 1.0, out);
 }
 
 template <typename T, typename Context>
 void SwishGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& x,
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   VLOG(4) << "Call SDAA SwishGradKernel";
   dev_ctx.template Alloc<T>(dx);
 
@@ -935,8 +925,8 @@ void SwishGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 DenseTensor* out) {
   VLOG(4) << "Call SDAA FloorKernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -945,8 +935,8 @@ void FloorKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+                     const DenseTensor& dout,
+                     DenseTensor* dx) {
   VLOG(4) << "CALL SDAA FloorGradKernel.";
 
   dev_ctx.template Alloc<T>(dx);
@@ -955,8 +945,8 @@ void FloorGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Log2Kernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA Log2Kernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -970,14 +960,14 @@ void Log2Kernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Log2GradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                    const DenseTensor& x,
+                    const DenseTensor& dout,
+                    DenseTensor* dx) {
   VLOG(4) << "CALL SDAA Log2GradKernel.";
 
   dev_ctx.template Alloc<T>(dx);
 
-  phi::DenseTensor x_log2;
+  DenseTensor x_log2;
   x_log2.Resize(x.dims());
   dev_ctx.template Alloc<T>(&x_log2);
 
@@ -988,9 +978,9 @@ void Log2GradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MishKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 float threshold,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA MishKernel.";
   dev_ctx.template Alloc<T>(out);
 
@@ -1006,10 +996,10 @@ void MishKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MishGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
+                    const DenseTensor& x,
+                    const DenseTensor& dout,
                     float threshold,
-                    phi::DenseTensor* dx) {
+                    DenseTensor* dx) {
   VLOG(4) << "Call SDAA MishGradKernel.";
   dev_ctx.template Alloc<T>(dx);
 
@@ -1031,10 +1021,10 @@ void MishGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardTanhKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     float min,
                     float max,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   VLOG(4) << "CALL SDAA HardTanhKernel.";
 
   dev_ctx.template Alloc<T>(out);
@@ -1044,7 +1034,7 @@ void HardTanhKernel(const Context& dev_ctx,
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
 
-  phi::DenseTensor x_temp(x);
+  DenseTensor x_temp(x);
 
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   tecodnnTensorDescriptor_t Desc = sdaa_ops::GetTecodnnTensorDesc(
@@ -1063,8 +1053,8 @@ void HardTanhKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogSigmoidKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      DenseTensor* out) {
   VLOG(4) << "Call SDAA LogSigmoidKernel";
   dev_ctx.template Alloc<T>(out);
   sdaa_ops::doActivationForward(dev_ctx,
@@ -1077,9 +1067,9 @@ void LogSigmoidKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LogSigmoidGradKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& dout,
-                          phi::DenseTensor* dx) {
+                          const DenseTensor& x,
+                          const DenseTensor& dout,
+                          DenseTensor* dx) {
   VLOG(4) << "Call SDAA LogSigmoidGradKernel";
   dev_ctx.template Alloc<T>(dx);
   sdaa_ops::doActivationBackward(dev_ctx,

@@ -70,7 +70,7 @@ struct TecoBlas<float> {
                   void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._n = n;
     param_pack._Atype = TECOBLAS_DATA_FLOAT;
@@ -102,7 +102,7 @@ struct TecoBlas<float> {
                    int incr) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans;
     param_pack._m = m;
@@ -139,7 +139,7 @@ struct TecoBlas<float> {
 
     VLOG(4) << "use SDAA high performance GEMM";
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -194,7 +194,7 @@ struct TecoBlas<float> {
                    int ldc) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -252,7 +252,7 @@ struct TecoBlas<float> {
 
     VLOG(4) << "use SDAA high performance GemmStridedBatched";
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -319,7 +319,7 @@ struct TecoBlas<float> {
                                  int batch) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -380,7 +380,7 @@ struct TecoBlas<float> {
 
     VLOG(4) << "use SDAA high performance GemmBatched";
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -473,7 +473,7 @@ struct TecoBlas<float> {
                    void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._m = m;
     param_pack._n = n;
@@ -499,7 +499,7 @@ struct TecoBlas<float> {
                    void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._m = m;
     param_pack._n = n;
@@ -527,7 +527,7 @@ struct TecoBlas<phi::dtype::float16> {
                   void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._n = n;
     param_pack._Atype = TECOBLAS_DATA_HALF;
@@ -554,7 +554,7 @@ struct TecoBlas<phi::dtype::float16> {
                    int incr) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans;
     param_pack._m = m;
@@ -589,7 +589,7 @@ struct TecoBlas<phi::dtype::float16> {
                    int ldc) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -647,7 +647,7 @@ struct TecoBlas<phi::dtype::float16> {
 
     VLOG(4) << "use hgemm strided batch";
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -708,7 +708,7 @@ struct TecoBlas<phi::dtype::float16> {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
     VLOG(4) << "use hgemm batched V2";
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -760,7 +760,7 @@ struct TecoBlas<phi::dtype::float16> {
                    void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._m = m;
     param_pack._n = n;
@@ -785,7 +785,7 @@ struct TecoBlas<phi::dtype::float16> {
                    void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._m = m;
     param_pack._n = n;
@@ -813,7 +813,7 @@ struct TecoBlas<phi::dtype::bfloat16> {
                   void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._n = n;
     param_pack._Atype = TECOBLAS_DATA_FLOAT;
@@ -845,7 +845,7 @@ struct TecoBlas<phi::dtype::bfloat16> {
                    int incr) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans;
     param_pack._m = m;
@@ -882,7 +882,7 @@ struct TecoBlas<phi::dtype::bfloat16> {
 
     VLOG(4) << "use BFloat16 to calculate Gemm.";
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -943,7 +943,7 @@ struct TecoBlas<phi::dtype::bfloat16> {
 
     VLOG(4) << "use BFloat16 to calculate GemmStridedBatched.";
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -1009,7 +1009,7 @@ struct TecoBlas<phi::dtype::bfloat16> {
 
     VLOG(4) << "use BFloat16 to calculate GemmBatched.";
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._transa = trans_a;
     param_pack._transb = trans_b;
@@ -1068,7 +1068,7 @@ struct TecoBlas<double> {
                    void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._m = m;
     param_pack._n = n;
@@ -1093,7 +1093,7 @@ struct TecoBlas<double> {
                    void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._m = m;
     param_pack._n = n;
@@ -1121,7 +1121,7 @@ struct TecoBlas<int64_t> {
                    void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._m = m;
     param_pack._n = n;
@@ -1146,7 +1146,7 @@ struct TecoBlas<int64_t> {
                    void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._m = m;
     param_pack._n = n;
@@ -1174,7 +1174,7 @@ struct TecoBlas<bool> {
                    void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._m = m;
     param_pack._n = n;
@@ -1202,7 +1202,7 @@ struct TecoBlas<bool> {
                    void* result) {
     std::unique_lock<std::mutex> lock(g_blas_workspace_mutex);
 
-    phi::DenseTensor workspace;
+    DenseTensor workspace;
     struct MatmulParam param_pack;
     param_pack._m = m;
     param_pack._n = n;
@@ -1294,16 +1294,16 @@ void doBroadcastTo(const T* x_ptr,
 
 template <typename T>
 void Dot(const Context& dev_ctx,
-         const phi::DenseTensor& X,
-         const phi::DenseTensor& Y,
-         phi::DenseTensor* out) {
+         const DenseTensor& X,
+         const DenseTensor& Y,
+         DenseTensor* out) {
   sdaa_ops::doMemsetTensor(dev_ctx, static_cast<int>(0), out);
 
   int n = X.numel();
   int incx = 1, incy = 1;
 
   if (out->dtype() == phi::DataType::FLOAT16) {
-    phi::DenseTensor out_float;
+    DenseTensor out_float;
     out_float.Resize(out->dims());
     dev_ctx.template Alloc<float>(&out_float);
 
@@ -1312,7 +1312,7 @@ void Dot(const Context& dev_ctx,
 
     sdaa_ops::doCastTensor(dev_ctx, out_float, out);
   } else if (X.dtype() == phi::DataType::BFLOAT16) {
-    phi::DenseTensor x_float, y_float, out_float;
+    DenseTensor x_float, y_float, out_float;
     x_float.Resize(X.dims());
     dev_ctx.template Alloc<float>(&x_float);
     y_float.Resize(Y.dims());
@@ -1339,10 +1339,10 @@ void Dot(const Context& dev_ctx,
 
 template <typename T>
 void MatVec(const Context& dev_ctx,
-            const phi::DenseTensor& X,
-            const phi::DenseTensor& Y,
+            const DenseTensor& X,
+            const DenseTensor& Y,
             const bool transpose_x,
-            phi::DenseTensor* out,
+            DenseTensor* out,
             float alpha = 1.0f,
             float beta = 0.0f) {
   sdaa_ops::doMemsetTensor(dev_ctx, static_cast<int>(0), out);
@@ -1361,7 +1361,7 @@ void MatVec(const Context& dev_ctx,
   }
 
   if (X.dtype() == phi::DataType::BFLOAT16) {
-    phi::DenseTensor x_float, y_float, out_float;
+    DenseTensor x_float, y_float, out_float;
     x_float.Resize(X.dims());
     dev_ctx.template Alloc<float>(&x_float);
     y_float.Resize(Y.dims());
@@ -1405,11 +1405,11 @@ void MatVec(const Context& dev_ctx,
 
 template <typename T>
 void MatMul2D(const Context& dev_ctx,
-              const phi::DenseTensor& X,
-              const phi::DenseTensor& Y,
+              const DenseTensor& X,
+              const DenseTensor& Y,
               const bool transpose_x,
               const bool transpose_y,
-              phi::DenseTensor* out,
+              DenseTensor* out,
               float alpha = 1.0f,
               float beta = 0.0f) {
   if (out->dtype() == phi::DataType::FLOAT32) {
@@ -1445,14 +1445,14 @@ void MatMul2D(const Context& dev_ctx,
   }
 
   if (out->dtype() == phi::DataType::FLOAT32 && isEnableHighPerformanceGemm()) {
-    phi::DenseTensor temp_x;
-    phi::DenseTensorMeta temp_x_meta = {phi::DataType::FLOAT16, X.dims()};
+    DenseTensor temp_x;
+    DenseTensorMeta temp_x_meta = {phi::DataType::FLOAT16, X.dims()};
     temp_x.set_meta(temp_x_meta);
     dev_ctx.Alloc<phi::dtype::float16>(&temp_x);
     sdaa_ops::doCastTensor(dev_ctx, X, &temp_x);
 
-    phi::DenseTensor temp_y;
-    phi::DenseTensorMeta temp_y_meta = {phi::DataType::FLOAT16, Y.dims()};
+    DenseTensor temp_y;
+    DenseTensorMeta temp_y_meta = {phi::DataType::FLOAT16, Y.dims()};
     temp_y.set_meta(temp_y_meta);
     dev_ctx.Alloc<phi::dtype::float16>(&temp_y);
     sdaa_ops::doCastTensor(dev_ctx, Y, &temp_y);
@@ -1498,7 +1498,7 @@ void MatMulND(const Context& dev_ctx,
               const std::vector<T*>& result,
               const bool transpose_x,
               const bool transpose_y,
-              phi::DenseTensor* out,
+              DenseTensor* out,
               float alpha = 1.0f,
               float beta = 0.0f) {
   if (out->dtype() == phi::DataType::FLOAT32) {
@@ -1550,20 +1550,20 @@ void MatMulND(const Context& dev_ctx,
 
 template <typename T>
 void DotGradFunction(const Context& dev_ctx,
-                     const phi::DenseTensor& dout,
-                     const phi::DenseTensor& x,
-                     phi::DenseTensor* dy) {
+                     const DenseTensor& dout,
+                     const DenseTensor& x,
+                     DenseTensor* dy) {
   sdaa_ops::doMemsetTensor(dev_ctx, static_cast<int>(0), dy);
   sdaa_ops::doElementMul(dev_ctx, dout, x, -1, dy);
 }
 
 template <typename T>
 void SingleMatmulWithBatchedMat(const Context& dev_ctx,
-                                const phi::DenseTensor& X,
-                                const phi::DenseTensor& Y,
+                                const DenseTensor& X,
+                                const DenseTensor& Y,
                                 const bool transpose_x,
                                 const bool transpose_y,
-                                phi::DenseTensor* out,
+                                DenseTensor* out,
                                 float alpha = 1.0f,
                                 float beta = 0.0f) {
   VLOG(4) << "mat x batched mat";
@@ -1597,14 +1597,14 @@ void SingleMatmulWithBatchedMat(const Context& dev_ctx,
   int batch = phi::product(phi::slice_ddim(y_dims, 0, y_dims_size - 2));
 
   if (out->dtype() == phi::DataType::FLOAT32 && isEnableHighPerformanceGemm()) {
-    phi::DenseTensor temp_x;
-    phi::DenseTensorMeta temp_x_meta = {phi::DataType::FLOAT16, X.dims()};
+    DenseTensor temp_x;
+    DenseTensorMeta temp_x_meta = {phi::DataType::FLOAT16, X.dims()};
     temp_x.set_meta(temp_x_meta);
     dev_ctx.Alloc<phi::dtype::float16>(&temp_x);
     sdaa_ops::doCastTensor(dev_ctx, X, &temp_x);
 
-    phi::DenseTensor temp_y;
-    phi::DenseTensorMeta temp_y_meta = {phi::DataType::FLOAT16, Y.dims()};
+    DenseTensor temp_y;
+    DenseTensorMeta temp_y_meta = {phi::DataType::FLOAT16, Y.dims()};
     temp_y.set_meta(temp_y_meta);
     dev_ctx.Alloc<phi::dtype::float16>(&temp_y);
     sdaa_ops::doCastTensor(dev_ctx, Y, &temp_y);
@@ -1651,11 +1651,11 @@ void SingleMatmulWithBatchedMat(const Context& dev_ctx,
 
 template <typename T>
 void BatchedMatmulWithSingleMat(const Context& dev_ctx,
-                                const phi::DenseTensor& X,
-                                const phi::DenseTensor& Y,
+                                const DenseTensor& X,
+                                const DenseTensor& Y,
                                 const bool transpose_x,
                                 const bool transpose_y,
-                                phi::DenseTensor* out,
+                                DenseTensor* out,
                                 float alpha = 1.0f,
                                 float beta = 0.0f) {
   VLOG(4) << "batched mat x mat";
@@ -1680,7 +1680,7 @@ void BatchedMatmulWithSingleMat(const Context& dev_ctx,
   if (!transpose_x) {
     VLOG(4) << "Matrix A-dimension fusion";
     int fused_dims = phi::product(phi::slice_ddim(x_dims, 0, x_dims_size - 1));
-    phi::DenseTensor x_temp(X);
+    DenseTensor x_temp(X);
     x_temp.Resize({fused_dims, x_dims[x_dims_size - 1]});
     tblas_ops::MatMul2D<T>(
         dev_ctx, x_temp, Y, transpose_x, transpose_y, out, alpha, beta);
@@ -1701,14 +1701,14 @@ void BatchedMatmulWithSingleMat(const Context& dev_ctx,
   int batch = phi::product(phi::slice_ddim(x_dims, 0, x_dims_size - 2));
 
   if (out->dtype() == phi::DataType::FLOAT32 && isEnableHighPerformanceGemm()) {
-    phi::DenseTensor temp_x;
-    phi::DenseTensorMeta temp_x_meta = {phi::DataType::FLOAT16, X.dims()};
+    DenseTensor temp_x;
+    DenseTensorMeta temp_x_meta = {phi::DataType::FLOAT16, X.dims()};
     temp_x.set_meta(temp_x_meta);
     dev_ctx.Alloc<phi::dtype::float16>(&temp_x);
     sdaa_ops::doCastTensor(dev_ctx, X, &temp_x);
 
-    phi::DenseTensor temp_y;
-    phi::DenseTensorMeta temp_y_meta = {phi::DataType::FLOAT16, Y.dims()};
+    DenseTensor temp_y;
+    DenseTensorMeta temp_y_meta = {phi::DataType::FLOAT16, Y.dims()};
     temp_y.set_meta(temp_y_meta);
     dev_ctx.Alloc<phi::dtype::float16>(&temp_y);
     sdaa_ops::doCastTensor(dev_ctx, Y, &temp_y);
@@ -1755,11 +1755,11 @@ void BatchedMatmulWithSingleMat(const Context& dev_ctx,
 
 template <typename T>
 void BatchMatmul(const Context& dev_ctx,
-                 const phi::DenseTensor& X,
-                 const phi::DenseTensor& Y,
+                 const DenseTensor& X,
+                 const DenseTensor& Y,
                  const bool transpose_x,
                  const bool transpose_y,
-                 phi::DenseTensor* out,
+                 DenseTensor* out,
                  float alpha = 1.0f,
                  float beta = 0.0f) {
   std::vector<int64_t> X_Dims = phi::vectorize<int64_t>(X.dims());
@@ -1779,14 +1779,14 @@ void BatchMatmul(const Context& dev_ctx,
   tblasOperation_t trans_y = transpose_y ? TBLAS_OP_T : TBLAS_OP_N;
 
   if (out->dtype() == phi::DataType::FLOAT32 && isEnableHighPerformanceGemm()) {
-    phi::DenseTensor temp_x;
-    phi::DenseTensorMeta temp_x_meta = {phi::DataType::FLOAT16, X.dims()};
+    DenseTensor temp_x;
+    DenseTensorMeta temp_x_meta = {phi::DataType::FLOAT16, X.dims()};
     temp_x.set_meta(temp_x_meta);
     dev_ctx.Alloc<phi::dtype::float16>(&temp_x);
     sdaa_ops::doCastTensor(dev_ctx, X, &temp_x);
 
-    phi::DenseTensor temp_y;
-    phi::DenseTensorMeta temp_y_meta = {phi::DataType::FLOAT16, Y.dims()};
+    DenseTensor temp_y;
+    DenseTensorMeta temp_y_meta = {phi::DataType::FLOAT16, Y.dims()};
     temp_y.set_meta(temp_y_meta);
     dev_ctx.Alloc<phi::dtype::float16>(&temp_y);
     sdaa_ops::doCastTensor(dev_ctx, Y, &temp_y);

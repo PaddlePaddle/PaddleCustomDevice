@@ -30,7 +30,7 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-T GetValueOfExpectedType(const Context& ctx, const phi::DenseTensor& x) {
+T GetValueOfExpectedType(const Context& ctx, const DenseTensor& x) {
   switch (x.dtype()) {
     case DataType::FLOAT32:
       return static_cast<T>(phi::GetValue<float, Context>(ctx, x));
@@ -52,11 +52,11 @@ T GetValueOfExpectedType(const Context& ctx, const phi::DenseTensor& x) {
 
 template <typename T, typename Context>
 void LinspaceKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& start,
-                    const phi::DenseTensor& stop,
-                    const phi::DenseTensor& number,
+                    const DenseTensor& start,
+                    const DenseTensor& stop,
+                    const DenseTensor& number,
                     phi::DataType dtype,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   VLOG(4) << "Call SDAA LinspaceKernel";
 
   T start_value = GetValueOfExpectedType<T, Context>(dev_ctx, start);

@@ -32,9 +32,9 @@ namespace custom_kernel {
 
 template <typename Context>
 void doNonZeroTensor(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     phi::DenseTensor* nonzeroCount,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     DenseTensor* nonzeroCount,
+                     DenseTensor* out) {
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
   bool as_tuple = false;
@@ -65,14 +65,14 @@ void doNonZeroTensor(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void NonZeroKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& condition,
-                   phi::DenseTensor* out) {
+                   const DenseTensor& condition,
+                   DenseTensor* out) {
   VLOG(4) << "CALL SDAA NonZeroKernel";
 
   int64_t numel = condition.numel();
   int64_t rank = condition.dims().size();
 
-  phi::DenseTensor out_temp, nonzeroCount;
+  DenseTensor out_temp, nonzeroCount;
   out_temp.Resize(phi::make_ddim({numel, rank}));
   dev_ctx.template Alloc<int64_t>(&out_temp);
 
@@ -82,7 +82,7 @@ void NonZeroKernel(const Context& dev_ctx,
   custom_kernel::doNonZeroTensor<Context>(
       dev_ctx, condition, &nonzeroCount, &out_temp);
 
-  phi::DenseTensor nonzeroCountHost;
+  DenseTensor nonzeroCountHost;
   phi::Copy(dev_ctx, nonzeroCount, phi::CPUPlace(), true, &nonzeroCountHost);
   auto nonzeroNum = *nonzeroCountHost.data<int64_t>();
 

@@ -49,15 +49,15 @@ inline bool CheckDNNSupport(const phi::DataType input_dtype,
 
 template <typename T, typename Context>
 void GroupNormKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const paddle::optional<phi::DenseTensor>& scale,
-                     const paddle::optional<phi::DenseTensor>& bias,
+                     const DenseTensor& x,
+                     const paddle::optional<DenseTensor>& scale,
+                     const paddle::optional<DenseTensor>& bias,
                      float epsilon,
                      int groups,
                      const std::string& data_layout_str,
-                     phi::DenseTensor* y,
-                     phi::DenseTensor* mean,
-                     phi::DenseTensor* var) {
+                     DenseTensor* y,
+                     DenseTensor* mean,
+                     DenseTensor* var) {
   VLOG(4) << "CALL SDAA GroupNormKernel.";
 
   auto x_dims = x.dims();
@@ -102,7 +102,7 @@ void GroupNormKernel(const Context& dev_ctx,
 
   dev_ctx.template Alloc<T>(y);
 
-  phi::DenseTensor scale_tensor, bias_tensor, mean_tensor, inv_var_tensor;
+  DenseTensor scale_tensor, bias_tensor, mean_tensor, inv_var_tensor;
 
   if (scale) {
     scale_tensor = scale.get();

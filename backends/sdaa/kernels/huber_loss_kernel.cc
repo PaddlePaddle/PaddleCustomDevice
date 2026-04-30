@@ -31,11 +31,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void HuberLossKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& input,
-                     const phi::DenseTensor& label,
+                     const DenseTensor& input,
+                     const DenseTensor& label,
                      float delta,
-                     phi::DenseTensor* out,
-                     phi::DenseTensor* residual) {
+                     DenseTensor* out,
+                     DenseTensor* residual) {
   VLOG(4) << "CALL SDAA HuberLossKernel.";
 
   dev_ctx.template Alloc<T>(out);
@@ -71,17 +71,17 @@ void HuberLossKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HuberLossGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& residual,
-                         const phi::DenseTensor& out_grad,
+                         const DenseTensor& residual,
+                         const DenseTensor& out_grad,
                          float delta,
-                         phi::DenseTensor* input_grad,
-                         phi::DenseTensor* label_grad) {
+                         DenseTensor* input_grad,
+                         DenseTensor* label_grad) {
   VLOG(4) << "CALL SDAA HuberLossGradKernel";
 
   void* input_grad_ptr = nullptr;
   void* label_grad_ptr = nullptr;
 
-  phi::DenseTensor input_grad_temp, label_grad_temp;
+  DenseTensor input_grad_temp, label_grad_temp;
 
   if (input_grad) {
     dev_ctx.template Alloc<T>(input_grad);

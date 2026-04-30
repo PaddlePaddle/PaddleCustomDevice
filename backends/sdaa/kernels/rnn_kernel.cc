@@ -48,8 +48,8 @@ bool IsContinuous(const Type& weight_list) {
 
 template <typename T>
 void WeightToTensor(const Context& dev_ctx,
-                    const std::vector<const phi::DenseTensor*>& weight_list,
-                    phi::DenseTensor* weight) {
+                    const std::vector<const DenseTensor*>& weight_list,
+                    DenseTensor* weight) {
   auto weight_data = weight->data<T>();
   int weight_offset = 0;
   for (size_t i = 0; i < weight_list.size(); ++i) {
@@ -67,12 +67,12 @@ void WeightToTensor(const Context& dev_ctx,
 }
 
 template <typename T>
-size_t GetWeightNum(const std::vector<const phi::DenseTensor*>& weight_list) {
+size_t GetWeightNum(const std::vector<const DenseTensor*>& weight_list) {
   size_t weight_num = std::accumulate(
       weight_list.begin(),
       weight_list.end(),
       0,
-      [](int64_t num, const phi::DenseTensor* t) { return num + t->numel(); });
+      [](int64_t num, const DenseTensor* t) { return num + t->numel(); });
 
   return weight_num;
 }
@@ -126,9 +126,9 @@ tecodnnRNNDescriptor_t GetTecodnnRnnDesc(const Context& dev_ctx,
   size_t act_statesSize = 4 * 1024 * sizeof(int);
   // when statesSize is fixed, will use DropoutGetStatesSize() func.
   TECODNN_CHECK(tecodnnDropoutGetStatesSize(tecodnnHandle, &act_statesSize));
-  phi::DenseTensorMeta meta = {phi::DataType::INT8,
-                               {static_cast<int>(act_statesSize)}};
-  phi::DenseTensor states;
+  DenseTensorMeta meta = {phi::DataType::INT8,
+                          {static_cast<int>(act_statesSize)}};
+  DenseTensor states;
   states.set_meta(meta);
   dev_ctx.template Alloc<int8_t>(&states);
   TECODNN_CHECK(tecodnnSetDropoutDescriptor(DropoutDesc,
@@ -158,10 +158,10 @@ tecodnnRNNDescriptor_t GetTecodnnRnnDesc(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void doRnnForward(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& hx,
-                  const phi::DenseTensor& cx,
-                  const std::vector<const phi::DenseTensor*>& weight_list,
+                  const DenseTensor& x,
+                  const DenseTensor& hx,
+                  const DenseTensor& cx,
+                  const std::vector<const DenseTensor*>& weight_list,
                   int batch_size,
                   int input_size,
                   int direction_num,
@@ -173,11 +173,11 @@ void doRnnForward(const Context& dev_ctx,
                   bool is_bidirec,
                   bool is_test,
                   const std::string& mode,
-                  phi::DenseTensor* y,
-                  phi::DenseTensor* hy,
-                  phi::DenseTensor* cy,
-                  phi::DenseTensor* dropout_state,
-                  phi::DenseTensor* reserve) {
+                  DenseTensor* y,
+                  DenseTensor* hy,
+                  DenseTensor* cy,
+                  DenseTensor* dropout_state,
+                  DenseTensor* reserve) {
   std::string input_mode = "linear";
   std::string rnn_algo = "standard";
 
@@ -188,10 +188,10 @@ void doRnnForward(const Context& dev_ctx,
 
   int weight_num = static_cast<int>(GetWeightNum<T>(weight_list));
 
-  phi::DenseTensor weight_whole;
+  DenseTensor weight_whole;
   void* w_data = nullptr;
   bool continuous =
-      IsContinuous<T, std::vector<const phi::DenseTensor*>>(weight_list);
+      IsContinuous<T, std::vector<const DenseTensor*>>(weight_list);
   if (!continuous) {
     VLOG(2) << "If the memory space of the Input WeightList is not continuous, "
                "less efficient calculation will be called. Please call "
@@ -265,7 +265,7 @@ void doRnnForward(const Context& dev_ctx,
       phi::errors::InvalidArgument(
           "The sdaa rnn and setting weight size should be same."));
 
-  phi::DenseTensor workspace_data;
+  DenseTensor workspace_data;
   workspace_data.Resize(phi::make_ddim({static_cast<int64_t>(workspace_size)}));
   dev_ctx.template Alloc<uint8_t>(&workspace_data);
   sdaa_ops::doFillTensor<uint8_t>(
@@ -304,15 +304,15 @@ void doRnnForward(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void doRnnBackward(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& hx,
-                   const phi::DenseTensor& cx,
-                   const phi::DenseTensor& dhy,
-                   const phi::DenseTensor& dcy,
-                   const phi::DenseTensor& out,
-                   const phi::DenseTensor& out_grad,
-                   const phi::DenseTensor& reserve,
-                   const std::vector<const phi::DenseTensor*>& weight_list,
+                   const DenseTensor& x,
+                   const DenseTensor& hx,
+                   const DenseTensor& cx,
+                   const DenseTensor& dhy,
+                   const DenseTensor& dcy,
+                   const DenseTensor& out,
+                   const DenseTensor& out_grad,
+                   const DenseTensor& reserve,
+                   const std::vector<const DenseTensor*>& weight_list,
                    int batch_size,
                    int input_size,
                    int direction_num,
@@ -324,10 +324,10 @@ void doRnnBackward(const Context& dev_ctx,
                    bool is_bidirec,
                    bool is_test,
                    const std::string& mode,
-                   phi::DenseTensor* x_grad,
-                   phi::DenseTensor* dhx,
-                   phi::DenseTensor* dcx,
-                   std::vector<phi::DenseTensor*> weight_grad_list) {
+                   DenseTensor* x_grad,
+                   DenseTensor* dhx,
+                   DenseTensor* dcx,
+                   std::vector<DenseTensor*> weight_grad_list) {
   std::string input_mode = "linear";
   std::string rnn_algo = "standard";
 
@@ -338,9 +338,9 @@ void doRnnBackward(const Context& dev_ctx,
 
   int64_t weight_num = static_cast<int64_t>(GetWeightNum<T>(weight_list));
   bool continuous =
-      IsContinuous<T, std::vector<const phi::DenseTensor*>>(weight_list);
+      IsContinuous<T, std::vector<const DenseTensor*>>(weight_list);
 
-  phi::DenseTensor weight_whole;
+  DenseTensor weight_whole;
   void* w_data = nullptr;
   if (!continuous) {
     VLOG(2) << "If the memory space of the Input WeightList is not continuous, "
@@ -409,7 +409,7 @@ void doRnnBackward(const Context& dev_ctx,
   TECODNN_CHECK(tecodnnGetRNNWeightSpaceSize(
       tecodnnHandle, RnnDesc, x_Desc, &weightspace_size));
 
-  phi::DenseTensor workspace_data;
+  DenseTensor workspace_data;
   workspace_data.Resize(phi::make_ddim({static_cast<int64_t>(workspace_size)}));
   dev_ctx.template Alloc<uint8_t>(&workspace_data);
   sdaa_ops::doFillTensor<uint8_t>(
@@ -454,7 +454,7 @@ void doRnnBackward(const Context& dev_ctx,
   if (!weight_grad_list.empty()) {
     // 1. Allocate a contiguous block of memory space to the
     // tecodnnRNNBackwardWeights.
-    phi::DenseTensor weight_grad;
+    DenseTensor weight_grad;
     weight_grad.Resize(phi::make_ddim({weight_num}));
     dev_ctx.template Alloc<T>(&weight_grad);
     sdaa_ops::doMemsetTensor(dev_ctx, static_cast<int>(0), &weight_grad);
@@ -504,10 +504,10 @@ void doRnnBackward(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RnnKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const std::vector<const phi::DenseTensor*>& pre_state,
-               const std::vector<const phi::DenseTensor*>& weight_list,
-               const paddle::optional<phi::DenseTensor>& sequence_length,
+               const DenseTensor& x,
+               const std::vector<const DenseTensor*>& pre_state,
+               const std::vector<const DenseTensor*>& weight_list,
+               const paddle::optional<DenseTensor>& sequence_length,
                float dropout_prob,
                bool is_bidirec,
                int input_size,
@@ -516,10 +516,10 @@ void RnnKernel(const Context& dev_ctx,
                const std::string& mode,
                int seed,
                bool is_test,
-               phi::DenseTensor* out,
-               phi::DenseTensor* dropout_state,
-               std::vector<phi::DenseTensor*> state,
-               phi::DenseTensor* reserve) {
+               DenseTensor* out,
+               DenseTensor* dropout_state,
+               std::vector<DenseTensor*> state,
+               DenseTensor* reserve) {
   VLOG(4) << "CALL SDAA RnnKernel";
 
   PADDLE_ENFORCE_EQ(
@@ -617,15 +617,15 @@ void RnnKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RnnGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const std::vector<const phi::DenseTensor*>& pre_state,
-                   const std::vector<const phi::DenseTensor*>& weight_list,
-                   const paddle::optional<phi::DenseTensor>& sequence_length,
-                   const phi::DenseTensor& out,
-                   const phi::DenseTensor& dropout_state,
-                   const phi::DenseTensor& reserve,
-                   const phi::DenseTensor& out_grad,
-                   const std::vector<const phi::DenseTensor*>& state_grad,
+                   const DenseTensor& x,
+                   const std::vector<const DenseTensor*>& pre_state,
+                   const std::vector<const DenseTensor*>& weight_list,
+                   const paddle::optional<DenseTensor>& sequence_length,
+                   const DenseTensor& out,
+                   const DenseTensor& dropout_state,
+                   const DenseTensor& reserve,
+                   const DenseTensor& out_grad,
+                   const std::vector<const DenseTensor*>& state_grad,
                    float dropout_prob,
                    bool is_bidirec,
                    int input_size,
@@ -634,9 +634,9 @@ void RnnGradKernel(const Context& dev_ctx,
                    const std::string& mode,
                    int seed,
                    bool is_test,
-                   phi::DenseTensor* x_grad,
-                   std::vector<phi::DenseTensor*> pre_state_grad,
-                   std::vector<phi::DenseTensor*> weight_grad_list) {
+                   DenseTensor* x_grad,
+                   std::vector<DenseTensor*> pre_state_grad,
+                   std::vector<DenseTensor*> weight_grad_list) {
   VLOG(4) << "CALL SDAA RnnGradKernel";
 
   PADDLE_ENFORCE_EQ(
@@ -651,8 +651,8 @@ void RnnGradKernel(const Context& dev_ctx,
   auto last_h_grad = state_grad[0];  // -> dhy
   auto last_c_grad = state_grad[1];  // -> dcy
 
-  phi::DenseTensor* init_h_grad = nullptr;
-  phi::DenseTensor* init_c_grad = nullptr;
+  DenseTensor* init_h_grad = nullptr;
+  DenseTensor* init_c_grad = nullptr;
   if (pre_state_grad.size() > 0) {    // has gradient
     init_h_grad = pre_state_grad[0];  // -> dhx
     init_c_grad = pre_state_grad[1];  // -> dcx
@@ -690,7 +690,7 @@ void RnnGradKernel(const Context& dev_ctx,
                                    num_layers,
                                    init_c->dims()[0]));
 
-  phi::DenseTensor input_grad_value;
+  DenseTensor input_grad_value;
   if (!x_grad) {
     x_grad = &input_grad_value;
     x_grad->Resize(x.dims());

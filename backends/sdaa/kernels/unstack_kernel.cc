@@ -31,10 +31,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void UnStackKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    int axis,
                    int num UNUSED,
-                   std::vector<phi::DenseTensor*> outs) {
+                   std::vector<DenseTensor*> outs) {
   VLOG(4) << "Call SDAA UnStackKernel";
 
   // get outs dims
@@ -45,11 +45,11 @@ void UnStackKernel(const Context& dev_ctx,
   std::vector<int> output_dims_origin(output_dims);
   output_dims.insert(output_dims.begin() + axis, 1);
 
-  std::vector<phi::DenseTensor> tmp_outputs_vec;
+  std::vector<DenseTensor> tmp_outputs_vec;
   tmp_outputs_vec.resize(outs.size());
-  std::vector<phi::DenseTensor*> outs_;
+  std::vector<DenseTensor*> outs_;
 
-  const phi::DenseTensorMeta meta_data(x.dtype(), phi::make_ddim(output_dims));
+  const DenseTensorMeta meta_data(x.dtype(), phi::make_ddim(output_dims));
   for (int i = 0; i < outs.size(); ++i) {
     dev_ctx.template Alloc<T>(outs[i]);
     outs_.push_back(outs[i]);
@@ -65,9 +65,9 @@ void UnStackKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UnStackGradKernel(const Context& dev_ctx,
-                       const std::vector<const phi::DenseTensor*>& x,
+                       const std::vector<const DenseTensor*>& x,
                        int axis,
-                       phi::DenseTensor* x_grad) {
+                       DenseTensor* x_grad) {
   VLOG(4) << "CALL SDAA UnStackGradKernel.";
 
   dev_ctx.template Alloc<T>(x_grad);
@@ -76,14 +76,14 @@ void UnStackGradKernel(const Context& dev_ctx,
 
   int num = static_cast<int>(x.size());
 
-  std::vector<const phi::DenseTensor*> x_;
+  std::vector<const DenseTensor*> x_;
   std::vector<int> input_dims = phi::vectorize<int>(x[0]->dims());
   input_dims.insert(input_dims.begin() + axis, 1);
 
-  phi::DenseTensor* temp;
+  DenseTensor* temp;
 
   for (int i = 0; i < num; i++) {
-    temp = const_cast<phi::DenseTensor*>(x[i]);
+    temp = const_cast<DenseTensor*>(x[i]);
     temp->Resize(phi::make_ddim(input_dims));
     x_.push_back(temp);
   }

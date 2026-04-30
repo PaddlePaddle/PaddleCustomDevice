@@ -30,9 +30,9 @@
 namespace custom_kernel {
 
 void doMaskedSelectOpTensor(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
-                            const phi::DenseTensor& mask,
-                            phi::DenseTensor* out) {
+                            const DenseTensor& x,
+                            const DenseTensor& mask,
+                            DenseTensor* out) {
   VLOG(4) << "tecodnn selectmask op called";
 
   auto x_dim = x.dims();
@@ -42,7 +42,7 @@ void doMaskedSelectOpTensor(const Context& dev_ctx,
   std::vector<int> mask_dims = phi::vectorize<int>(mask_dim);
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
 
-  phi::DenseTensor mask_int;
+  DenseTensor mask_int;
   mask_int.Resize(mask_dim);
   dev_ctx.Alloc(&mask_int, DataType::UINT8);
   sdaa_ops::doCastTensor(dev_ctx, mask, &mask_int);
@@ -55,7 +55,7 @@ void doMaskedSelectOpTensor(const Context& dev_ctx,
   tecodnnTensorDescriptor_t out_Desc = sdaa_ops::GetTecodnnTensorDesc(
       out_dims, out->dtype(), TensorFormat::NHWC);
   // int selectCount = 0;
-  phi::DenseTensor selectCount;
+  DenseTensor selectCount;
   selectCount.Resize(phi::make_ddim({1}));
   dev_ctx.Alloc(&selectCount, DataType::INT32);
 
@@ -75,9 +75,9 @@ void doMaskedSelectOpTensor(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MaskedSelectKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& mask,
-                        phi::DenseTensor* out) {
+                        const DenseTensor& x,
+                        const DenseTensor& mask,
+                        DenseTensor* out) {
   VLOG(4) << "CALL SDAA MaskedSelectKernel";
   auto input_dim = x.dims();
   auto mask_dim = mask.dims();
@@ -91,12 +91,12 @@ void MaskedSelectKernel(const Context& dev_ctx,
                         input_dim,
                         mask_dim));
 
-  phi::DenseTensor mask_int;
+  DenseTensor mask_int;
   mask_int.Resize(mask_dim);
   dev_ctx.Alloc(&mask_int, DataType::INT64);
   sdaa_ops::doCastTensor(dev_ctx, mask, &mask_int);
 
-  phi::DenseTensor nonzconunt;
+  DenseTensor nonzconunt;
   nonzconunt.Resize(phi::make_ddim({1}));
   dev_ctx.Alloc(&nonzconunt, DataType::INT64);
 
@@ -117,10 +117,10 @@ void MaskedSelectKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MaskedSelectGradKernel(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
-                            const phi::DenseTensor& mask,
-                            const phi::DenseTensor& out_grad,
-                            phi::DenseTensor* x_grad) {
+                            const DenseTensor& x,
+                            const DenseTensor& mask,
+                            const DenseTensor& out_grad,
+                            DenseTensor* x_grad) {
   VLOG(4) << "CALL SDAA MaskedSelectGradKernel";
 
   auto mask_size = mask.numel();

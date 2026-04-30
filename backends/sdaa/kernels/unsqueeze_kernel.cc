@@ -69,9 +69,9 @@ inline phi::DDim GetUnsqueezeShape(const std::vector<int64_t> unsqz_dims,
 
 template <typename T, typename Context>
 void UnsqueezeKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const phi::IntArray& axes,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   auto x_dims = x.dims();
   auto out_dims = out->dims();
   if (axes.FromTensor() && out->dims()[0] == -1) {
@@ -86,18 +86,18 @@ void UnsqueezeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UnsqueezeWithXShapeKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& x,
+                               const DenseTensor& x,
                                const phi::IntArray& axes,
-                               phi::DenseTensor* out,
-                               phi::DenseTensor* xshape UNUSED) {
+                               DenseTensor* out,
+                               DenseTensor* xshape UNUSED) {
   custom_kernel::UnsqueezeKernel<T, Context>(dev_ctx, x, axes, out);
 }
 
 template <typename T, typename Context>
 void UnsqueezeGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x_shape,
-                         const phi::DenseTensor& dout,
-                         phi::DenseTensor* dx) {
+                         const DenseTensor& x_shape,
+                         const DenseTensor& dout,
+                         DenseTensor* dx) {
   auto xshape_dims = x_shape.dims();
   auto x_dims = phi::slice_ddim(xshape_dims, 1, xshape_dims.size());
   dev_ctx.template Alloc<T>(dx);

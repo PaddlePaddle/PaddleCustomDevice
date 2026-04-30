@@ -22,20 +22,20 @@
 namespace custom_kernel {
 
 void CheckInputs(
-    const std::vector<const phi::DenseTensor*>& param,
-    const std::vector<const phi::DenseTensor*>& grad,
-    const std::vector<const phi::DenseTensor*>& velocity,
-    const std::vector<const phi::DenseTensor*>& learning_rate,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& master_param,
+    const std::vector<const DenseTensor*>& param,
+    const std::vector<const DenseTensor*>& grad,
+    const std::vector<const DenseTensor*>& velocity,
+    const std::vector<const DenseTensor*>& learning_rate,
+    const paddle::optional<std::vector<const DenseTensor*>>& master_param,
     float mu,
     bool use_nesterov,
     const std::vector<std::string>& regularization_method,
     const std::vector<float>& regularization_coeff,
     bool multi_precision,
     float rescale_grad,
-    std::vector<phi::DenseTensor*> param_out,
-    std::vector<phi::DenseTensor*> velocity_out,
-    std::vector<phi::DenseTensor*> master_param_out) {
+    std::vector<DenseTensor*> param_out,
+    std::vector<DenseTensor*> velocity_out,
+    std::vector<DenseTensor*> master_param_out) {
   size_t n = param.size();
   PADDLE_ENFORCE_EQ(n,
                     param_out.size(),
@@ -122,20 +122,20 @@ void CheckInputs(
 template <typename T, typename Context>
 void MergedMomentumKernel(
     const Context& dev_ctx,
-    const std::vector<const phi::DenseTensor*>& param,
-    const std::vector<const phi::DenseTensor*>& grad,
-    const std::vector<const phi::DenseTensor*>& velocity,
-    const std::vector<const phi::DenseTensor*>& learning_rate,
-    const paddle::optional<std::vector<const phi::DenseTensor*>>& master_param,
+    const std::vector<const DenseTensor*>& param,
+    const std::vector<const DenseTensor*>& grad,
+    const std::vector<const DenseTensor*>& velocity,
+    const std::vector<const DenseTensor*>& learning_rate,
+    const paddle::optional<std::vector<const DenseTensor*>>& master_param,
     float mu,
     bool use_nesterov,
     const std::vector<std::string>& regularization_method,
     const std::vector<float>& regularization_coeff,
     bool multi_precision,
     float rescale_grad,
-    std::vector<phi::DenseTensor*> param_out,
-    std::vector<phi::DenseTensor*> velocity_out,
-    std::vector<phi::DenseTensor*> master_param_out) {
+    std::vector<DenseTensor*> param_out,
+    std::vector<DenseTensor*> velocity_out,
+    std::vector<DenseTensor*> master_param_out) {
   size_t param_num = param.size();
   const int M = param_num;
   static bool is_first_time = true;
@@ -169,18 +169,18 @@ void MergedMomentumKernel(
               param_out,
               velocity_out,
               std::move(master_param_out));
-  phi::DenseTensor lr, coeff, l2_decay;
+  DenseTensor lr, coeff, l2_decay;
   phi::DDim dim{M};
-  phi::DenseTensorMeta meta(learning_rate[0]->dtype(), dim);
+  DenseTensorMeta meta(learning_rate[0]->dtype(), dim);
   lr.set_meta(meta);
   coeff.set_meta(meta);
 
-  phi::DenseTensorMeta l2_meta(phi::DataType::INT32, dim);
+  DenseTensorMeta l2_meta(phi::DataType::INT32, dim);
   l2_decay.set_meta(l2_meta);
   if (learning_rate.size() != 1) {
     TensorFromVectorTensor<T>(dev_ctx, learning_rate, &lr);
   } else {
-    std::vector<const phi::DenseTensor*> lr_vec;
+    std::vector<const DenseTensor*> lr_vec;
     for (int i = 0; i < M; ++i) {
       lr_vec.push_back(learning_rate[0]);
     }
@@ -203,9 +203,9 @@ void MergedMomentumKernel(
   TensorFromVector(dev_ctx, l2_decay_vec, dev_ctx, &l2_decay);
   int input_num = 3;
   void* data[input_num][M];
-  std::vector<phi::DenseTensor*> grad_in;
+  std::vector<DenseTensor*> grad_in;
   for (int i = 0; i < param_num; ++i) {
-    grad_in.push_back(const_cast<phi::DenseTensor*>(grad[i]));
+    grad_in.push_back(const_cast<DenseTensor*>(grad[i]));
   }
   for (int i = 0; i < M; i++) {
     data[0][i] = param_out[i]->data();
@@ -214,7 +214,7 @@ void MergedMomentumKernel(
   }
 
   void* pointer[input_num];
-  std::vector<phi::DenseTensor> pointer_data(input_num);
+  std::vector<DenseTensor> pointer_data(input_num);
   int64_t pointer_bytes = M * sizeof(void*);
   for (int i = 0; i < input_num; ++i) {
     pointer_data[i].Resize({pointer_bytes});
@@ -231,8 +231,8 @@ void MergedMomentumKernel(
   for (int i = 0; i < M; i++) {
     len.push_back(param_out[i]->numel());
   }
-  phi::DenseTensor n_total;
-  phi::DenseTensorMeta meta1(phi::DataType::INT64, dim);
+  DenseTensor n_total;
+  DenseTensorMeta meta1(phi::DataType::INT64, dim);
   n_total.set_meta(meta1);
   TensorFromVector(dev_ctx, len, dev_ctx, &n_total);
   sdaaStream_t custom_stream = GetStreamFromCTX(dev_ctx);

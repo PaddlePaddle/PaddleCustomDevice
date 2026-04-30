@@ -28,11 +28,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MatmulKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   bool transpose_x,
                   bool transpose_y,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "Call SDAA MatmulKernel";
 
   dev_ctx.template Alloc<T>(out);
@@ -90,7 +90,7 @@ void MatmulKernel(const Context& dev_ctx,
   }
 
   // Resize dim 1 to 2
-  phi::DenseTensor x_temp(x), y_temp;
+  DenseTensor x_temp(x), y_temp;
 
   float unscale_alpha = 1.0 / FLAGS_sdaa_matmul_scale;
 
@@ -302,13 +302,13 @@ void MatmulKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MatmulGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      const phi::DenseTensor& dout,
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      const DenseTensor& dout,
                       bool transpose_x,
                       bool transpose_y,
-                      phi::DenseTensor* dx,
-                      phi::DenseTensor* dy) {
+                      DenseTensor* dx,
+                      DenseTensor* dy) {
   VLOG(4) << "Call SDAA MatmulGradKernel";
   if (dx) {
     dev_ctx.template Alloc<T>(dx);
@@ -342,7 +342,7 @@ void MatmulGradKernel(const Context& dev_ctx,
   }
 
   // Resize dim 1 to 2
-  phi::DenseTensor x_temp(x), y_temp(y), dout_temp, dx_temp, dy_temp;
+  DenseTensor x_temp(x), y_temp(y), dout_temp, dx_temp, dy_temp;
 
   float unscale_alpha = 1.0 / FLAGS_sdaa_matmul_scale;
   if (FLAGS_sdaa_matmul_scale != 1.0) {
@@ -452,7 +452,7 @@ void MatmulGradKernel(const Context& dev_ctx,
       } else {
         // 1. [batch, K, M] x [batch, M, N] = [batch, K, N]
         // 2. [batch, K, N] --> [K, N]
-        phi::DenseTensor dy_unreduced;
+        DenseTensor dy_unreduced;
         auto batch = x_temp.numel() / x_dims[x_ndim - 1] / x_dims[x_ndim - 2];
         x_temp.Resize({batch, x_dims[x_ndim - 2], x_dims[x_ndim - 1]});
         dout_temp.Resize(
@@ -481,7 +481,7 @@ void MatmulGradKernel(const Context& dev_ctx,
     // 1. [batch, M, N] x [batch, N, K] = [batch, M, K]
     // 2. [batch, M, K] --> [M, K]
     if (dx) {
-      phi::DenseTensor dx_unreduced;
+      DenseTensor dx_unreduced;
       auto batch = y_temp.numel() / y_dims[y_ndim - 1] / y_dims[y_ndim - 2];
       y_temp.Resize({batch, y_dims[y_ndim - 2], y_dims[y_ndim - 1]});
       dout_temp.Resize(
@@ -603,9 +603,9 @@ void MatmulGradKernel(const Context& dev_ctx,
   for (int idx = 0; idx < x_broadcast_dims.size(); idx++) {
     dx_brd_size *= x_broadcast_dims[idx];
   }
-  phi::DenseTensor dx_brd;
+  DenseTensor dx_brd;
   phi::DDim dx_brd_dims = phi::make_ddim(x_broadcast_dims);
-  phi::DenseTensorMeta dx_meta = {dout.dtype(), dx_brd_dims};
+  DenseTensorMeta dx_meta = {dout.dtype(), dx_brd_dims};
   dx_brd.set_meta(dx_meta);
   dev_ctx.template Alloc<T>(&dx_brd);
 
@@ -614,9 +614,9 @@ void MatmulGradKernel(const Context& dev_ctx,
   for (int idx = 0; idx < y_broadcast_dims.size(); idx++) {
     dy_brd_size *= y_broadcast_dims[idx];
   }
-  phi::DenseTensor dy_brd;
+  DenseTensor dy_brd;
   phi::DDim dy_brd_dims = phi::make_ddim(y_broadcast_dims);
-  phi::DenseTensorMeta dy_meta = {dout.dtype(), dy_brd_dims};
+  DenseTensorMeta dy_meta = {dout.dtype(), dy_brd_dims};
   dy_brd.set_meta(dy_meta);
   dev_ctx.template Alloc<T>(&dy_brd);
 
@@ -791,11 +791,11 @@ void MatmulGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MatmulWithFlattenKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& y,
+                             const DenseTensor& x,
+                             const DenseTensor& y,
                              int x_num_col_dims,
                              int y_num_col_dims,
-                             phi::DenseTensor* out) {
+                             DenseTensor* out) {
   VLOG(4) << "CALL SDAA MatmulWithFlattenKernel";
 
   dev_ctx.template Alloc<T>(out);
@@ -848,9 +848,9 @@ void MatmulWithFlattenKernel(const Context& dev_ctx,
             x_matrix_dims[1],
             y_matrix_dims[0]));
 
-    phi::DenseTensor x_matrix(x);
+    DenseTensor x_matrix(x);
     x_matrix.Resize(phi::make_ddim(x_matrix_dims));
-    phi::DenseTensor y_matrix(y);
+    DenseTensor y_matrix(y);
     y_matrix.Resize(phi::make_ddim(y_matrix_dims));
 
     tblas_ops::MatMul2D<T>(dev_ctx, x_matrix, y_matrix, false, false, out);
@@ -859,13 +859,13 @@ void MatmulWithFlattenKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MatmulWithFlattenGradKernel(const Context& dev_ctx,
-                                 const phi::DenseTensor& x,
-                                 const phi::DenseTensor& y,
-                                 const phi::DenseTensor& dout,
+                                 const DenseTensor& x,
+                                 const DenseTensor& y,
+                                 const DenseTensor& dout,
                                  int x_num_col_dims,
                                  int y_num_col_dims,
-                                 phi::DenseTensor* dx,
-                                 phi::DenseTensor* dy) {
+                                 DenseTensor* dx,
+                                 DenseTensor* dy) {
   VLOG(4) << "CALL SDAA MatmulWithFlattenGradKernel";
 
   if (dx) dev_ctx.template Alloc<T>(dx);
@@ -905,11 +905,11 @@ void MatmulWithFlattenGradKernel(const Context& dev_ctx,
     tblas_ops::ReshpaeToMatrix(y_num_col_dims, y_dims, &y_matrix_dims);
     std::vector<int64_t> dout_temp_dims = {x_matrix_dims[0], y_matrix_dims[1]};
 
-    phi::DenseTensor x_matrix(x);
+    DenseTensor x_matrix(x);
     x_matrix.Resize(phi::make_ddim(x_matrix_dims));
-    phi::DenseTensor y_matrix(y);
+    DenseTensor y_matrix(y);
     y_matrix.Resize(phi::make_ddim(y_matrix_dims));
-    phi::DenseTensor dout_temp(dout);
+    DenseTensor dout_temp(dout);
     dout_temp.Resize(phi::make_ddim(dout_temp_dims));
 
     if (dx) {

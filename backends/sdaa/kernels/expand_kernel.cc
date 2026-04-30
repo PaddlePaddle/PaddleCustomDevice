@@ -33,9 +33,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ExpandKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::IntArray& shape,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   VLOG(4) << "CALL SDAA ExpandKernel";
 
   auto expand_shape = shape.GetData();
@@ -120,10 +120,10 @@ void ExpandKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ExpandGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& out_grad,
+                      const DenseTensor& x,
+                      const DenseTensor& out_grad,
                       const phi::IntArray& shape,
-                      phi::DenseTensor* x_grad) {
+                      DenseTensor* x_grad) {
   VLOG(4) << "CALL SDAA ExpandGradKernel";
 
   dev_ctx.template Alloc<T>(x_grad);

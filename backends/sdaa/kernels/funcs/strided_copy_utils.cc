@@ -47,7 +47,7 @@ phi::DDim permute(const phi::DDim& dims, const int64_vec& axis) {
   return out_dim;
 }
 
-bool is_permute(const phi::DenseTensor& input) {
+bool is_permute(const DenseTensor& input) {
   if (input.meta().is_contiguous()) {
     return true;
   }
@@ -83,8 +83,7 @@ bool is_permute(const phi::DenseTensor& input) {
   return is_permute;
 }
 
-bool is_same_shapes_sizes(const phi::DenseTensor& src,
-                          const phi::DenseTensor& dst) {
+bool is_same_shapes_sizes(const DenseTensor& src, const DenseTensor& dst) {
   if (src.dims() != dst.dims()) {
     return false;
   }
@@ -97,13 +96,12 @@ bool is_same_shapes_sizes(const phi::DenseTensor& src,
   return true;
 }
 
-inline bool is_total_same(const phi::DenseTensor& src,
-                          const phi::DenseTensor& dst) {
+inline bool is_total_same(const DenseTensor& src, const DenseTensor& dst) {
   return is_permute(src) && (src.dtype() == dst.dtype()) &&
          is_same_shapes_sizes(src, dst);
 }
 
-inline bool check_sdaa_align(const phi::DenseTensor& t) {
+inline bool check_sdaa_align(const DenseTensor& t) {
   constexpr int kSDAAAlignSize = 4;
   bool align = reinterpret_cast<int64_t>(t.data()) % kSDAAAlignSize == 0;
   if (align) {
@@ -113,8 +111,8 @@ inline bool check_sdaa_align(const phi::DenseTensor& t) {
 }
 
 bool strided_copy(const Context& dev_ctx,
-                  const phi::DenseTensor& src,
-                  phi::DenseTensor* dst) {
+                  const DenseTensor& src,
+                  DenseTensor* dst) {
   auto src_place_type = src.place().GetType();
   auto dst_place_type = dst->place().GetType();
   bool sdaa_place = (src_place_type == phi::AllocationType::CUSTOM) &&

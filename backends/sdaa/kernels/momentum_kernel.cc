@@ -22,20 +22,20 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MomentumKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& param,
-                    const phi::DenseTensor& grad,
-                    const phi::DenseTensor& velocity,
-                    const phi::DenseTensor& learning_rate,
-                    const paddle::optional<phi::DenseTensor>& master_param,
+                    const DenseTensor& param,
+                    const DenseTensor& grad,
+                    const DenseTensor& velocity,
+                    const DenseTensor& learning_rate,
+                    const paddle::optional<DenseTensor>& master_param,
                     float mu_f,
                     bool use_nesterov,
                     const std::string& regularization_method,
                     float regularization_coeff,
                     bool multi_precision,
                     float rescale_grad,
-                    phi::DenseTensor* param_out,
-                    phi::DenseTensor* velocity_out,
-                    phi::DenseTensor* master_param_out) {
+                    DenseTensor* param_out,
+                    DenseTensor* velocity_out,
+                    DenseTensor* master_param_out) {
   if (isEnvEnable("HIGH_PERFORMANCE_CONV") &&
       (grad.storage_properties_initialized())) {
     SDAAStorageProperties grad_properties =
@@ -59,7 +59,7 @@ void MomentumKernel(const Context& dev_ctx,
   VLOG(4) << "Call SDAA MomentumKernel";
   TensorCopy(dev_ctx, param, false, param_out);
   TensorCopy(dev_ctx, velocity, false, velocity_out);
-  phi::DenseTensor* grad_in = const_cast<phi::DenseTensor*>(&grad);
+  DenseTensor* grad_in = const_cast<DenseTensor*>(&grad);
 
   bool l2_decay = false;
   if (regularization_method == "l2_decay") {

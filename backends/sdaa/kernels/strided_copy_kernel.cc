@@ -32,14 +32,14 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void StridedCopyKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& input,
+                       const DenseTensor& input,
                        const std::vector<int64_t>& dims,
                        const std::vector<int64_t>& out_stride,
                        int64_t offset,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   VLOG(4) << "CALL SDAA StridedCopyKernel.";
 
-  phi::DenseTensorMeta meta = input.meta();
+  DenseTensorMeta meta = input.meta();
   meta.strides = phi::make_ddim(out_stride);
   meta.dims = phi::make_ddim(dims);
   meta.offset = offset;

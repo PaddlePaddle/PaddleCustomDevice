@@ -21,10 +21,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ClipKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::Scalar& min,
                 const phi::Scalar& max,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   VLOG(4) << "Call SDAA ClipKernel";
   dev_ctx.template Alloc<T>(out);
 
@@ -44,11 +44,11 @@ void ClipKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ClipGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out_grad,
+                    const DenseTensor& x,
+                    const DenseTensor& out_grad,
                     const phi::Scalar& min,
                     const phi::Scalar& max,
-                    phi::DenseTensor* x_grad) {
+                    DenseTensor* x_grad) {
   VLOG(4) << "Call SDAA ClipGradKernel";
   dev_ctx.template Alloc<T>(x_grad);
 

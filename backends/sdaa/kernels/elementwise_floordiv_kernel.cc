@@ -34,9 +34,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void doFloorDivTensor(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out) {
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      DenseTensor* out) {
   VLOG(4) << "call tecodnn floordivide";
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
@@ -76,9 +76,9 @@ void doFloorDivTensor(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorDivideKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       phi::DenseTensor* out) {
+                       const DenseTensor& x,
+                       const DenseTensor& y,
+                       DenseTensor* out) {
   VLOG(4) << "CALL SDAA FloorDivideKernel";
   dev_ctx.template Alloc<T>(out);
 

@@ -33,9 +33,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void BmmKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const phi::DenseTensor& y,
-               phi::DenseTensor* out) {
+               const DenseTensor& x,
+               const DenseTensor& y,
+               DenseTensor* out) {
   VLOG(4) << "CALL SDAA BmmKernel.";
 
   dev_ctx.template Alloc<T>(out);
@@ -49,11 +49,11 @@ void BmmKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void BmmGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx,
-                   phi::DenseTensor* dy) {
+                   const DenseTensor& x,
+                   const DenseTensor& y,
+                   const DenseTensor& dout,
+                   DenseTensor* dx,
+                   DenseTensor* dy) {
   VLOG(4) << "CALL SDAA BmmGradKernel.";
 
   if (dx) {

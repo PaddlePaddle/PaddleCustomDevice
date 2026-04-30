@@ -34,15 +34,12 @@ C_Status MetaxModuleLoad(void* dev_ptr, const char* path, void** mod_out) {
     return C_Status::C_FAILED;
   }
   *mod_out = reinterpret_cast<void*>(module);
-  std::cerr << "[MetaxModuleLoad] OK path=" << path << " module=" << module
-            << std::endl;
   return C_Status::C_SUCCESS;
 }
 
 // Unload module
 C_Status MetaxModuleUnload(void* dev_ptr, void* module_handle) {
   cuModuleUnload((CUmodule)module_handle);
-  std::cout << "YUHAN!!! [MetaxModuleUnload] module_handle=" << module_handle << std::endl;
   return C_Status::C_SUCCESS;
 }
 
@@ -59,8 +56,6 @@ C_Status MetaxGetKernelAddress(void* dev_ptr,
     return C_Status::C_FAILED;
   }
   *func_out = reinterpret_cast<void*>(func);
-  std::cout << "YUHAN!!! [MetaxGetKernelAddress] OK func_name=" << func_name
-            << " func_ptr=" << func << " module_handle=" << module_handle << std::endl;
   return C_Status::C_SUCCESS;
 }
 
@@ -109,7 +104,6 @@ C_Status MetaxLaunchCooperativeKernel(void* dev_ptr,
                                       int bz,
                                       int shm,
                                       void* stream) {
-  std::cout << "YUHAN!!! [MetaxLaunchCooperativeKernel] func_ptr=" << func_ptr;
   CUmodule module;
   CUresult errModule = cuFuncGetModule(&module ,static_cast<CUfunction>(func_ptr));
   if (errModule != CUDA_SUCCESS) {

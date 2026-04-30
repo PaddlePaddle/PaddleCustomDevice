@@ -29,6 +29,8 @@ namespace custom_engine {
 class GCUEngine {
  public:
   GCUEngine() = default;
+  GCUEngine(const GCUEngine &) = delete;
+  GCUEngine &operator=(const GCUEngine &) = delete;
   GCUEngine(const std::string &engine_key,
             topsExecutable_t tops_exec,
             const std::vector<const phi::DenseTensor *> &tensor_args,

@@ -19,15 +19,15 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ConcatKernel(const Context& dev_ctx,
-                  const std::vector<const phi::DenseTensor*>& ins,
+                  const std::vector<const DenseTensor*>& ins,
                   const phi::Scalar& axis_scalar,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("concat");
   dev_ctx.template Alloc<T>(out);
 
   if (LaunchAOTKernel()) {
     bool use_nhwc = false;
-    std::vector<phi::DenseTensor> input_tensors;
+    std::vector<DenseTensor> input_tensors;
     for (const auto& in : ins) {
       input_tensors.emplace_back(MaybeCreateOrTrans64To32bits(dev_ctx, *in));
       if (EnableTransposeOptimize() && (!use_nhwc) &&
@@ -35,8 +35,7 @@ void ConcatKernel(const Context& dev_ctx,
         use_nhwc = true;
       }
     }
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     if (use_nhwc) {
       PdCustomNHWCRepresentAsAtenNHWC(output, true);
     }
@@ -80,7 +79,7 @@ void ConcatKernel(const Context& dev_ctx,
     TensorValueMap inputs;
     std::vector<std::string> names;
     names.reserve(ins.size());
-    std::vector<phi::DenseTensor*> values;
+    std::vector<DenseTensor*> values;
     values.reserve(ins.size());
     for (size_t i = 0; i < ins.size(); ++i) {
       names.emplace_back(std::string("x_") + std::to_string(i));
@@ -105,10 +104,10 @@ void ConcatKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ConcatGradKernel(const Context& dev_ctx,
-                      const std::vector<const phi::DenseTensor*>& ins,
-                      const phi::DenseTensor& dout,
+                      const std::vector<const DenseTensor*>& ins,
+                      const DenseTensor& dout,
                       const phi::Scalar& axis_scalar,
-                      std::vector<phi::DenseTensor*> outs) {
+                      std::vector<DenseTensor*> outs) {
   PADDLE_GCU_KERNEL_TRACE("concat_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -118,7 +117,7 @@ void ConcatGradKernel(const Context& dev_ctx,
     {
       std::vector<std::string> names;
       names.reserve(ins.size());
-      std::vector<phi::DenseTensor*> values;
+      std::vector<DenseTensor*> values;
       values.reserve(ins.size());
       for (size_t i = 0; i < ins.size(); ++i) {
         names.emplace_back(std::string("x_") + std::to_string(i));
@@ -136,7 +135,7 @@ void ConcatGradKernel(const Context& dev_ctx,
     {
       std::vector<std::string> names;
       names.reserve(outs.size());
-      std::vector<phi::DenseTensor*> values;
+      std::vector<DenseTensor*> values;
       values.reserve(outs.size());
       for (size_t i = 0; i < outs.size(); ++i) {
         if ((outs[i] != nullptr) && (outs[i]->numel() != 0UL)) {

@@ -18,10 +18,10 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void RollKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::IntArray& shifts,
                 const std::vector<int64_t>& axis,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("roll");
 
   if (LaunchAOTKernel()) {

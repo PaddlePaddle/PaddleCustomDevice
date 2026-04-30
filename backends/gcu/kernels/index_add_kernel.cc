@@ -18,11 +18,11 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void IndexAddKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& index,
-                    const phi::DenseTensor& add_value,
+                    const DenseTensor& x,
+                    const DenseTensor& index,
+                    const DenseTensor& add_value,
                     int axis,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("index_add");
 
   if (LaunchAOTKernel()) {

@@ -52,10 +52,10 @@ std::vector<int64_t> CalSections(const std::vector<int64_t>& input_shape,
 
 template <typename T, typename Context>
 void SplitKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const phi::IntArray& num_or_sections,
                  const phi::Scalar& axis_scalar,
-                 std::vector<phi::DenseTensor*> outs) {
+                 std::vector<DenseTensor*> outs) {
   PADDLE_GCU_KERNEL_TRACE("split");
   auto origin_sections = num_or_sections.GetData();
   PADDLE_ENFORCE_GT(
@@ -77,8 +77,8 @@ void SplitKernel(const Context& dev_ctx,
                           outs.size(),
                           sections.size()));
 
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    std::vector<phi::DenseTensor> outputs;
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    std::vector<DenseTensor> outputs;
     for (size_t i = 0; i < outs.size(); ++i) {
       dev_ctx.template Alloc<T>(outs[i]);
       outputs.emplace_back(
@@ -104,7 +104,7 @@ void SplitKernel(const Context& dev_ctx,
     TensorValueMap outputs;
     std::vector<std::string> names;
     names.reserve(outs.size());
-    std::vector<phi::DenseTensor*> values;
+    std::vector<DenseTensor*> values;
     values.reserve(outs.size());
     for (size_t i = 0; i < outs.size(); ++i) {
       dev_ctx.template Alloc<T>(outs[i]);
@@ -128,10 +128,10 @@ void SplitKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SplitWithNumKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
+                        const DenseTensor& x,
                         int num,
                         const phi::Scalar& axis_scalar,
-                        std::vector<phi::DenseTensor*> outs) {
+                        std::vector<DenseTensor*> outs) {
   PADDLE_GCU_KERNEL_TRACE("split_with_num");
   int axis_value = axis_scalar.to<int>();
   auto input_axis_dim = x.dims().at(axis_value);

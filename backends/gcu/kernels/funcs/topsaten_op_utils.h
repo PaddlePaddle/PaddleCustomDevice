@@ -18,16 +18,16 @@
 
 namespace custom_kernel {
 
-topsatenTensor CreateTopsatenTensor(const phi::DenseTensor &tensor,
+topsatenTensor CreateTopsatenTensor(const DenseTensor &tensor,
                                     bool pinned = false);
 
 topsatenTensor OptionalTensorToTopsatenTensor(
-    const paddle::optional<phi::DenseTensor> &opt_tensor);
+    const paddle::optional<DenseTensor> &opt_tensor);
 
 topsatenTensor CreateTopsatenTensorWithoutInitialized(
-    const phi::DenseTensor &tensor);
+    const DenseTensor &tensor);
 
-topsatenDataType_t DataTypeToTopsatenDataType(const phi::DataType &dtype);
+topsatenDataType_t DataTypeToTopsatenDataType(const DataType &dtype);
 
 topsatenScalar_t ScalarToTopsatenScalar(const phi::Scalar &scalar_value);
 

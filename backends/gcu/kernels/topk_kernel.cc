@@ -19,13 +19,13 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TopkKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::Scalar& k_scalar,
                 int axis,
                 bool largest,
                 bool sorted,
-                phi::DenseTensor* out,
-                phi::DenseTensor* indices) {
+                DenseTensor* out,
+                DenseTensor* indices) {
   PADDLE_GCU_KERNEL_TRACE("topk");
   if (axis < 0) {
     axis += x.dims().size();
@@ -52,12 +52,12 @@ void TopkKernel(const Context& dev_ctx,
   }
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor output_value =
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor output_value =
         MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     auto meta = indices->meta();
-    meta.dtype = phi::DataType::INT32;
-    phi::DenseTensor output_indices = TensorEmpty(dev_ctx, meta);
+    meta.dtype = DataType::INT32;
+    DenseTensor output_indices = TensorEmpty(dev_ctx, meta);
 
     LAUNCH_TOPSATENOP(topsatenTopk,
                       dev_ctx,
@@ -70,7 +70,7 @@ void TopkKernel(const Context& dev_ctx,
                       largest);
 
     MaybeTransResult(dev_ctx, output_value, out);
-    custom_kernel::Cast(dev_ctx, output_indices, phi::DataType::INT64, indices);
+    custom_kernel::Cast(dev_ctx, output_indices, DataType::INT64, indices);
 
   } else {  // kernel impl base on JIT
     TensorNameMap input_names;

@@ -18,10 +18,10 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void FlattenKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    int start_axis UNUSED,
                    int stop_axis UNUSED,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("flatten");
   if (LaunchAOTKernel()) {
     VLOG(6) << "[HOST_KERNEL] Impl on host for flatten";
@@ -60,11 +60,11 @@ void FlattenKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FlattenWithXShapeKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
+                             const DenseTensor& x,
                              int start_axis,
                              int stop_axis,
-                             phi::DenseTensor* out,
-                             phi::DenseTensor* xshape) {
+                             DenseTensor* out,
+                             DenseTensor* xshape) {
   PADDLE_GCU_KERNEL_TRACE("flatten_with_xshape");
   if (LaunchAOTKernel()) {
     custom_kernel::FlattenKernel<T, Context>(
@@ -105,8 +105,8 @@ void FlattenWithXShapeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FlattenGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& xshape,
-                       const phi::DenseTensor& out_grad,
+                       const DenseTensor& xshape,
+                       const DenseTensor& out_grad,
                        DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("flatten_grad");
   dev_ctx.template Alloc<T>(x_grad);
@@ -114,7 +114,7 @@ void FlattenGradKernel(const Context& dev_ctx,
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
   } else {  // kernel impl base on JIT
-    phi::DenseTensor* tmp_tensor = nullptr;
+    DenseTensor* tmp_tensor = nullptr;
 
     TensorNameMap input_names;
     input_names["XShape"] = {"xshape"};

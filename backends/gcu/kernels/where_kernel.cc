@@ -19,18 +19,17 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void WhereKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& condition,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& condition,
+                 const DenseTensor& x,
+                 const DenseTensor& y,
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("where");
   dev_ctx.template Alloc<T>(out);
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     LAUNCH_TOPSATENOP(
         topsatenWhere, dev_ctx, output_z, condition, input_x, input_y);
     MaybeTransResult(dev_ctx, output_z, out);
@@ -58,12 +57,12 @@ void WhereKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void WhereGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& condition,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     const phi::DenseTensor& out_grad,
-                     phi::DenseTensor* x_grad,
-                     phi::DenseTensor* y_grad) {
+                     const DenseTensor& condition,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     const DenseTensor& out_grad,
+                     DenseTensor* x_grad,
+                     DenseTensor* y_grad) {
   PADDLE_GCU_KERNEL_TRACE("where_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();

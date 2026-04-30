@@ -18,8 +18,8 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void NumelKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& input,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& input,
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("numel");
   dev_ctx.template Alloc<int64_t>(out);
 

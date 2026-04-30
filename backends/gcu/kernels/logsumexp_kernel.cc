@@ -18,11 +18,11 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void LogsumexpKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const std::vector<int>& axis,
                      bool keepdim,
                      bool reduce_all,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("logsumexp");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);

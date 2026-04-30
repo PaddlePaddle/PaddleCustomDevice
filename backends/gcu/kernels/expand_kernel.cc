@@ -19,14 +19,14 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ExpandKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::IntArray& shape,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("expand");
 
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor as_strides_out;
+    DenseTensor as_strides_out;
     auto x_tensor = CreateTopsatenTensor(x);
     auto out_tensor = CreateTopsatenTensor(*out);
     auto view_out_tensor = CreateTopsatenTensor(as_strides_out);

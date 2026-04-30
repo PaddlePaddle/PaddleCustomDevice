@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void PriorBoxKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& input,
-                    const phi::DenseTensor& image,
+                    const DenseTensor& input,
+                    const DenseTensor& image,
                     const std::vector<float>& min_sizes,
                     const std::vector<float>& max_sizes,
                     const std::vector<float>& aspect_ratios,
@@ -31,8 +31,8 @@ void PriorBoxKernel(const Context& dev_ctx,
                     float step_h,
                     float offset,
                     bool min_max_aspect_ratios_order,
-                    phi::DenseTensor* out,
-                    phi::DenseTensor* var) {
+                    DenseTensor* out,
+                    DenseTensor* var) {
   PADDLE_GCU_KERNEL_TRACE("prior_box");
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<T>(var);

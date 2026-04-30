@@ -18,19 +18,19 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void RmsNormKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const paddle::optional<phi::DenseTensor>& bias,
-                   const paddle::optional<phi::DenseTensor>& residual,
-                   const phi::DenseTensor& norm_weight,
-                   const paddle::optional<phi::DenseTensor>& norm_bias,
+                   const DenseTensor& x,
+                   const paddle::optional<DenseTensor>& bias,
+                   const paddle::optional<DenseTensor>& residual,
+                   const DenseTensor& norm_weight,
+                   const paddle::optional<DenseTensor>& norm_bias,
                    const float epsilon,
                    const int begin_norm_axis,
                    const float quant_scale,
                    const int quant_round_type,
                    const float quant_max_bound,
                    const float quant_min_bound,
-                   phi::DenseTensor* out,
-                   phi::DenseTensor* residual_out) {
+                   DenseTensor* out,
+                   DenseTensor* residual_out) {
   VLOG(0) << "====== GCU kernel stub: rms_norm =====";
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<T>(residual_out);
@@ -39,47 +39,46 @@ void RmsNormKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void MultiHeadAttentionVariableForwardKernel(
     const Context& dev_ctx,
-    const phi::DenseTensor& query,
-    const phi::DenseTensor& key,
-    const phi::DenseTensor& value,
-    const phi::DenseTensor& seq_lens,
-    const phi::DenseTensor& kv_seq_lens,
-    const paddle::optional<phi::DenseTensor>& mask,
+    const DenseTensor& query,
+    const DenseTensor& key,
+    const DenseTensor& value,
+    const DenseTensor& seq_lens,
+    const DenseTensor& kv_seq_lens,
+    const paddle::optional<DenseTensor>& mask,
     const float scale,
     const bool causal,
     const int pre_cache_length,
-    phi::DenseTensor* out) {
+    DenseTensor* out) {
   VLOG(0) << "====== GCU kernel stub: "
              "variable_length_memory_efficient_attention =====";
   dev_ctx.template Alloc<T>(out);
 }
 
 template <typename T, typename Context>
-void FusedBiasActKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& bias,
-    const paddle::optional<phi::DenseTensor>& dequant_scales,
-    const paddle::optional<phi::DenseTensor>& shift,
-    const paddle::optional<phi::DenseTensor>& smooth,
-    const std::string& act_method,
-    const std::string& compute_dtype,
-    float quant_scale,
-    int quant_round_type,
-    float quant_max_bound,
-    float quant_min_bound,
-    phi::DenseTensor* out) {
+void FusedBiasActKernel(const Context& dev_ctx,
+                        const DenseTensor& x,
+                        const paddle::optional<DenseTensor>& bias,
+                        const paddle::optional<DenseTensor>& dequant_scales,
+                        const paddle::optional<DenseTensor>& shift,
+                        const paddle::optional<DenseTensor>& smooth,
+                        const std::string& act_method,
+                        const std::string& compute_dtype,
+                        float quant_scale,
+                        int quant_round_type,
+                        float quant_max_bound,
+                        float quant_min_bound,
+                        DenseTensor* out) {
   VLOG(0) << "====== GCU kernel stub: fused_bias_act =====";
   dev_ctx.template Alloc<T>(out);
 }
 
 template <typename T, typename Context>
 void FusedLayerNormKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const paddle::optional<phi::DenseTensor>& bias,
-                          const paddle::optional<phi::DenseTensor>& residual,
-                          const paddle::optional<phi::DenseTensor>& norm_weight,
-                          const paddle::optional<phi::DenseTensor>& norm_bias,
+                          const DenseTensor& x,
+                          const paddle::optional<DenseTensor>& bias,
+                          const paddle::optional<DenseTensor>& residual,
+                          const paddle::optional<DenseTensor>& norm_weight,
+                          const paddle::optional<DenseTensor>& norm_bias,
                           const float epsilon,
                           const float residual_alpha,
                           const int begin_norm_axis,
@@ -87,10 +86,10 @@ void FusedLayerNormKernel(const Context& dev_ctx,
                           const int quant_round_type,
                           const float quant_max_bound,
                           const float quant_min_bound,
-                          phi::DenseTensor* out,
-                          phi::DenseTensor* residual_out,
-                          phi::DenseTensor* mean,
-                          phi::DenseTensor* variance) {
+                          DenseTensor* out,
+                          DenseTensor* residual_out,
+                          DenseTensor* mean,
+                          DenseTensor* variance) {
   VLOG(0) << "====== GCU kernel stub: fused_bias_residual_layernorm =====";
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<T>(residual_out);
@@ -100,17 +99,17 @@ void FusedLayerNormKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MMHAKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::DenseTensor& cache_kv,
-                const paddle::optional<phi::DenseTensor>& bias,
-                const paddle::optional<phi::DenseTensor>& src_mask,
-                const paddle::optional<phi::DenseTensor>& cum_offsets,
-                const paddle::optional<phi::DenseTensor>& sequence_lengths,
-                const paddle::optional<phi::DenseTensor>& rotary_tensor,
-                const paddle::optional<phi::DenseTensor>& beam_cache_offset,
-                const paddle::optional<phi::DenseTensor>& qkv_out_scale,
-                const paddle::optional<phi::DenseTensor>& out_shift,
-                const paddle::optional<phi::DenseTensor>& out_smooth,
+                const DenseTensor& x,
+                const DenseTensor& cache_kv,
+                const paddle::optional<DenseTensor>& bias,
+                const paddle::optional<DenseTensor>& src_mask,
+                const paddle::optional<DenseTensor>& cum_offsets,
+                const paddle::optional<DenseTensor>& sequence_lengths,
+                const paddle::optional<DenseTensor>& rotary_tensor,
+                const paddle::optional<DenseTensor>& beam_cache_offset,
+                const paddle::optional<DenseTensor>& qkv_out_scale,
+                const paddle::optional<DenseTensor>& out_shift,
+                const paddle::optional<DenseTensor>& out_smooth,
                 int seq_len,
                 int rotary_emb_dims,
                 const bool use_neox_rotary_style,
@@ -119,9 +118,9 @@ void MMHAKernel(const Context& dev_ctx,
                 const int quant_round_type,
                 const float quant_max_bound,
                 const float quant_min_bound,
-                phi::DenseTensor* out,
-                phi::DenseTensor* cache_kv_out,
-                phi::DenseTensor* beam_cache_offset_out) {
+                DenseTensor* out,
+                DenseTensor* cache_kv_out,
+                DenseTensor* beam_cache_offset_out) {
   VLOG(0) << "====== GCU kernel stub: masked_multihead_attention =====";
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<T>(cache_kv_out);

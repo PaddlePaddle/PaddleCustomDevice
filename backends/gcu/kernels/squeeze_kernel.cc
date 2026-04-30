@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void SqueezeKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    const phi::IntArray& axes_int_array,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("squeeze");
   VLOG(6) << "[HOST_KERNEL] Impl on host for squeeze";
   auto out_dims = out->dims();
@@ -40,10 +40,10 @@ void SqueezeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SqueezeWithXShapeKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
+                             const DenseTensor& x,
                              const phi::IntArray& axes_int_array,
-                             phi::DenseTensor* out,
-                             phi::DenseTensor* xshape) {
+                             DenseTensor* out,
+                             DenseTensor* xshape) {
   PADDLE_GCU_KERNEL_TRACE("squeeze_with_xshape");
   VLOG(6) << "[HOST_KERNEL] Impl on host for squeeze_with_xshape";
   custom_kernel::SqueezeKernel<T, Context>(dev_ctx, x, axes_int_array, out);
@@ -51,10 +51,10 @@ void SqueezeWithXShapeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SqueezeGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& dout,
+                       const DenseTensor& x,
+                       const DenseTensor& dout,
                        const phi::IntArray& axes_int_array,
-                       phi::DenseTensor* dx) {
+                       DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("squeeze_grad");
   VLOG(6) << "[HOST_KERNEL] Impl on host for squeeze_grad";
   auto x_dims = dx->dims();

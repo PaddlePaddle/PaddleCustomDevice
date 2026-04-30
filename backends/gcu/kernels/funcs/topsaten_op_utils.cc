@@ -19,8 +19,7 @@
 
 namespace custom_kernel {
 
-topsatenTensor CreateTopsatenTensor(const phi::DenseTensor &tensor,
-                                    bool pinned) {
+topsatenTensor CreateTopsatenTensor(const DenseTensor &tensor, bool pinned) {
   if (UNLIKELY(!tensor.initialized())) {
     VLOG(6) << "Create default topsatenTensor.";
     return topsatenTensor();
@@ -55,7 +54,7 @@ topsatenTensor CreateTopsatenTensor(const phi::DenseTensor &tensor,
 }
 
 topsatenTensor OptionalTensorToTopsatenTensor(
-    const paddle::optional<phi::DenseTensor> &opt_tensor) {
+    const paddle::optional<DenseTensor> &opt_tensor) {
   if (opt_tensor) {
     return CreateTopsatenTensor(opt_tensor.get());
   } else {
@@ -64,7 +63,7 @@ topsatenTensor OptionalTensorToTopsatenTensor(
 }
 
 topsatenTensor CreateTopsatenTensorWithoutInitialized(
-    const phi::DenseTensor &tensor) {
+    const DenseTensor &tensor) {
   PADDLE_ENFORCE_EQ(
       tensor.initialized(),
       false,
@@ -93,31 +92,31 @@ topsatenTensor CreateTopsatenTensorWithoutInitialized(
   return xt;
 }
 
-topsatenDataType_t DataTypeToTopsatenDataType(const phi::DataType &dtype) {
+topsatenDataType_t DataTypeToTopsatenDataType(const DataType &dtype) {
   switch (dtype) {
-    case phi::DataType::BOOL:
+    case DataType::BOOL:
       return TOPSATEN_DATA_PRED;
-    case phi::DataType::UINT8:
+    case DataType::UINT8:
       return TOPSATEN_DATA_U8;
-    case phi::DataType::INT8:
+    case DataType::INT8:
       return TOPSATEN_DATA_I8;
-    case phi::DataType::INT16:
+    case DataType::INT16:
       return TOPSATEN_DATA_I16;
-    case phi::DataType::INT32:
+    case DataType::INT32:
       return TOPSATEN_DATA_I32;
-    case phi::DataType::INT64:
+    case DataType::INT64:
       return TOPSATEN_DATA_I64;
-    case phi::DataType::FLOAT16:
+    case DataType::FLOAT16:
       return TOPSATEN_DATA_FP16;
-    case phi::DataType::BFLOAT16:
+    case DataType::BFLOAT16:
       return TOPSATEN_DATA_BF16;
-    case phi::DataType::FLOAT32:
+    case DataType::FLOAT32:
       return TOPSATEN_DATA_FP32;
-    case phi::DataType::FLOAT64:
+    case DataType::FLOAT64:
       return TOPSATEN_DATA_F64;
     default: {
-      PADDLE_THROW(phi::errors::Unimplemented(
-          "Unsupported data type %s", phi::DataTypeToString(dtype).c_str()));
+      PADDLE_THROW(phi::errors::Unimplemented("Unsupported data type %s",
+                                              DataTypeToString(dtype).c_str()));
       return TOPSATEN_DATA_FP32;
     }
   }
@@ -127,50 +126,50 @@ topsatenScalar_t ScalarToTopsatenScalar(const phi::Scalar &scalar_value) {
   topsatenScalar_t xvalue;
   auto scalar_type = scalar_value.dtype();
   switch (scalar_type) {
-    case phi::DataType::BOOL:
+    case DataType::BOOL:
       xvalue.dtype = TOPSATEN_DATA_PRED;
       xvalue.ival = scalar_value.to<bool>();
       break;
-    case phi::DataType::UINT8:
+    case DataType::UINT8:
       xvalue.dtype = TOPSATEN_DATA_U8;
       xvalue.ival = scalar_value.to<uint8_t>();
       break;
-    case phi::DataType::INT8:
+    case DataType::INT8:
       xvalue.dtype = TOPSATEN_DATA_I8;
       xvalue.ival = scalar_value.to<int8_t>();
       break;
-    case phi::DataType::INT16:
+    case DataType::INT16:
       xvalue.dtype = TOPSATEN_DATA_I16;
       xvalue.ival = scalar_value.to<int16_t>();
       break;
-    case phi::DataType::INT32:
+    case DataType::INT32:
       xvalue.dtype = TOPSATEN_DATA_I32;
       xvalue.ival = scalar_value.to<int>();
       break;
-    case phi::DataType::INT64:
+    case DataType::INT64:
       xvalue.dtype = TOPSATEN_DATA_I64;
       xvalue.ival = scalar_value.to<int64_t>();
       break;
-    case phi::DataType::FLOAT16:
+    case DataType::FLOAT16:
       xvalue.dtype = TOPSATEN_DATA_FP16;
       xvalue.fval = scalar_value.to<phi::float16>();
       break;
-    case phi::DataType::BFLOAT16:
+    case DataType::BFLOAT16:
       xvalue.dtype = TOPSATEN_DATA_BF16;
       xvalue.fval = scalar_value.to<phi::bfloat16>();
       break;
-    case phi::DataType::FLOAT32:
+    case DataType::FLOAT32:
       xvalue.dtype = TOPSATEN_DATA_FP32;
       xvalue.fval = scalar_value.to<float>();
       break;
-    case phi::DataType::FLOAT64:
+    case DataType::FLOAT64:
       xvalue.dtype = TOPSATEN_DATA_F64;
       xvalue.fval = scalar_value.to<double>();
       break;
     default: {
       PADDLE_THROW(phi::errors::Unimplemented(
           "ScalarToTopsatenScalar, unsupported data type %s",
-          phi::DataTypeToString(scalar_type).c_str()));
+          DataTypeToString(scalar_type).c_str()));
       break;
     }
   }

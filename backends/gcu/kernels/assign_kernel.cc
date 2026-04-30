@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AssignKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("assign");
   VLOG(6) << "[HOST_KERNEL] Impl on host for assign";
   dev_ctx.template Alloc<T>(out);
@@ -29,8 +29,8 @@ void AssignKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AssignRawKernel(const Context& dev_ctx,
-                     const paddle::optional<phi::DenseTensor>& x,
-                     phi::DenseTensor* out) {
+                     const paddle::optional<DenseTensor>& x,
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("assign_raw");
   VLOG(6) << "[HOST_KERNEL] Impl on host for assign_raw";
   if (x) {
@@ -44,8 +44,8 @@ void AssignRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AssignArrayKernel(const Context& dev_ctx,
-                       const std::vector<const phi::DenseTensor*>& x,
-                       std::vector<phi::DenseTensor*> out) {
+                       const std::vector<const DenseTensor*>& x,
+                       std::vector<DenseTensor*> out) {
   PADDLE_GCU_KERNEL_TRACE("assign_array");
   VLOG(6) << "[HOST_KERNEL] Impl on host for assign_array";
   for (size_t i = 0; i < x.size(); ++i) {
@@ -57,7 +57,7 @@ template <typename T, typename Context>
 typename std::enable_if<std::is_same<T, bool>::value>::type CopyVectorToTensor(
     const Context& dev_ctx,
     const std::vector<phi::Scalar>& values,
-    phi::DenseTensor* out) {
+    DenseTensor* out) {
   // If attribute value dtype is vector<bool>, it will be converted to
   // vector<int>. at the same time, we can not use vector<bool> to hold
   // the value, because the c++ use bit value to replace byte value.
@@ -82,7 +82,7 @@ template <typename T, typename Context>
 typename std::enable_if<!std::is_same<T, bool>::value>::type CopyVectorToTensor(
     const Context& dev_ctx,
     const std::vector<phi::Scalar>& values,
-    phi::DenseTensor* out) {
+    DenseTensor* out) {
   std::vector<T, PinnedAllocatorForSTL<T>> assign_values;
   assign_values.reserve(values.size());
   for (const auto& val : values) {
@@ -95,9 +95,9 @@ typename std::enable_if<!std::is_same<T, bool>::value>::type CopyVectorToTensor(
 template <typename T, typename Context>
 void AssignValueKernel(const Context& dev_ctx,
                        const std::vector<int>& shape,
-                       phi::DataType dtype,
+                       DataType dtype,
                        const std::vector<phi::Scalar>& values,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("assign_value");
   VLOG(6) << "[HOST_KERNEL] Impl on host for assign_value";
   auto template_dtype = phi::CppTypeToDataType<T>::Type();

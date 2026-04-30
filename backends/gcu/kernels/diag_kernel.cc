@@ -35,11 +35,11 @@ void DiagKernel(const Context& dev_ctx,
       } else {
         LAUNCH_TOPSATENOP(topsatenDiag, dev_ctx, *out, x, offset);
 
-        phi::DenseTensor mask_tmp = custom_kernel::TensorEmpty(
-            dev_ctx, {phi::DataType::BOOL, out->dims()});
+        DenseTensor mask_tmp =
+            custom_kernel::TensorEmpty(dev_ctx, {DataType::BOOL, out->dims()});
 
-        phi::DenseTensor cpu_tensor;
-        phi::DenseTensorMeta cpu_meta = {phi::DataType::BOOL, out->dims()};
+        DenseTensor cpu_tensor;
+        DenseTensorMeta cpu_meta = {DataType::BOOL, out->dims()};
         cpu_tensor.set_meta(cpu_meta);
         bool* host_mask = dev_ctx.template HostAlloc<bool>(&cpu_tensor);
         for (size_t i = 0; i < mask_tmp.numel(); i++) {

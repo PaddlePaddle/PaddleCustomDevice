@@ -19,23 +19,23 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void BatchNormKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& running_mean,
-                     const phi::DenseTensor& running_var,
-                     const paddle::optional<phi::DenseTensor>& scale,
-                     const paddle::optional<phi::DenseTensor>& bias,
+                     const DenseTensor& x,
+                     const DenseTensor& running_mean,
+                     const DenseTensor& running_var,
+                     const paddle::optional<DenseTensor>& scale,
+                     const paddle::optional<DenseTensor>& bias,
                      bool is_test,
                      float momentum,
                      float epsilon,
                      const std::string& data_layout_str,
                      bool use_global_stats,
                      bool trainable_stats,
-                     phi::DenseTensor* y,
-                     phi::DenseTensor* mean_out,
-                     phi::DenseTensor* variance_out,
-                     phi::DenseTensor* saved_mean,
-                     phi::DenseTensor* saved_variance,
-                     phi::DenseTensor* reserve_space) {
+                     DenseTensor* y,
+                     DenseTensor* mean_out,
+                     DenseTensor* variance_out,
+                     DenseTensor* saved_mean,
+                     DenseTensor* saved_variance,
+                     DenseTensor* reserve_space) {
   PADDLE_GCU_KERNEL_TRACE("batch_norm");
   PADDLE_ENFORCE_EQ(data_layout_str == "NCHW" || data_layout_str == "NHWC",
                     true,
@@ -62,8 +62,8 @@ void BatchNormKernel(const Context& dev_ctx,
   auto* scale_ptr = scale.get_ptr();
   auto* bias_ptr = bias.get_ptr();
 
-  phi::DenseTensor new_scale;
-  phi::DenseTensor new_bias;
+  DenseTensor new_scale;
+  DenseTensor new_bias;
   if (scale_ptr) {
     new_scale = scale.get();
   } else {
@@ -91,18 +91,16 @@ void BatchNormKernel(const Context& dev_ctx,
   dev_ctx.Alloc(saved_variance, saved_variance->dtype());
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor scale_x = MaybeCreateOrTrans64To32bits(dev_ctx, new_scale);
-    phi::DenseTensor bias_x = MaybeCreateOrTrans64To32bits(dev_ctx, new_bias);
-    phi::DenseTensor mean_x =
-        MaybeCreateOrTrans64To32bits(dev_ctx, running_mean);
-    phi::DenseTensor variance_x =
-        MaybeCreateOrTrans64To32bits(dev_ctx, running_var);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor scale_x = MaybeCreateOrTrans64To32bits(dev_ctx, new_scale);
+    DenseTensor bias_x = MaybeCreateOrTrans64To32bits(dev_ctx, new_bias);
+    DenseTensor mean_x = MaybeCreateOrTrans64To32bits(dev_ctx, running_mean);
+    DenseTensor variance_x = MaybeCreateOrTrans64To32bits(dev_ctx, running_var);
 
-    phi::DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *y, false);
-    phi::DenseTensor saved_mean_output =
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *y, false);
+    DenseTensor saved_mean_output =
         MaybeCreateOrTrans64To32bits(dev_ctx, *saved_mean, false);
-    phi::DenseTensor saved_variance_output =
+    DenseTensor saved_variance_output =
         MaybeCreateOrTrans64To32bits(dev_ctx, *saved_variance, false);
 
     double momentum_d = 1.0 - momentum;
@@ -130,11 +128,11 @@ void BatchNormKernel(const Context& dev_ctx,
     *variance_out = running_var;
 
   } else {  // kernel impl base on JIT
-    phi::DenseTensor mean_out_tmp;
+    DenseTensor mean_out_tmp;
     mean_out_tmp.set_meta(mean_out->meta());
     dev_ctx.template Alloc<T>(&mean_out_tmp);
 
-    phi::DenseTensor variance_out_tmp;
+    DenseTensor variance_out_tmp;
     variance_out_tmp.set_meta(variance_out->meta());
     dev_ctx.template Alloc<T>(&variance_out_tmp);
 
@@ -198,26 +196,25 @@ void BatchNormKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void BatchNormGradKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& scale,
-    const paddle::optional<phi::DenseTensor>& bias,
-    const paddle::optional<phi::DenseTensor>& mean,
-    const paddle::optional<phi::DenseTensor>& variance,
-    const phi::DenseTensor& saved_mean,
-    const phi::DenseTensor& saved_variance,
-    const paddle::optional<phi::DenseTensor>& reserve_space,
-    const phi::DenseTensor& y_grad,
-    float momentum,
-    float epsilon,
-    const std::string& data_layout_str,
-    bool is_test,
-    bool use_global_stats,
-    bool trainable_statistics,
-    phi::DenseTensor* x_grad,
-    phi::DenseTensor* scale_grad,
-    phi::DenseTensor* bias_grad) {
+void BatchNormGradKernel(const Context& dev_ctx,
+                         const DenseTensor& x,
+                         const paddle::optional<DenseTensor>& scale,
+                         const paddle::optional<DenseTensor>& bias,
+                         const paddle::optional<DenseTensor>& mean,
+                         const paddle::optional<DenseTensor>& variance,
+                         const DenseTensor& saved_mean,
+                         const DenseTensor& saved_variance,
+                         const paddle::optional<DenseTensor>& reserve_space,
+                         const DenseTensor& y_grad,
+                         float momentum,
+                         float epsilon,
+                         const std::string& data_layout_str,
+                         bool is_test,
+                         bool use_global_stats,
+                         bool trainable_statistics,
+                         DenseTensor* x_grad,
+                         DenseTensor* scale_grad,
+                         DenseTensor* bias_grad) {
   PADDLE_GCU_KERNEL_TRACE("batch_norm_grad");
   const auto& x_dims = x.dims();
   int C = 1;
@@ -230,8 +227,8 @@ void BatchNormGradKernel(
   auto* scale_ptr = scale.get_ptr();
   auto* bias_ptr = bias.get_ptr();
 
-  phi::DenseTensor new_scale;
-  phi::DenseTensor new_bias;
+  DenseTensor new_scale;
+  DenseTensor new_bias;
   if (scale_ptr) {
     new_scale = scale.get();
   } else {
@@ -303,17 +300,17 @@ void BatchNormGradKernel(
 
 template <typename T, typename Context>
 void BatchNormInferKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& mean,
-                          const phi::DenseTensor& variance,
-                          const phi::DenseTensor& scale,
-                          const phi::DenseTensor& bias,
+                          const DenseTensor& x,
+                          const DenseTensor& mean,
+                          const DenseTensor& variance,
+                          const DenseTensor& scale,
+                          const DenseTensor& bias,
                           float momentum,
                           float epsilon,
                           const std::string& data_layout_str,
-                          phi::DenseTensor* y,
-                          phi::DenseTensor* mean_out,
-                          phi::DenseTensor* variance_out) {
+                          DenseTensor* y,
+                          DenseTensor* mean_out,
+                          DenseTensor* variance_out) {
   PADDLE_GCU_KERNEL_TRACE("batch_norm_infer");
   const auto& x_dims = x.dims();
   PADDLE_ENFORCE_EQ(
@@ -335,17 +332,16 @@ void BatchNormInferKernel(const Context& dev_ctx,
   dev_ctx.Alloc(variance_out, variance_out->dtype());
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor scale_x = MaybeCreateOrTrans64To32bits(dev_ctx, scale);
-    phi::DenseTensor bias_x = MaybeCreateOrTrans64To32bits(dev_ctx, bias);
-    phi::DenseTensor mean_x = MaybeCreateOrTrans64To32bits(dev_ctx, mean);
-    phi::DenseTensor variance_x =
-        MaybeCreateOrTrans64To32bits(dev_ctx, variance);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor scale_x = MaybeCreateOrTrans64To32bits(dev_ctx, scale);
+    DenseTensor bias_x = MaybeCreateOrTrans64To32bits(dev_ctx, bias);
+    DenseTensor mean_x = MaybeCreateOrTrans64To32bits(dev_ctx, mean);
+    DenseTensor variance_x = MaybeCreateOrTrans64To32bits(dev_ctx, variance);
 
-    phi::DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *y, false);
-    phi::DenseTensor mean_output =
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *y, false);
+    DenseTensor mean_output =
         MaybeCreateOrTrans64To32bits(dev_ctx, *mean_out, false);
-    phi::DenseTensor variance_output =
+    DenseTensor variance_output =
         MaybeCreateOrTrans64To32bits(dev_ctx, *variance_out, false);
 
     double momentum_d = 1.0 - momentum;

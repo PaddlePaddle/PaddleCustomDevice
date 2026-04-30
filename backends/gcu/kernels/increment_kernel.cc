@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void IncrementKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      float step,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("increment");
   dev_ctx.template Alloc<T>(out);
 

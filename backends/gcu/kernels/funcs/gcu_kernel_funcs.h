@@ -29,7 +29,6 @@
                                           __FUNCTION__))
 
 namespace custom_kernel {
-using DenseTensor = phi::DenseTensor;
 using TensorNameMap = std::map<std::string, std::vector<std::string>>;
 using TensorValueMap = std::map<std::string, std::vector<DenseTensor*>>;
 

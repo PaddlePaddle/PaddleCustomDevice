@@ -19,15 +19,15 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
-                                   const phi::DenseTensor& logits,
-                                   const phi::DenseTensor& labels,
+                                   const DenseTensor& logits,
+                                   const DenseTensor& labels,
                                    bool soft_label,
                                    bool use_softmax,
                                    bool numeric_stable_mode,
                                    int ignore_index,
                                    int axis,
-                                   phi::DenseTensor* softmax,
-                                   phi::DenseTensor* loss) {
+                                   DenseTensor* softmax,
+                                   DenseTensor* loss) {
   PADDLE_GCU_KERNEL_TRACE("cross_entropy_with_softmax");
   dev_ctx.template Alloc<T>(loss);
   dev_ctx.template Alloc<T>(softmax);
@@ -70,15 +70,15 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
-                                       const phi::DenseTensor& labels,
-                                       const phi::DenseTensor& softmax,
-                                       const phi::DenseTensor& loss_grad,
+                                       const DenseTensor& labels,
+                                       const DenseTensor& softmax,
+                                       const DenseTensor& loss_grad,
                                        bool soft_label,
                                        bool use_softmax,
                                        bool numeric_stable_mode,
                                        int ignore_index,
                                        int axis,
-                                       phi::DenseTensor* logits_grad) {
+                                       DenseTensor* logits_grad) {
   PADDLE_GCU_KERNEL_TRACE("cross_entropy_with_softmax_grad");
   dev_ctx.template Alloc<T>(logits_grad);
 

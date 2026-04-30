@@ -18,34 +18,33 @@
 namespace custom_kernel {
 namespace {
 // topsaten binary not support int tensor and float scale/bais now
-const std::unordered_map<phi::DataType, phi::DataType> kBinaryDtypeTrans = {
-    {phi::DataType::INT64, phi::DataType::FLOAT32},
-    {phi::DataType::INT32, phi::DataType::FLOAT32},
-    {phi::DataType::FLOAT64, phi::DataType::FLOAT32},
+const std::unordered_map<DataType, DataType> kBinaryDtypeTrans = {
+    {DataType::INT64, DataType::FLOAT32},
+    {DataType::INT32, DataType::FLOAT32},
+    {DataType::FLOAT64, DataType::FLOAT32},
 };
 }  // namespace
 
 template <typename T, typename Context>
 void ScaleKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
+                 const DenseTensor& x,
                  const phi::Scalar& in_scale,
                  const phi::Scalar& in_bias,
                  bool bias_after_scale,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("scale");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {
     auto input_scale = in_scale;
-    if (in_scale.dtype() == phi::DataType::FLOAT64) {
+    if (in_scale.dtype() == DataType::FLOAT64) {
       input_scale = phi::Scalar(static_cast<float>(in_scale.to<double>()));
     }
     auto input_bias = in_bias;
-    if (in_scale.dtype() == phi::DataType::FLOAT64) {
+    if (in_scale.dtype() == DataType::FLOAT64) {
       input_bias = phi::Scalar(static_cast<float>(in_bias.to<double>()));
     }
-    phi::DenseTensor input_x =
-        MaybeCreateOrTrans(dev_ctx, x, kBinaryDtypeTrans);
-    phi::DenseTensor output =
+    DenseTensor input_x = MaybeCreateOrTrans(dev_ctx, x, kBinaryDtypeTrans);
+    DenseTensor output =
         MaybeCreateOrTrans(dev_ctx, *out, kBinaryDtypeTrans, false);
     if (bias_after_scale) {
       // Out = scale ∗ X + bias
@@ -54,7 +53,7 @@ void ScaleKernel(const Context& dev_ctx,
     } else {
       // Out = scale ∗ (X + bias)
       auto tmp_scalar = phi::Scalar(1.0f);
-      phi::DenseTensor tmp_out = TensorEmpty(dev_ctx, output.meta());
+      DenseTensor tmp_out = TensorEmpty(dev_ctx, output.meta());
       LAUNCH_TOPSATENOP(
           topsatenAdd, dev_ctx, tmp_out, input_x, input_bias, tmp_scalar);
       LAUNCH_TOPSATENOP(topsatenMul, dev_ctx, output, input_scale, tmp_out);
@@ -63,12 +62,12 @@ void ScaleKernel(const Context& dev_ctx,
 
   } else {  // kernel impl base on JIT
     dev_ctx.template Alloc<T>(out);
-    phi::DenseTensor scale_tensor;
+    DenseTensor scale_tensor;
     scale_tensor.Resize({1});
     FillGcuTensorWithConstant<float>(
         &scale_tensor, dev_ctx, in_scale.to<float>());
 
-    phi::DenseTensor bias_tensor;
+    DenseTensor bias_tensor;
     bias_tensor.Resize({1});
     FillGcuTensorWithConstant<float>(
         &bias_tensor, dev_ctx, in_bias.to<float>());

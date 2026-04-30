@@ -19,19 +19,18 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GatherKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& index,
+                  const DenseTensor& x,
+                  const DenseTensor& index,
                   const phi::Scalar& axis,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("gather");
   dev_ctx.template Alloc<T>(out);
 
   if (LaunchAOTKernel()) {
     VLOG(6) << "GatherKernel, x dims:" << x.dims()
             << ", out dims:" << out->dims();
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     auto gather_axis = axis.to<int64_t>();
     if (gather_axis < 0) {
       gather_axis += x.dims().size();
@@ -40,22 +39,22 @@ void GatherKernel(const Context& dev_ctx,
         topsatenIndexSelect, dev_ctx, output, input_x, gather_axis, index);
     MaybeTransResult(dev_ctx, output, out);
 
-    // phi::DenseTensor input_x(x);
-    // phi::DenseTensor input_index(index);
-    // phi::DenseTensor output(*out);
+    // DenseTensor input_x(x);
+    // DenseTensor input_index(index);
+    // DenseTensor output(*out);
 
-    // if (x.dtype() == phi::DataType::INT64) {
-    //   input_x = custom_kernel::Cast(dev_ctx, x, phi::DataType::INT32);
+    // if (x.dtype() == DataType::INT64) {
+    //   input_x = custom_kernel::Cast(dev_ctx, x, DataType::INT32);
     // }
 
-    // if (index.dtype() == phi::DataType::INT64) {
+    // if (index.dtype() == DataType::INT64) {
     //   input_index = custom_kernel::Cast(dev_ctx, index,
-    //   phi::DataType::INT32);
+    //   DataType::INT32);
     // }
 
-    // if (out->dtype() == phi::DataType::INT64) {
+    // if (out->dtype() == DataType::INT64) {
     //   auto meta = out->meta();
-    //   meta.dtype = phi::DataType::INT32;
+    //   meta.dtype = DataType::INT32;
     //   output.set_meta(meta);
     //   dev_ctx.template Alloc(&output, output.dtype());
     // }
@@ -120,8 +119,8 @@ void GatherKernel(const Context& dev_ctx,
     //                   indices_are_sorted,
     //                   unique_indices);
 
-    // if (out->dtype() == phi::DataType::INT64) {
-    //   custom_kernel::Cast(dev_ctx, output, phi::DataType::INT64, out);
+    // if (out->dtype() == DataType::INT64) {
+    //   custom_kernel::Cast(dev_ctx, output, DataType::INT64, out);
     // }
 
   } else {  // kernel impl base on JIT
@@ -151,11 +150,11 @@ void GatherKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GatherGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& index,
-                      const phi::DenseTensor& out_grad,
+                      const DenseTensor& x,
+                      const DenseTensor& index,
+                      const DenseTensor& out_grad,
                       const phi::Scalar& axis,
-                      phi::DenseTensor* x_grad) {
+                      DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("gather_grad");
   dev_ctx.template Alloc<T>(x_grad);
 

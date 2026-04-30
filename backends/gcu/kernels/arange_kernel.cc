@@ -49,7 +49,7 @@ void ArangeKernel(const Context& dev_ctx,
                   const phi::Scalar& start,
                   const phi::Scalar& end,
                   const phi::Scalar& step,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("arange");
   //   VLOG(6) << "[HOST_KERNEL] Impl on host for arange";
   T start_value = start.to<T>();
@@ -61,8 +61,7 @@ void ArangeKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor output_t =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor output_t = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
     topsatenTensor output = CreateTopsatenTensor(output_t);
     topsatenScalar_t start_s = ScalarToTopsatenScalar(start);
@@ -102,23 +101,23 @@ void ArangeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ArangeTensorKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& start_t,
-                        const phi::DenseTensor& end_t,
-                        const phi::DenseTensor& step_t,
-                        phi::DenseTensor* out) {
+                        const DenseTensor& start_t,
+                        const DenseTensor& end_t,
+                        const DenseTensor& step_t,
+                        DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("arange_tensor");
   //   VLOG(6) << "[HOST_KERNEL] Impl on host for arange_tensor";
-  phi::DenseTensor n;
+  DenseTensor n;
   n.Resize(start_t.dims());
   T* n_data = dev_ctx.template HostAlloc<T>(&n);
 
-  TensorCopy(dev_ctx, start_t, true, &n, phi::CPUPlace());
+  TensorCopy(dev_ctx, start_t, true, &n, CPUPlace());
   T start = n_data[0];
 
-  TensorCopy(dev_ctx, end_t, true, &n, phi::CPUPlace());
+  TensorCopy(dev_ctx, end_t, true, &n, CPUPlace());
   T end = n_data[0];
 
-  TensorCopy(dev_ctx, step_t, true, &n, phi::CPUPlace());
+  TensorCopy(dev_ctx, step_t, true, &n, CPUPlace());
   T step = n_data[0];
 
   custom_kernel::ArangeKernel<T, Context>(

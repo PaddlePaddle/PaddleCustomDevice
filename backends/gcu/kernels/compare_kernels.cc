@@ -28,10 +28,10 @@ void CheckParam(const std::string& name, int axis, size_t rank) {
 
 template <typename T, typename Context>
 void CompareBaseKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        int axis,
-                       phi::DenseTensor* out,
+                       DenseTensor* out,
                        const std::string& op_type) {
   dev_ctx.template Alloc<bool>(out);
 
@@ -58,16 +58,16 @@ void CompareBaseKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void EqualKernelRaw(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
+                    const DenseTensor& x,
+                    const DenseTensor& y,
                     int axis,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("equal_raw");
   if (LaunchAOTKernel()) {
     CheckParam("equal_raw", axis, x.dims().size());
     dev_ctx.template Alloc<bool>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
     LAUNCH_TOPSATENOP(topsatenEq, dev_ctx, *out, input_x, input_y);
 
   } else {  // kernel impl base on JIT
@@ -77,14 +77,14 @@ void EqualKernelRaw(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void EqualKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+                 const DenseTensor& x,
+                 const DenseTensor& y,
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("equal");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<bool>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
     LAUNCH_TOPSATENOP(topsatenEq, dev_ctx, *out, input_x, input_y);
 
   } else {  // kernel impl base on JIT
@@ -94,14 +94,14 @@ void EqualKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void NotEqualKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    const DenseTensor& y,
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("not_equal");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<bool>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
     LAUNCH_TOPSATENOP(topsatenNe, dev_ctx, *out, input_x, input_y);
 
   } else {  // kernel impl base on JIT
@@ -111,14 +111,14 @@ void NotEqualKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LessEqualKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     phi::DenseTensor* out) {
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("less_equal");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<bool>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
     LAUNCH_TOPSATENOP(topsatenLe, dev_ctx, *out, input_x, input_y);
 
   } else {  // kernel impl base on JIT
@@ -128,16 +128,16 @@ void LessEqualKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LessThanKernelRaw(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        int axis,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("less_than_raw");
   if (LaunchAOTKernel()) {
     CheckParam("less_than_raw", axis, x.dims().size());
     dev_ctx.template Alloc<bool>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
     LAUNCH_TOPSATENOP(topsatenLt, dev_ctx, *out, input_x, input_y);
   } else {  // kernel impl base on JIT
     CompareBaseKernel<T, Context>(dev_ctx, x, y, -1, out, "less_than");
@@ -146,14 +146,14 @@ void LessThanKernelRaw(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LessThanKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    const DenseTensor& y,
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("less_than");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<bool>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
     LAUNCH_TOPSATENOP(topsatenLt, dev_ctx, *out, input_x, input_y);
 
   } else {  // kernel impl base on JIT
@@ -163,16 +163,16 @@ void LessThanKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GreaterEqualKernelRaw(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
-                           const phi::DenseTensor& y,
+                           const DenseTensor& x,
+                           const DenseTensor& y,
                            int axis,
-                           phi::DenseTensor* out) {
+                           DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("greater_equal_raw");
   if (LaunchAOTKernel()) {
     CheckParam("greater_equal_raw", axis, x.dims().size());
     dev_ctx.template Alloc<bool>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
     LAUNCH_TOPSATENOP(topsatenGe, dev_ctx, *out, input_x, input_y);
   } else {  // kernel impl base on JIT
     CompareBaseKernel<T, Context>(dev_ctx, x, y, -1, out, "greater_equal");
@@ -181,14 +181,14 @@ void GreaterEqualKernelRaw(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GreaterEqualKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        phi::DenseTensor* out) {
+                        const DenseTensor& x,
+                        const DenseTensor& y,
+                        DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("greater_equal");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<bool>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
     LAUNCH_TOPSATENOP(topsatenGe, dev_ctx, *out, input_x, input_y);
   } else {  // kernel impl base on JIT
     CompareBaseKernel<T, Context>(dev_ctx, x, y, -1, out, "greater_equal");
@@ -197,14 +197,14 @@ void GreaterEqualKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GreaterThanKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       phi::DenseTensor* out) {
+                       const DenseTensor& x,
+                       const DenseTensor& y,
+                       DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("greater_than");
   if (LaunchAOTKernel()) {
     dev_ctx.template Alloc<bool>(out);
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_y = MaybeCreateOrTrans64To32bits(dev_ctx, y);
     LAUNCH_TOPSATENOP(topsatenGt, dev_ctx, *out, input_x, input_y);
 
   } else {  // kernel impl base on JIT

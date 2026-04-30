@@ -156,19 +156,19 @@ void TruncatedGaussianRandomKernel(const Context& dev_ctx,
                                    float mean,
                                    float std,
                                    int seed,
-                                   phi::DataType dtype,
-                                   phi::DenseTensor* out) {
+                                   DataType dtype,
+                                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("truncated_gaussian_random");
   ContextPinnedGuard<Context> ctx_pinned_guard(dev_ctx);
   VLOG(6) << "[HOST_KERNEL] Impl on host for truncated_gaussian_random";
   VLOG(6) << "Enter TruncatedGaussianRandomKernel with mean:" << mean
           << ", std:" << std << ", seed:" << seed
           << ", shape:" << VectorToStr<int>(shape)
-          << ", dtype:" << phi::DataTypeToString(dtype);
+          << ", dtype:" << DataTypeToString(dtype);
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor cpu_out;
-  phi::DenseTensorMeta cpu_meta = {out->dtype(), out->dims()};
+  DenseTensor cpu_out;
+  DenseTensorMeta cpu_meta = {out->dtype(), out->dims()};
   cpu_out.set_meta(cpu_meta);
   T* cpu_data = dev_ctx.template HostAlloc<T>(&cpu_out);
 

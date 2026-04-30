@@ -31,10 +31,10 @@ std::vector<int64_t> GetAxis(const phi::DataLayout& from,
 
 template <typename T, typename Context>
 void TransferLayoutKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
+                          const DenseTensor& x,
                           int src_layout,
                           int dst_layout,
-                          phi::DenseTensor* out) {
+                          DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("transfer_layout");
   PADDLE_ENFORCE_NE(src_layout,
                     dst_layout,

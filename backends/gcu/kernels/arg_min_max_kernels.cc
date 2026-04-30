@@ -19,12 +19,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ArgMinMaxKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const phi::Scalar& axis,
                      bool keepdims,
                      bool flatten,
-                     phi::DataType dtype,
-                     phi::DenseTensor* out,
+                     DataType dtype,
+                     DenseTensor* out,
                      const std::string& op_type) {
   dev_ctx.Alloc(out, out->dtype());
 
@@ -52,17 +52,16 @@ void ArgMinMaxKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ArgMinKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::Scalar& axis,
                   bool keepdims,
                   bool flatten,
-                  phi::DataType dtype,
-                  phi::DenseTensor* out) {
+                  DataType dtype,
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("argmin");
   if (LaunchAOTKernel()) {
     dev_ctx.Alloc(out, out->dtype());
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
     int64_t rank = x.dims().size();
     int64_t axis_value = axis.to<int64_t>();
@@ -94,17 +93,16 @@ void ArgMinKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ArgMaxKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::Scalar& axis,
                   bool keepdims,
                   bool flatten,
-                  phi::DataType dtype,
-                  phi::DenseTensor* out) {
+                  DataType dtype,
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("argmax");
   if (LaunchAOTKernel()) {
     dev_ctx.Alloc(out, out->dtype());
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
     int64_t rank = x.dims().size();
     int64_t axis_value = axis.to<int64_t>();

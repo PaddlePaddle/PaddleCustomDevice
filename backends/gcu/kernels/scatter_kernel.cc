@@ -19,31 +19,31 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 extern void IndexPutKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& x,
-                           const std::vector<const phi::DenseTensor*>& indices,
-                           const phi::DenseTensor& value,
+                           const DenseTensor& x,
+                           const std::vector<const DenseTensor*>& indices,
+                           const DenseTensor& value,
                            bool accumulate,
-                           phi::DenseTensor* out);
+                           DenseTensor* out);
 
 template <typename T, typename Context>
 void ScatterKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& index,
-                   const phi::DenseTensor& updates,
+                   const DenseTensor& x,
+                   const DenseTensor& index,
+                   const DenseTensor& updates,
                    bool overwrite,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("scatter");
   dev_ctx.template Alloc<T>(out);
 
   if (LaunchAOTKernel()) {
     bool accumulate = !overwrite;
-    phi::DenseTensor intermediate_res = x;
+    DenseTensor intermediate_res = x;
     if (accumulate) {
       auto meta = updates.meta();
-      if (meta.dtype == phi::DataType::INT64) {
-        meta.dtype = phi::DataType::INT32;
-      } else if (meta.dtype == phi::DataType::FLOAT64) {
-        meta.dtype = phi::DataType::FLOAT32;
+      if (meta.dtype == DataType::INT64) {
+        meta.dtype = DataType::INT32;
+      } else if (meta.dtype == DataType::FLOAT64) {
+        meta.dtype = DataType::FLOAT32;
       }
       intermediate_res = *out;
       auto updates_tmp = custom_kernel::TensorZeros(dev_ctx, meta);
@@ -73,11 +73,11 @@ void ScatterKernel(const Context& dev_ctx,
     //       phi::errors::InvalidArgument("Scatter dimension ", i, " is
     //       zero."));
     // }
-    // phi::DenseTensor input_index = MaybeCreateOrTrans64To32bits(dev_ctx,
-    // index); phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx,
-    // x); phi::DenseTensor input_updates =
+    // DenseTensor input_index = MaybeCreateOrTrans64To32bits(dev_ctx,
+    // index); DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx,
+    // x); DenseTensor input_updates =
     //     MaybeCreateOrTrans64To32bits(dev_ctx, updates);
-    // phi::DenseTensor output =
+    // DenseTensor output =
     //     MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
     // LAUNCH_TOPSATENOP(topspaddleScatter,

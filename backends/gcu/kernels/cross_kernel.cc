@@ -18,10 +18,10 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void CrossKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
+                 const DenseTensor& x,
+                 const DenseTensor& y,
                  int axis,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("copysign");
   int64_t dim = axis;
 

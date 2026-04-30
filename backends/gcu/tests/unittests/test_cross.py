@@ -69,6 +69,8 @@ class TestCross(TestAPIBase):
     def forward_with_dtype(self, dtype):
         x = paddle.to_tensor(self.data_x, dtype=dtype)
         y = paddle.to_tensor(self.data_y, dtype=dtype)
+        if self.axis is None:
+            return paddle.cross(x, y)
         return paddle.cross(x, y, self.axis)
 
     def forward(self):

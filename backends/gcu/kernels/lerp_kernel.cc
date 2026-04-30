@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void LerpKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::DenseTensor& y,
-                const phi::DenseTensor& weight,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                const DenseTensor& y,
+                const DenseTensor& weight,
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("lerp");
   dev_ctx.template Alloc<T>(out);
   if (LaunchAOTKernel()) {

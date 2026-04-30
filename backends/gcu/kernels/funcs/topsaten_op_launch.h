@@ -28,8 +28,8 @@ struct topsaten_variable {
 };
 
 template <>
-struct topsaten_variable<phi::DenseTensor> {
-  explicit topsaten_variable(const phi::DenseTensor& tensor) {
+struct topsaten_variable<DenseTensor> {
+  explicit topsaten_variable(const DenseTensor& tensor) {
     value = CreateTopsatenTensor(tensor);
   }
 
@@ -37,9 +37,8 @@ struct topsaten_variable<phi::DenseTensor> {
 };
 
 template <>
-struct topsaten_variable<paddle::optional<phi::DenseTensor>> {
-  explicit topsaten_variable(
-      const paddle::optional<phi::DenseTensor>& opt_tensor) {
+struct topsaten_variable<paddle::optional<DenseTensor>> {
+  explicit topsaten_variable(const paddle::optional<DenseTensor>& opt_tensor) {
     value = OptionalTensorToTopsatenTensor(opt_tensor);
   }
 
@@ -47,8 +46,8 @@ struct topsaten_variable<paddle::optional<phi::DenseTensor>> {
 };
 
 template <>
-struct topsaten_variable<std::vector<phi::DenseTensor>> {
-  explicit topsaten_variable(const std::vector<phi::DenseTensor>& tensor_list) {
+struct topsaten_variable<std::vector<DenseTensor>> {
+  explicit topsaten_variable(const std::vector<DenseTensor>& tensor_list) {
     for (int64_t i = 0; i < tensor_list.size(); ++i) {
       value.emplace_back(CreateTopsatenTensor(tensor_list[i]));
     }
@@ -103,8 +102,8 @@ struct topsaten_variable<std::vector<int64_t>> {
 };
 
 template <>
-struct topsaten_variable<phi::DataType> {
-  explicit topsaten_variable(const phi::DataType& data_type) {
+struct topsaten_variable<DataType> {
+  explicit topsaten_variable(const DataType& data_type) {
     value = DataTypeToTopsatenDataType(data_type);
   }
 

@@ -19,23 +19,23 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AdamBaseKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& param,
-                    const phi::DenseTensor& grad,
-                    const phi::DenseTensor& learning_rate,
-                    const phi::DenseTensor& moment1,
-                    const phi::DenseTensor& moment2,
-                    const phi::DenseTensor& beta1_pow_in,
-                    const phi::DenseTensor& beta2_pow_in,
-                    const paddle::optional<phi::DenseTensor>& master_param,
-                    const paddle::optional<phi::DenseTensor>& skip_update,
+                    const DenseTensor& param,
+                    const DenseTensor& grad,
+                    const DenseTensor& learning_rate,
+                    const DenseTensor& moment1,
+                    const DenseTensor& moment2,
+                    const DenseTensor& beta1_pow_in,
+                    const DenseTensor& beta2_pow_in,
+                    const paddle::optional<DenseTensor>& master_param,
+                    const paddle::optional<DenseTensor>& skip_update,
                     const GcuAttributeMap& attrs,
                     bool use_global_beta_pow,
-                    phi::DenseTensor* param_out,
-                    phi::DenseTensor* moment1_out,
-                    phi::DenseTensor* moment2_out,
-                    phi::DenseTensor* beta1_pow_out,
-                    phi::DenseTensor* beta2_pow_out,
-                    phi::DenseTensor* master_param_out,
+                    DenseTensor* param_out,
+                    DenseTensor* moment1_out,
+                    DenseTensor* moment2_out,
+                    DenseTensor* beta1_pow_out,
+                    DenseTensor* beta2_pow_out,
+                    DenseTensor* master_param_out,
                     const std::string& op_type) {
   bool skip_update_ = false;
   if (skip_update.is_initialized()) {
@@ -62,8 +62,8 @@ void AdamBaseKernel(const Context& dev_ctx,
     return;
   }
 
-  phi::DenseTensor* beta1_pow = const_cast<phi::DenseTensor*>(&beta1_pow_in);
-  phi::DenseTensor* beta2_pow = const_cast<phi::DenseTensor*>(&beta2_pow_in);
+  DenseTensor* beta1_pow = const_cast<DenseTensor*>(&beta1_pow_in);
+  DenseTensor* beta2_pow = const_cast<DenseTensor*>(&beta2_pow_in);
 
   VLOG(4) << "use_global_beta_pow:" << use_global_beta_pow;
 
@@ -73,8 +73,8 @@ void AdamBaseKernel(const Context& dev_ctx,
 
   // beta1_pow and beta2_pow may on CPU and not transform
   // place.
-  phi::DenseTensor beta1_pow_tmp;
-  phi::DenseTensor beta2_pow_tmp;
+  DenseTensor beta1_pow_tmp;
+  DenseTensor beta2_pow_tmp;
   if (beta1_pow->place().GetType() == phi::AllocationType::CPU) {
     T beta1 = *beta1_pow->data<T>();
     beta1_pow_tmp.Resize({1});
@@ -108,23 +108,23 @@ void AdamBaseKernel(const Context& dev_ctx,
   inputs["Beta1Pow"] = {beta1_pow};
   inputs["Beta2Pow"] = {beta2_pow};
 
-  phi::DenseTensor param_out_tmp;
+  DenseTensor param_out_tmp;
   param_out_tmp.set_meta(param_out->meta());
   dev_ctx.template Alloc<T>(&param_out_tmp);
 
-  phi::DenseTensor moment1_out_tmp;
+  DenseTensor moment1_out_tmp;
   moment1_out_tmp.set_meta(moment1_out->meta());
   dev_ctx.template Alloc<T>(&moment1_out_tmp);
 
-  phi::DenseTensor moment2_out_tmp;
+  DenseTensor moment2_out_tmp;
   moment2_out_tmp.set_meta(moment2_out->meta());
   dev_ctx.template Alloc<T>(&moment2_out_tmp);
 
-  phi::DenseTensor beta1_pow_out_tmp;
+  DenseTensor beta1_pow_out_tmp;
   beta1_pow_out_tmp.set_meta(beta1_pow_out->meta());
   dev_ctx.template Alloc<T>(&beta1_pow_out_tmp);
 
-  phi::DenseTensor beta2_pow_out_tmp;
+  DenseTensor beta2_pow_out_tmp;
   beta2_pow_out_tmp.set_meta(beta2_pow_out->meta());
   dev_ctx.template Alloc<T>(&beta2_pow_out_tmp);
 
@@ -172,15 +172,15 @@ void AdamBaseKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AdamKernel(const Context& dev_ctx,
-                const phi::DenseTensor& param,
-                const phi::DenseTensor& grad,
-                const phi::DenseTensor& learning_rate,
-                const phi::DenseTensor& moment1,
-                const phi::DenseTensor& moment2,
-                const phi::DenseTensor& beta1_pow_in,
-                const phi::DenseTensor& beta2_pow_in,
-                const paddle::optional<phi::DenseTensor>& master_param,
-                const paddle::optional<phi::DenseTensor>& skip_update,
+                const DenseTensor& param,
+                const DenseTensor& grad,
+                const DenseTensor& learning_rate,
+                const DenseTensor& moment1,
+                const DenseTensor& moment2,
+                const DenseTensor& beta1_pow_in,
+                const DenseTensor& beta2_pow_in,
+                const paddle::optional<DenseTensor>& master_param,
+                const paddle::optional<DenseTensor>& skip_update,
                 const phi::Scalar& beta1_in,
                 const phi::Scalar& beta2_in,
                 const phi::Scalar& epsilon_in,
@@ -188,12 +188,12 @@ void AdamKernel(const Context& dev_ctx,
                 int64_t min_row_size_to_use_multithread,
                 bool multi_precision,
                 bool use_global_beta_pow,
-                phi::DenseTensor* param_out,
-                phi::DenseTensor* moment1_out,
-                phi::DenseTensor* moment2_out,
-                phi::DenseTensor* beta1_pow_out,
-                phi::DenseTensor* beta2_pow_out,
-                phi::DenseTensor* master_param_out) {
+                DenseTensor* param_out,
+                DenseTensor* moment1_out,
+                DenseTensor* moment2_out,
+                DenseTensor* beta1_pow_out,
+                DenseTensor* beta2_pow_out,
+                DenseTensor* master_param_out) {
   PADDLE_GCU_KERNEL_TRACE("adam");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -228,15 +228,15 @@ void AdamKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AdamwKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& param,
-                 const phi::DenseTensor& grad,
-                 const phi::DenseTensor& learning_rate,
-                 const phi::DenseTensor& moment1,
-                 const phi::DenseTensor& moment2,
-                 const phi::DenseTensor& beta1_pow_in,
-                 const phi::DenseTensor& beta2_pow_in,
-                 const paddle::optional<phi::DenseTensor>& master_param,
-                 const paddle::optional<phi::DenseTensor>& skip_update,
+                 const DenseTensor& param,
+                 const DenseTensor& grad,
+                 const DenseTensor& learning_rate,
+                 const DenseTensor& moment1,
+                 const DenseTensor& moment2,
+                 const DenseTensor& beta1_pow_in,
+                 const DenseTensor& beta2_pow_in,
+                 const paddle::optional<DenseTensor>& master_param,
+                 const paddle::optional<DenseTensor>& skip_update,
                  const phi::Scalar& beta1_in,
                  const phi::Scalar& beta2_in,
                  const phi::Scalar& epsilon_in,
@@ -247,12 +247,12 @@ void AdamwKernel(const Context& dev_ctx,
                  int64_t min_row_size_to_use_multithread,
                  bool multi_precision,
                  bool use_global_beta_pow,
-                 phi::DenseTensor* param_out,
-                 phi::DenseTensor* moment1_out,
-                 phi::DenseTensor* moment2_out,
-                 phi::DenseTensor* beta1_pow_out,
-                 phi::DenseTensor* beta2_pow_out,
-                 phi::DenseTensor* master_param_out) {
+                 DenseTensor* param_out,
+                 DenseTensor* moment1_out,
+                 DenseTensor* moment2_out,
+                 DenseTensor* beta1_pow_out,
+                 DenseTensor* beta2_pow_out,
+                 DenseTensor* master_param_out) {
   PADDLE_GCU_KERNEL_TRACE("adamw");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();

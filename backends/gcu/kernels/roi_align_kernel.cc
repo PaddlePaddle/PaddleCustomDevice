@@ -18,15 +18,15 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void RoiAlignKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& boxes,
-                    const paddle::optional<phi::DenseTensor>& boxes_num,
+                    const DenseTensor& x,
+                    const DenseTensor& boxes,
+                    const paddle::optional<DenseTensor>& boxes_num,
                     int pooled_height,
                     int pooled_width,
                     float spatial_scale,
                     int sampling_ratio,
                     bool aligned,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("roi_align");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -74,16 +74,16 @@ void RoiAlignKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void RoiAlignGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& boxes,
-                        const paddle::optional<phi::DenseTensor>& boxes_num,
-                        const phi::DenseTensor& out_grad,
+                        const DenseTensor& x,
+                        const DenseTensor& boxes,
+                        const paddle::optional<DenseTensor>& boxes_num,
+                        const DenseTensor& out_grad,
                         int pooled_height,
                         int pooled_width,
                         float spatial_scale,
                         int sampling_ratio,
                         bool aligned,
-                        phi::DenseTensor* dx) {
+                        DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("roi_align_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();

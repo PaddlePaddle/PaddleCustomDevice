@@ -19,12 +19,12 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void TopPSamplingKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& ps,
-                        const paddle::optional<phi::DenseTensor>& threshold,
+                        const DenseTensor& x,
+                        const DenseTensor& ps,
+                        const paddle::optional<DenseTensor>& threshold,
                         int random_seed,
-                        phi::DenseTensor* out,
-                        phi::DenseTensor* ids) {
+                        DenseTensor* out,
+                        DenseTensor* ids) {
   PADDLE_GCU_KERNEL_TRACE("top_p_sampling");
   auto probs = custom_op_common::CreateTensorFromDenseTensor(x);
   auto top_p = custom_op_common::CreateTensorFromDenseTensor(ps);

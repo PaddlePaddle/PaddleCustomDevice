@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TransposeKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const std::vector<int>& axis,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("transpose");
   if (LaunchAOTKernel()) {
     std::vector<int64_t> in_axis(axis.begin(), axis.end());
@@ -57,9 +57,9 @@ void TransposeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void TransposeGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& dout,
+                         const DenseTensor& dout,
                          const std::vector<int>& axis,
-                         phi::DenseTensor* dx) {
+                         DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("transpose_grad");
   dev_ctx.template Alloc<T>(dx);
   if (LaunchAOTKernel()) {

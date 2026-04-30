@@ -19,16 +19,16 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void StackKernel(const Context& dev_ctx,
-                 const std::vector<const phi::DenseTensor*>& x,
+                 const std::vector<const DenseTensor*>& x,
                  int axis,
-                 phi::DenseTensor* y) {
+                 DenseTensor* y) {
   PADDLE_GCU_KERNEL_TRACE("stack");
   dev_ctx.template Alloc<T>(y);
   if (LaunchAOTKernel()) {
-    phi::DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *y, false);
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *y, false);
     auto out_tensor = CreateTopsatenTensor(output);
 
-    std::vector<phi::DenseTensor> input_tensors;
+    std::vector<DenseTensor> input_tensors;
     for (const auto& in : x) {
       input_tensors.emplace_back(MaybeCreateOrTrans64To32bits(dev_ctx, *in));
     }
@@ -62,7 +62,7 @@ void StackKernel(const Context& dev_ctx,
     TensorValueMap inputs;
     std::vector<std::string> names;
     names.reserve(x.size());
-    std::vector<phi::DenseTensor*> values;
+    std::vector<DenseTensor*> values;
     values.reserve(x.size());
     for (size_t i = 0; i < x.size(); ++i) {
       names.emplace_back(std::string("x_") + std::to_string(i));
@@ -87,9 +87,9 @@ void StackKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void StackGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& dy,
+                     const DenseTensor& dy,
                      int axis,
-                     std::vector<phi::DenseTensor*> dx) {
+                     std::vector<DenseTensor*> dx) {
   PADDLE_GCU_KERNEL_TRACE("stack_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -105,7 +105,7 @@ void StackGradKernel(const Context& dev_ctx,
 
     std::vector<std::string> names;
     names.reserve(dx.size());
-    std::vector<phi::DenseTensor*> values;
+    std::vector<DenseTensor*> values;
     values.reserve(dx.size());
     for (size_t i = 0; i < dx.size(); ++i) {
       dev_ctx.template Alloc<T>(dx[i]);
@@ -130,10 +130,10 @@ void StackGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UnStackKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    int axis,
                    int num,
-                   std::vector<phi::DenseTensor*> outs) {
+                   std::vector<DenseTensor*> outs) {
   PADDLE_GCU_KERNEL_TRACE("unstack");
   if (LaunchAOTKernel()) {
     for (auto y : outs) {
@@ -163,7 +163,7 @@ void UnStackKernel(const Context& dev_ctx,
             axis,
             x_dims.at(axis)));
 
-    phi::DenseTensor as_strides_out;
+    DenseTensor as_strides_out;
     auto x_tensor = CreateTopsatenTensor(x);
     std::vector<topsatenTensor> split_outs;
     std::string abstract_info =
@@ -179,7 +179,7 @@ void UnStackKernel(const Context& dev_ctx,
 
     // because of aten ask rank must be same when call atencopy
     for (int i = 0; i < split_outs.size(); i++) {
-      phi::DenseTensor& output = *(outs.at(i));
+      DenseTensor& output = *(outs.at(i));
       int32_t output_dims_size = output.dims().size() + 1;
       int64_t new_dim = axis >= 0 ? axis : axis + output_dims_size;
       auto dims_org = output.dims();
@@ -205,9 +205,9 @@ void UnStackKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UnbindKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   int axis,
-                  std::vector<phi::DenseTensor*> outs) {
+                  std::vector<DenseTensor*> outs) {
   PADDLE_GCU_KERNEL_TRACE("unbind");
   if (LaunchAOTKernel()) {
     for (auto y : outs) {
@@ -237,7 +237,7 @@ void UnbindKernel(const Context& dev_ctx,
             axis,
             x_dims.at(axis)));
 
-    phi::DenseTensor as_strides_out;
+    DenseTensor as_strides_out;
     auto x_tensor = CreateTopsatenTensor(x);
     std::vector<topsatenTensor> split_outs;
     std::string abstract_info =
@@ -253,7 +253,7 @@ void UnbindKernel(const Context& dev_ctx,
 
     // because of aten ask rank must be same when call atencopy
     for (int i = 0; i < split_outs.size(); i++) {
-      phi::DenseTensor& output = *(outs.at(i));
+      DenseTensor& output = *(outs.at(i));
       int32_t output_dims_size = output.dims().size() + 1;
       int64_t new_dim = axis >= 0 ? axis : axis + output_dims_size;
       auto dims_org = output.dims();

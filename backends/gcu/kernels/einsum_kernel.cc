@@ -17,11 +17,11 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void EinsumKernel(const Context& dev_ctx,
-                  const std::vector<const phi::DenseTensor*>& inputs,
+                  const std::vector<const DenseTensor*>& inputs,
                   const std::string& equation,
-                  phi::DenseTensor* out,
-                  std::vector<phi::DenseTensor*> cache,
-                  std::vector<phi::DenseTensor*> xshape UNUSED) {
+                  DenseTensor* out,
+                  std::vector<DenseTensor*> cache,
+                  std::vector<DenseTensor*> xshape UNUSED) {
   PADDLE_GCU_KERNEL_TRACE("einsum");
   if (LaunchAOTKernel()) {
     ContextPinnedGuard<Context> ctx_pinned_guard(dev_ctx);
@@ -54,36 +54,30 @@ void EinsumKernel(const Context& dev_ctx,
             inputs.size()));
     // Only float16 is supported, other data types will fallback to CPU.
     PADDLE_ENFORCE_EQ(inputs[0]->dtype(),
-                      phi::DataType::FLOAT16,
+                      DataType::FLOAT16,
                       phi::errors::InvalidArgument(
                           "Only float16 is supported, but got %s.",
-                          phi::DataTypeToString(inputs[0]->dtype()).c_str()));
-    std::vector<phi::DenseTensor> inputs_gcu_tmp(inputs.size());
-    std::vector<phi::DenseTensor> cache_gcu_tmp(cache.size());
-    std::vector<phi::DenseTensor> inputs_cpu(inputs.size());
-    std::vector<phi::DenseTensor> cache_cpu(cache.size());
-    std::vector<phi::DenseTensor> cache_out_gcu(cache.size());
+                          DataTypeToString(inputs[0]->dtype()).c_str()));
+    std::vector<DenseTensor> inputs_gcu_tmp(inputs.size());
+    std::vector<DenseTensor> cache_gcu_tmp(cache.size());
+    std::vector<DenseTensor> inputs_cpu(inputs.size());
+    std::vector<DenseTensor> cache_cpu(cache.size());
+    std::vector<DenseTensor> cache_out_gcu(cache.size());
 
-    std::vector<const phi::DenseTensor*> inputs_f32(inputs.size(), nullptr);
-    std::vector<phi::DenseTensor*> cache_f32(cache.size(), nullptr);
-    phi::DenseTensor out_cpu_f32;
+    std::vector<const DenseTensor*> inputs_f32(inputs.size(), nullptr);
+    std::vector<DenseTensor*> cache_f32(cache.size(), nullptr);
+    DenseTensor out_cpu_f32;
 
     // convert inputs
     for (size_t i = 0; i < inputs.size(); ++i) {
       if (inputs[i] != nullptr) {
-        phi::DenseTensorMeta gcu_meta(phi::DataType::FLOAT32,
-                                      inputs[i]->dims());
+        DenseTensorMeta gcu_meta(DataType::FLOAT32, inputs[i]->dims());
         inputs_gcu_tmp[i].set_meta(gcu_meta);
         if (inputs[i]->initialized()) {
-          custom_kernel::Cast(dev_ctx,
-                              *(inputs[i]),
-                              phi::DataType::FLOAT32,
-                              &inputs_gcu_tmp[i]);
-          TensorCopy(dev_ctx,
-                     inputs_gcu_tmp[i],
-                     false,
-                     &inputs_cpu[i],
-                     phi::CPUPlace());
+          custom_kernel::Cast(
+              dev_ctx, *(inputs[i]), DataType::FLOAT32, &inputs_gcu_tmp[i]);
+          TensorCopy(
+              dev_ctx, inputs_gcu_tmp[i], false, &inputs_cpu[i], CPUPlace());
         }
         inputs_f32[i] = &inputs_cpu[i];
       }
@@ -92,13 +86,13 @@ void EinsumKernel(const Context& dev_ctx,
     // convert cache
     for (size_t i = 0; i < cache.size(); ++i) {
       if (cache[i] != nullptr) {
-        phi::DenseTensorMeta gcu_meta(phi::DataType::FLOAT32, cache[i]->dims());
+        DenseTensorMeta gcu_meta(DataType::FLOAT32, cache[i]->dims());
         cache_gcu_tmp[i].set_meta(gcu_meta);
         if (cache[i]->initialized()) {
           custom_kernel::Cast(
-              dev_ctx, *(cache[i]), phi::DataType::FLOAT32, &cache_gcu_tmp[i]);
+              dev_ctx, *(cache[i]), DataType::FLOAT32, &cache_gcu_tmp[i]);
           TensorCopy(
-              dev_ctx, cache_gcu_tmp[i], false, &cache_cpu[i], phi::CPUPlace());
+              dev_ctx, cache_gcu_tmp[i], false, &cache_cpu[i], CPUPlace());
         }
         cache_f32[i] = &cache_cpu[i];
       }
@@ -108,26 +102,26 @@ void EinsumKernel(const Context& dev_ctx,
     dev_ctx.Wait();
 
     // call the CPU implementation
-    phi::CPUContext dev_ctx_cpu;
+    CPUContext dev_ctx_cpu;
     dev_ctx_cpu.SetAllocator(&(dev_ctx.GetHostAllocator()));
     dev_ctx_cpu.SetHostAllocator(&(dev_ctx.GetHostAllocator()));
-    phi::DenseTensorMeta cpu_meta(phi::DataType::FLOAT32, out->dims());
+    DenseTensorMeta cpu_meta(DataType::FLOAT32, out->dims());
     out_cpu_f32.set_meta(cpu_meta);
-    phi::EinsumKernel<float, phi::CPUContext>(
+    phi::EinsumKernel<float, CPUContext>(
         dev_ctx_cpu, inputs_f32, equation, &out_cpu_f32, cache_f32, xshape);
     dev_ctx.Wait();
 
     // convert result
-    phi::DenseTensor out_gcu_f32;
+    DenseTensor out_gcu_f32;
     TensorCopy(dev_ctx, out_cpu_f32, false, &out_gcu_f32);
-    custom_kernel::Cast(dev_ctx, out_gcu_f32, phi::DataType::FLOAT16, out);
+    custom_kernel::Cast(dev_ctx, out_gcu_f32, DataType::FLOAT16, out);
 
     // convert cache
     for (size_t i = 0; i < cache.size(); ++i) {
       if (cache[i] != nullptr && cache[i]->initialized()) {
         TensorCopy(dev_ctx, *(cache_f32[i]), false, &cache_out_gcu[i]);
         custom_kernel::Cast(
-            dev_ctx, cache_out_gcu[i], phi::DataType::FLOAT16, cache[i]);
+            dev_ctx, cache_out_gcu[i], DataType::FLOAT16, cache[i]);
       }
     }
     dev_ctx.Wait();

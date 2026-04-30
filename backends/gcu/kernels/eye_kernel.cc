@@ -20,8 +20,8 @@ template <typename T, typename Context>
 void EyeKernel(const Context& dev_ctx,
                const phi::Scalar& rows,
                const phi::Scalar& columns,
-               phi::DataType dtype,
-               phi::DenseTensor* out) {
+               DataType dtype,
+               DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("eye");
   dev_ctx.template Alloc<T>(out);
 

@@ -28,7 +28,6 @@ namespace custom_kernel {
 constexpr char kEmptyVarName[] = "@EMPTY@";
 
 using DenseTensor = phi::DenseTensor;
-using DenseTensor = phi::DenseTensor;
 using TensorNameMap = std::map<std::string, std::vector<std::string>>;
 using TensorValueMap = std::map<std::string, std::vector<DenseTensor*>>;
 using TensorNameValuePair = std::pair<std::string, DenseTensor*>;

@@ -18,10 +18,10 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void LabelSmoothKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const paddle::optional<phi::DenseTensor>& dist,
+                       const DenseTensor& x,
+                       const paddle::optional<DenseTensor>& dist,
                        float epsilon,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("label_smooth");
   if (dist) {
     PADDLE_THROW(

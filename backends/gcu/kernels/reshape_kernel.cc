@@ -128,9 +128,9 @@ static phi::DDim ValidateShape(const std::vector<int64_t> shape,
   return common::make_ddim(output_shape);
 }
 
-void InferMetaFromVecValue(const phi::DenseTensor& x,
+void InferMetaFromVecValue(const DenseTensor& x,
                            const std::vector<int64_t>& shape,
-                           phi::DenseTensor* out) {
+                           DenseTensor* out) {
   auto x_dims = x.dims();
   auto out_dims = ValidateShape(shape, x_dims);
   out->Resize(out_dims);
@@ -148,9 +148,9 @@ void InferMetaFromVecValue(const phi::DenseTensor& x,
 
 template <typename T, typename Context>
 void ReshapeKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
+                   const DenseTensor& x,
                    const phi::IntArray& shape,
-                   phi::DenseTensor* out) {
+                   DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("reshape");
   PADDLE_ENFORCE_NE(
       x.layout(),
@@ -182,22 +182,22 @@ void ReshapeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ReshapeWithXShapeKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
+                             const DenseTensor& x,
                              const phi::IntArray& shape,
-                             phi::DenseTensor* out,
-                             phi::DenseTensor* xshape) {
+                             DenseTensor* out,
+                             DenseTensor* xshape) {
   PADDLE_GCU_KERNEL_TRACE("reshape_with_xshape");
   ReshapeKernel<T>(dev_ctx, x, shape, out);
 }
 
 template <typename T, typename Context>
 void ReshapeGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& out_grad,
-                       phi::DenseTensor* x_grad) {
+                       const DenseTensor& out_grad,
+                       DenseTensor* x_grad) {
   PADDLE_GCU_KERNEL_TRACE("reshape_grad");
   dev_ctx.template Alloc<T>(x_grad);
 
-  phi::DenseTensor* tmp_tensor = nullptr;
+  DenseTensor* tmp_tensor = nullptr;
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
   } else {  // kernel impl base on JIT
@@ -206,7 +206,7 @@ void ReshapeGradKernel(const Context& dev_ctx,
     for (auto dim : out_shape) {
       xshape.emplace_back(dim);
     }
-    phi::DenseTensor x_shape;
+    DenseTensor x_shape;
     x_shape.Resize(phi::make_ddim(xshape));
     dev_ctx.template Alloc<T>(&x_shape);
 

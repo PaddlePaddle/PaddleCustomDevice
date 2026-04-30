@@ -19,11 +19,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void CIdentityKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      int ring_id,
                      bool use_calc_stream,
                      bool use_model_parallel,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("c_identity");
   PADDLE_ENFORCE_GE(
       ring_id,

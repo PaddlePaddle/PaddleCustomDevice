@@ -20,7 +20,7 @@ namespace custom_kernel {
 template <typename Context>
 inline void GetSeedDataAndIncrement(
     const Context& dev_ctx,
-    const paddle::optional<phi::DenseTensor>& seed_tensor,
+    const paddle::optional<DenseTensor>& seed_tensor,
     const bool is_fix_seed,
     const int seed_val,
     const int offset,
@@ -28,7 +28,7 @@ inline void GetSeedDataAndIncrement(
     uint64_t* increment) {
   auto gen_custom = dev_ctx.GetGenerator();
   if (seed_tensor) {
-    phi::DenseTensor seed_cpu_tensor;
+    DenseTensor seed_cpu_tensor;
     TensorCopy(
         dev_ctx, seed_tensor.get(), true, &seed_cpu_tensor, phi::CustomPlace());
     *seed_data = static_cast<uint64_t>(seed_cpu_tensor.data<int>()[0]);
@@ -48,8 +48,8 @@ inline void GetSeedDataAndIncrement(
 template <typename Context>
 inline std::pair<uint64_t, uint64_t> GetSeedOffset(
     const Context& dev_ctx,
-    const phi::DenseTensor& x,
-    const paddle::optional<phi::DenseTensor>& seed_tensor,
+    const DenseTensor& x,
+    const paddle::optional<DenseTensor>& seed_tensor,
     int seed,
     bool fix_seed) {
   // Refer to the implementation of GPU dropout at:
@@ -71,15 +71,15 @@ inline std::pair<uint64_t, uint64_t> GetSeedOffset(
 
 template <typename T, typename Context>
 void DropoutKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const paddle::optional<phi::DenseTensor>& seed_tensor,
+                   const DenseTensor& x,
+                   const paddle::optional<DenseTensor>& seed_tensor,
                    const phi::Scalar& p,
                    bool is_test,
                    const std::string& mode,
                    int seed,
                    bool fix_seed,
-                   phi::DenseTensor* out,
-                   phi::DenseTensor* mask) {
+                   DenseTensor* out,
+                   DenseTensor* mask) {
   PADDLE_GCU_KERNEL_TRACE("dropout");
   dev_ctx.template Alloc<T>(out);
   if (mask) {
@@ -152,12 +152,12 @@ void DropoutKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void DropoutGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& mask,
-                       const phi::DenseTensor& dout,
+                       const DenseTensor& mask,
+                       const DenseTensor& dout,
                        const phi::Scalar& p,
                        bool is_test,
                        const std::string& mode,
-                       phi::DenseTensor* dx) {
+                       DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("dropout_grad");
   dev_ctx.template Alloc<T>(dx);
 

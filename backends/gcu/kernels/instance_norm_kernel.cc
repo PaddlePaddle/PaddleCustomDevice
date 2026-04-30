@@ -18,13 +18,13 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void InstanceNormKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const paddle::optional<phi::DenseTensor>& scale,
-                        const paddle::optional<phi::DenseTensor>& bias,
+                        const DenseTensor& x,
+                        const paddle::optional<DenseTensor>& scale,
+                        const paddle::optional<DenseTensor>& bias,
                         float epsilon_f,
-                        phi::DenseTensor* y,
-                        phi::DenseTensor* saved_mean,
-                        phi::DenseTensor* saved_variance) {
+                        DenseTensor* y,
+                        DenseTensor* saved_mean,
+                        DenseTensor* saved_variance) {
   PADDLE_GCU_KERNEL_TRACE("instance_norm");
   dev_ctx.template Alloc<T>(y);
   // The upper caller does not use these two outputs.
@@ -36,16 +36,16 @@ void InstanceNormKernel(const Context& dev_ctx,
   }
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor new_scale;
-    phi::DenseTensor new_bias;
+    DenseTensor new_scale;
+    DenseTensor new_bias;
     if (scale.get_ptr()) {
       new_scale = scale.get();
     }
     if (bias.get_ptr()) {
       new_bias = bias.get();
     }
-    const phi::DenseTensor running_mean_null;
-    const phi::DenseTensor running_var_null;
+    const DenseTensor running_mean_null;
+    const DenseTensor running_var_null;
     // OpAtenInstancehNorm Expected running_mean and running_var exist when
     // training is false.
     const bool use_input_stats = true;
@@ -124,17 +124,16 @@ void InstanceNormKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void InstanceNormGradKernel(const Context& dev_ctx,
-                            const phi::DenseTensor& x,
-                            const paddle::optional<phi::DenseTensor>& scale,
-                            const paddle::optional<phi::DenseTensor>& bias
-                                UNUSED,
-                            const phi::DenseTensor& saved_mean,
-                            const phi::DenseTensor& saved_variance,
-                            const phi::DenseTensor& d_y,
+                            const DenseTensor& x,
+                            const paddle::optional<DenseTensor>& scale,
+                            const paddle::optional<DenseTensor>& bias UNUSED,
+                            const DenseTensor& saved_mean,
+                            const DenseTensor& saved_variance,
+                            const DenseTensor& d_y,
                             float epsilon,
-                            phi::DenseTensor* d_x,
-                            phi::DenseTensor* d_scale,
-                            phi::DenseTensor* d_bias) {
+                            DenseTensor* d_x,
+                            DenseTensor* d_scale,
+                            DenseTensor* d_bias) {
   PADDLE_GCU_KERNEL_TRACE("instance_norm_grad");
   dev_ctx.template Alloc<T>(d_x);
   dev_ctx.template Alloc<T>(d_scale);

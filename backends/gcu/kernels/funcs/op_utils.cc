@@ -22,9 +22,9 @@ PHI_DECLARE_bool(use_stride_kernel);
 
 namespace custom_kernel {
 
-void *GcuDataPtr(const phi::DenseTensor &tensor) {
+void *GcuDataPtr(const DenseTensor &tensor) {
   if (tensor.initialized()) {
-    auto contiguous_strides = phi::DenseTensorMeta::calc_strides(tensor.dims());
+    auto contiguous_strides = DenseTensorMeta::calc_strides(tensor.dims());
     bool is_contiguous = (tensor.strides() == contiguous_strides);
     auto tensor_tmp = tensor;
     if (!is_contiguous && !FLAGS_use_stride_kernel) {
@@ -37,10 +37,10 @@ void *GcuDataPtr(const phi::DenseTensor &tensor) {
   return nullptr;
 }
 
-std::string TensorToString(const phi::DenseTensor &tensor) {
+std::string TensorToString(const DenseTensor &tensor) {
   std::stringstream ss;
   ss << "DenseTensor<";
-  ss << phi::DataTypeToString(tensor.dtype()) << ", ";
+  ss << DataTypeToString(tensor.dtype()) << ", ";
   ss << "Shape(" << tensor.dims() << "), ";
   ss << "layout:" << tensor.layout() << ", ";
   if (tensor.initialized()) {
@@ -53,7 +53,7 @@ std::string TensorToString(const phi::DenseTensor &tensor) {
   return ss.str();
 }
 
-std::string TensorVectorToString(const std::vector<phi::DenseTensor> &tensors) {
+std::string TensorVectorToString(const std::vector<DenseTensor> &tensors) {
   std::stringstream ss;
   ss << "{";
   if (tensors.size() == 0) {
@@ -68,11 +68,11 @@ std::string TensorVectorToString(const std::vector<phi::DenseTensor> &tensors) {
   return ss.str();
 }
 
-std::string TensorDetailsToString(const phi::DenseTensor &tensor) {
+std::string TensorDetailsToString(const DenseTensor &tensor) {
   std::stringstream ss;
   ss << "DenseTensor<";
   if (tensor.initialized()) {
-    ss << phi::DataTypeToString(tensor.dtype()) << ", ";
+    ss << DataTypeToString(tensor.dtype()) << ", ";
     ss << tensor.place() << ", ";
     ss << "dims(" << tensor.dims() << "), ";
     ss << "strides(" << tensor.strides() << "), ";
@@ -88,42 +88,42 @@ std::string TensorDetailsToString(const phi::DenseTensor &tensor) {
 std::string ScalarToString(const phi::Scalar &scalar_value) {
   std::stringstream ss;
   auto scalar_type = scalar_value.dtype();
-  ss << "Scalar<" << phi::DataTypeToString(scalar_type) << ", ";
+  ss << "Scalar<" << DataTypeToString(scalar_type) << ", ";
   switch (scalar_type) {
-    case phi::DataType::BOOL:
+    case DataType::BOOL:
       ss << scalar_value.to<bool>();
       break;
-    case phi::DataType::UINT8:
+    case DataType::UINT8:
       ss << scalar_value.to<uint8_t>();
       break;
-    case phi::DataType::INT8:
+    case DataType::INT8:
       ss << scalar_value.to<int8_t>();
       break;
-    case phi::DataType::INT16:
+    case DataType::INT16:
       ss << scalar_value.to<int16_t>();
       break;
-    case phi::DataType::INT32:
+    case DataType::INT32:
       ss << scalar_value.to<int32_t>();
       break;
-    case phi::DataType::INT64:
+    case DataType::INT64:
       ss << scalar_value.to<int64_t>();
       break;
-    case phi::DataType::FLOAT16:
+    case DataType::FLOAT16:
       ss << scalar_value.to<phi::float16>();
       break;
-    case phi::DataType::BFLOAT16:
+    case DataType::BFLOAT16:
       ss << scalar_value.to<phi::bfloat16>();
       break;
-    case phi::DataType::FLOAT32:
+    case DataType::FLOAT32:
       ss << scalar_value.to<float>();
       break;
-    case phi::DataType::FLOAT64:
+    case DataType::FLOAT64:
       ss << scalar_value.to<double>();
       break;
     default: {
       PADDLE_THROW(phi::errors::Unimplemented(
           "ScalarToTopsatenScalar, unsupported data type %s",
-          phi::DataTypeToString(scalar_type).c_str()));
+          DataTypeToString(scalar_type).c_str()));
       break;
     }
   }
@@ -167,7 +167,7 @@ std::vector<int64_t> InferSize(const std::vector<int64_t> &a,
 }
 
 std::vector<int64_t> ComputeBroadcastShape(
-    const std::vector<phi::DenseTensor> operands) {
+    const std::vector<DenseTensor> operands) {
   auto operands_size = operands.size();
   PADDLE_ENFORCE_GT(
       operands_size,

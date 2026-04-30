@@ -18,8 +18,8 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void IsFiniteKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    phi::DenseTensor* out) {
+                    const DenseTensor& x,
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("isfinite");
   dev_ctx.template Alloc<bool>(out);
   if (LaunchAOTKernel()) {

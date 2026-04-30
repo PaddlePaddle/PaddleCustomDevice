@@ -19,16 +19,15 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TileKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::IntArray& repeat_times,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("tile");
   dev_ctx.template Alloc<T>(out);
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
-    phi::DenseTensor output_z =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor output_z = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
     auto repeat_times_data = repeat_times.GetData();
     LAUNCH_TOPSATENOP(
         topsatenTile, dev_ctx, output_z, input_x, repeat_times_data);

@@ -16,7 +16,7 @@
 #include "kernels/funcs/gcu_kernel_funcs.h"
 
 namespace custom_kernel {
-void AdjustStrides(phi::DenseTensor& tensor) {  // NOLINT
+void AdjustStrides(DenseTensor& tensor) {  // NOLINT
   size_t rank = tensor.dims().size();
   if (rank <= 1) {
     return;
@@ -30,17 +30,17 @@ void AdjustStrides(phi::DenseTensor& tensor) {  // NOLINT
 
 template <typename T, typename Context>
 void MatmulKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
+                  const DenseTensor& x,
+                  const DenseTensor& y,
                   bool trans_x,
                   bool trans_y,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("matmul");
   dev_ctx.template Alloc<T>(out);
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_x = x;
-    phi::DenseTensor input_y = y;
+    DenseTensor input_x = x;
+    DenseTensor input_y = y;
     if (trans_x) {
       AdjustStrides(input_x);
     }
@@ -80,13 +80,13 @@ void MatmulKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MatmulGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      const phi::DenseTensor& dout,
+                      const DenseTensor& x,
+                      const DenseTensor& y,
+                      const DenseTensor& dout,
                       bool trans_x,
                       bool trans_y,
-                      phi::DenseTensor* dx,
-                      phi::DenseTensor* dy) {
+                      DenseTensor* dx,
+                      DenseTensor* dy) {
   PADDLE_GCU_KERNEL_TRACE("matmul_grad");
   if (LaunchAOTKernel()) {
     THROW_AOT_UNIMPLEMENTED();
@@ -130,14 +130,14 @@ void MatmulGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MatmulWithFlattenKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& y,
+                             const DenseTensor& x,
+                             const DenseTensor& y,
                              int x_num_col_dims,
                              int y_num_col_dims,
-                             phi::DenseTensor* out) {
-  const phi::DenseTensor x_matrix =
+                             DenseTensor* out) {
+  const DenseTensor x_matrix =
       x.dims().size() > 2 ? phi::ReshapeToMatrix(x, x_num_col_dims) : x;
-  const phi::DenseTensor y_matrix =
+  const DenseTensor y_matrix =
       y.dims().size() > 2 ? phi::ReshapeToMatrix(y, y_num_col_dims) : y;
 
   dev_ctx.template Alloc<T>(out);

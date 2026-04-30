@@ -28,16 +28,16 @@ void NMSKernel(const Context& dev_ctx,
   if (LaunchAOTKernel()) {
     auto boxes_num = boxes.dims().at(0);
 
-    phi::DenseTensor cpu_tensor;
-    phi::DenseTensorMeta scores_meta = {phi::DataType::FLOAT32,
-                                        phi::make_ddim({boxes_num})};
+    DenseTensor cpu_tensor;
+    DenseTensorMeta scores_meta = {DataType::FLOAT32,
+                                   phi::make_ddim({boxes_num})};
     cpu_tensor.set_meta(scores_meta);
     float* host_mask = dev_ctx.template HostAlloc<float>(&cpu_tensor);
     for (size_t i = 0; i < boxes_num; i++) {
       host_mask[i] = boxes_num - i;
     }
 
-    phi::DenseTensor scores_tensor =
+    DenseTensor scores_tensor =
         custom_kernel::TensorEmpty(dev_ctx, scores_meta);
 
     // copy mask to device
@@ -58,9 +58,9 @@ void NMSKernel(const Context& dev_ctx,
                                      "should be equal."));
 
     DenseTensor out_imp = *output;
-    if (output->dtype() != phi::DataType::INT32) {
-      phi::DenseTensorMeta int32_meta = {phi::DataType::INT32,
-                                         phi::make_ddim({boxes_num})};
+    if (output->dtype() != DataType::INT32) {
+      DenseTensorMeta int32_meta = {DataType::INT32,
+                                    phi::make_ddim({boxes_num})};
       out_imp = custom_kernel::TensorEmpty(dev_ctx, int32_meta);
       dev_ctx.template Alloc<int32_t>(&out_imp);
     }

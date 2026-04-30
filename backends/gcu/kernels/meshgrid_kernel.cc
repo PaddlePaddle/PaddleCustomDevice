@@ -18,8 +18,8 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void MeshgridKernel(const Context& dev_ctx,
-                    const std::vector<const phi::DenseTensor*>& ins,
-                    std::vector<phi::DenseTensor*> outs) {
+                    const std::vector<const DenseTensor*>& ins,
+                    std::vector<DenseTensor*> outs) {
   PADDLE_GCU_KERNEL_TRACE("meshgrid");
   size_t tensor_size = ins.size();
   PADDLE_ENFORCE_EQ(
@@ -61,12 +61,12 @@ void MeshgridKernel(const Context& dev_ctx,
   } else {  // kernel impl base on JIT
     std::vector<std::string> in_names;
     in_names.reserve(tensor_size);
-    std::vector<phi::DenseTensor*> in_tensors;
+    std::vector<DenseTensor*> in_tensors;
     in_tensors.reserve(tensor_size);
 
     std::vector<std::string> out_names;
     out_names.reserve(outs.size());
-    std::vector<phi::DenseTensor*> out_tensors;
+    std::vector<DenseTensor*> out_tensors;
     out_tensors.reserve(outs.size());
 
     for (size_t i = 0; i < tensor_size; ++i) {

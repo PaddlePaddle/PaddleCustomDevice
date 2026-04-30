@@ -19,80 +19,80 @@
 
 namespace custom_kernel {
 
-phi::DenseTensor MaybeCreateOrTrans(
+DenseTensor MaybeCreateOrTrans(
     const phi::CustomContext& dev_ctx,
-    const phi::DenseTensor& src,
-    const std::unordered_map<phi::DataType, phi::DataType>& tans_map,
+    const DenseTensor& src,
+    const std::unordered_map<DataType, DataType>& tans_map,
     bool need_cast = true);
 
-phi::DenseTensor MaybeCreateOrTrans64To32bits(const phi::CustomContext& dev_ctx,
-                                              const phi::DenseTensor& src,
-                                              bool need_cast = true);
+DenseTensor MaybeCreateOrTrans64To32bits(const phi::CustomContext& dev_ctx,
+                                         const DenseTensor& src,
+                                         bool need_cast = true);
 
-phi::DenseTensor MaybeCreateOrTransFp16ToFp32(const phi::CustomContext& dev_ctx,
-                                              const phi::DenseTensor& src,
-                                              bool need_cast = true);
+DenseTensor MaybeCreateOrTransFp16ToFp32(const phi::CustomContext& dev_ctx,
+                                         const DenseTensor& src,
+                                         bool need_cast = true);
 
 void MaybeTransResult(const phi::CustomContext& dev_ctx,
-                      const phi::DenseTensor& result,
-                      phi::DenseTensor* dst);
+                      const DenseTensor& result,
+                      DenseTensor* dst);
 
 void Broadcast(const phi::CustomContext& dev_ctx,
-               const phi::DenseTensor& src,
-               phi::DenseTensor* dst);
+               const DenseTensor& src,
+               DenseTensor* dst);
 
-phi::DenseTensor Broadcast(const phi::CustomContext& dev_ctx,
-                           const phi::DenseTensor& src,
-                           const std::vector<int64_t>& output_shapes);
+DenseTensor Broadcast(const phi::CustomContext& dev_ctx,
+                      const DenseTensor& src,
+                      const std::vector<int64_t>& output_shapes);
 
 void Cast(const phi::CustomContext& dev_ctx,
-          const phi::DenseTensor& x,
-          const phi::DataType& dtype,
-          phi::DenseTensor* out);
+          const DenseTensor& x,
+          const DataType& dtype,
+          DenseTensor* out);
 
-phi::DenseTensor Cast(const phi::CustomContext& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DataType& dtype);
+DenseTensor Cast(const phi::CustomContext& dev_ctx,
+                 const DenseTensor& x,
+                 const DataType& dtype);
 
-phi::DenseTensor CastOrCopyToPinnedMemory(const phi::CustomContext& dev_ctx,
-                                          const phi::DenseTensor& x,
-                                          const phi::DataType& dtype);
+DenseTensor CastOrCopyToPinnedMemory(const phi::CustomContext& dev_ctx,
+                                     const DenseTensor& x,
+                                     const DataType& dtype);
 
-phi::DenseTensor ReshapeWithoutCopy(const phi::DenseTensor& src,
-                                    const std::vector<int64_t>& out_shapes);
+DenseTensor ReshapeWithoutCopy(const DenseTensor& src,
+                               const std::vector<int64_t>& out_shapes);
 
-phi::DenseTensor TensorEmpty(const phi::CustomContext& dev_ctx,
-                             const phi::DenseTensorMeta& meta);
+DenseTensor TensorEmpty(const phi::CustomContext& dev_ctx,
+                        const DenseTensorMeta& meta);
 
-phi::DenseTensor TensorOnes(const phi::CustomContext& dev_ctx,
-                            const phi::DenseTensorMeta& meta);
+DenseTensor TensorOnes(const phi::CustomContext& dev_ctx,
+                       const DenseTensorMeta& meta);
 
-phi::DenseTensor TensorZeros(const phi::CustomContext& dev_ctx,
-                             const phi::DenseTensorMeta& meta);
+DenseTensor TensorZeros(const phi::CustomContext& dev_ctx,
+                        const DenseTensorMeta& meta);
 
 // meta reuse ops
-phi::DenseTensor Add(const phi::CustomContext& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     const phi::DenseTensorMeta& out_meta);
+DenseTensor Add(const phi::CustomContext& dev_ctx,
+                const DenseTensor& x,
+                const DenseTensor& y,
+                const DenseTensorMeta& out_meta);
 
-phi::DenseTensor Add(const phi::CustomContext& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y);
+DenseTensor Add(const phi::CustomContext& dev_ctx,
+                const DenseTensor& x,
+                const DenseTensor& y);
 
-phi::DenseTensor Subtract(const phi::CustomContext& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y,
-                          const phi::DenseTensorMeta& out_meta);
+DenseTensor Subtract(const phi::CustomContext& dev_ctx,
+                     const DenseTensor& x,
+                     const DenseTensor& y,
+                     const DenseTensorMeta& out_meta);
 
-phi::DenseTensor Subtract(const phi::CustomContext& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y);
+DenseTensor Subtract(const phi::CustomContext& dev_ctx,
+                     const DenseTensor& x,
+                     const DenseTensor& y);
 
 void SliceBase(const phi::CustomContext& dev_ctx,
-               const phi::DenseTensor& x,
+               const DenseTensor& x,
                const std::vector<int64_t>& axes,
                const std::vector<int64_t>& starts,
-               phi::DenseTensor* out);
+               DenseTensor* out);
 
 }  // namespace custom_kernel

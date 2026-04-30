@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void OneHotKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   const phi::Scalar& num_classes_s,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("one_hot");
   int64_t depth = num_classes_s.to<int>();
   auto out_dims = out->dims();
@@ -32,9 +32,9 @@ void OneHotKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<float>(out);
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor aten_out;
+    DenseTensor aten_out;
     auto meta = out->meta();
-    meta.dtype = phi::DataType::INT32;
+    meta.dtype = DataType::INT32;
     aten_out.set_meta(meta);
     dev_ctx.template Alloc<int32_t>(&aten_out);
     LAUNCH_TOPSATENOP(topsatenOneHot, dev_ctx, aten_out, x, depth);
@@ -55,7 +55,7 @@ void OneHotKernel(const Context& dev_ctx,
 
     GcuAttributeMap attrs;
     attrs["depth"] = depth;
-    attrs["dtype"] = static_cast<int>(phi::DataType::FLOAT32);
+    attrs["dtype"] = static_cast<int>(DataType::FLOAT32);
 
     GcuRunner(input_names,
               inputs,
@@ -69,20 +69,20 @@ void OneHotKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void OneHotV2Kernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
+                    const DenseTensor& x,
                     const phi::Scalar& num_classes_s,
-                    phi::DenseTensor* out) {
+                    DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("one_hot_v2");
   custom_kernel::OneHotKernel<T, Context>(dev_ctx, x, num_classes_s, out);
 }
 
 template <typename T, typename Context>
 void OneHotRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      const phi::Scalar& num_classes_s,
-                     phi::DataType dtype,
+                     DataType dtype,
                      bool allow_out_of_range UNUSED,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("one_hot_raw");
   custom_kernel::OneHotKernel<T, Context>(dev_ctx, x, num_classes_s, out);
 }

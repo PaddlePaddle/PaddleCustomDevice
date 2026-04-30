@@ -19,18 +19,18 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 extern void StridedSliceKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& x,
+                               const DenseTensor& x,
                                const std::vector<int>& axes,
                                const phi::IntArray& starts,
                                const phi::IntArray& ends,
                                const phi::IntArray& strides,
-                               phi::DenseTensor* out);
+                               DenseTensor* out);
 
 template <typename T, typename Context>
 extern void ConcatKernel(const Context& dev_ctx,
-                         const std::vector<const phi::DenseTensor*>& ins,
+                         const std::vector<const DenseTensor*>& ins,
                          const phi::Scalar& axis_scalar,
-                         phi::DenseTensor* out);
+                         DenseTensor* out);
 
 template <typename T, typename Context>
 void TemporalShiftKernel(const Context& dev_ctx,
@@ -52,7 +52,7 @@ void TemporalShiftKernel(const Context& dev_ctx,
 
       auto x5 = x;
       x5.Resize(common::make_ddim({n, t, h, w, c}));
-      phi::DenseTensor pad_x;
+      DenseTensor pad_x;
       auto pad_x_meta = pad_x.meta();
       pad_x_meta.dtype = x.dtype();
       pad_x.set_meta(pad_x_meta);
@@ -70,22 +70,22 @@ void TemporalShiftKernel(const Context& dev_ctx,
                         topsatenPadMode_t(0),
                         pad_value_scalar);
 
-      phi::DenseTensorMeta meta;
+      DenseTensorMeta meta;
       meta.dtype = x.dtype();
-      phi::DenseTensor slice1;
-      phi::DenseTensor slice2;
-      phi::DenseTensor slice3;
+      DenseTensor slice1;
+      DenseTensor slice2;
+      DenseTensor slice3;
       auto c_slice1 = static_cast<int>(c * shift_ratio);
       auto c_slice2 = c / 2 - static_cast<int>(c * shift_ratio);
       auto c_slice3 = c - c / 2;
       meta.dims = common::make_ddim({n, t, h, w, c_slice1});
-      meta.strides = phi::DenseTensorMeta::calc_strides(meta.dims);
+      meta.strides = DenseTensorMeta::calc_strides(meta.dims);
       slice1.set_meta(meta);
       meta.dims = common::make_ddim({n, t, h, w, c_slice2});
-      meta.strides = phi::DenseTensorMeta::calc_strides(meta.dims);
+      meta.strides = DenseTensorMeta::calc_strides(meta.dims);
       slice2.set_meta(meta);
       meta.dims = common::make_ddim({n, t, h, w, c_slice3});
-      meta.strides = phi::DenseTensorMeta::calc_strides(meta.dims);
+      meta.strides = DenseTensorMeta::calc_strides(meta.dims);
       slice3.set_meta(meta);
       dev_ctx.template Alloc<T>(&slice1);
       dev_ctx.template Alloc<T>(&slice2);
@@ -120,7 +120,7 @@ void TemporalShiftKernel(const Context& dev_ctx,
 
       auto x5 = x;
       x5.Resize(common::make_ddim({n, t, c, h, w}));
-      phi::DenseTensor pad_x;
+      DenseTensor pad_x;
       auto pad_x_meta = pad_x.meta();
       pad_x_meta.dtype = x.dtype();
       pad_x.set_meta(pad_x_meta);
@@ -138,21 +138,21 @@ void TemporalShiftKernel(const Context& dev_ctx,
                         topsatenPadMode_t(0),
                         pad_value_scalar);
 
-      phi::DenseTensorMeta meta = x.meta();
-      phi::DenseTensor slice1;
-      phi::DenseTensor slice2;
-      phi::DenseTensor slice3;
+      DenseTensorMeta meta = x.meta();
+      DenseTensor slice1;
+      DenseTensor slice2;
+      DenseTensor slice3;
       auto c_slice1 = static_cast<int>(c * shift_ratio);
       auto c_slice2 = c / 2 - static_cast<int>(c * shift_ratio);
       auto c_slice3 = c - c / 2;
       meta.dims = common::make_ddim({n, t, c_slice1, h, w});
-      meta.strides = phi::DenseTensorMeta::calc_strides(meta.dims);
+      meta.strides = DenseTensorMeta::calc_strides(meta.dims);
       slice1.set_meta(meta);
       meta.dims = common::make_ddim({n, t, c_slice2, h, w});
-      meta.strides = phi::DenseTensorMeta::calc_strides(meta.dims);
+      meta.strides = DenseTensorMeta::calc_strides(meta.dims);
       slice2.set_meta(meta);
       meta.dims = common::make_ddim({n, t, c_slice3, h, w});
-      meta.strides = phi::DenseTensorMeta::calc_strides(meta.dims);
+      meta.strides = DenseTensorMeta::calc_strides(meta.dims);
       slice3.set_meta(meta);
       dev_ctx.template Alloc<T>(&slice1);
       dev_ctx.template Alloc<T>(&slice2);

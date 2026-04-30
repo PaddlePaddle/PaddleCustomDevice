@@ -18,9 +18,9 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void SwiGLUKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const paddle::optional<phi::DenseTensor>& y,
-                  phi::DenseTensor* out) {
+                  const DenseTensor& x,
+                  const paddle::optional<DenseTensor>& y,
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("swiglu");
   dev_ctx.template Alloc<T>(out);
 
@@ -38,12 +38,12 @@ void SwiGLUKernel(const Context& dev_ctx,
       auto rank = meta.dims.size();
       meta.dims[rank - 1] *= 2;
       meta.strides = meta.calc_strides(meta.dims);
-      phi::DenseTensor concat_output = TensorEmpty(dev_ctx, meta);
+      DenseTensor concat_output = TensorEmpty(dev_ctx, meta);
       std::vector<topsatenTensor> in_tensors = {CreateTopsatenTensor(x),
                                                 CreateTopsatenTensor(y.get())};
       auto out_tensor = CreateTopsatenTensor(concat_output);
       int64_t axis = rank - 1;
-      std::vector<phi::DenseTensor> concat_ins = {x, y.get()};
+      std::vector<DenseTensor> concat_ins = {x, y.get()};
       std::string abstract_info = custom_kernel::GetAbstractInfo(
           "topsatenCat", concat_output, concat_ins, axis);
       LAUNCH_TOPSATENOP_WITH_RAW_ATEN_DEF(

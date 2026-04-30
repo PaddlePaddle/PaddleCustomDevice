@@ -18,14 +18,14 @@
 namespace custom_kernel {
 template <typename T, typename Context>
 void LayerNormKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const paddle::optional<phi::DenseTensor>& scale_opt,
-                     const paddle::optional<phi::DenseTensor>& bias_opt,
+                     const DenseTensor& x,
+                     const paddle::optional<DenseTensor>& scale_opt,
+                     const paddle::optional<DenseTensor>& bias_opt,
                      float epsilon,
                      int begin_norm_axis,
-                     phi::DenseTensor* out,
-                     phi::DenseTensor* mean,
-                     phi::DenseTensor* variance) {
+                     DenseTensor* out,
+                     DenseTensor* mean,
+                     DenseTensor* variance) {
   PADDLE_GCU_KERNEL_TRACE("layer_norm");
 
   dev_ctx.template Alloc<T>(out);
@@ -33,51 +33,47 @@ void LayerNormKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(variance);
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
 
     std::vector<int64_t> scale_bias_shape;
     for (int64_t i = begin_norm_axis; i < x.dims().size(); ++i) {
       scale_bias_shape.push_back(x.dims().at(i));
     }
 
-    phi::DenseTensor scale_opt_x;
+    DenseTensor scale_opt_x;
     if (scale_opt.get_ptr() != nullptr) {
       scale_opt_x = ReshapeWithoutCopy(scale_opt.get(), scale_bias_shape);
     } else {
-      auto meta =
-          phi::DenseTensorMeta(x.dtype(), phi::make_ddim(scale_bias_shape));
+      auto meta = DenseTensorMeta(x.dtype(), phi::make_ddim(scale_bias_shape));
       scale_opt_x = TensorOnes(dev_ctx, meta);
     }
 
-    phi::DenseTensor bias_opt_x;
+    DenseTensor bias_opt_x;
     if (bias_opt.get_ptr() != nullptr) {
       bias_opt_x = ReshapeWithoutCopy(bias_opt.get(), scale_bias_shape);
     } else {
-      auto meta =
-          phi::DenseTensorMeta(x.dtype(), phi::make_ddim(scale_bias_shape));
+      auto meta = DenseTensorMeta(x.dtype(), phi::make_ddim(scale_bias_shape));
       bias_opt_x = TensorZeros(dev_ctx, meta);
     }
 
-    if (x.dtype() == phi::DataType::FLOAT16) {
-      if (scale_opt_x.dtype() != phi::DataType::FLOAT16) {
+    if (x.dtype() == DataType::FLOAT16) {
+      if (scale_opt_x.dtype() != DataType::FLOAT16) {
         scale_opt_x =
-            custom_kernel::Cast(dev_ctx, scale_opt_x, phi::DataType::FLOAT16);
+            custom_kernel::Cast(dev_ctx, scale_opt_x, DataType::FLOAT16);
       }
-      if (bias_opt_x.dtype() != phi::DataType::FLOAT16) {
+      if (bias_opt_x.dtype() != DataType::FLOAT16) {
         bias_opt_x =
-            custom_kernel::Cast(dev_ctx, bias_opt_x, phi::DataType::FLOAT16);
+            custom_kernel::Cast(dev_ctx, bias_opt_x, DataType::FLOAT16);
       }
     }
 
-    phi::DenseTensor weight =
-        MaybeCreateOrTrans64To32bits(dev_ctx, scale_opt_x);
-    phi::DenseTensor bias = MaybeCreateOrTrans64To32bits(dev_ctx, bias_opt_x);
+    DenseTensor weight = MaybeCreateOrTrans64To32bits(dev_ctx, scale_opt_x);
+    DenseTensor bias = MaybeCreateOrTrans64To32bits(dev_ctx, bias_opt_x);
 
-    phi::DenseTensor output =
-        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
-    phi::DenseTensor mean_output =
+    DenseTensor output = MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    DenseTensor mean_output =
         MaybeCreateOrTrans64To32bits(dev_ctx, *mean, false);
-    phi::DenseTensor variance_output =
+    DenseTensor variance_output =
         MaybeCreateOrTrans64To32bits(dev_ctx, *variance, false);
 
     double epsilon_d = epsilon;
@@ -155,17 +151,17 @@ void LayerNormKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LayerNormGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const paddle::optional<phi::DenseTensor>& scale_opt,
-                         const paddle::optional<phi::DenseTensor>& bias,
-                         const phi::DenseTensor& mean,
-                         const phi::DenseTensor& variance,
-                         const phi::DenseTensor& out_grad,
+                         const DenseTensor& x,
+                         const paddle::optional<DenseTensor>& scale_opt,
+                         const paddle::optional<DenseTensor>& bias,
+                         const DenseTensor& mean,
+                         const DenseTensor& variance,
+                         const DenseTensor& out_grad,
                          float epsilon,
                          int begin_norm_axis,
-                         phi::DenseTensor* x_grad,
-                         phi::DenseTensor* scale_grad,
-                         phi::DenseTensor* bias_grad) {
+                         DenseTensor* x_grad,
+                         DenseTensor* scale_grad,
+                         DenseTensor* bias_grad) {
   PADDLE_GCU_KERNEL_TRACE("layer_norm_grad");
   dev_ctx.template Alloc<T>(x_grad);
 

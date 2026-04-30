@@ -19,9 +19,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void MemcpyKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
+                  const DenseTensor& x,
                   int dst_place_type,
-                  phi::DenseTensor* out) {
+                  DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("memcpy");
   if (!x.initialized()) {
     return;
@@ -37,7 +37,7 @@ void MemcpyKernel(const Context& dev_ctx,
   //       CUSTOM_DEVICE = 6,
   //     };
   if (dst_place_type == 0) {  // CPU
-    TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
+    TensorCopy(dev_ctx, x, false, out, CPUPlace());
   } else if (dst_place_type == 6) {  // custom_device
     TensorCopy(dev_ctx, x, false, out, dev_ctx.GetPlace());
   } else {
@@ -49,9 +49,9 @@ void MemcpyKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MemcpyH2DKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      int dst_place_type,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("memcpy_h2d");
   TensorCopy(dev_ctx, x, false, out, dev_ctx.GetPlace());
   dev_ctx.Wait();
@@ -60,15 +60,15 @@ void MemcpyH2DKernel(const Context& dev_ctx,
 // used in new executor, for memory copy from device to host
 template <typename T, typename Context>
 void MemcpyD2HKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
+                     const DenseTensor& x,
                      int dst_place_type,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("memcpy_d2h");
   if (x.storage_properties_initialized()) {
     PADDLE_THROW(
         phi::errors::Unimplemented("storage_properties is not supported yet."));
   } else {
-    TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
+    TensorCopy(dev_ctx, x, false, out, CPUPlace());
   }
   dev_ctx.Wait();
 }

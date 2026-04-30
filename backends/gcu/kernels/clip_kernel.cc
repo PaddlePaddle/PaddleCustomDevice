@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ClipKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+                const DenseTensor& x,
                 const phi::Scalar& min,
                 const phi::Scalar& max,
-                phi::DenseTensor* out) {
+                DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("clip");
   dev_ctx.template Alloc<T>(out);
 
@@ -64,11 +64,11 @@ void ClipKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ClipGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
+                    const DenseTensor& x,
+                    const DenseTensor& dout,
                     const phi::Scalar& min,
                     const phi::Scalar& max,
-                    phi::DenseTensor* dx) {
+                    DenseTensor* dx) {
   PADDLE_GCU_KERNEL_TRACE("clip_grad");
   dev_ctx.template Alloc<T>(dx);
   if (LaunchAOTKernel()) {

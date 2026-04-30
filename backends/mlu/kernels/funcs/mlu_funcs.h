@@ -25,9 +25,9 @@ namespace custom_kernel {
  */
 template <typename Context>
 inline void TensorCopy(const Context& dev_ctx,
-                       const phi::DenseTensor& src,
+                       const DenseTensor& src,
                        bool blocking,
-                       phi::DenseTensor* dst,
+                       DenseTensor* dst,
                        const phi::Place& dst_place = phi::CustomPlace()) {
   dev_ctx.Wait();
   auto* src_ptr = src.data();
@@ -103,7 +103,7 @@ template <typename T>
 inline void TensorFromVector(const phi::CustomContext& ctx,
                              const std::vector<T>& src,
                              const phi::CustomContext& dev_ctx,
-                             phi::DenseTensor* dst) {
+                             DenseTensor* dst) {
   auto dst_place = dev_ctx.GetPlace();
   C_Device_st device{dst_place.GetDeviceId()};
   auto src_ptr = static_cast<const void*>(src.data());
@@ -128,7 +128,7 @@ template <>
 inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
                                    const std::vector<bool>& src,
                                    const phi::CustomContext& dev_ctx,
-                                   phi::DenseTensor* dst) {
+                                   DenseTensor* dst) {
   // vector<bool> has no data() member, use array instead.
   // See details:
   // https://stackoverflow.com/questions/46115669/why-does-stdvectorbool-have-no-data/46115714
@@ -166,7 +166,7 @@ template <typename T>
 inline void TensorFromVector(const phi::CustomContext& ctx,
                              const std::vector<T>& src,
                              const phi::CPUContext& dev_ctx,
-                             phi::DenseTensor* dst) {
+                             DenseTensor* dst) {
   auto dst_place = dev_ctx.GetPlace();
   C_Device_st device{dst_place.GetDeviceId()};
   auto src_ptr = static_cast<const void*>(src.data());
@@ -191,7 +191,7 @@ template <>
 inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
                                    const std::vector<bool>& src,
                                    const phi::CPUContext& dev_ctx,
-                                   phi::DenseTensor* dst) {
+                                   DenseTensor* dst) {
   auto dst_place = dev_ctx.GetPlace();
   PADDLE_THROW(phi::errors::Unimplemented(
       "TensorFromVector on %s is not supported.", dst_place));
@@ -202,7 +202,7 @@ void TensorFromArray(const phi::CustomContext& ctx,
                      const T* src,
                      const size_t& array_size,
                      const phi::CustomContext& dev_ctx,
-                     phi::DenseTensor* dst) {
+                     DenseTensor* dst) {
   auto dst_place = dev_ctx.GetPlace();
   C_Device_st device{dst_place.GetDeviceId()};
   auto src_ptr = static_cast<const void*>(src);
@@ -227,7 +227,7 @@ void TensorFromArray(const phi::CustomContext& ctx,
  */
 template <typename T>
 inline void TensorToVector(const phi::CustomContext& ctx,
-                           const phi::DenseTensor& src,
+                           const DenseTensor& src,
                            const phi::CustomContext& dev_ctx,
                            std::vector<T>* dst) {
   auto src_ptr = static_cast<const void*>(src.data<T>());
@@ -251,7 +251,7 @@ inline void TensorToVector(const phi::CustomContext& ctx,
 
 template <>
 inline void TensorToVector<bool>(const phi::CustomContext& ctx,
-                                 const phi::DenseTensor& src,
+                                 const DenseTensor& src,
                                  const phi::CustomContext& dev_ctx,
                                  std::vector<bool>* dst) {
   auto src_ptr = static_cast<const void*>(src.data<bool>());
@@ -359,11 +359,10 @@ inline void ExtractNCDWH(const phi::DDim& dims,
 
 template <typename T>
 inline std::vector<T> get_new_data_from_tensor(
-    const phi::CustomContext& dev_ctx,
-    const phi::DenseTensor* new_data_tensor) {
+    const phi::CustomContext& dev_ctx, const DenseTensor* new_data_tensor) {
   std::vector<T> vec_new_data;
   auto place = new_data_tensor->place();
-  phi::DenseTensor cpu_starts_tensor;
+  DenseTensor cpu_starts_tensor;
   if (place.GetType() == phi::AllocationType::CUSTOM) {
     // if tensor on CUSTOM place, do memcpy to host
     cpu_starts_tensor.Resize(new_data_tensor->dims());
@@ -381,22 +380,21 @@ inline std::vector<T> get_new_data_from_tensor(
 }
 
 template <typename T>
-inline phi::DenseTensor ReshapeToMatrix(const phi::DenseTensor& src,
-                                        T num_col_dims) {
+inline DenseTensor ReshapeToMatrix(const DenseTensor& src, T num_col_dims) {
   int rank = src.dims().size();
   PADDLE_ENFORCE_GE(
       rank,
       2,
       phi::errors::InvalidArgument(
           "'ReshapeToMatrix()' is only used for flatten high rank "
-          "tensors to matrixs. The dimensions of phi::DenseTensor must be "
+          "tensors to matrixs. The dimensions of DenseTensor must be "
           "greater or equal than 2. "
-          "But received dimensions of phi::DenseTensor is %d",
+          "But received dimensions of DenseTensor is %d",
           rank));
   if (rank == 2) {
     return src;
   }
-  phi::DenseTensor res;
+  DenseTensor res;
   res = src;
   res.Resize(phi::flatten_to_2d(src.dims(), num_col_dims));
   return res;

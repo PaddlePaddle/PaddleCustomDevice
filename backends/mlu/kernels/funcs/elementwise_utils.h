@@ -120,11 +120,11 @@ inline void GetReduceAxesAndDstDims(const int axis,
 
 template <typename T>
 void MLUOpTensorKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
+                       const DenseTensor& x,
+                       const DenseTensor& y,
                        int axis,
                        const cnnlOpTensorDesc_t op_tensor_type,
-                       phi::DenseTensor* out) {
+                       DenseTensor* out) {
   PADDLE_ENFORCE_EQ((op_tensor_type == CNNL_OP_TENSOR_ADD) ||
                         (op_tensor_type == CNNL_OP_TENSOR_SUB) ||
                         (op_tensor_type == CNNL_OP_TENSOR_MUL),
@@ -241,10 +241,10 @@ inline void MLUBinary<POW>(const Context& dev_ctx,
 
 template <BINARY_FUNCTOR Functor, typename T>
 void MLUBinaryOp(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
+                 const DenseTensor& x,
+                 const DenseTensor& y,
                  int axis,
-                 phi::DenseTensor* out) {
+                 DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   Tensor x_t, y_t;
   x_t = x;
@@ -319,8 +319,8 @@ inline void MLUUnary<RECIPROCAL>(const Context& dev_ctx,
 
 template <UNARY_FUNCTOR Functor, typename Tin, typename Tout = Tin>
 void MLUUnaryOp(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+                const DenseTensor& x,
+                DenseTensor* out) {
   dev_ctx.template Alloc<Tout>(out);
 
   MLUCnnlTensorDesc x_desc(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType<Tin>());
@@ -342,12 +342,12 @@ enum MINMAX_GRAD_FUNCTOR {
 };
 template <MINMAX_GRAD_FUNCTOR Functor, typename Tin, typename Tout = Tin>
 void MLUMinMaxGradHelper(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& y,
-                         const phi::DenseTensor& dout,
+                         const DenseTensor& x,
+                         const DenseTensor& y,
+                         const DenseTensor& dout,
                          int axis,
-                         phi::DenseTensor* dx,
-                         phi::DenseTensor* dy) {
+                         DenseTensor* dx,
+                         DenseTensor* dy) {
   const auto& x_dims = x.dims();
   const auto& y_dims = y.dims();
   axis =

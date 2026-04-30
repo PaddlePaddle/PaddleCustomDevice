@@ -24,7 +24,7 @@ void ArangeRawKernel(const Context& dev_ctx,
                      const T start_value,
                      const T end_value,
                      const T step_value,
-                     phi::DenseTensor* out) {
+                     DenseTensor* out) {
   int64_t size = 0;
   GetSize(start_value, end_value, step_value, &size);
 

@@ -1,8 +1,10 @@
 # PaddlePaddle Custom Device Implementaion for Custom Intel GPU
 
+English | [简体中文](./README_cn.md)
+
 Please refer to the following steps to compile, install and verify the custom device implementaion for Custom Intel GPU.
 
-## Activate oneapi env vars
+## Activate Intel oneAPI env vars
 
 ```bash
 source load.sh

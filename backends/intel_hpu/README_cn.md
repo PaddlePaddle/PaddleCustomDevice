@@ -40,12 +40,12 @@ pip install dist/paddle_habana_hpu*.whl
 ```bash
 # 列出可用硬件后端
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
-# 期待输出以下结果
+# 预期输出以下结果
 ['intel_hpu']
 
 # 运行简单模型
 python ../tests/test_MNIST_model.py
-# 期待输出以下类似结果
+# 预期输出以下类似结果
 ... ...
 Epoch 0 step 0, Loss = [2.2956038], Accuracy = 0.15625
 Epoch 0 step 100, Loss = [2.1552896], Accuracy = 0.3125

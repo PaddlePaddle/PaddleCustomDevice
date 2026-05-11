@@ -22,7 +22,7 @@ git submodule sync
 git submodule update --remote --init --recursive
 ```
 
-## Compile and Install
+## 编译安装
 
 ```bash
 # 进入 Intel GPU Backend 目录

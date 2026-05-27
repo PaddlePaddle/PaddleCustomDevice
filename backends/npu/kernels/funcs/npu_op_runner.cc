@@ -42,6 +42,11 @@ static aclTensorDesc *float_status_desc_ = NULL;
 
 FLAGS_DEFINE_bool(npu_check_nan_inf, false, "check nan/inf of all npu kernels");
 FLAGS_DEFINE_bool(npu_blocking_run, false, "enable sync for all npu kernels");
+FLAGS_DEFINE_bool(npu_skip_float_status,
+                  false,
+                  "skip NPU float status ACL ops for devices that do not "
+                  "support NPUAllocFloatStatus/NPUClearFloatStatus/"
+                  "NPUGetFloatStatus");
 FLAGS_DEFINE_bool(
     npu_storage_format,
     false,
@@ -495,6 +500,9 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) {
 }
 
 void NpuOpRunner::InitFloatStatus(aclrtStream stream) const {
+    if (FLAGS_npu_skip_float_status) {
+    return;
+  }
   // Init float_status_desc_ and float_status_buffer_ once, if
   // npu_check_nan_inf is needed, only do ClearFloatStatus here.
   if (float_status_desc_ && float_status_buffer_) {
@@ -571,6 +579,9 @@ void NpuOpRunner::PrintOpInfo() const {
   }
 }
 bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
+  if (FLAGS_npu_skip_float_status) {
+    return false;
+  }
   std::string op_type = "NPUGetFloatStatus";
   // Output
   const std::vector<int64_t> dims{8};
@@ -624,7 +635,9 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   PADDLE_ENFORCE_NOT_NULL(
       stream,
       phi::errors::External("Stream should not be null, please check."));
-  InitFloatStatus(stream);
+  if (!FLAGS_npu_skip_float_status) {
+    InitFloatStatus(stream);
+  }
   VLOG(1) << "NpuOpRunner: " << op_type_ << "\n"
           << GetOpDescString(input_descs_, "Input")
           << GetOpDescString(output_descs_, "Output");

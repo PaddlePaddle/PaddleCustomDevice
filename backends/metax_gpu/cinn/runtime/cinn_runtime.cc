@@ -28,8 +28,11 @@ namespace metax {
 C_Status MetaxModuleLoad(void* dev_ptr, const char* path, void** mod_out) {
   CUmodule module;
   CUresult err = cuModuleLoad(&module, path);
-  if (err != CUDA_SUCCESS) return C_Status::C_FAILED;
-
+  if (err != CUDA_SUCCESS) {
+    std::cerr << "[MetaxModuleLoad] FAILED to load module from: " << path
+              << ", error=" << err << std::endl;
+    return C_Status::C_FAILED;
+  }
   *mod_out = reinterpret_cast<void*>(module);
   return C_Status::C_SUCCESS;
 }
@@ -47,8 +50,11 @@ C_Status MetaxGetKernelAddress(void* dev_ptr,
                                void** func_out) {
   CUfunction func;
   CUresult err = cuModuleGetFunction(&func, (CUmodule)module_handle, func_name);
-  if (err != CUDA_SUCCESS) return C_Status::C_FAILED;
-
+  if (err != CUDA_SUCCESS) {
+    std::cerr << "[MetaxGetKernelAddress] FAILED func_name=" << func_name
+              << " module=" << module_handle << " error=" << err << std::endl;
+    return C_Status::C_FAILED;
+  }
   *func_out = reinterpret_cast<void*>(func);
   return C_Status::C_SUCCESS;
 }
@@ -79,6 +85,43 @@ C_Status MetaxLaunchKernel(void* dev_ptr,
                                 args,
                                 nullptr);
   if (err != CUDA_SUCCESS) return C_Status::C_FAILED;
+  return C_Status::C_SUCCESS;
+}
+
+// Launch cooperative kernel: uses cuLaunchCooperativeKernel (mapped to
+// wcudaLaunchCooperativeKernel -> mcLaunchCooperativeKernel via cu-bridge)
+// to guarantee all thread blocks are co-resident on the GPU, which is
+// required by cross-block grid_reduce barriers (__cinn_grid_sync).
+C_Status MetaxLaunchCooperativeKernel(void* dev_ptr,
+                                      void* func_ptr,
+                                      void** args,
+                                      int num_args,
+                                      int gx,
+                                      int gy,
+                                      int gz,
+                                      int bx,
+                                      int by,
+                                      int bz,
+                                      int shm,
+                                      void* stream) {
+  CUmodule module;
+  CUresult errModule = cuFuncGetModule(&module ,static_cast<CUfunction>(func_ptr));
+  if (errModule != CUDA_SUCCESS) {
+    std::cerr << "[MetaxLaunchCooperativeKernel] FAILED Module error=" << errModule
+              << std::endl;
+    return C_Status::C_FAILED;
+  }
+  CUresult err = cuLaunchCooperativeKernel(static_cast<CUfunction>(func_ptr),
+                                           gx, gy, gz,
+                                           bx, by, bz,
+                                           shm,
+                                           static_cast<CUstream>(stream),
+                                           args);
+  if (err != CUDA_SUCCESS) {
+    std::cerr << "[MetaxLaunchCooperativeKernel] FAILED error=" << err
+              << std::endl;
+    return C_Status::C_FAILED;
+  }
   return C_Status::C_SUCCESS;
 }
 

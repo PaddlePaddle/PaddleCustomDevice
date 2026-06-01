@@ -39,6 +39,7 @@ namespace metax {
 // ============================================================
 static const char* kMacaRuntimeSource = R"MACA_SOURCE(
 #pragma once
+#include <cooperative_groups.h>
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
@@ -780,12 +781,43 @@ __device__ inline argidx_fp32_i64 cinn_discrete_reduce_min_argidx_fp32_i64(
   CINN_DISCRETE_REDUCE_IMPL(min_argidx_fp32_i64, value);
 }
 
+// ===============================================================
+// Grid-wide Barrier (emulates cooperative_groups::this_grid().sync())
+// Uses a sense-reversing barrier so it works correctly when called
+// multiple times within the same kernel.
+// REQUIREMENT: all thread blocks must be co-resident on the GPU.
+// ===============================================================
+__device__ unsigned int __cinn_grid_barrier_count[8192];
+__device__ unsigned int __cinn_grid_barrier_flag[8192];
+
+__device__ inline void __cinn_grid_sync() {
+  __threadfence();
+  __syncthreads();
+  if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+    unsigned int expected =
+        atomicAdd(&__cinn_grid_barrier_flag[blockIdx.x], 0u);
+    unsigned int arrived =
+        atomicAdd(&__cinn_grid_barrier_count[blockIdx.x], 1u) + 1u;
+    if (arrived == (unsigned int)gridDim.y) {
+      atomicExch(&__cinn_grid_barrier_count[blockIdx.x], 0u);
+      __threadfence();
+      atomicExch(&__cinn_grid_barrier_flag[blockIdx.x], 1u - expected);
+      __threadfence();
+    } else {
+      while (atomicAdd(&__cinn_grid_barrier_flag[blockIdx.x], 0u) ==
+             expected) {
+      }
+    }
+  }
+  __syncthreads();
+}
+
 #define CINN_GRID_REDUCE_IMPL(REDUCE_TYPE, init_value, DTYPE)               \
-  DTYPE tmp_val = init_value;                                               \
-  for (int y = 0; y < gridDim.y; y++) {                                     \
-    tmp_val =                                                               \
-        cinn_##REDUCE_TYPE(tmp_val, mem[y * spatial_size + spatial_index]); \
-  }                                                                         \
+  cooperative_groups::this_grid().sync();                                    \
+  DTYPE tmp_val = init_value;                                                \
+  for (int y = 0; y < gridDim.y; y++) {                                      \
+    tmp_val = cinn_##REDUCE_TYPE(tmp_val, mem[y * spatial_size + spatial_index]); \
+  }                                                                          \
   return tmp_val;
 
 #define CINN_GRID_REDUCE_MACRO(REDUCE_TYPE, INIT_VAL, DTYPE)           \
@@ -799,7 +831,28 @@ EXPAND_REDUCE_INT64_MACRO(CINN_GRID_REDUCE_MACRO)
 EXPAND_REDUCE_FP32_MACRO(CINN_GRID_REDUCE_MACRO)
 EXPAND_REDUCE_FP64_MACRO(CINN_GRID_REDUCE_MACRO)
 EXPAND_REDUCE_BOOL_MACRO(CINN_GRID_REDUCE_MACRO)
-EXPAND_REDUCE_FP16_MACRO(CINN_GRID_REDUCE_MACRO)
+
+// FP16 grid reduce: accumulate in FP32 to avoid precision loss when summing
+// multiple FP16 block-level partial sums. Each partial sum can have magnitude
+// O(block_size * input_scale), and accumulating N such values in FP16 incurs
+// error proportional to N * magnitude * eps_fp16. Using FP32 for the inter-
+// block accumulation step keeps the error at FP16 quantization level only.
+#define CINN_GRID_REDUCE_FP16_MACRO(FP16_TYPE, FP32_FUNC, INIT_VAL)           \
+  __device__ inline float16 cinn_grid_reduce_##FP16_TYPE(                      \
+      const float16 *mem, int spatial_size, int spatial_index) {               \
+    cooperative_groups::this_grid().sync();                                     \
+    float tmp_val = (float)(INIT_VAL);                                          \
+    for (int y = 0; y < gridDim.y; y++) {                                       \
+      tmp_val = FP32_FUNC(                                                       \
+          tmp_val, __half2float(mem[y * spatial_size + spatial_index]));        \
+    }                                                                            \
+    return __float2half(tmp_val);                                                \
+  }
+
+CINN_GRID_REDUCE_FP16_MACRO(sum_fp16,  cinn_sum_fp32,  0.0f)
+CINN_GRID_REDUCE_FP16_MACRO(prod_fp16, cinn_prod_fp32, 1.0f)
+CINN_GRID_REDUCE_FP16_MACRO(max_fp16,  cinn_max_fp32,  -65504.0f)
+CINN_GRID_REDUCE_FP16_MACRO(min_fp16,  cinn_min_fp32,   65504.0f)
 
 __device__ inline bool cinn_grid_reduce_update_semaphore(int *semaphores) {
   __shared__ bool done;
@@ -1238,6 +1291,10 @@ C_Status MetaxCompile(void* dev_ptr,
     src_file << code;
     src_file.close();
   }
+  // std::cout << "[MetaX] src_file content written to: " << src_path
+  //             << "\n--- BEGIN src_file ---\n"
+  //             << kMacaRuntimeSource << "\n" << code
+  //             << "\n--- END src_file ---" << std::endl;
 
   // 2. Resolve compiler binary path
   const char* maca_path_env = std::getenv("MACA_PATH");

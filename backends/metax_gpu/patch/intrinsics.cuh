@@ -109,7 +109,7 @@ MGPU_DEVICE uint prmt_ptx(uint a, uint b, uint index) {
 // shfl_up
 
 __device__ __forceinline__ float shfl_up(float var,
-	unsigned int delta, int width = 32) {
+	unsigned int delta, int width = 64) {
 
 #if __CUDA_ARCH__ >= 300
 #if defined(__CUDACC_VER_MAJOR__) && (__CUDACC_VER_MAJOR__ >= 9)
@@ -122,7 +122,7 @@ __device__ __forceinline__ float shfl_up(float var,
 }
 
 __device__ __forceinline__ double shfl_up(double var,
-	unsigned int delta, int width = 32) {
+	unsigned int delta, int width = 64) {
 
 #if __CUDA_ARCH__ >= 300
 	int2 p = mgpu::double_as_int2(var);
@@ -167,48 +167,66 @@ __device__ __forceinline__ double shfl_up(double var,
 // 	return result;
 // }
 
-MGPU_DEVICE int shfl_add(int x, int offset, int width = 32)
-{
-#if __CUDA_ARCH__ >= 300
-    unsigned fullMask = 0xffffffffU;
-    unsigned mask = (width == 32) ? fullMask : ((1U << width) - 1U);
-    int src = 0;
-#if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ >= 9
-    src = __shfl_up_sync(mask, x, offset, width);   // CUDA 9+
-#else
-    src = __shfl_up(x, offset, width);              // CUDA 8-
-#endif
-    int lane = threadIdx.x & 31;
-    return (lane >= offset) ? (src + x) : x;
-#else
-    return x;
-#endif
-}
+// MGPU_DEVICE int shfl_add(int x, int offset, int width = 32)
+// {
+// #if __CUDA_ARCH__ >= 300
+//     unsigned fullMask = 0xffffffffU;
+//     unsigned mask = (width == 32) ? fullMask : ((1U << width) - 1U);
+//     int src = 0;
+// #if defined(__CUDACC_VER_MAJOR__) && __CUDACC_VER_MAJOR__ >= 9
+//     src = __shfl_up_sync(mask, x, offset, width);   // CUDA 9+
+// #else
+//     src = __shfl_up(x, offset, width);              // CUDA 8-
+// #endif
+//     int lane = threadIdx.x & 31;
+//     return (lane >= offset) ? (src + x) : x;
+// #else
+//     return x;
+// #endif
+// }
 
-MGPU_DEVICE int shfl_max(int x, int offset, int width = WARP_SIZE) {
-	int result = 0;
-#if __CUDA_ARCH__ >= 300
-	int mask = (WARP_SIZE - width)<< 8;
-#if defined(__CUDACC_VER_MAJOR__) && (__CUDACC_VER_MAJOR__ >= 9)
-	asm(
-		"{.reg .s32 r0;"
-		".reg .pred p;"
-		"shfl.up.sync.b32 r0|p, %1, %2, %3, 0xFFFFFFFF;"
-		"@p max.s32 r0, r0, %4;"
-		"mov.s32 %0, r0; }"
-		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(x));
-#else
-	asm(
-		"{.reg .s32 r0;"
-		".reg .pred p;"
-		"shfl.up.b32 r0|p, %1, %2, %3;"
-		"@p max.s32 r0, r0, %4;"
-		"mov.s32 %0, r0; }"
-		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(x));
-#endif
-#endif
-	return result;
-}
+ MGPU_DEVICE int shfl_add(int x, int offset, int width = WARP_SIZE) {
+	unsigned int lane_id = (unsigned)(threadIdx.x % (width > 0 ? width : 1));
+	int result = __shfl_up_sync(0xffffffffffffffffUL, x, offset, width);
+	if (lane_id < (unsigned)width && lane_id >= (unsigned)offset)
+		result += x;
+ 	return result;
+ }
+ 
+
+// MGPU_DEVICE int shfl_max(int x, int offset, int width = WARP_SIZE) {
+// 	int result = 0;
+// #if __CUDA_ARCH__ >= 300
+// 	int mask = (WARP_SIZE - width)<< 8;
+// #if defined(__CUDACC_VER_MAJOR__) && (__CUDACC_VER_MAJOR__ >= 9)
+// 	asm(
+// 		"{.reg .s32 r0;"
+// 		".reg .pred p;"
+// 		"shfl.up.sync.b32 r0|p, %1, %2, %3, 0xFFFFFFFF;"
+// 		"@p max.s32 r0, r0, %4;"
+// 		"mov.s32 %0, r0; }"
+// 		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(x));
+// #else
+// 	asm(
+// 		"{.reg .s32 r0;"
+// 		".reg .pred p;"
+// 		"shfl.up.b32 r0|p, %1, %2, %3;"
+// 		"@p max.s32 r0, r0, %4;"
+// 		"mov.s32 %0, r0; }"
+// 		: "=r"(result) : "r"(x), "r"(offset), "r"(mask), "r"(x));
+// #endif
+// #endif
+// 	return result;
+// }
+
+ MGPU_DEVICE int shfl_max(int x, int offset, int width = WARP_SIZE) {
+	unsigned int lane_id = (unsigned)(threadIdx.x % (width > 0 ? width : 1));
+	int result = __shfl_up_sync(0xffffffffffffffffUL, x, offset, width);
+	if (lane_id < (unsigned)width && lane_id >= (unsigned)offset)
+		result = (result > x) ? result : x;
+ 	return result;
+ }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // brev, popc, clz, bfe, bfi, prmt
@@ -260,31 +278,31 @@ MGPU_HOST_DEVICE int ffs(int x) {
 }
 
 MGPU_HOST_DEVICE uint bfe(uint x, uint bit, uint numBits) {
-#if __CUDA_ARCH__ >= 200
-	return bfe_ptx(x, bit, numBits);
-#else
+// #if __CUDA_ARCH__ >= 200
+// 	return bfe_ptx(x, bit, numBits);
+// #else
 	return ((1<< numBits) - 1) & (x>> bit);
-#endif
+// #endif
 }
 
 MGPU_HOST_DEVICE uint bfi(uint x, uint y, uint bit, uint numBits) {
 	uint result;
-#if __CUDA_ARCH__ >= 200
-	result = bfi_ptx(x, y, bit, numBits);
-#else
+// #if __CUDA_ARCH__ >= 200
+// 	result = bfi_ptx(x, y, bit, numBits);
+// #else
 	if(bit + numBits > 32) numBits = 32 - bit;
 	uint mask = ((1<< numBits) - 1)<< bit;
 	result = y & ~mask;
 	result |= mask & (x<< bit);
-#endif
+// #endif
 	return result;
 }
 
 MGPU_HOST_DEVICE uint prmt(uint a, uint b, uint index) {
 	uint result;
-#if __CUDA_ARCH__ >= 200
-	result = prmt_ptx(a, b, index);
-#else
+// #if __CUDA_ARCH__ >= 200
+// 	result = prmt_ptx(a, b, index);
+// #else
 	result = 0;
 	for(int i = 0; i < 4; ++i) {
 		uint sel = 0xf & (index>> (4 * i));
@@ -293,7 +311,7 @@ MGPU_HOST_DEVICE uint prmt(uint a, uint b, uint index) {
 		if(8 & sel) x = (128 & x) ? 0xff : 0;
 		result |= x<< (8 * i);
 	}
-#endif
+// #endif
 	return result;
 }
 

@@ -27,3 +27,4 @@ cd ../../Paddle/
 git apply --verbose ../backends/metax_gpu/patch/paddle.patch
 cd -
 # cp -r patch/intrinsics.cuh ../../Paddle/third_party/warpctc/include/contrib/moderngpu/include/device/
+cp -r ./patch/warpctc.patch ../../Paddle/third_party/warpctc/

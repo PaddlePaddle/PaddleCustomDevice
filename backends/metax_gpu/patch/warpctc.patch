@@ -1,0 +1,46 @@
+diff --git a/include/contrib/moderngpu/include/device/devicetypes.cuh b/include/contrib/moderngpu/include/device/devicetypes.cuh
+index 282bedd..d8e094a 100644
+--- a/include/contrib/moderngpu/include/device/devicetypes.cuh
++++ b/include/contrib/moderngpu/include/device/devicetypes.cuh
+@@ -53,8 +53,8 @@ namespace mgpu {
+ #define MGPU_DEVICE __device__ INLINESYMBOL
+ #define MGPU_HOST_DEVICE __host__ __device__ INLINESYMBOL
+ 
+-const int WARP_SIZE = 32;
+-const int LOG_WARP_SIZE = 5;
++const int WARP_SIZE = 64;
++const int LOG_WARP_SIZE = 6;
+ 
+ ////////////////////////////////////////////////////////////////////////////////
+ // Device-side comparison operators
+diff --git a/include/detail/gpu_ctc.h b/include/detail/gpu_ctc.h
+index cafe6ae..0cf5fc2 100644
+--- a/include/detail/gpu_ctc.h
++++ b/include/detail/gpu_ctc.h
+@@ -355,9 +355,9 @@ GpuCTC<ProbT>::create_metadata_and_choose_config(const int* const flat_labels,
+     constexpr int num_configs = 12;
+ 
+     int config_NT[num_configs] =
+-        {32, 64, 128, 64, 128, 32, 64, 128, 64, 128, 128, 128};
++        {64, 64, 128, 64, 128, 64, 64, 128, 64, 128, 128, 128};
+     int config_VT[num_configs] =
+-        { 1,  1,   1,  3,   2,  9,  6,   4,  9,   6,   9,  10};
++        { 1,  1,   1,  3,   2,  5,  6,   4,  9,   6,   9,  10};
+ 
+     best_config = 0;
+ 
+@@ -383,12 +383,12 @@ GpuCTC<ProbT>::launch_gpu_kernels(const ProbT* const probs,
+                                   bool l_b) {
+ 
+     switch(config) {
+-        case 0:   {return launch_alpha_beta_kernels<32,   1>(probs, grads, l_a, l_b);}
++        case 0:   {return launch_alpha_beta_kernels<64,   1>(probs, grads, l_a, l_b);}
+         case 1:   {return launch_alpha_beta_kernels<64,   1>(probs, grads, l_a, l_b);}
+         case 2:   {return launch_alpha_beta_kernels<128,  1>(probs, grads, l_a, l_b);}
+         case 3:   {return launch_alpha_beta_kernels<64,   3>(probs, grads, l_a, l_b);}
+         case 4:   {return launch_alpha_beta_kernels<128,  2>(probs, grads, l_a, l_b);}
+-        case 5:   {return launch_alpha_beta_kernels<32,   9>(probs, grads, l_a, l_b);}
++        case 5:   {return launch_alpha_beta_kernels<64,   5>(probs, grads, l_a, l_b);}
+         case 6:   {return launch_alpha_beta_kernels<64,   6>(probs, grads, l_a, l_b);}
+         case 7:   {return launch_alpha_beta_kernels<128,  4>(probs, grads, l_a, l_b);}
+         case 8:   {return launch_alpha_beta_kernels<64,   9>(probs, grads, l_a, l_b);}

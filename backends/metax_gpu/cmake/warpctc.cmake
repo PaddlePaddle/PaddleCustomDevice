@@ -44,14 +44,19 @@ else()
   )
 endif()
 
+# set(WARPCTC_METAX_PATCH
+# "${CUSTOM_DEVICE_SOURCE_DIR}/patches/warpctc-corex.patch") message(STATUS
+# "warpctc: METAX patch at PATCH step: ${WARPCTC_METAX_PATCH}")
+
 if(NOT WIN32 AND WITH_GPU)
+  # set(NVCC_FLAGS_EXTRA "${NVCC_FLAGS_EXTRA} --generate-line-info")
   if(${CMAKE_CUDA_COMPILER_VERSION} LESS 12.0 AND ${CMAKE_CXX_COMPILER_VERSION}
                                                   VERSION_GREATER 12.0)
     file(TO_NATIVE_PATH
          ${PADDLE_SOURCE_DIR}/patches/warpctc/CMakeLists.txt.patch native_src)
     set(WARPCTC_PATCH_COMMAND git checkout -- . && git checkout ${WARPCTC_TAG}
                               && patch -Nd ${SOURCE_DIR} < ${native_src} &&)
-    set(WARPCTC_CCBIN_OPTION -DCCBIN_COMPILER=${CCBIN_COMPILER})
+    set(WARPCTC_CCBIN_OPTIO -DCCBIN_COMPILER=${CCBIN_COMPILER})
   endif()
 endif()
 
@@ -66,6 +71,11 @@ endif()
 set(WARPCTC_INCLUDE_DIR
     "${WARPCTC_INSTALL_DIR}/include"
     CACHE PATH "Warp-ctc Directory" FORCE)
+
+set(WARPCTC_METAX_PATCH
+    "${PADDLE_SOURCE_DIR}/third_party/warpctc/warpctc.patch")
+message(STATUS "warpctc: METAX patch at PATCH step: ${WARPCTC_METAX_PATCH}")
+
 # Used in unit test test_WarpCTCLayer
 set(WARPCTC_LIB_DIR
     "${WARPCTC_INSTALL_DIR}/lib"
@@ -123,6 +133,11 @@ ExternalProject_Add(
   COMMAND ${WARPCTC_PATCH_CUDA_COMMAND}
   COMMAND ${COPY_COMMAND}
   COMMAND ${WARPCTC_PATHCH_ROCM_COMMAND}
+  COMMAND ${CMAKE_COMMAND} -E echo
+          "warpctc: applying metax warpctc-corex.patch..."
+  COMMAND patch -p1 -i "${WARPCTC_METAX_PATCH}"
+  COMMAND ${CMAKE_COMMAND} -E echo
+          "warpctc: metax warpctc-corex.patch applied successfully."
   # BUILD_ALWAYS    1
   CMAKE_ARGS -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
              -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
@@ -133,9 +148,11 @@ ExternalProject_Add(
              -DCMAKE_CXX_FLAGS_RELEASE=${WARPCTC_CXX_FLAGS_RELEASE}
              -DCMAKE_CXX_FLAGS_DEBUG=${WARPCTC_CXX_FLAGS_DEBUG}
              -DCMAKE_INSTALL_PREFIX=${WARPCTC_INSTALL_DIR}
-             -DWITH_GPU=${WITH_GPU}
+             # -DWITH_GPU=${WITH_GPU}
+             -DWITH_GPU=ON
              -DWITH_ROCM=${WITH_ROCM}
-             -DWITH_OMP=${USE_OMP}
+             # -DWITH_OMP=${USE_OMP}
+             -DWITH_OMP=OFF
              -DNVCC_FLAGS_EXTRA=${NVCC_FLAGS_EXTRA}
              -DWITH_TORCH=OFF
              -DCMAKE_DISABLE_FIND_PACKAGE_Torch=ON

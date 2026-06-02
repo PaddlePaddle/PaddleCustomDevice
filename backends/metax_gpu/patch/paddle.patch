@@ -1190,3 +1190,18 @@ index 7ced1fdc17..e49759ebb4 100644
  
  template <typename T>
  
+diff --git a/test/legacy_test/test_imperative_hook_for_layer.py b/test/legacy_test/test_imperative_hook_for_layer.py
+index 6655bd61d9..282844f750 100644
+--- a/test/legacy_test/test_imperative_hook_for_layer.py
++++ b/test/legacy_test/test_imperative_hook_for_layer.py
+@@ -20,6 +20,10 @@ from op_test import get_places
+ import paddle
+ from paddle import base
+ 
++from paddle.base import core
++
++core.set_cublas_switch(False)
++
+ call_forward_post_hook = False
+ call_forward_pre_hook = False
+ 
